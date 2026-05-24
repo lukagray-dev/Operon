@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED};
+use crate::ui::theme::{STYLE_INACTIVE_BORDER, STYLE_MUTED};
 
 /// Render an embedded terminal in the right panel
 /// For bootstrap: displays a placeholder message
@@ -15,7 +15,7 @@ use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED};
 pub fn render_terminal(frame: &mut Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(STYLE_ACTIVE_BORDER)
+        .border_style(STYLE_INACTIVE_BORDER)
         .title("Terminal");
 
     let placeholder_text = "Terminal integration coming soon.\n\n\
@@ -23,7 +23,7 @@ pub fn render_terminal(frame: &mut Frame, area: Rect) {
                            - Run shell commands\n\
                            - View command output\n\
                            - Interact with running processes\n\n\
-                           Press Esc to close this panel.";
+                           Press Ctrl+T to toggle this panel.";
 
     let paragraph = Paragraph::new(placeholder_text)
         .block(block)

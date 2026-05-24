@@ -57,6 +57,25 @@ pub struct AppState {
     
     /// Input scroll position (0 = bottom/latest text)
     input_scroll: u16,
+    
+    /// Whether the agent is currently generating a response
+    /// Used to show the spinner in the status bar
+    agent_thinking: bool,
+    
+    /// Whether mouse capture is enabled
+    /// When true: mouse scrolling works, terminal selection disabled
+    /// When false: terminal selection works, mouse scrolling disabled
+    #[allow(dead_code)]
+    mouse_capture_enabled: bool,
+    
+    /// Whether Ctrl+Shift is currently held down (for selection mode)
+    ctrl_shift_held: bool,
+    
+    /// Selection start position when Ctrl+Shift+drag
+    selection_start: Option<(u16, u16)>,
+    
+    /// Selection end position when Ctrl+Shift+drag
+    selection_end: Option<(u16, u16)>,
 }
 
 /// A single chat message
@@ -85,6 +104,11 @@ impl AppState {
             messages: Vec::new(),
             chat_scroll: 0,
             input_scroll: 0,
+            agent_thinking: false,
+            mouse_capture_enabled: true, // Start with mouse capture ON (scrolling enabled)
+            ctrl_shift_held: false,
+            selection_start: None,
+            selection_end: None,
         }
     }
 
@@ -234,6 +258,126 @@ impl AppState {
     #[allow(dead_code)]
     pub fn reset_chat_scroll(&mut self) {
         self.chat_scroll = 0;
+    }
+
+    /// Check if the agent is currently generating a response
+    pub fn is_agent_thinking(&self) -> bool {
+        self.agent_thinking
+    }
+
+    /// Mark agent as thinking (called when a message is sent)
+    pub fn set_agent_thinking(&mut self, thinking: bool) {
+        self.agent_thinking = thinking;
+    }
+
+    /// Check if mouse capture is enabled
+    #[allow(dead_code)]
+    pub fn is_mouse_capture_enabled(&self) -> bool {
+        self.mouse_capture_enabled
+    }
+
+    /// Toggle mouse capture mode
+    /// When enabled: mouse scrolling works, terminal selection disabled
+    /// When disabled: terminal selection works, mouse scrolling disabled
+    #[allow(dead_code)]
+    pub fn toggle_mouse_capture(&mut self) {
+        self.mouse_capture_enabled = !self.mouse_capture_enabled;
+    }
+
+    /// Set Ctrl+Shift held state (for selection mode)
+    pub fn set_ctrl_shift_held(&mut self, held: bool) {
+        self.ctrl_shift_held = held;
+        // Don't clear selection when keys are released - user needs to copy with Ctrl+C
+    }
+
+    /// Check if Ctrl+Shift is held
+    pub fn is_ctrl_shift_held(&self) -> bool {
+        self.ctrl_shift_held
+    }
+
+    /// Start selection at position
+    pub fn start_selection(&mut self, row: u16, col: u16) {
+        self.selection_start = Some((row, col));
+        self.selection_end = Some((row, col));
+    }
+
+    /// Update selection end position
+    pub fn update_selection(&mut self, row: u16, col: u16) {
+        self.selection_end = Some((row, col));
+    }
+
+    /// Clear selection (called after copying)
+    pub fn clear_selection(&mut self) {
+        self.selection_start = None;
+        self.selection_end = None;
+    }
+
+    /// Get selected text from chat
+    pub fn get_selected_text(&self) -> Option<String> {
+        let start = self.selection_start?;
+        let end = self.selection_end?;
+        
+        // Normalize so start is before end
+        let (start, end) = if start.0 < end.0 || (start.0 == end.0 && start.1 <= end.1) {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        
+        // Build text buffer from messages
+        let mut lines: Vec<String> = Vec::new();
+        
+        // Banner
+        lines.push(String::new());
+        lines.push("    ____                               ".to_string());
+        lines.push("   / __ \\____  ___  _________  ____    ".to_string());
+        lines.push("  / / / / __ \\/ _ \\/ ___/ __ \\/ __ \\   ".to_string());
+        lines.push(" / /_/ / /_/ /  __/ /  / /_/ / / / /   ".to_string());
+        lines.push(" \\____/ .___/\\___/_/   \\____/_/ /_/    ".to_string());
+        lines.push("     /_/                               ".to_string());
+        lines.push(String::new());
+        
+        if self.messages.is_empty() {
+            lines.push("Type a message and press Ctrl+Enter to send.".to_string());
+            lines.push("Type / to switch screens.".to_string());
+        } else {
+            for msg in &self.messages {
+                let label = if msg.role == "User" { "You" } else { "Operon" };
+                lines.push(format!("{}: {}", label, msg.content));
+                lines.push(String::new());
+            }
+        }
+        
+        // Extract selected text
+        let mut result = String::new();
+        for (row_idx, line) in lines.iter().enumerate() {
+            let row = row_idx as u16;
+            if row < start.0 || row > end.0 {
+                continue;
+            }
+            
+            if row == start.0 && row == end.0 {
+                // Single line
+                let s = (start.1 as usize).min(line.len());
+                let e = (end.1 as usize).min(line.len());
+                result.push_str(&line[s..e]);
+            } else if row == start.0 {
+                // First line
+                let s = (start.1 as usize).min(line.len());
+                result.push_str(&line[s..]);
+                result.push('\n');
+            } else if row == end.0 {
+                // Last line
+                let e = (end.1 as usize).min(line.len());
+                result.push_str(&line[..e]);
+            } else {
+                // Middle lines
+                result.push_str(line);
+                result.push('\n');
+            }
+        }
+        
+        if result.is_empty() { None } else { Some(result) }
     }
 
     /// Get input scroll position (deprecated - TextArea handles scrolling internally)

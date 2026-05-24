@@ -129,7 +129,25 @@ async fn run_app(
                     state.set_right_panel(Some(RightPanelContent::FilePreview(path)));
                 }
                 Action::ProcessKey(key_event) => {
-                    // Process key event with full state context
+                    // Check if Ctrl+Shift is being held (for selection mode)
+                    use crossterm::event::{KeyModifiers, KeyEventKind};
+                    let ctrl_shift = key_event.modifiers.contains(KeyModifiers::CONTROL) 
+                                  && key_event.modifiers.contains(KeyModifiers::SHIFT);
+                    
+                    // Detect when Ctrl+Shift is released - just clear the held state, don't copy
+                    if key_event.kind == KeyEventKind::Release {
+                        if state.is_ctrl_shift_held() && !ctrl_shift {
+                            state.set_ctrl_shift_held(false);
+                        }
+                        continue; // Don't process release events as actions
+                    }
+                    
+                    // Update Ctrl+Shift held state on press
+                    if ctrl_shift != state.is_ctrl_shift_held() {
+                        state.set_ctrl_shift_held(ctrl_shift);
+                    }
+                    
+                    // Process key event with full state context (only for press events)
                     // Check if screen selector is open first
                     let action = if state.is_screen_selector_open() {
                         events::key::map_screen_selector_keys(key_event)
@@ -226,6 +244,9 @@ async fn run_app(
                                     state.add_message("User".to_string(), message.clone());
                                     state.clear_input();
                                     
+                                    // Mark agent as thinking — triggers spinner in status bar
+                                    state.set_agent_thinking(true);
+                                    
                                     // Send to agent asynchronously
                                     let agent_clone = Arc::clone(&agent);
                                     let action_tx_clone = action_tx.clone();
@@ -249,43 +270,64 @@ async fn run_app(
                     }
                 }
                 Action::AgentResponse(response) => {
-                    // Add agent response to message history
-                    state.add_message("Agent".to_string(), response);
+                    // Add agent response to message history and clear thinking state
+                    state.set_agent_thinking(false);
+                    state.add_message("Operon".to_string(), response);
                 }
                 Action::ProcessMouse(mouse_event) => {
-                    // Handle mouse events
                     use crossterm::event::MouseEventKind;
                     
-                    // Determine which area the mouse is in based on Y position
-                    // This is a simplified approach - in production, you'd track exact widget areas
                     let terminal_height = terminal.size()?.height;
-                    let input_area_start = terminal_height.saturating_sub(6); // Input box is 5 lines + status bar
+                    let input_area_start = terminal_height.saturating_sub(6);
                     
-                    match mouse_event.kind {
-                        MouseEventKind::ScrollUp => {
-                            // Check if mouse is over input area or chat area
-                            if mouse_event.row >= input_area_start {
-                                // Scroll input up
-                                state.scroll_input_up(1);
-                            } else {
-                                // Scroll chat up (towards older messages)
-                                state.scroll_chat_up(3);
+                    // Check if Ctrl+Shift is held for selection mode
+                    if state.is_ctrl_shift_held() {
+                        // Selection mode: Ctrl+Shift + mouse drag
+                        match mouse_event.kind {
+                            MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
+                                if mouse_event.row < input_area_start {
+                                    state.start_selection(mouse_event.row, mouse_event.column);
+                                }
                             }
-                        }
-                        MouseEventKind::ScrollDown => {
-                            // Check if mouse is over input area or chat area
-                            if mouse_event.row >= input_area_start {
-                                // Scroll input down
-                                state.scroll_input_down(1);
-                            } else {
-                                // Scroll chat down (towards newer messages)
-                                state.scroll_chat_down(3);
+                            MouseEventKind::Drag(crossterm::event::MouseButton::Left) => {
+                                if mouse_event.row < input_area_start {
+                                    state.update_selection(mouse_event.row, mouse_event.column);
+                                }
                             }
+                            _ => {}
                         }
-                        _ => {
-                            // TODO: Handle clicks, drags, etc.
+                    } else {
+                        // Normal mode: mouse scrolling
+                        match mouse_event.kind {
+                            MouseEventKind::ScrollUp => {
+                                if mouse_event.row >= input_area_start {
+                                    state.scroll_input_up(1);
+                                } else {
+                                    state.scroll_chat_up(3);
+                                }
+                            }
+                            MouseEventKind::ScrollDown => {
+                                if mouse_event.row >= input_area_start {
+                                    state.scroll_input_down(1);
+                                } else {
+                                    state.scroll_chat_down(3);
+                                }
+                            }
+                            _ => {}
                         }
                     }
+                }
+                Action::SetCtrlShiftHeld(held) => {
+                    state.set_ctrl_shift_held(held);
+                }
+                Action::CopySelection => {
+                    if let Some(text) = state.get_selected_text() {
+                        if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                            let _ = clipboard.set_text(text);
+                        }
+                    }
+                    // Clear selection after copying
+                    state.clear_selection();
                 }
                 Action::ScrollChatUp(amount) => {
                     state.scroll_chat_up(amount);

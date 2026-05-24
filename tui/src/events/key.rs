@@ -23,9 +23,11 @@ use crate::state::screen::ActiveScreen;
 pub fn map_key(key: KeyEvent, active_screen: &ActiveScreen) -> Option<Action> {
     // Global keybinds that work on all screens
     match (key.code, key.modifiers) {
-        // Quit application
+        // Quit application (Ctrl+Q only)
         (KeyCode::Char('q'), KeyModifiers::CONTROL) => return Some(Action::Quit),
-        (KeyCode::Char('c'), KeyModifiers::CONTROL) => return Some(Action::Quit),
+        
+        // Copy selected text (Ctrl+C)
+        (KeyCode::Char('c'), KeyModifiers::CONTROL) => return Some(Action::CopySelection),
         
         // Toggle terminal panel
         (KeyCode::Char('t'), KeyModifiers::CONTROL) => {

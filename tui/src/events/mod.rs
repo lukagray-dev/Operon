@@ -37,15 +37,13 @@ impl EventHandler {
                     if let Ok(event) = event::read() {
                         match event {
                             Event::Key(key_event) => {
-                                // Only process key press events, ignore key release
-                                // This prevents duplicate actions from press+release
-                                if key_event.kind != KeyEventKind::Press {
-                                    continue;
-                                }
-
-                                // Send raw key event to main loop for context-aware processing
-                                if self.action_tx.send(Action::ProcessKey(key_event)).await.is_err() {
-                                    break;
+                                // Process both press and release events for modifier tracking
+                                // Press events are used for actions, release for Ctrl+Shift detection
+                                if key_event.kind == KeyEventKind::Press || key_event.kind == KeyEventKind::Release {
+                                    // Send raw key event to main loop for context-aware processing
+                                    if self.action_tx.send(Action::ProcessKey(key_event)).await.is_err() {
+                                        break;
+                                    }
                                 }
                             }
                             Event::Mouse(mouse_event) => {

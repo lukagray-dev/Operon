@@ -94,6 +94,14 @@ pub enum Action {
     /// Process a mouse event
     ProcessMouse(crossterm::event::MouseEvent),
     
+    /// Ctrl+Shift key state changed (for selection mode)
+    #[allow(dead_code)]
+    SetCtrlShiftHeld(bool),
+    
+    /// Copy selected text to clipboard
+    #[allow(dead_code)]
+    CopySelection,
+    
     /// Scroll chat up
     #[allow(dead_code)]
     ScrollChatUp(u16),
