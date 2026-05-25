@@ -9,6 +9,7 @@ pub mod session;
 use screen::ActiveScreen;
 use session::SessionContext;
 use crate::ui::chrome::right_sidebar::panel_state::RightPanelContent;
+use crate::ui::screens::models::state::ModelsState;
 use tui_textarea::TextArea;
 
 /// AppState holds all mutable UI state for the TUI
@@ -52,8 +53,11 @@ pub struct AppState {
     /// Chat message history
     messages: Vec<ChatMessage>,
     
-    /// Chat scroll position (0 = bottom/latest messages)
+    /// Chat scroll position (0 = top for help, 0 = bottom for chat)
     chat_scroll: u16,
+
+    /// Help screen scroll position (0 = top)
+    help_scroll: u16,
     
     /// Input scroll position (0 = bottom/latest text)
     input_scroll: u16,
@@ -76,6 +80,9 @@ pub struct AppState {
     
     /// Selection end position when Ctrl+Shift+drag
     selection_end: Option<(u16, u16)>,
+    
+    /// Models screen state (provider selection, form inputs, fetched models)
+    pub models: ModelsState,
 }
 
 /// A single chat message
@@ -103,12 +110,14 @@ impl AppState {
             screen_selector_index: 0,
             messages: Vec::new(),
             chat_scroll: 0,
+            help_scroll: 0,
             input_scroll: 0,
             agent_thinking: false,
             mouse_capture_enabled: true, // Start with mouse capture ON (scrolling enabled)
             ctrl_shift_held: false,
             selection_start: None,
             selection_end: None,
+            models: ModelsState::new(),
         }
     }
 
@@ -258,6 +267,21 @@ impl AppState {
     #[allow(dead_code)]
     pub fn reset_chat_scroll(&mut self) {
         self.chat_scroll = 0;
+    }
+
+    /// Get help screen scroll position (0 = top)
+    pub fn help_scroll(&self) -> u16 {
+        self.help_scroll
+    }
+
+    /// Scroll help screen up (towards top)
+    pub fn scroll_help_up(&mut self, amount: u16) {
+        self.help_scroll = self.help_scroll.saturating_sub(amount);
+    }
+
+    /// Scroll help screen down (towards bottom)
+    pub fn scroll_help_down(&mut self, amount: u16, max: u16) {
+        self.help_scroll = (self.help_scroll + amount).min(max);
     }
 
     /// Check if the agent is currently generating a response

@@ -25,15 +25,25 @@ pub fn map_key(key: KeyEvent, active_screen: &ActiveScreen) -> Option<Action> {
     match (key.code, key.modifiers) {
         // Quit application (Ctrl+Q only)
         (KeyCode::Char('q'), KeyModifiers::CONTROL) => return Some(Action::Quit),
-        
+
         // Copy selected text (Ctrl+C)
         (KeyCode::Char('c'), KeyModifiers::CONTROL) => return Some(Action::CopySelection),
-        
+
+        // Undo (Ctrl+Z) — tui-textarea uses Ctrl+U natively (Emacs), but we
+        // intercept here and call .undo() directly for the standard convention.
+        (KeyCode::Char('z'), KeyModifiers::CONTROL) => return Some(Action::InputUndo),
+
+        // Redo (Ctrl+Shift+Z) — tui-textarea uses Ctrl+R natively (Emacs), but we
+        // intercept here and call .redo() directly for the standard convention.
+        (KeyCode::Char('Z'), m) if m == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+            return Some(Action::InputRedo);
+        }
+
         // Toggle terminal panel
         (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
             return Some(Action::ToggleTerminal);
         }
-        
+
         _ => {}
     }
 
@@ -62,60 +72,62 @@ pub fn map_screen_selector_keys(key: KeyEvent) -> Option<Action> {
 }
 
 /// Chat screen keybinds
-/// - Ctrl+Enter: Send message
-/// - Shift+Enter: Insert newline
-/// - /: Open screen selector (when first character)
-/// - Backspace: Delete character before cursor
-/// - Delete: Delete character at cursor
-/// - Left/Right arrows: Move cursor
-/// - Up/Down arrows: Move cursor between lines
-/// - Home: Move cursor to start
-/// - End: Move cursor to end
-/// - Esc: Back to previous screen
-/// - Any printable character: Insert into input at cursor position
+/// Keys that need app-level handling are mapped to Actions.
+/// All other keys (including Ctrl+Z undo, Ctrl+Y redo, word-jump, etc.)
+/// are forwarded raw to tui-textarea via Action::ForwardKeyToInput.
 fn map_chat_keys(key: KeyEvent) -> Option<Action> {
     match (key.code, key.modifiers) {
-        // Send message
+        // Send message (Ctrl+Enter)
         (KeyCode::Enter, KeyModifiers::CONTROL) => Some(Action::SendMessage),
-        
-        // Insert newline
-        (KeyCode::Enter, KeyModifiers::SHIFT) => Some(Action::InputNewline),
-        
-        // Backspace
-        (KeyCode::Backspace, _) => Some(Action::InputBackspace),
-        
-        // Delete
-        (KeyCode::Delete, _) => Some(Action::InputDelete),
-        
-        // Cursor movement
-        (KeyCode::Left, _) => Some(Action::InputCursorLeft),
-        (KeyCode::Right, _) => Some(Action::InputCursorRight),
-        (KeyCode::Up, _) => Some(Action::InputCursorUp),
-        (KeyCode::Down, _) => Some(Action::InputCursorDown),
-        (KeyCode::Home, _) => Some(Action::InputCursorHome),
-        (KeyCode::End, _) => Some(Action::InputCursorEnd),
-        
-        // Back button
+
+        // Back / close screen selector (Esc)
         (KeyCode::Esc, _) => Some(Action::Back),
-        
-        // Regular character input (no modifiers or only SHIFT for uppercase)
-        (KeyCode::Char(c), KeyModifiers::NONE) => {
-            Some(Action::InputChar(c))
-        }
-        (KeyCode::Char(c), KeyModifiers::SHIFT) => {
-            Some(Action::InputChar(c))
-        }
-        
-        _ => None,
+
+        // '/' as the very first character opens the screen selector.
+        // We handle this in main.rs after checking is_input_empty(), so
+        // we still need to route it through InputChar so that check runs.
+        (KeyCode::Char('/'), KeyModifiers::NONE) => Some(Action::InputChar('/')),
+
+        // Everything else — including Ctrl+Z (undo), Ctrl+Y (redo),
+        // Shift+Enter (newline), arrows, Home, End, Backspace, Delete,
+        // regular characters, word-jump (Ctrl+Left/Right), etc. —
+        // is forwarded directly to tui-textarea which handles them natively.
+        _ => Some(Action::ForwardKeyToInput(key)),
     }
 }
 
 /// Models screen keybinds
-/// - Esc: Back to Chat screen
+/// Provider list:
+/// - Up/Down: Navigate providers
+/// - Enter: Select provider and go to setup
+/// - Esc: Back to Chat
+/// Setup form:
+/// - Up/Down: Navigate model list (when fetched) OR move cursor in text fields
+/// - Left/Right: Move cursor in text fields OR toggle compat mode
+/// - Tab: Next field
+/// - All other keys: Forward to TextArea widget for text input
+/// - Esc: Back to provider list
 fn map_models_keys(key: KeyEvent) -> Option<Action> {
-    match key.code {
-        KeyCode::Esc => Some(Action::Back),
-        _ => None,
+    use crate::events::action::Action;
+    
+    match (key.code, key.modifiers) {
+        // Enter and Esc are always handled specially
+        (KeyCode::Enter, KeyModifiers::NONE) => Some(Action::ModelsConfirm),
+        (KeyCode::Esc, KeyModifiers::NONE) => Some(Action::Back),
+        
+        // Tab for field navigation
+        (KeyCode::Tab, KeyModifiers::NONE) => Some(Action::ModelsNextField),
+        
+        // Up/Down - will be handled contextually (navigation vs text input)
+        (KeyCode::Up, KeyModifiers::NONE) => Some(Action::ModelsUp),
+        (KeyCode::Down, KeyModifiers::NONE) => Some(Action::ModelsDown),
+        
+        // Left/Right - will be handled contextually (compat toggle vs text input)
+        (KeyCode::Left, KeyModifiers::NONE) => Some(Action::ModelsLeft),
+        (KeyCode::Right, KeyModifiers::NONE) => Some(Action::ModelsRight),
+        
+        // Forward all other keys to TextArea for text input
+        _ => Some(Action::ModelsForwardKeyToInput(key)),
     }
 }
 

@@ -166,7 +166,14 @@ async fn run_app(
                                 if state.is_screen_selector_open() {
                                     state.close_screen_selector();
                                 } else {
-                                    state.set_active_screen(state::screen::ActiveScreen::Chat);
+                                    // Special handling for models screen: go back to provider list if on setup
+                                    use crate::ui::screens::models::state::ModelsStep;
+                                    if matches!(state.active_screen(), state::screen::ActiveScreen::Models)
+                                        && matches!(state.models.step, ModelsStep::Setup) {
+                                        state.models.back_to_provider_list();
+                                    } else {
+                                        state.set_active_screen(state::screen::ActiveScreen::Chat);
+                                    }
                                 }
                             }
                             Action::ToggleTerminal => {
@@ -192,49 +199,34 @@ async fn run_app(
                                 state.close_screen_selector();
                             }
                             Action::InputChar(c) => {
+                                // Special case: '/' as first character opens screen selector
                                 if c == '/' && state.is_input_empty() {
                                     state.open_screen_selector();
                                 } else {
-                                    // Let TextArea handle the character input
+                                    // Forward to TextArea as a regular character
                                     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
                                     state.message_input_mut().input(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
                                 }
                             }
-                            Action::InputBackspace => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+                            Action::ForwardKeyToInput(key_event) => {
+                                // Pass the raw key event directly to tui-textarea.
+                                // Handles arrows, Home, End, Backspace, Delete,
+                                // Shift+Enter (newline), word-jump (Ctrl+Left/Right), etc.
+                                // Undo/redo are NOT forwarded — they are handled above
+                                // via InputUndo/InputRedo which call .undo()/.redo() directly.
+                                state.message_input_mut().input(key_event);
                             }
-                            Action::InputDelete => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+                            Action::InputUndo => {
+                                // Ctrl+Z — call tui-textarea's undo() directly.
+                                // tui-textarea's native key for undo is Ctrl+U (Emacs-style),
+                                // so we bypass key forwarding and call the method directly.
+                                state.message_input_mut().undo();
                             }
-                            Action::InputNewline => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-                            }
-                            Action::InputCursorLeft => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
-                            }
-                            Action::InputCursorRight => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
-                            }
-                            Action::InputCursorUp => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
-                            }
-                            Action::InputCursorDown => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
-                            }
-                            Action::InputCursorHome => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
-                            }
-                            Action::InputCursorEnd => {
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                state.message_input_mut().input(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
+                            Action::InputRedo => {
+                                // Ctrl+Shift+Z — call tui-textarea's redo() directly.
+                                // tui-textarea's native key for redo is Ctrl+R (Emacs-style),
+                                // so we bypass key forwarding and call the method directly.
+                                state.message_input_mut().redo();
                             }
                             Action::SendMessage => {
                                 // Send message to agent
@@ -265,6 +257,20 @@ async fn run_app(
                                     });
                                 }
                             }
+                            // Models actions are handled in the outer match statement
+                            // Re-send them through the channel so they get processed there
+                            action @ (Action::ModelsUp 
+                                    | Action::ModelsDown 
+                                    | Action::ModelsLeft
+                                    | Action::ModelsRight
+                                    | Action::ModelsConfirm 
+                                    | Action::ModelsNextField 
+                                    | Action::ModelsFetchModels 
+                                    | Action::ModelsToggleCompat 
+                                    | Action::ModelsForwardKeyToInput(_)) => {
+                                // Re-send to outer handler
+                                let _ = action_tx.send(action).await;
+                            }
                             _ => {}
                         }
                     }
@@ -276,10 +282,10 @@ async fn run_app(
                 }
                 Action::ProcessMouse(mouse_event) => {
                     use crossterm::event::MouseEventKind;
-                    
+
                     let terminal_height = terminal.size()?.height;
                     let input_area_start = terminal_height.saturating_sub(6);
-                    
+
                     // Check if Ctrl+Shift is held for selection mode
                     if state.is_ctrl_shift_held() {
                         // Selection mode: Ctrl+Shift + mouse drag
@@ -297,20 +303,37 @@ async fn run_app(
                             _ => {}
                         }
                     } else {
-                        // Normal mode: mouse scrolling
                         match mouse_event.kind {
                             MouseEventKind::ScrollUp => {
-                                if mouse_event.row >= input_area_start {
-                                    state.scroll_input_up(1);
-                                } else {
-                                    state.scroll_chat_up(3);
+                                // Route scroll to the correct panel based on active screen
+                                match state.active_screen() {
+                                    state::screen::ActiveScreen::Help => {
+                                        // Help screen: scroll up towards top
+                                        state.scroll_help_up(3);
+                                    }
+                                    _ => {
+                                        // Chat screen: scroll input or chat history
+                                        if mouse_event.row >= input_area_start {
+                                            state.scroll_input_up(1);
+                                        } else {
+                                            state.scroll_chat_up(3);
+                                        }
+                                    }
                                 }
                             }
                             MouseEventKind::ScrollDown => {
-                                if mouse_event.row >= input_area_start {
-                                    state.scroll_input_down(1);
-                                } else {
-                                    state.scroll_chat_down(3);
+                                match state.active_screen() {
+                                    state::screen::ActiveScreen::Help => {
+                                        // Help screen: scroll down towards bottom (capped at max)
+                                        state.scroll_help_down(3, u16::MAX);
+                                    }
+                                    _ => {
+                                        if mouse_event.row >= input_area_start {
+                                            state.scroll_input_down(1);
+                                        } else {
+                                            state.scroll_chat_down(3);
+                                        }
+                                    }
                                 }
                             }
                             _ => {}
@@ -344,6 +367,293 @@ async fn run_app(
                     // For now, just clear the input
                     state.clear_input();
                 }
+                
+                // ===== Models Screen Actions =====
+                Action::ModelsUp => {
+                    use crate::ui::screens::models::state::{ModelsStep, FetchStatus, Provider};
+                    match state.models.step {
+                        ModelsStep::ProviderList => {
+                            // Navigate provider list
+                            state.models.move_provider_up();
+                        }
+                        ModelsStep::Setup => {
+                            // Check if we're in a text input field - if so, forward to TextArea
+                            let is_in_text_field = match state.models.selected_provider {
+                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                    state.models.focused_field == 0 // API key field
+                                }
+                                Some(Provider::Custom) => {
+                                    state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
+                                }
+                                None => false,
+                            };
+                            
+                            if is_in_text_field {
+                                // Forward to TextArea (though Up/Down don't do much in single-line fields)
+                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+                                let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+                                match state.models.selected_provider {
+                                    Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                        let _ = state.models.api_key_input.input(key_event);
+                                    }
+                                    Some(Provider::Custom) => {
+                                        if state.models.focused_field == 0 {
+                                            let _ = state.models.base_url_input.input(key_event);
+                                        } else {
+                                            let _ = state.models.api_key_input.input(key_event);
+                                        }
+                                    }
+                                    None => {}
+                                }
+                            } else if matches!(state.models.fetch_status, FetchStatus::Success) {
+                                // Navigate model list
+                                state.models.move_model_up();
+                            }
+                        }
+                    }
+                }
+                Action::ModelsDown => {
+                    use crate::ui::screens::models::state::{ModelsStep, FetchStatus, Provider};
+                    match state.models.step {
+                        ModelsStep::ProviderList => {
+                            // Navigate provider list
+                            state.models.move_provider_down();
+                        }
+                        ModelsStep::Setup => {
+                            // Check if we're in a text input field - if so, forward to TextArea
+                            let is_in_text_field = match state.models.selected_provider {
+                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                    state.models.focused_field == 0 // API key field
+                                }
+                                Some(Provider::Custom) => {
+                                    state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
+                                }
+                                None => false,
+                            };
+                            
+                            if is_in_text_field {
+                                // Forward to TextArea (though Up/Down don't do much in single-line fields)
+                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+                                let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+                                match state.models.selected_provider {
+                                    Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                        let _ = state.models.api_key_input.input(key_event);
+                                    }
+                                    Some(Provider::Custom) => {
+                                        if state.models.focused_field == 0 {
+                                            let _ = state.models.base_url_input.input(key_event);
+                                        } else {
+                                            let _ = state.models.api_key_input.input(key_event);
+                                        }
+                                    }
+                                    None => {}
+                                }
+                            } else if matches!(state.models.fetch_status, FetchStatus::Success) {
+                                // Navigate model list
+                                state.models.move_model_down();
+                            }
+                        }
+                    }
+                }
+                Action::ModelsLeft => {
+                    use crate::ui::screens::models::state::{ModelsStep, Provider};
+                    if matches!(state.models.step, ModelsStep::Setup) {
+                        // Check if we're on compat field - if so, toggle
+                        if matches!(state.models.selected_provider, Some(Provider::Custom))
+                            && state.models.focused_field == 1 {
+                            state.models.toggle_compat_mode();
+                        } else {
+                            // Otherwise, forward to TextArea for cursor movement
+                            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+                            let key_event = KeyEvent::new(KeyCode::Left, KeyModifiers::NONE);
+                            match state.models.selected_provider {
+                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                    let _ = state.models.api_key_input.input(key_event);
+                                }
+                                Some(Provider::Custom) => {
+                                    if state.models.focused_field == 0 {
+                                        let _ = state.models.base_url_input.input(key_event);
+                                    } else if state.models.focused_field == 2 {
+                                        let _ = state.models.api_key_input.input(key_event);
+                                    }
+                                }
+                                None => {}
+                            }
+                        }
+                    }
+                }
+                Action::ModelsRight => {
+                    use crate::ui::screens::models::state::{ModelsStep, Provider};
+                    if matches!(state.models.step, ModelsStep::Setup) {
+                        // Check if we're on compat field - if so, toggle
+                        if matches!(state.models.selected_provider, Some(Provider::Custom))
+                            && state.models.focused_field == 1 {
+                            state.models.toggle_compat_mode();
+                        } else {
+                            // Otherwise, forward to TextArea for cursor movement
+                            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+                            let key_event = KeyEvent::new(KeyCode::Right, KeyModifiers::NONE);
+                            match state.models.selected_provider {
+                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                    let _ = state.models.api_key_input.input(key_event);
+                                }
+                                Some(Provider::Custom) => {
+                                    if state.models.focused_field == 0 {
+                                        let _ = state.models.base_url_input.input(key_event);
+                                    } else if state.models.focused_field == 2 {
+                                        let _ = state.models.api_key_input.input(key_event);
+                                    }
+                                }
+                                None => {}
+                            }
+                        }
+                    }
+                }
+                Action::ModelsConfirm => {
+                    use crate::ui::screens::models::state::{ModelsStep, Provider, FetchStatus};
+                    match state.models.step {
+                        ModelsStep::ProviderList => {
+                            // Confirm provider selection and move to setup
+                            state.models.confirm_provider();
+                        }
+                        ModelsStep::Setup => {
+                            // Check if we're on the API key field - if so, trigger fetch
+                            let is_on_api_key_field = match state.models.selected_provider {
+                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                    // Only one field (API key), always field 0
+                                    state.models.focused_field == 0
+                                }
+                                Some(Provider::Custom) => {
+                                    // API key is field 2 (0=URL, 1=compat, 2=API key)
+                                    state.models.focused_field == 2
+                                }
+                                None => false,
+                            };
+                            
+                            if is_on_api_key_field && !matches!(state.models.fetch_status, FetchStatus::Fetching) {
+                                // Trigger fetch
+                                state.models.start_fetch();
+                                
+                                // Spawn async mock fetch task
+                                let provider = state.models.selected_provider;
+                                let action_tx_clone = action_tx.clone();
+                                tokio::spawn(async move {
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
+                                    
+                                    let models = match provider {
+                                        Some(Provider::Anthropic) => vec![
+                                            "claude-opus-4-5".to_string(),
+                                            "claude-sonnet-4-5".to_string(),
+                                            "claude-haiku-4-5".to_string(),
+                                        ],
+                                        Some(Provider::OpenAI) => vec![
+                                            "gpt-4o".to_string(),
+                                            "gpt-4o-mini".to_string(),
+                                            "gpt-4-turbo".to_string(),
+                                            "o1".to_string(),
+                                            "o1-mini".to_string(),
+                                        ],
+                                        Some(Provider::Custom) => vec![
+                                            "model-1".to_string(),
+                                            "model-2".to_string(),
+                                            "model-3".to_string(),
+                                        ],
+                                        None => vec![],
+                                    };
+                                    
+                                    let _ = action_tx_clone.send(Action::ModelsFetchComplete(models)).await;
+                                });
+                            } else if matches!(state.models.fetch_status, FetchStatus::Success) {
+                                // If models are already fetched, Enter confirms the selected model
+                                // TODO: Save configuration and return to Chat
+                                state.set_active_screen(state::screen::ActiveScreen::Chat);
+                            }
+                        }
+                    }
+                }
+                Action::ModelsNextField => {
+                    use crate::ui::screens::models::state::ModelsStep;
+                    if matches!(state.models.step, ModelsStep::Setup) {
+                        state.models.next_field();
+                    }
+                }
+                Action::ModelsFetchModels => {
+                    use crate::ui::screens::models::state::{ModelsStep, FetchStatus, Provider};
+                    // Only fetch if on setup screen and not already fetching
+                    if matches!(state.models.step, ModelsStep::Setup) 
+                        && !matches!(state.models.fetch_status, FetchStatus::Fetching) {
+                        state.models.start_fetch();
+                        
+                        // Spawn async mock fetch task
+                        let provider = state.models.selected_provider;
+                        let action_tx_clone = action_tx.clone();
+                        tokio::spawn(async move {
+                            // Mock delay (800ms)
+                            tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
+                            
+                            // Generate mock model list based on provider
+                            let models = match provider {
+                                Some(Provider::Anthropic) => vec![
+                                    "claude-opus-4-5".to_string(),
+                                    "claude-sonnet-4-5".to_string(),
+                                    "claude-haiku-4-5".to_string(),
+                                ],
+                                Some(Provider::OpenAI) => vec![
+                                    "gpt-4o".to_string(),
+                                    "gpt-4o-mini".to_string(),
+                                    "gpt-4-turbo".to_string(),
+                                    "o1".to_string(),
+                                    "o1-mini".to_string(),
+                                ],
+                                Some(Provider::Custom) => vec![
+                                    "model-1".to_string(),
+                                    "model-2".to_string(),
+                                    "model-3".to_string(),
+                                ],
+                                None => vec![],
+                            };
+                            
+                            // Send completion action
+                            let _ = action_tx_clone.send(Action::ModelsFetchComplete(models)).await;
+                        });
+                    }
+                }
+                Action::ModelsFetchComplete(models) => {
+                    // Complete the fetch operation with results
+                    state.models.complete_fetch(models);
+                }
+                Action::ModelsToggleCompat => {
+                    use crate::ui::screens::models::state::{ModelsStep, Provider};
+                    // Only toggle if on Custom provider setup and compat field is focused
+                    // Otherwise, Left/Right do nothing (they're not text input)
+                    if matches!(state.models.step, ModelsStep::Setup)
+                        && matches!(state.models.selected_provider, Some(Provider::Custom))
+                        && state.models.focused_field == 1 {
+                        state.models.toggle_compat_mode();
+                    }
+                }
+                Action::ModelsForwardKeyToInput(key_event) => {
+                    use crate::ui::screens::models::state::{ModelsStep, Provider};
+                    if matches!(state.models.step, ModelsStep::Setup) {
+                        // Forward key to the appropriate TextArea based on focused field
+                        match state.models.selected_provider {
+                            Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                // Only API key field (always focused)
+                                let _ = state.models.api_key_input.input(key_event);
+                            }
+                            Some(Provider::Custom) => {
+                                match state.models.focused_field {
+                                    0 => { let _ = state.models.base_url_input.input(key_event); } // Base URL field
+                                    1 => {} // Compat mode field (not text input)
+                                    2 => { let _ = state.models.api_key_input.input(key_event); } // API key field
+                                    _ => {}
+                                }
+                            }
+                            None => {}
+                        }
+                    }
+                }
+                
                 _ => {
                     // Ignore other actions that are handled in ProcessKey
                 }

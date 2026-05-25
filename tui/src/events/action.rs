@@ -16,104 +16,133 @@ use std::path::PathBuf;
 pub enum Action {
     /// Exit the application
     Quit,
-    
+
     /// Navigate to a different screen
     #[allow(dead_code)]
     Navigate(ActiveScreen),
-    
+
     /// Go back to previous screen (eventually Chat)
     Back,
-    
+
     /// Send the current message to the agent
     SendMessage,
-    
+
     /// Open a file in the right panel preview
     #[allow(dead_code)]
     OpenFile(PathBuf),
-    
+
     /// Show specific content in the right panel
     #[allow(dead_code)]
     ToggleRightPanel(RightPanelContent),
-    
+
     /// Hide the right panel
     #[allow(dead_code)]
     CloseRightPanel,
-    
+
     /// Toggle terminal panel (open if closed, close if open)
     ToggleTerminal,
-    
+
     /// Open screen selector popup
     #[allow(dead_code)]
     OpenScreenSelector,
-    
+
     /// Close screen selector popup
     CloseScreenSelector,
-    
+
     /// Move selection up in screen selector
     ScreenSelectorUp,
-    
+
     /// Move selection down in screen selector
     ScreenSelectorDown,
-    
+
     /// Confirm screen selector selection
     ScreenSelectorConfirm,
-    
-    /// Input a character into the message box
+
+    /// Input a single character — only used for the '/' screen-selector shortcut check.
+    /// All other character input goes through ForwardKeyToInput.
     InputChar(char),
-    
-    /// Delete character before cursor (backspace)
-    InputBackspace,
-    
-    /// Delete character at cursor (delete key)
-    InputDelete,
-    
-    /// Insert newline in message box
-    InputNewline,
-    
-    /// Move cursor left
-    InputCursorLeft,
-    
-    /// Move cursor right
-    InputCursorRight,
-    
-    /// Move cursor up
-    InputCursorUp,
-    
-    /// Move cursor down
-    InputCursorDown,
-    
-    /// Move cursor to start of input
-    InputCursorHome,
-    
-    /// Move cursor to end of input
-    InputCursorEnd,
-    
+
+    /// Undo the last change in the input box (Ctrl+Z).
+    /// Calls tui-textarea's .undo() directly — tui-textarea's native binding
+    /// is Ctrl+U (Emacs), but we want the standard Ctrl+Z convention.
+    InputUndo,
+
+    /// Redo the last undone change in the input box (Ctrl+Shift+Z).
+    /// Calls tui-textarea's .redo() directly — tui-textarea's native binding
+    /// is Ctrl+R (Emacs), but we want the standard Ctrl+Shift+Z convention.
+    InputRedo,
+
+    /// Forward a raw key event directly to the tui-textarea input widget.
+    /// This is the primary path for all chat input:
+    /// - Regular characters and Shift+characters
+    /// - Backspace, Delete
+    /// - Arrow keys (with or without modifiers)
+    /// - Home, End
+    /// - Shift+Enter (newline)
+    /// - Ctrl+Z (undo), Ctrl+R (redo) — tui-textarea's native bindings
+    /// - Ctrl+Left / Ctrl+Right (word-jump)
+    /// tui-textarea handles all of these natively — no need to enumerate them.
+    ForwardKeyToInput(crossterm::event::KeyEvent),
+
     /// Process a raw key event (with full state context)
+    /// Sent by EventHandler for every key press/release
     ProcessKey(crossterm::event::KeyEvent),
-    
+
     /// Process a mouse event
     ProcessMouse(crossterm::event::MouseEvent),
-    
+
     /// Ctrl+Shift key state changed (for selection mode)
     #[allow(dead_code)]
     SetCtrlShiftHeld(bool),
-    
+
     /// Copy selected text to clipboard
     #[allow(dead_code)]
     CopySelection,
-    
-    /// Scroll chat up
+
+    /// Scroll chat up by N lines
     #[allow(dead_code)]
     ScrollChatUp(u16),
-    
-    /// Scroll chat down
+
+    /// Scroll chat down by N lines
     #[allow(dead_code)]
     ScrollChatDown(u16),
-    
-    /// Agent response received
+
+    /// Agent response received from backend
     AgentResponse(String),
-    
+
     /// Periodic tick for animations (spinner, etc.)
-    /// Sent by EventHandler at regular intervals
+    /// Sent by EventHandler every ~100ms
     Tick,
+
+    // ===== Models Screen Actions =====
+    
+    /// Move cursor up in models screen (provider list or model list)
+    ModelsUp,
+    
+    /// Move cursor down in models screen (provider list or model list)
+    ModelsDown,
+    
+    /// Confirm selection in models screen (select provider or model)
+    ModelsConfirm,
+    
+    /// Move to next field in setup form (Tab key)
+    ModelsNextField,
+    
+    /// Start fetching models from provider (mock operation)
+    ModelsFetchModels,
+    
+    /// Models fetch completed with results
+    ModelsFetchComplete(Vec<String>),
+    
+    /// Toggle compatibility mode in custom provider form
+    ModelsToggleCompat,
+    
+    /// Left arrow key in models screen (compat toggle or text cursor movement)
+    ModelsLeft,
+    
+    /// Right arrow key in models screen (compat toggle or text cursor movement)
+    ModelsRight,
+    
+    /// Forward key event to TextArea widget in models setup form
+    ModelsForwardKeyToInput(crossterm::event::KeyEvent),
 }

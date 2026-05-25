@@ -4,12 +4,30 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
+# Terminal UI framework — handles layout, widgets, rendering to the terminal
 ratatui = "0.29"
+
+# Low-level terminal control — raw mode, alternate screen, keyboard/mouse events
 crossterm = "0.28"
+
+# Async runtime — drives the event loop, background agent tasks, and channels
 tokio = { version = "1", features = ["full"] }
+
+# Ergonomic error handling — lets us use `?` and return `Result<_, anyhow::Error>`
 anyhow = "1"
+
+# Serialization/deserialization framework — used for config and data structures
 serde = { version = "1", features = ["derive"] }
+
+# TOML file parser — reads config files (e.g. model settings, user preferences)
 toml = "0.8"
+
+# Async trait support — allows `async fn` inside trait definitions (AgentBridge)
 async-trait = "0.1"
+
+# Production-grade text input widget for ratatui — cursor, undo/redo, multi-line editing
 tui-textarea = "0.7"
+
+# Cross-platform clipboard access — used to copy selected chat text with Ctrl+C
 arboard = "3.4"
