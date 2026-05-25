@@ -34,6 +34,10 @@ pub fn render_help_screen(frame: &mut Frame, area: Rect, state: &mut AppState) {
             Span::styled("          - Toggle terminal panel", STYLE_MUTED),
         ]),
         Line::from(vec![
+            Span::styled("  Ctrl+E", STYLE_NORMAL),
+            Span::styled("          - Toggle file explorer", STYLE_MUTED),
+        ]),
+        Line::from(vec![
             Span::styled("  Esc", STYLE_NORMAL),
             Span::styled("             - Back to Chat screen", STYLE_MUTED),
         ]),

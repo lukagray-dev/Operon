@@ -41,6 +41,9 @@ pub enum Action {
 
     /// Toggle terminal panel (open if closed, close if open)
     ToggleTerminal,
+    
+    /// Toggle left sidebar (file explorer) (open if closed, close if open)
+    ToggleLeftSidebar,
 
     /// Open screen selector popup
     #[allow(dead_code)]

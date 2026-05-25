@@ -123,6 +123,10 @@ async fn run_app(
                         state.set_right_panel(Some(RightPanelContent::Terminal));
                     }
                 }
+                Action::ToggleLeftSidebar => {
+                    // Toggle left sidebar (file explorer) (open if closed, close if open)
+                    state.toggle_left_sidebar();
+                }
                 Action::OpenFile(path) => {
                     // Open file preview in right panel
                     use ui::chrome::right_sidebar::panel_state::RightPanelContent;
@@ -183,6 +187,9 @@ async fn run_app(
                                 } else {
                                     state.set_right_panel(Some(RightPanelContent::Terminal));
                                 }
+                            }
+                            Action::ToggleLeftSidebar => {
+                                state.toggle_left_sidebar();
                             }
                             Action::CloseScreenSelector => {
                                 state.close_screen_selector();

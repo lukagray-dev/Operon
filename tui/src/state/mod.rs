@@ -101,11 +101,11 @@ pub struct ChatMessage {
 
 impl AppState {
     /// Create a new AppState with default values
-    /// Starts on Chat screen with left sidebar open and right panel hidden
+    /// Starts on Chat screen with left sidebar closed and right panel hidden
     pub fn new() -> Self {
         Self {
             active_screen: ActiveScreen::Chat,
-            left_sidebar_open: true,
+            left_sidebar_open: false, // Start with sidebar closed
             right_panel: None,
             session: SessionContext::default(),
             tick: 0,
@@ -142,7 +142,6 @@ impl AppState {
     }
 
     /// Toggle left sidebar visibility
-    #[allow(dead_code)]
     pub fn toggle_left_sidebar(&mut self) {
         self.left_sidebar_open = !self.left_sidebar_open;
     }
