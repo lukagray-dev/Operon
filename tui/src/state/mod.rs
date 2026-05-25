@@ -10,6 +10,7 @@ use screen::ActiveScreen;
 use session::SessionContext;
 use crate::ui::chrome::right_sidebar::panel_state::RightPanelContent;
 use crate::ui::screens::models::state::ModelsState;
+use crate::ui::screens::permissions::state::PermissionsScreenState;
 use tui_textarea::TextArea;
 
 /// AppState holds all mutable UI state for the TUI
@@ -83,6 +84,9 @@ pub struct AppState {
     
     /// Models screen state (provider selection, form inputs, fetched models)
     pub models: ModelsState,
+    
+    /// Permissions screen state (tool permissions, directory list, modals)
+    pub permissions: PermissionsScreenState,
 }
 
 /// A single chat message
@@ -118,6 +122,7 @@ impl AppState {
             selection_start: None,
             selection_end: None,
             models: ModelsState::new(),
+            permissions: PermissionsScreenState::new(),
         }
     }
 

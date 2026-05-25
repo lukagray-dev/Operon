@@ -22,7 +22,7 @@ pub fn render_active_screen(frame: &mut Frame, area: Rect, state: &mut AppState)
             chat::render_chat_screen(frame, area, state);
         }
         ActiveScreen::Models => models::render_models_screen(frame, area, state),
-        ActiveScreen::Permissions => permissions::render_permissions_screen(frame, area),
+        ActiveScreen::Permissions => permissions::render_permissions_screen(frame, area, state),
         ActiveScreen::Skills => skills::render_skills_screen(frame, area),
         ActiveScreen::Extensions => extensions::render_extensions_screen(frame, area),
         ActiveScreen::Channels => channels::render_channels_screen(frame, area),

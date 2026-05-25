@@ -13,9 +13,6 @@ use ratatui::style::{Color, Modifier, Style};
 // Modify these constants to change the entire color scheme
 // ============================================================================
 
-// Allow dead code for theme constants that will be used as the UI is built out
-#[allow(dead_code)]
-
 /// Primary background color
 pub const COLOR_BG: Color = Color::Reset;
 

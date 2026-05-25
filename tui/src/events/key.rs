@@ -20,7 +20,7 @@ use crate::state::screen::ActiveScreen;
 /// - Up/Down: Navigate
 /// - Enter: Confirm selection
 /// - Esc: Close selector
-pub fn map_key(key: KeyEvent, active_screen: &ActiveScreen) -> Option<Action> {
+pub fn map_key(key: KeyEvent, active_screen: &ActiveScreen, state: &crate::state::AppState) -> Option<Action> {
     // Global keybinds that work on all screens
     match (key.code, key.modifiers) {
         // Quit application (Ctrl+Q only)
@@ -51,7 +51,7 @@ pub fn map_key(key: KeyEvent, active_screen: &ActiveScreen) -> Option<Action> {
     match active_screen {
         ActiveScreen::Chat => map_chat_keys(key),
         ActiveScreen::Models => map_models_keys(key),
-        ActiveScreen::Permissions => map_permissions_keys(key),
+        ActiveScreen::Permissions => map_permissions_keys(key, state),
         ActiveScreen::Skills => map_skills_keys(key),
         ActiveScreen::Extensions => map_extensions_keys(key),
         ActiveScreen::Channels => map_channels_keys(key),
@@ -132,11 +132,53 @@ fn map_models_keys(key: KeyEvent) -> Option<Action> {
 }
 
 /// Permissions screen keybinds
-/// - Esc: Back to Chat screen
-fn map_permissions_keys(key: KeyEvent) -> Option<Action> {
-    match key.code {
-        KeyCode::Esc => Some(Action::Back),
-        _ => None,
+/// - Tab: Switch section (Global↔Directory) or panel (DirList↔ToolTable)
+/// - Up/Down: Navigate selection
+/// - Enter: Expand/collapse group (or confirm in modal)
+/// - Space: Open rule editor
+/// - +: Add directory (Directory section only)
+/// - -: Delete directory (Directory section, DirList focused only)
+/// - Esc: Back to Chat screen (or close modal if open)
+fn map_permissions_keys(key: KeyEvent, state: &crate::state::AppState) -> Option<Action> {
+    // Check if any modal is open
+    let modal_open = state.permissions.rule_editor.open || state.permissions.add_dir.open;
+    
+    if modal_open {
+        // Modal-specific keybinds
+        if state.permissions.rule_editor.open {
+            // Rule editor modal keybinds
+            match (key.code, key.modifiers) {
+                (KeyCode::Esc, KeyModifiers::NONE) => Some(Action::PermCloseModal),
+                (KeyCode::Up, KeyModifiers::NONE) => Some(Action::PermEditorUp),
+                (KeyCode::Down, KeyModifiers::NONE) => Some(Action::PermEditorDown),
+                (KeyCode::Enter, KeyModifiers::NONE) => Some(Action::PermEditorConfirm),
+                (KeyCode::Tab, KeyModifiers::NONE) => Some(Action::PermEditorSwitchRole),
+                _ => None,
+            }
+        } else if state.permissions.add_dir.open {
+            // Add directory modal keybinds
+            match (key.code, key.modifiers) {
+                (KeyCode::Esc, KeyModifiers::NONE) => Some(Action::PermCloseModal),
+                (KeyCode::Enter, KeyModifiers::NONE) => Some(Action::PermEditorConfirm),
+                // Forward all other keys to TextArea
+                _ => Some(Action::PermForwardKeyToInput(key)),
+            }
+        } else {
+            None
+        }
+    } else {
+        // Normal screen keybinds
+        match (key.code, key.modifiers) {
+            (KeyCode::Esc, KeyModifiers::NONE) => Some(Action::Back),
+            (KeyCode::Tab, KeyModifiers::NONE) => Some(Action::PermSwitchSection),
+            (KeyCode::Up, KeyModifiers::NONE) => Some(Action::PermSelectUp),
+            (KeyCode::Down, KeyModifiers::NONE) => Some(Action::PermSelectDown),
+            (KeyCode::Enter, KeyModifiers::NONE) => Some(Action::PermToggleExpand),
+            (KeyCode::Char(' '), KeyModifiers::NONE) => Some(Action::PermOpenEditor),
+            (KeyCode::Char('+'), KeyModifiers::NONE) => Some(Action::PermAddDirectory),
+            (KeyCode::Char('-'), KeyModifiers::NONE) => Some(Action::PermDeleteDirectory),
+            _ => None,
+        }
     }
 }
 

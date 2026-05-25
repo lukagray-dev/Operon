@@ -145,4 +145,45 @@ pub enum Action {
     
     /// Forward key event to TextArea widget in models setup form
     ModelsForwardKeyToInput(crossterm::event::KeyEvent),
+    
+    // ===== Permissions Screen Actions =====
+    
+    /// Switch between Global and Directory sections (or between panels in Directory section)
+    PermSwitchSection,
+    
+    /// Move selection up in active panel
+    PermSelectUp,
+    
+    /// Move selection down in active panel
+    PermSelectDown,
+    
+    /// Toggle expand/collapse for selected group
+    PermToggleExpand,
+    
+    /// Open rule editor modal for selected tool/group
+    PermOpenEditor,
+    
+    /// Open add directory modal
+    PermAddDirectory,
+    
+    /// Delete selected directory
+    PermDeleteDirectory,
+    
+    /// Close any open modal
+    PermCloseModal,
+    
+    /// Move up in rule editor modal
+    PermEditorUp,
+    
+    /// Move down in rule editor modal
+    PermEditorDown,
+    
+    /// Confirm selection in rule editor modal
+    PermEditorConfirm,
+    
+    /// Switch role (Owner ↔ External) in rule editor modal
+    PermEditorSwitchRole,
+    
+    /// Forward key event to TextArea widget in add directory modal
+    PermForwardKeyToInput(crossterm::event::KeyEvent),
 }

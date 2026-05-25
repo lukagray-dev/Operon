@@ -31,3 +31,6 @@ tui-textarea = "0.7"
 
 # Cross-platform clipboard access — used to copy selected chat text with Ctrl+C
 arboard = "3.4"
+
+# Cross-platform directory utilities — used for home directory expansion (~/)
+dirs = "5.0"
