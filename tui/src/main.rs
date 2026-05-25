@@ -395,37 +395,40 @@ async fn run_app(
                             state.models.move_provider_up();
                         }
                         ModelsStep::Setup => {
-                            // Check if we're in a text input field - if so, forward to TextArea
-                            let is_in_text_field = match state.models.selected_provider {
-                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                    state.models.focused_field == 0 // API key field
-                                }
-                                Some(Provider::Custom) => {
-                                    state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
-                                }
-                                None => false,
-                            };
-                            
-                            if is_in_text_field {
-                                // Forward to TextArea (though Up/Down don't do much in single-line fields)
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
-                                match state.models.selected_provider {
-                                    Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                        let _ = state.models.api_key_input.input(key_event);
-                                    }
-                                    Some(Provider::Custom) => {
-                                        if state.models.focused_field == 0 {
-                                            let _ = state.models.base_url_input.input(key_event);
-                                        } else {
-                                            let _ = state.models.api_key_input.input(key_event);
-                                        }
-                                    }
-                                    None => {}
-                                }
-                            } else if matches!(state.models.fetch_status, FetchStatus::Success) {
+                            // If models are fetched, prioritize model list navigation
+                            if matches!(state.models.fetch_status, FetchStatus::Success) && !state.models.fetched_models.is_empty() {
                                 // Navigate model list
                                 state.models.move_model_up();
+                            } else {
+                                // Check if we're in a text input field - if so, forward to TextArea
+                                let is_in_text_field = match state.models.selected_provider {
+                                    Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                        state.models.focused_field == 0 // API key field
+                                    }
+                                    Some(Provider::Custom) => {
+                                        state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
+                                    }
+                                    None => false,
+                                };
+                                
+                                if is_in_text_field {
+                                    // Forward to TextArea (though Up/Down don't do much in single-line fields)
+                                    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+                                    let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+                                    match state.models.selected_provider {
+                                        Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                            let _ = state.models.api_key_input.input(key_event);
+                                        }
+                                        Some(Provider::Custom) => {
+                                            if state.models.focused_field == 0 {
+                                                let _ = state.models.base_url_input.input(key_event);
+                                            } else {
+                                                let _ = state.models.api_key_input.input(key_event);
+                                            }
+                                        }
+                                        None => {}
+                                    }
+                                }
                             }
                         }
                     }
@@ -438,37 +441,40 @@ async fn run_app(
                             state.models.move_provider_down();
                         }
                         ModelsStep::Setup => {
-                            // Check if we're in a text input field - if so, forward to TextArea
-                            let is_in_text_field = match state.models.selected_provider {
-                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                    state.models.focused_field == 0 // API key field
-                                }
-                                Some(Provider::Custom) => {
-                                    state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
-                                }
-                                None => false,
-                            };
-                            
-                            if is_in_text_field {
-                                // Forward to TextArea (though Up/Down don't do much in single-line fields)
-                                use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                                let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
-                                match state.models.selected_provider {
-                                    Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                        let _ = state.models.api_key_input.input(key_event);
-                                    }
-                                    Some(Provider::Custom) => {
-                                        if state.models.focused_field == 0 {
-                                            let _ = state.models.base_url_input.input(key_event);
-                                        } else {
-                                            let _ = state.models.api_key_input.input(key_event);
-                                        }
-                                    }
-                                    None => {}
-                                }
-                            } else if matches!(state.models.fetch_status, FetchStatus::Success) {
+                            // If models are fetched, prioritize model list navigation
+                            if matches!(state.models.fetch_status, FetchStatus::Success) && !state.models.fetched_models.is_empty() {
                                 // Navigate model list
                                 state.models.move_model_down();
+                            } else {
+                                // Check if we're in a text input field - if so, forward to TextArea
+                                let is_in_text_field = match state.models.selected_provider {
+                                    Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                        state.models.focused_field == 0 // API key field
+                                    }
+                                    Some(Provider::Custom) => {
+                                        state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
+                                    }
+                                    None => false,
+                                };
+                                
+                                if is_in_text_field {
+                                    // Forward to TextArea (though Up/Down don't do much in single-line fields)
+                                    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+                                    let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+                                    match state.models.selected_provider {
+                                        Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
+                                            let _ = state.models.api_key_input.input(key_event);
+                                        }
+                                        Some(Provider::Custom) => {
+                                            if state.models.focused_field == 0 {
+                                                let _ = state.models.base_url_input.input(key_event);
+                                            } else {
+                                                let _ = state.models.api_key_input.input(key_event);
+                                            }
+                                        }
+                                        None => {}
+                                    }
+                                }
                             }
                         }
                     }
