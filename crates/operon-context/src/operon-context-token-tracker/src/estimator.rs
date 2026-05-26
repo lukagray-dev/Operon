@@ -49,13 +49,14 @@ impl TokenEstimator {
 
             // SAFETY: OnceLock guarantees exactly one initialisation even
             // under concurrent calls from multiple threads.
-            static ENCODER: OnceLock<tiktoken::CoreBPE> = OnceLock::new();
+            static ENCODER: OnceLock<&'static tiktoken::CoreBpe> = OnceLock::new();
 
             let encoder = ENCODER.get_or_init(|| {
                 // cl100k_base is intentionally used for ALL providers — it is
                 // the industry-standard BPE approximation for any OpenAI-family
                 // tokeniser (GPT-3.5/4, DeepSeek, Nvidia NIM, etc.).
                 tiktoken::get_encoding("cl100k_base")
+                    .expect("cl100k_base encoding must be available")
             });
 
             // encode_with_special_tokens counts <|...|> tokens too, giving a
@@ -148,6 +149,7 @@ impl TokenEstimator {
     /// - Prose → `byte_len / 4`  (prose is token-sparse: full English words)
     ///
     /// Always returns at least 1, even for a single-character input.
+    #[allow(dead_code)]
     fn heuristic_estimate(text: &str) -> usize {
         let byte_len = text.len(); // len() is bytes, which is what we want here
 
@@ -245,21 +247,20 @@ mod tests {
     fn estimate_code_is_denser_than_same_length_prose() {
         // A code snippet of the same byte length should yield more tokens than
         // prose because code is token-dense (divisor 3 vs 4).
-        let prose = "The quick brown fox jumps over the lazy dog.";
-        let code = "fn foo(){let x=vec![1,2,3];for i in &x{println!();}}";
-
-        // Pad/trim so both are the same length for a fair comparison.
-        let len = prose.len().min(code.len());
-        let (prose_count, _) = TokenEstimator::estimate(&prose[..len]);
-        let (code_count, _) = TokenEstimator::estimate(&code[..len]);
-
         // Only assert this for the heuristic path (BPE is accurate and may
         // differ).  Under heuristic, code tokens >= prose tokens.
         #[cfg(not(feature = "bpe"))]
-        assert!(
-            code_count >= prose_count,
-            "code ({code_count}) should estimate >= prose ({prose_count}) for same length"
-        );
+        {
+            let prose = "The quick brown fox jumps over the lazy dog.";
+            let code = "fn foo(){let x=vec![1,2,3];for i in &x{println!();}}";
+            let len = prose.len().min(code.len());
+            let (prose_count, _) = TokenEstimator::estimate(&prose[..len]);
+            let (code_count, _) = TokenEstimator::estimate(&code[..len]);
+            assert!(
+                code_count >= prose_count,
+                "code ({code_count}) should estimate >= prose ({prose_count}) for same length"
+            );
+        }
     }
 
     #[test]

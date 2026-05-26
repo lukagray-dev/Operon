@@ -2565,10 +2565,10 @@ name = "operon-context"
 version = "0.1.0"
 dependencies = [
  "operon-context-compaction",
+ "operon-context-normalize",
  "operon-context-sanitizer",
  "operon-context-snapshot",
  "operon-context-token-tracker",
- "operon-context-tools",
  "serde",
  "thiserror 2.0.18",
  "tokio",
@@ -2588,10 +2588,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "operon-context-normalize"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize-messages",
+ "operon-context-normalize-reasoning",
+ "operon-context-normalize-stream",
+ "operon-context-normalize-tools",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "operon-context-normalize-messages"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize-reasoning",
+ "operon-context-normalize-tools",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "operon-context-normalize-reasoning"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "operon-context-normalize-stream"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "operon-context-normalize-reasoning",
+ "operon-context-normalize-tools",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "operon-context-normalize-tools"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "operon-context-sanitizer"
 version = "0.1.0"
 dependencies = [
- "operon-context-tools",
+ "operon-context-normalize-tools",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2614,15 +2667,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tiktoken",
-]
-
-[[package]]
-name = "operon-context-tools"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]

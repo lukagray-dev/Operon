@@ -1,0 +1,16 @@
+[package]
+name        = "operon-context-normalize-tools"
+description = "Canonical tool-call types and provider wire normalization: provider JSON → ToolCall/ToolResult/ToolDefinition and back"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# Leaf crate — no internal operon-* deps.
+# Usable standalone outside Operon.
+
+[dependencies]
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true
