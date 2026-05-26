@@ -1,0 +1,16 @@
+[package]
+name        = "operon-context-normalize-reasoning"
+description = "Canonical reasoning/thinking types and provider normalization: Anthropic thinking blocks, OpenAI reasoning_summary, DeepSeek reasoning_content → ReasoningBlock and back"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# Leaf crate — no internal operon-* deps.
+# Usable standalone outside Operon.
+
+[dependencies]
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true

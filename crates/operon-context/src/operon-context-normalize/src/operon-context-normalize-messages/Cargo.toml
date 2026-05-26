@@ -1,0 +1,16 @@
+[package]
+name        = "operon-context-normalize-messages"
+description = "Canonical conversation message types and provider normalization: system prompt placement, content blocks, roles, stop reasons, multimodal content → ConversationMessage and back"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context-normalize-tools.workspace     = true
+operon-context-normalize-reasoning.workspace = true
+
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true

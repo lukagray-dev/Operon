@@ -1,0 +1,17 @@
+[package]
+name        = "operon-context-normalize"
+description = "Facade: re-exports all operon-context-normalize-* sub-crates as a unified normalization layer"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context-normalize-tools.workspace     = true
+operon-context-normalize-reasoning.workspace = true
+operon-context-normalize-messages.workspace  = true
+operon-context-normalize-stream.workspace    = true
+
+thiserror.workspace = true
+serde.workspace     = true

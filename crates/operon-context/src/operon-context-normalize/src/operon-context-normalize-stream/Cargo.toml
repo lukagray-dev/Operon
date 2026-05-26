@@ -1,0 +1,17 @@
+[package]
+name        = "operon-context-normalize-stream"
+description = "Canonical streaming types and SSE normalization: Anthropic content-block events and OpenAI delta chunks → uniform StreamEvent, with stateful tool-call argument reassembly"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context-normalize-tools.workspace     = true
+operon-context-normalize-reasoning.workspace = true
+
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true
+futures.workspace    = true
