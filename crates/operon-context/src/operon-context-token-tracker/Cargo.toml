@@ -1,0 +1,26 @@
+[package]
+name        = "operon-context-token-tracker"
+description = "Token estimation and budget management for LLM context window control"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# No internal operon-* deps — leaf crate, usable standalone.
+
+[dependencies]
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true
+
+# Optional: BPE tokenizer for ~99% accuracy pre-call estimation.
+# Only compiled when the `bpe` feature is enabled; pure heuristic is used otherwise.
+tiktoken = { version = "3", optional = true }
+
+
+[features]
+# Off by default — the heuristic tier is always available and zero-dep.
+# Enable with: cargo build --features operon-context-token-tracker/bpe
+default = []
+bpe = ["dep:tiktoken"]

@@ -1,0 +1,53 @@
+[workspace]
+resolver = "2"
+members = [
+    # Facade crate — public API surface for TUI/GUI
+    "operon-rs",
+
+    # Context pipeline — orchestrating facade
+    "crates/operon-context",
+
+    # Context sub-crates (nested inside operon-context/src/)
+    "crates/operon-context/src/operon-context-token-tracker",
+    "crates/operon-context/src/operon-context-tools",
+    "crates/operon-context/src/operon-context-snapshot",
+    "crates/operon-context/src/operon-context-sanitizer",
+    "crates/operon-context/src/operon-context-compaction",
+
+    # Frontends
+    "tui",
+    "gui/src-tauri",
+]
+
+# Shared dep versions — sub-crates inherit with `.workspace = true`
+# Bump versions here once; all crates update automatically.
+[workspace.dependencies]
+tokio        = { version = "1",    features = ["full"] }
+async-trait  = "0.1"
+anyhow       = "1"
+thiserror    = "2"
+serde        = { version = "1",    features = ["derive"] }
+serde_json   = "1"
+futures      = "0.3"
+tracing      = "0.1"
+reqwest      = { version = "0.12", features = ["json", "stream"] }
+dirs         = "5.0"
+toml         = "0.8"
+
+# Internal crates — path deps shared across workspace.
+# NOTE: operon-context-token-tracker has `bpe` off by default (good ecosystem
+# default — zero extra deps for external users). Operon itself always wants BPE
+# accuracy, so we activate it here at the workspace level for all internal consumers.
+operon-context-token-tracker = { path = "crates/operon-context/src/operon-context-token-tracker", features = ["bpe"] }
+operon-context-tools         = { path = "crates/operon-context/src/operon-context-tools" }
+operon-context-snapshot      = { path = "crates/operon-context/src/operon-context-snapshot" }
+operon-context-sanitizer     = { path = "crates/operon-context/src/operon-context-sanitizer" }
+operon-context-compaction    = { path = "crates/operon-context/src/operon-context-compaction" }
+operon-context               = { path = "crates/operon-context" }
+
+[workspace.package]
+version    = "0.1.0"
+edition    = "2021"
+authors    = ["Soumo Mukherjee <heylukagray@gmail.com>"]
+license    = "AGPL-3.0"
+repository = "https://github.com/lukagray-dev/operon"
