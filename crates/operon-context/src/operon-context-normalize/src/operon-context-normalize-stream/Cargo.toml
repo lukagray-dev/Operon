@@ -10,6 +10,7 @@ repository.workspace = true
 [dependencies]
 operon-context-normalize-tools.workspace     = true
 operon-context-normalize-reasoning.workspace = true
+operon-context-normalize-messages.workspace  = true
 
 thiserror.workspace  = true
 serde.workspace      = true

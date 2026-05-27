@@ -2624,6 +2624,7 @@ name = "operon-context-normalize-stream"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
  "operon-context-normalize-tools",
  "serde",
