@@ -1,0 +1,23 @@
+[package]
+name        = "operon-tools-fs-grep"
+description = "Grep tool: regex search across files and directories with gitignore-aware recursive walking, filename glob filtering, context lines, and per-file match reporting."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                      = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+tokio.workspace                          = true
+ignore.workspace                         = true
+grep-searcher.workspace                  = true
+grep-regex.workspace                     = true
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
+grep-matcher = "0.1"
+
+[dev-dependencies]
+tempfile.workspace = true
