@@ -8,6 +8,8 @@ use crate::args::{ReadArgs, ReadTarget};
 use crate::output::{FileReadResult, LineRange, ReadOutput};
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 /// Maximum file size for full-file reads (1 MB).
 ///
@@ -30,11 +32,21 @@ const MAX_FILE_SIZE_BYTES: usize = 1_048_576;
 /// A `ToolResult` with `is_error: false` (even if individual files failed).
 /// Per-file errors are embedded in the JSON content, not surfaced as a top-level error.
 pub async fn execute(call_id: ToolCallId, args: ReadArgs) -> ToolResult {
-    // Read all files concurrently using join_all.
+    // Maximum number of concurrent file reads to prevent file descriptor exhaustion.
+    const MAX_CONCURRENT_READS: usize = 16;
+    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_READS));
+
+    // Read all files concurrently using join_all, bounded by the semaphore.
     let futures: Vec<_> = args
         .paths
         .into_iter()
-        .map(|target| read_single_file(target))
+        .map(|target| {
+            let sem = Arc::clone(&semaphore);
+            async move {
+                let _permit = sem.acquire().await.expect("semaphore closed");
+                read_single_file(target).await
+            }
+        })
         .collect();
 
     let results = futures::future::join_all(futures).await;
@@ -151,8 +163,25 @@ async fn read_single_file(target: ReadTarget) -> FileReadResult {
         };
     }
 
-    // Convert bytes to a UTF-8 string. Use lossy conversion to handle invalid UTF-8.
-    let full_content = String::from_utf8_lossy(&bytes).into_owned();
+    // Convert bytes to a UTF-8 string. Use strict conversion to detect invalid UTF-8.
+    let full_content = match String::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => {
+            return FileReadResult {
+                path: path_str,
+                success: false,
+                content: None,
+                error: Some(
+                    "File contains invalid UTF-8 encoding. \
+                     May be a binary or non-UTF-8 encoded text file (e.g. Windows-1252, Latin-1). \
+                     Only UTF-8 encoded text files are supported."
+                        .to_string(),
+                ),
+                total_lines: None,
+                lines_returned: None,
+            };
+        }
+    };
 
     // If this is a line-range read, apply the range.
     if is_range_read {
