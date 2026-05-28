@@ -1,0 +1,12 @@
+[package]
+name        = "operon-tools-fs"
+description = "Filesystem tool group facade for Operon: re-exports all fs tool sub-crates."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-tools-fs-read.workspace = true
+operon-tools-fs-grep.workspace = true

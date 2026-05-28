@@ -1,0 +1,22 @@
+[package]
+name        = "operon-tools"
+description = "All Operon agent tools and their runtime execution. Organized into groups: fs, web, sub_agents, etc."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-tools-core.workspace              = true
+operon-tools-fs.workspace                = true
+operon-tools-fs-read.workspace           = true
+operon-tools-fs-grep.workspace           = true
+operon-context-normalize-tools.workspace = true
+serde_json.workspace                     = true
+tokio.workspace                          = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["full"] }
+

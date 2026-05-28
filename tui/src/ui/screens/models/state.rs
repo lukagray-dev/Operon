@@ -44,6 +44,7 @@ pub enum FetchStatus {
     /// Fetch completed successfully, models are available
     Success,
     /// Fetch failed with error message
+    #[allow(dead_code)]
     Error(String),
 }
 
@@ -172,6 +173,7 @@ impl ModelsState {
     }
 
     /// Toggle API key visibility
+    #[allow(dead_code)]
     pub fn toggle_api_key_visibility(&mut self) {
         self.api_key_visible = !self.api_key_visible;
     }
@@ -201,6 +203,7 @@ impl ModelsState {
     }
 
     /// Complete fetch operation with error
+    #[allow(dead_code)]
     pub fn fail_fetch(&mut self, error: String) {
         self.fetch_status = FetchStatus::Error(error);
         self.fetched_models.clear();

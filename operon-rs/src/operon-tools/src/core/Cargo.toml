@@ -1,0 +1,17 @@
+[package]
+name        = "operon-tools-core"
+description = "Shared core types for all Operon tool crates: TieredToolDefinition, dispatch errors, and the Tool trait."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# Leaf crate — no operon-* deps except the normalize types.
+# Every tool sub-crate and the dispatcher depend on this.
+
+[dependencies]
+thiserror.workspace                    = true
+serde.workspace                        = true
+serde_json.workspace                   = true
+operon-context-normalize-tools.workspace = true

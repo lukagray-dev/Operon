@@ -132,12 +132,14 @@ pub enum Action {
     ModelsNextField,
     
     /// Start fetching models from provider (mock operation)
+    #[allow(dead_code)]
     ModelsFetchModels,
     
     /// Models fetch completed with results
     ModelsFetchComplete(Vec<String>),
     
     /// Toggle compatibility mode in custom provider form
+    #[allow(dead_code)]
     ModelsToggleCompat,
     
     /// Left arrow key in models screen (compat toggle or text cursor movement)
