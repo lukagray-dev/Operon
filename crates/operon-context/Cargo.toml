@@ -1,0 +1,21 @@
+[package]
+name = "operon-context"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context-token-tracker.workspace = true
+operon-context-snapshot.workspace      = true
+operon-context-sanitizer.workspace     = true
+operon-context-compaction.workspace    = true
+operon-context-normalize.workspace     = true
+
+[features]
+default = []
+test-utils = ["operon-context-compaction/test-utils"]
+
+[dev-dependencies]
+operon-context-compaction = { workspace = true, features = ["test-utils"] }

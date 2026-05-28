@@ -1,0 +1,25 @@
+[package]
+name        = "operon-context-snapshot"
+description = "Session snapshot: assembles bootstrap, AGENTS.md, directory tree, and git status into the agent's system message. Refreshed every turn by the sanitizer with internal caching for tree and AGENTS.md."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# Leaf crate — no internal operon-* deps. Usable standalone outside Operon.
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace     = true
+tokio.workspace     = true
+dirs.workspace      = true
+
+# Gitignore-aware directory tree walker (BurntSushi / ripgrep author)
+ignore.workspace = true
+
+# Git status without shelling out
+git2.workspace = true
+
+# Cross-platform filesystem watcher — invalidates tree/AGENTS.md cache on change
+notify.workspace = true

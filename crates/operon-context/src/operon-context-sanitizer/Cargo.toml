@@ -1,0 +1,17 @@
+[package]
+name        = "operon-context-sanitizer"
+description = "Context sanitizer: drops stale system messages, orphan tool results, normalizes assistant tool calls"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context-normalize-tools.workspace = true
+operon-context-normalize-messages.workspace = true
+operon-context-snapshot.workspace = true
+
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true

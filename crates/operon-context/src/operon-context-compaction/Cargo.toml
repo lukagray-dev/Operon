@@ -1,0 +1,26 @@
+[package]
+name        = "operon-context-compaction"
+description = "Context compaction: LLM-driven summarization and token-budget-aware message preservation"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context-normalize-messages.workspace = true
+operon-context-snapshot.workspace           = true
+
+thiserror.workspace   = true
+serde.workspace       = true
+serde_json.workspace  = true
+async-trait.workspace = true
+
+[dev-dependencies]
+operon-context-normalize-reasoning.workspace = true
+operon-context-normalize-tools.workspace     = true
+tokio.workspace                              = true
+
+[features]
+default = []
+test-utils = []

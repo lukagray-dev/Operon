@@ -26,19 +26,25 @@ members = [
 ]
 
 [workspace.dependencies]
-tokio        = { version = "1",    features = ["full"] }
-async-trait  = "0.1"
-anyhow       = "1"
-thiserror    = "2"
-serde        = { version = "1",    features = ["derive"] }
-serde_json   = "1"
-futures      = "0.3"
-tracing      = "0.1"
-reqwest      = { version = "0.12", features = ["json", "stream"] }
-dirs         = "5.0"
-toml         = "0.8"
+tokio        = { version = "1.52.3",    features = ["full"] }
+async-trait  = "0.1.89"
+anyhow       = "1.0.102"
+thiserror    = "2.0.18"
+serde        = { version = "1.0.228",    features = ["derive"] }
+serde_json   = "1.0.150"
+futures      = "0.3.32"
+tracing      = "0.1.44"
+reqwest      = { version = "0.13.4", features = ["json", "stream"] }
+dirs         = "6.0.0"
+toml         = "1.1.2"
+ignore       = "0.4.25"
+git2         = { version = "0.21.0", default-features = false }
+notify       = "8.2.0"
 
 # Internal crates
+# features = ["bpe"] is Operon's activation of the BPE feature in the token-tracker.
+# The crate defines it; we opt in here. Other devs using the crate standalone get
+# the default heuristic estimator unless they activate it themselves.
 operon-context-token-tracker = { path = "crates/operon-context/src/operon-context-token-tracker", features = ["bpe"] }
 operon-context-snapshot      = { path = "crates/operon-context/src/operon-context-snapshot" }
 operon-context-sanitizer     = { path = "crates/operon-context/src/operon-context-sanitizer" }

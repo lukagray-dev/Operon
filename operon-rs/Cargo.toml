@@ -1,0 +1,16 @@
+[package]
+name        = "operon-rs"
+description = "Operon agent runtime — public facade over all operon-* crates"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context.workspace = true
+
+thiserror.workspace = true
+serde.workspace     = true
+tokio.workspace     = true
+tracing.workspace   = true
