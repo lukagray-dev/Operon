@@ -41,8 +41,10 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() {
-    // 1. Get the tool definition to register with the model
+    // 1. Get the tiered tool definition
     let def = definition();
+    println!("Tool name: {}", def.name());
+    println!("Short description: {}", def.short.description);
     
     // 2. When the model calls the tool, execute it
     let args = json!({
@@ -90,7 +92,29 @@ let args = json!({
 
 ## Tool Definition
 
-The tool exposes the following JSON Schema to the model:
+The tool exposes a **tiered definition** with short and detailed descriptions:
+
+### Short Description (Normal Use)
+
+```
+Reads one or multiple files in one call (max 1 MB per file).
+Pass `paths` as an array of strings or objects.
+Use {"path": "...", "start_line": N, "end_line": M} to read a line range.
+Binary files cannot be read with this tool.
+```
+
+### Detailed Description (After Malformed Call)
+
+Full explanation with:
+- Accepted input shapes (plain strings vs objects)
+- Size limit behavior
+- Response format
+- Constraints (binary files, invalid UTF-8, etc.)
+- Common mistakes (wrong key names, wrong types)
+
+The dispatcher automatically switches to the detailed description when the model sends malformed arguments, helping it recover gracefully.
+
+## Tool Definition Schema
 
 ```json
 {

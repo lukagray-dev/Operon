@@ -44,59 +44,118 @@ pub use error::ReadToolError;
 pub use output::{FileReadResult, LineRange, ReadOutput};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_tools_core::TieredToolDefinition;
 use serde_json::json;
 
-/// Returns the ToolDefinition to register this tool with the model.
+/// Returns the tiered tool definition for the `read` tool.
 ///
-/// This definition describes the tool's name, purpose, and parameter schema
-/// in a format that can be sent to any LLM provider via the normalization layer.
-///
-/// # Returns
-/// A `ToolDefinition` that can be passed to `denormalize_definition` for
-/// conversion to a provider-specific wire format.
-pub fn definition() -> ToolDefinition {
-    ToolDefinition {
-        name: "read".to_string(),
-        description: "\
-Reads one or multiple files in a single call. Returns file contents or per-file errors.
-
-Each entry in `paths` can be:
-- A plain string: `\"src/main.rs\"` — reads the entire file (max 1 MB)
-- An object with optional line range: `{\"path\": \"src/main.rs\", \"start_line\": 100, \"end_line\": 200}`
-
-Use line ranges to read large files in chunks. Binary files (images, executables) are not readable \
-with this tool — use the dedicated media tool instead.
-
-Always prefer reading multiple files in one call over sequential single-file calls."
-            .to_string(),
-        parameters: json!({
-            "type": "object",
-            "properties": {
-                "paths": {
-                    "type": "array",
-                    "description": "Files to read. Each item is either a path string or an object with path + optional start_line/end_line.",
-                    "items": {
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "description": "Absolute or relative path to the file."
-                            },
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "path": { "type": "string", "description": "Absolute or relative path to the file." },
-                                    "start_line": { "type": "integer", "description": "First line to return (1-indexed, inclusive)." },
-                                    "end_line": { "type": "integer", "description": "Last line to return (1-indexed, inclusive)." }
+/// - `short`: sent to the model under normal conditions. Concise — states what
+///   the tool does and the single most important constraint (1 MB limit).
+/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
+///   edge cases, and worked examples.
+pub fn definition() -> TieredToolDefinition {
+    let parameters = json!({
+        "type": "object",
+        "properties": {
+            "paths": {
+                "type": "array",
+                "description": "Files to read. Each item is either a path string or an object with path + optional start_line/end_line.",
+                "items": {
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "description": "Absolute or relative path to the file."
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string",
+                                    "description": "Absolute or relative path to the file."
                                 },
-                                "required": ["path"]
-                            }
-                        ]
-                    },
-                    "minItems": 1
-                }
-            },
-            "required": ["paths"]
-        }),
+                                "start_line": {
+                                    "type": "integer",
+                                    "description": "First line to return (1-indexed, inclusive)."
+                                },
+                                "end_line": {
+                                    "type": "integer",
+                                    "description": "Last line to return (1-indexed, inclusive)."
+                                }
+                            },
+                            "required": ["path"]
+                        }
+                    ]
+                },
+                "minItems": 1
+            }
+        },
+        "required": ["paths"]
+    });
+
+    TieredToolDefinition {
+        short: ToolDefinition {
+            name: "read".to_string(),
+            description: "Reads one or multiple files in one call (max 1 MB per file). \
+                          Pass `paths` as an array of strings or objects. \
+                          Use `{\"path\": \"...\", \"start_line\": N, \"end_line\": M}` to read a \
+                          line range instead of the full file. \
+                          Binary files cannot be read with this tool."
+                .to_string(),
+            parameters: parameters.clone(),
+        },
+        detailed: ToolDefinition {
+            name: "read".to_string(),
+            description: "\
+Reads one or multiple files in a single call. Returns structured per-file results.
+
+## Input shapes
+
+`paths` is a required array. Each element is ONE of:
+
+1. A plain string — reads the entire file (subject to 1 MB limit):
+   `\"src/main.rs\"`
+
+2. An object — reads the entire file or a line range:
+   `{\"path\": \"src/main.rs\"}`
+   `{\"path\": \"src/main.rs\", \"start_line\": 100, \"end_line\": 200}`
+   `{\"path\": \"src/main.rs\", \"start_line\": 50}`   ← reads from line 50 to EOF
+   `{\"path\": \"src/main.rs\", \"end_line\": 30}`     ← reads from line 1 to line 30
+
+You can mix both shapes in the same call:
+`{\"paths\": [\"Cargo.toml\", {\"path\": \"src/main.rs\", \"start_line\": 1, \"end_line\": 50}]}`
+
+## Size limit
+
+Full-file reads (no line range) are capped at 1 MB. If a file exceeds this,
+the result for that file will have `success: false` with an error message telling
+you to use `start_line`/`end_line`. Line-range reads bypass the size check.
+
+## Response format
+
+Returns a JSON object: `{\"files\": [ ...one entry per path... ]}`
+
+Each entry:
+- `success: true`  → `content` (string), `total_lines` (int), optionally `lines_returned`
+- `success: false` → `error` (string describing why it failed)
+
+The overall tool call always returns `is_error: false`. Per-file failures are inside the JSON.
+
+## Constraints
+
+- Binary files (null bytes) → `success: false`, error message.
+- Invalid UTF-8 → `success: false`, error message.
+- Non-existent path → `success: false`, error message.
+- `start_line` beyond file end → `success: false`, error message.
+- `end_line` beyond file end → clamped silently to last line, no error.
+
+## Common mistakes
+
+- Passing `paths` as a string instead of an array → args parse failure.
+- Using `path` as the top-level key instead of `paths` → args parse failure.
+- Passing line numbers as strings instead of integers → args parse failure."
+                .to_string(),
+            parameters,
+        },
     }
 }
 
