@@ -161,6 +161,14 @@ impl Dispatcher {
                     .map_err(|e| e.to_string())
             },
         );
+        self.register(
+            operon_tools_fs_delete::definition(),
+            |call_id, args| async move {
+                operon_tools_fs_delete::execute(call_id, args)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
     }
 
     /// Returns the tool definitions to include in the next model request.

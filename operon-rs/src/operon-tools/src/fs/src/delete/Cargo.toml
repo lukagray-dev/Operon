@@ -1,0 +1,20 @@
+[package]
+name        = "operon-tools-fs-delete"
+description = "Delete tool: moves files or directories to system trash (recoverable) or permanently deletes them. Defaults to trash for safety. Handles both files and directories."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                      = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+tokio.workspace                          = true
+trash.workspace                          = true
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
+
+[dev-dependencies]
+tempfile.workspace = true

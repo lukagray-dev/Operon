@@ -16,6 +16,7 @@ operon-tools-fs-ls.workspace             = true
 operon-tools-fs-edit.workspace           = true
 operon-tools-fs-write.workspace          = true
 operon-tools-fs-append.workspace         = true
+operon-tools-fs-delete.workspace         = true
 operon-context-normalize-tools.workspace = true
 serde_json.workspace                     = true
 tokio.workspace                          = true

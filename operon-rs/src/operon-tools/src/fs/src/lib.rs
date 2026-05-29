@@ -8,6 +8,7 @@
 //! - `edit`: Edits an existing file by replacing exact text with atomic writes.
 //! - `write`: Creates a new file or fully overwrites an existing file with atomic writes.
 //! - `append`: Appends text to the end of an existing file without modifying existing content.
+//! - `delete`: Deletes a file or directory, with options for trash or permanent deletion.
 //!
 //! ## Usage
 //! ```rust
@@ -26,3 +27,4 @@ pub use operon_tools_fs_read as read;
 pub use operon_tools_fs_edit as edit;
 pub use operon_tools_fs_write as write;
 pub use operon_tools_fs_append as append;
+pub use operon_tools_fs_delete as delete;

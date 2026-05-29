@@ -30,6 +30,7 @@ members = [
     "operon-rs/src/operon-tools/src/fs/src/edit",
     "operon-rs/src/operon-tools/src/fs/src/write",
     "operon-rs/src/operon-tools/src/fs/src/append",
+    "operon-rs/src/operon-tools/src/fs/src/delete",
 
     # Frontends
     "tui",
@@ -56,6 +57,7 @@ git2         = { version = "0.21.0", default-features = false }
 notify       = "8.2.0"
 tempfile     = "3.15.0"
 globset      = "0.4"
+trash        = "5"
 
 # Internal crates
 # features = ["bpe"] is Operon's activation of the BPE feature in the token-tracker.
@@ -81,6 +83,7 @@ operon-tools-fs-ls   = { path = "operon-rs/src/operon-tools/src/fs/src/ls" }
 operon-tools-fs-edit = { path = "operon-rs/src/operon-tools/src/fs/src/edit" }
 operon-tools-fs-write = { path = "operon-rs/src/operon-tools/src/fs/src/write" }
 operon-tools-fs-append = { path = "operon-rs/src/operon-tools/src/fs/src/append" }
+operon-tools-fs-delete = { path = "operon-rs/src/operon-tools/src/fs/src/delete" }
 operon-tools-fs      = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools         = { path = "operon-rs/src/operon-tools" }
 
