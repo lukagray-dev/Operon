@@ -22,7 +22,11 @@ members = [
 
     # Tools — agent tool implementations
     "operon-rs/src/operon-tools",
+
+    # Tools — shared core
     "operon-rs/src/operon-tools/src/core",
+
+    # File-system tools
     "operon-rs/src/operon-tools/src/fs",
     "operon-rs/src/operon-tools/src/fs/src/read",
     "operon-rs/src/operon-tools/src/fs/src/grep",
@@ -31,6 +35,10 @@ members = [
     "operon-rs/src/operon-tools/src/fs/src/write",
     "operon-rs/src/operon-tools/src/fs/src/append",
     "operon-rs/src/operon-tools/src/fs/src/delete",
+
+    # Shell tool
+    "operon-rs/src/operon-tools/src/shell",
+    "operon-rs/src/operon-tools/src/shell/src/bash",
 
     # Frontends
     "tui",
@@ -63,10 +71,10 @@ trash        = "5"
 # features = ["bpe"] is Operon's activation of the BPE feature in the token-tracker.
 # The crate defines it; we opt in here. Other devs using the crate standalone get
 # the default heuristic estimator unless they activate it themselves.
-operon-context-token-tracker = { path = "operon-rs/src/operon-context/src/operon-context-token-tracker", features = ["bpe"] }
-operon-context-snapshot      = { path = "operon-rs/src/operon-context/src/operon-context-snapshot" }
-operon-context-sanitizer     = { path = "operon-rs/src/operon-context/src/operon-context-sanitizer" }
-operon-context-compaction    = { path = "operon-rs/src/operon-context/src/operon-context-compaction" }
+operon-context-token-tracker          = { path = "operon-rs/src/operon-context/src/operon-context-token-tracker", features = ["bpe"] }
+operon-context-snapshot               = { path = "operon-rs/src/operon-context/src/operon-context-snapshot" }
+operon-context-sanitizer              = { path = "operon-rs/src/operon-context/src/operon-context-sanitizer" }
+operon-context-compaction             = { path = "operon-rs/src/operon-context/src/operon-context-compaction" }
 
 operon-context-normalize              = { path = "operon-rs/src/operon-context/src/operon-context-normalize" }
 operon-context-normalize-tools        = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-tools" }
@@ -76,16 +84,18 @@ operon-context-normalize-stream       = { path = "operon-rs/src/operon-context/s
 
 operon-context = { path = "operon-rs/src/operon-context" }
 
-operon-tools-core    = { path = "operon-rs/src/operon-tools/src/core" }
-operon-tools-fs-read = { path = "operon-rs/src/operon-tools/src/fs/src/read" }
-operon-tools-fs-grep = { path = "operon-rs/src/operon-tools/src/fs/src/grep" }
-operon-tools-fs-ls   = { path = "operon-rs/src/operon-tools/src/fs/src/ls" }
-operon-tools-fs-edit = { path = "operon-rs/src/operon-tools/src/fs/src/edit" }
-operon-tools-fs-write = { path = "operon-rs/src/operon-tools/src/fs/src/write" }
-operon-tools-fs-append = { path = "operon-rs/src/operon-tools/src/fs/src/append" }
-operon-tools-fs-delete = { path = "operon-rs/src/operon-tools/src/fs/src/delete" }
-operon-tools-fs      = { path = "operon-rs/src/operon-tools/src/fs" }
-operon-tools         = { path = "operon-rs/src/operon-tools" }
+operon-tools-core                     = { path = "operon-rs/src/operon-tools/src/core" }
+operon-tools-fs-read                  = { path = "operon-rs/src/operon-tools/src/fs/src/read" }
+operon-tools-fs-grep                  = { path = "operon-rs/src/operon-tools/src/fs/src/grep" }
+operon-tools-fs-ls                    = { path = "operon-rs/src/operon-tools/src/fs/src/ls" }
+operon-tools-fs-edit                  = { path = "operon-rs/src/operon-tools/src/fs/src/edit" }
+operon-tools-fs-write                 = { path = "operon-rs/src/operon-tools/src/fs/src/write" }
+operon-tools-fs-append                = { path = "operon-rs/src/operon-tools/src/fs/src/append" }
+operon-tools-fs-delete                = { path = "operon-rs/src/operon-tools/src/fs/src/delete" }
+operon-tools-shell                    = { path = "operon-rs/src/operon-tools/src/shell" }
+operon-tools-shell-bash               = { path = "operon-rs/src/operon-tools/src/shell/src/bash" }
+operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
+operon-tools                          = { path = "operon-rs/src/operon-tools" }
 
 [workspace.package]
 version    = "0.1.0"

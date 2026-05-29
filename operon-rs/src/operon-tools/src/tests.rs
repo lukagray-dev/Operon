@@ -429,3 +429,108 @@ async fn test_failed_read_does_not_record() {
         "edit should be blocked for path that failed to read"
     );
 }
+
+// ============================================================================
+// SHELL TOOLS TESTS
+// ============================================================================
+
+#[tokio::test]
+async fn test_bash_tool_registration_and_dispatch() {
+    // Test: Verify bash tool can be registered and dispatched successfully.
+    let mut d = Dispatcher::new();
+    d.register_shell_tools();
+
+    // Dispatch a simple bash command
+    let result = d
+        .dispatch(make_call(
+            "bash",
+            json!({
+                "command": "echo hello"
+            }),
+        ))
+        .await;
+
+    assert!(!result.is_error, "bash tool should execute successfully");
+    assert_eq!(result.name, "bash");
+
+    // Verify the result contains JSON output
+    match &result.content {
+        operon_context_normalize_tools::ToolContent::Json(v) => {
+            assert!(v.get("exit_code").is_some());
+            assert!(v.get("output").is_some());
+            assert!(v.get("command").is_some());
+        }
+        other => panic!("expected Json content, got {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_bash_tool_malformed_args_marks_degraded() {
+    // Test: Verify bash tool degradation on malformed args.
+    let mut d = Dispatcher::new();
+    d.register_shell_tools();
+
+    assert!(!d.is_degraded("bash"));
+
+    // Send malformed args — missing required "command" field
+    let result = d
+        .dispatch(make_call("bash", json!({ "wrong_key": "value" })))
+        .await;
+
+    assert!(result.is_error);
+    assert!(
+        d.is_degraded("bash"),
+        "bash should be degraded after malformed call"
+    );
+}
+
+#[tokio::test]
+async fn test_bash_tool_empty_command_error() {
+    // Test: Verify bash tool returns error for empty command.
+    let mut d = Dispatcher::new();
+    d.register_shell_tools();
+
+    let result = d
+        .dispatch(make_call(
+            "bash",
+            json!({
+                "command": ""
+            }),
+        ))
+        .await;
+
+    assert!(result.is_error);
+    match &result.content {
+        operon_context_normalize_tools::ToolContent::Text(t) => {
+            assert!(t.contains("empty"));
+        }
+        other => panic!("expected Text content, got {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_bash_tool_nonzero_exit_not_error() {
+    // Test: Verify bash tool returns non-error for non-zero exit code.
+    let mut d = Dispatcher::new();
+    d.register_shell_tools();
+
+    let result = d
+        .dispatch(make_call(
+            "bash",
+            json!({
+                "command": "exit 42"
+            }),
+        ))
+        .await;
+
+    // Non-zero exit should NOT be a tool error
+    assert!(!result.is_error, "non-zero exit should not be a tool error");
+
+    match &result.content {
+        operon_context_normalize_tools::ToolContent::Json(v) => {
+            let exit_code = v.get("exit_code").and_then(|e| e.as_i64());
+            assert_eq!(exit_code, Some(42));
+        }
+        other => panic!("expected Json content, got {:?}", other),
+    }
+}

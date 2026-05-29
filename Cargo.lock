@@ -3836,6 +3836,8 @@ dependencies = [
  "operon-tools-fs-ls",
  "operon-tools-fs-read",
  "operon-tools-fs-write",
+ "operon-tools-shell",
+ "operon-tools-shell-bash",
  "serde_json",
  "tempfile",
  "tokio",
@@ -3952,6 +3954,31 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-write"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize-tools",
+ "operon-tools-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-shell"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize-tools",
+ "operon-tools-core",
+ "operon-tools-shell-bash",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-shell-bash"
 version = "0.1.0"
 dependencies = [
  "operon-context-normalize-tools",

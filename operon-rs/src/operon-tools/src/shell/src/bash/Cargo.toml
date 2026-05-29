@@ -1,0 +1,19 @@
+[package]
+name        = "operon-tools-shell-bash"
+description = "Bash tool: executes a shell command in a stateless subprocess, captures merged stdout+stderr, returns exit code and output. Output capped at 10,000 characters. Optional model-specified timeout."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                      = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+tokio = { workspace = true, features = ["process", "time"] }
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
+
+[dev-dependencies]
+tempfile.workspace = true

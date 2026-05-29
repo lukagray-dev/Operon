@@ -116,6 +116,8 @@ impl Dispatcher {
     /// Call this after `Dispatcher::new()` to make fs tools available.
     /// As new tool groups are implemented, add analogous `register_*_tools` methods.
     pub fn register_fs_tools(&mut self) {
+        // Register all filesystem tools: read, grep, ls, edit, write, append, delete.
+        // Each tool is registered with its tiered definition and async execute function.
         self.register(
             operon_tools_fs_read::definition(),
             |call_id, args| async move {
@@ -168,6 +170,23 @@ impl Dispatcher {
             operon_tools_fs_delete::definition(),
             |call_id, args| async move {
                 operon_tools_fs_delete::execute(call_id, args)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+    }
+
+    /// Registers all shell tools.
+    ///
+    /// Call this after `Dispatcher::new()` to make shell tools available.
+    /// Currently includes: bash.
+    pub fn register_shell_tools(&mut self) {
+        // Register all shell tools: bash.
+        // Each tool is registered with its tiered definition and async execute function.
+        self.register(
+            operon_tools_shell_bash::definition(),
+            |call_id, args| async move {
+                operon_tools_shell_bash::execute(call_id, args)
                     .await
                     .map_err(|e| e.to_string())
             },
