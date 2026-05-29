@@ -47,6 +47,7 @@ toml         = "1.1.2"
 ignore       = "0.4.25"
 grep-searcher = "0.1"
 grep-regex    = "0.1"
+grep-matcher  = "0.1"
 git2         = { version = "0.21.0", default-features = false }
 notify       = "8.2.0"
 tempfile     = "3.15.0"

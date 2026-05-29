@@ -15,9 +15,9 @@ tokio.workspace                          = true
 ignore.workspace                         = true
 grep-searcher.workspace                  = true
 grep-regex.workspace                     = true
+grep-matcher.workspace                   = true
 operon-context-normalize-tools.workspace = true
 operon-tools-core.workspace              = true
-grep-matcher = "0.1"
 
 [dev-dependencies]
 tempfile.workspace = true

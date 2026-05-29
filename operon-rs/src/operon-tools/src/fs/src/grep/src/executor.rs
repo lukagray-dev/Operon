@@ -6,15 +6,13 @@
 
 use crate::args::GrepArgs;
 use crate::output::{FileGrepResult, GrepLine, GrepOutput};
-use grep_matcher::Matcher;
 use grep_regex::RegexMatcherBuilder;
-use grep_searcher::{sinks::UTF8, SearcherBuilder};
+use grep_searcher::{SearcherBuilder, Sink, SinkContext, SinkMatch};
 use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
 /// Maximum total matches across all files before truncation.
 ///
@@ -29,6 +27,80 @@ const MAX_MATCHES: usize = 300;
 /// attempting to search extremely large files that could cause memory issues
 /// or excessive processing time.
 const MAX_FILE_SIZE_BYTES: u64 = 10 * 1024 * 1024;
+
+/// Custom sink implementation for grep-searcher that properly distinguishes
+/// between match lines and context lines.
+///
+/// The `Sink` trait provides separate callbacks for matches vs context,
+/// which is the only correct way to distinguish them. The `UTF8` sink
+/// combines both into a single closure with no way to tell them apart.
+struct GrepSink<'a> {
+    /// Accumulated match and context lines for this file.
+    matches: &'a mut Vec<GrepLine>,
+    /// Number of actual matches (not context lines) found in this file.
+    match_count: &'a mut usize,
+    /// Running total of matches across all files (for limit enforcement).
+    total_matches: &'a mut usize,
+    /// Maximum total matches before stopping the search.
+    max_matches: usize,
+}
+
+impl<'a> Sink for GrepSink<'a> {
+    type Error = std::io::Error;
+
+    /// Called for each line that matches the regex pattern.
+    fn matched(
+        &mut self,
+        _searcher: &grep_searcher::Searcher,
+        sink_match: &SinkMatch<'_>,
+    ) -> Result<bool, Self::Error> {
+        // Check if we've hit the global match limit.
+        if *self.total_matches >= self.max_matches {
+            return Ok(false); // Stop searching
+        }
+
+        // Extract line number and content from the match.
+        let line_no = sink_match.line_number().unwrap_or(0) as usize;
+        let content = String::from_utf8_lossy(sink_match.bytes())
+            .trim_end_matches(&['\r', '\n'][..])
+            .to_string();
+
+        // Add the match line to the results.
+        self.matches.push(GrepLine {
+            line_no,
+            content,
+            is_match: true,
+        });
+
+        // Increment both file-local and global match counters.
+        *self.match_count += 1;
+        *self.total_matches += 1;
+
+        Ok(true) // Continue searching
+    }
+
+    /// Called for each context line (lines surrounding matches).
+    fn context(
+        &mut self,
+        _searcher: &grep_searcher::Searcher,
+        ctx: &SinkContext<'_>,
+    ) -> Result<bool, Self::Error> {
+        // Extract line number and content from the context line.
+        let line_no = ctx.line_number().unwrap_or(0) as usize;
+        let content = String::from_utf8_lossy(ctx.bytes())
+            .trim_end_matches(&['\r', '\n'][..])
+            .to_string();
+
+        // Add the context line to the results (is_match: false).
+        self.matches.push(GrepLine {
+            line_no,
+            content,
+            is_match: false,
+        });
+
+        Ok(true) // Continue searching
+    }
+}
 
 /// Executes the grep tool with the given arguments.
 ///
@@ -82,16 +154,27 @@ pub async fn execute(call_id: ToolCallId, args: GrepArgs) -> ToolResult {
     // Search all files in a blocking task (grep-searcher is not async-friendly).
     // We pass owned data into the blocking task to avoid lifetime issues.
     let context_lines = args.context_lines.unwrap_or(0);
-    let results = tokio::task::spawn_blocking(move || {
+    let (results, truncated) = match tokio::task::spawn_blocking(move || {
         search_files(file_paths, matcher, context_lines)
     })
     .await
-    .expect("blocking task panicked");
+    {
+        Ok(r) => r,
+        Err(_) => {
+            return ToolResult {
+                call_id,
+                name: "grep".to_string(),
+                content: ToolContent::Text(
+                    "Internal error: search task panicked".to_string(),
+                ),
+                is_error: true,
+            };
+        }
+    };
 
     // Assemble the final output structure with summary statistics.
     let total_matches: usize = results.iter().map(|r| r.match_count).sum();
     let files_with_matches = results.iter().filter(|r| r.match_count > 0).count();
-    let truncated = total_matches >= MAX_MATCHES;
 
     let output = GrepOutput {
         total_matches,
@@ -216,28 +299,28 @@ fn collect_file_paths(
 /// - `context_lines`: Number of context lines to include before/after each match
 ///
 /// # Returns
-/// A list of FileGrepResult, one per file that had matches or errors.
-/// Files with zero matches and no errors are omitted.
+/// A tuple of (results, truncated) where:
+/// - results: List of FileGrepResult, one per file that had matches or errors
+/// - truncated: true if the search stopped early due to hitting MAX_MATCHES
 fn search_files(
     file_paths: Vec<PathBuf>,
     matcher: grep_regex::RegexMatcher,
     context_lines: usize,
-) -> Vec<FileGrepResult> {
-    // Shared state for tracking total matches across all files.
-    // We use Arc<Mutex<>> to allow the searcher sink to update the count.
-    let total_matches = Arc::new(Mutex::new(0usize));
+) -> (Vec<FileGrepResult>, bool) {
+    let mut total_matches: usize = 0;
+    let mut truncated = false;
     let mut results = Vec::new();
 
     for path in file_paths {
         // Check if we've already hit the global match limit.
-        // If so, stop searching additional files (but finish the current file).
-        let current_total = *total_matches.lock().expect("mutex poisoned");
-        if current_total >= MAX_MATCHES {
+        // If so, mark as truncated and stop searching additional files.
+        if total_matches >= MAX_MATCHES {
+            truncated = true;
             break;
         }
 
         // Search this file and collect the result.
-        let result = search_single_file(&path, &matcher, context_lines, Arc::clone(&total_matches));
+        let result = search_single_file(&path, &matcher, context_lines, &mut total_matches);
 
         // Only include files that had matches or errors in the output.
         // Files with zero matches and no error are omitted to reduce output size.
@@ -246,7 +329,7 @@ fn search_files(
         }
     }
 
-    results
+    (results, truncated)
 }
 
 /// Searches a single file for the regex pattern and returns a FileGrepResult.
@@ -261,7 +344,7 @@ fn search_files(
 /// - `path`: The file path to search
 /// - `matcher`: The compiled regex matcher
 /// - `context_lines`: Number of context lines to include before/after each match
-/// - `total_matches`: Shared counter for global match limit enforcement
+/// - `total_matches`: Mutable reference to the global match counter for limit enforcement
 ///
 /// # Returns
 /// A `FileGrepResult` with either matches or an error message.
@@ -269,7 +352,7 @@ fn search_single_file(
     path: &Path,
     matcher: &grep_regex::RegexMatcher,
     context_lines: usize,
-    total_matches: Arc<Mutex<usize>>,
+    total_matches: &mut usize,
 ) -> FileGrepResult {
     let path_str = path.display().to_string();
 
@@ -305,49 +388,27 @@ fn search_single_file(
         .after_context(context_lines)
         .build();
 
-    // Collect matches using a UTF8 sink.
-    let mut matches = Vec::new();
+    // Collect matches using our custom GrepSink implementation.
+    let mut matches: Vec<GrepLine> = Vec::new();
     let mut match_count = 0usize;
+
+    // Dereference to get the current total before the search.
+    // We pass a local copy in and write back after.
+    let mut local_total = *total_matches;
 
     let sink_result = searcher.search_path(
         matcher,
         path,
-        UTF8(|line_num, line_content| {
-            // Check if we've hit the global match limit.
-            let current_total = *total_matches.lock().expect("mutex poisoned");
-            if current_total >= MAX_MATCHES {
-                // Stop searching this file.
-                return Ok(false);
-            }
-
-            // Determine if this is a match line or a context line.
-            // The UTF8 sink doesn't directly tell us, but we can infer it:
-            // grep-searcher calls the sink for both match and context lines.
-            // We need to use a different approach — use the Sink trait directly.
-            
-            // For now, we'll use a simpler approach: check if the line matches the pattern.
-            // This is not perfect (context lines might also match), but it's a reasonable heuristic.
-            let is_match = matcher.is_match(line_content.as_bytes()).unwrap_or(false);
-
-            if is_match {
-                match_count += 1;
-                // Update the global counter.
-                let mut total = total_matches.lock().expect("mutex poisoned");
-                *total += 1;
-            }
-
-            // Strip trailing newline characters from the line content.
-            let content = line_content.trim_end_matches(&['\r', '\n'][..]).to_string();
-
-            matches.push(GrepLine {
-                line_no: line_num as usize,
-                content,
-                is_match,
-            });
-
-            Ok(true) // Continue searching
-        }),
+        GrepSink {
+            matches: &mut matches,
+            match_count: &mut match_count,
+            total_matches: &mut local_total,
+            max_matches: MAX_MATCHES,
+        },
     );
+
+    // Write back the updated total.
+    *total_matches = local_total;
 
     // Handle search errors (binary file detection, I/O errors, etc.).
     match sink_result {
