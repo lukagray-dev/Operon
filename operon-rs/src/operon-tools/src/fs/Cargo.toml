@@ -11,3 +11,4 @@ repository.workspace = true
 operon-tools-fs-read.workspace = true
 operon-tools-fs-grep.workspace = true
 operon-tools-fs-ls.workspace = true
+operon-tools-fs-edit.workspace = true

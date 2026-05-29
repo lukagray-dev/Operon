@@ -27,6 +27,7 @@ members = [
     "operon-rs/src/operon-tools/src/fs/src/read",
     "operon-rs/src/operon-tools/src/fs/src/grep",
     "operon-rs/src/operon-tools/src/fs/src/ls",
+    "operon-rs/src/operon-tools/src/fs/src/edit",
 
     # Frontends
     "tui",
@@ -75,6 +76,7 @@ operon-tools-core    = { path = "operon-rs/src/operon-tools/src/core" }
 operon-tools-fs-read = { path = "operon-rs/src/operon-tools/src/fs/src/read" }
 operon-tools-fs-grep = { path = "operon-rs/src/operon-tools/src/fs/src/grep" }
 operon-tools-fs-ls   = { path = "operon-rs/src/operon-tools/src/fs/src/ls" }
+operon-tools-fs-edit = { path = "operon-rs/src/operon-tools/src/fs/src/edit" }
 operon-tools-fs      = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools         = { path = "operon-rs/src/operon-tools" }
 

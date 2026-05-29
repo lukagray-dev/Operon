@@ -13,6 +13,7 @@ operon-tools-fs.workspace                = true
 operon-tools-fs-read.workspace           = true
 operon-tools-fs-grep.workspace           = true
 operon-tools-fs-ls.workspace             = true
+operon-tools-fs-edit.workspace           = true
 operon-context-normalize-tools.workspace = true
 serde_json.workspace                     = true
 tokio.workspace                          = true
