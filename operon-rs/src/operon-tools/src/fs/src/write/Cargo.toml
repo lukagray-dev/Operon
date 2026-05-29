@@ -1,0 +1,19 @@
+[package]
+name        = "operon-tools-fs-write"
+description = "Write tool: creates a new file or fully overwrites an existing one with atomic writes. Use for new files or complete rewrites — prefer edit for partial changes."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                      = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+tokio.workspace                          = true
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
+
+[dev-dependencies]
+tempfile.workspace = true
