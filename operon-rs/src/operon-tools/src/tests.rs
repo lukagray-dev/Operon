@@ -114,3 +114,318 @@ async fn test_successful_dispatch_does_not_degrade() {
     assert!(!result.is_error);
     assert!(!d.is_degraded("read"));
 }
+
+
+// ============================================================================
+// Read-before-write/edit enforcement tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_write_existing_file_blocked_without_read() {
+    use tempfile::NamedTempFile;
+    use std::fs;
+
+    // Create a real temp file on disk with some content
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path();
+    fs::write(path, "original content\n").unwrap();
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    // Dispatch a write call for that path without first dispatching a read
+    let result = d
+        .dispatch(make_call(
+            "write",
+            json!({
+                "path": path.to_str().unwrap(),
+                "content": "new content\n"
+            }),
+        ))
+        .await;
+
+    assert!(result.is_error, "write to existing file should be blocked");
+    let error_text = match &result.content {
+        operon_context_normalize_tools::ToolContent::Text(t) => t,
+        _ => panic!("expected Text content"),
+    };
+    assert!(
+        error_text.contains("read-before-write"),
+        "error should mention read-before-write enforcement"
+    );
+}
+
+#[tokio::test]
+async fn test_write_new_file_allowed_without_read() {
+    use tempfile::TempDir;
+
+    // Pick a path that does NOT exist on disk
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("nonexistent_file.txt");
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    // Dispatch write without a prior read
+    let result = d
+        .dispatch(make_call(
+            "write",
+            json!({
+                "path": path.to_str().unwrap(),
+                "content": "new file content\n"
+            }),
+        ))
+        .await;
+
+    // New file creation should be allowed (exempt from read-before-write)
+    assert!(
+        !result.is_error,
+        "write to new file should be allowed without prior read"
+    );
+}
+
+#[tokio::test]
+async fn test_edit_blocked_without_read() {
+    use tempfile::NamedTempFile;
+    use std::fs;
+
+    // Create a real temp file with content
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path();
+    fs::write(path, "fn foo() {}\n").unwrap();
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    // Dispatch edit without a prior read
+    let result = d
+        .dispatch(make_call(
+            "edit",
+            json!({
+                "path": path.to_str().unwrap(),
+                "edits": [
+                    {
+                        "old_string": "fn foo() {}",
+                        "new_string": "fn bar() {}"
+                    }
+                ]
+            }),
+        ))
+        .await;
+
+    assert!(result.is_error, "edit should be blocked without prior read");
+    let error_text = match &result.content {
+        operon_context_normalize_tools::ToolContent::Text(t) => t,
+        _ => panic!("expected Text content"),
+    };
+    assert!(
+        error_text.contains("read-before-edit"),
+        "error should mention read-before-edit enforcement"
+    );
+}
+
+#[tokio::test]
+async fn test_read_then_edit_allowed() {
+    use tempfile::NamedTempFile;
+    use std::fs;
+
+    // Create a real temp file with content
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path();
+    fs::write(path, "fn foo() {}\n").unwrap();
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    // Dispatch read first
+    let read_result = d
+        .dispatch(make_call(
+            "read",
+            json!({ "paths": [path.to_str().unwrap()] }),
+        ))
+        .await;
+
+    assert!(!read_result.is_error, "read should succeed");
+
+    // Now dispatch edit — should be allowed
+    let edit_result = d
+        .dispatch(make_call(
+            "edit",
+            json!({
+                "path": path.to_str().unwrap(),
+                "edits": [
+                    {
+                        "old_string": "fn foo() {}",
+                        "new_string": "fn bar() {}"
+                    }
+                ]
+            }),
+        ))
+        .await;
+
+    assert!(
+        !edit_result.is_error,
+        "edit should be allowed after read: {}",
+        match &edit_result.content {
+            operon_context_normalize_tools::ToolContent::Text(t) => t,
+            _ => "unknown error",
+        }
+    );
+
+    // Verify the path is in the ledger
+    assert!(
+        d.read_ledger().has_been_read(path),
+        "path should be recorded in ledger after read"
+    );
+}
+
+#[tokio::test]
+async fn test_read_then_write_allowed() {
+    use tempfile::NamedTempFile;
+    use std::fs;
+
+    // Create a real temp file
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path();
+    fs::write(path, "original content\n").unwrap();
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    // Dispatch read first
+    let read_result = d
+        .dispatch(make_call(
+            "read",
+            json!({ "paths": [path.to_str().unwrap()] }),
+        ))
+        .await;
+
+    assert!(!read_result.is_error, "read should succeed");
+
+    // Now dispatch write — should be allowed
+    let write_result = d
+        .dispatch(make_call(
+            "write",
+            json!({
+                "path": path.to_str().unwrap(),
+                "content": "new content\n"
+            }),
+        ))
+        .await;
+
+    assert!(
+        !write_result.is_error,
+        "write should be allowed after read: {}",
+        match &write_result.content {
+            operon_context_normalize_tools::ToolContent::Text(t) => t,
+            _ => "unknown error",
+        }
+    );
+}
+
+#[tokio::test]
+async fn test_compaction_clears_ledger() {
+    use tempfile::NamedTempFile;
+    use std::fs;
+
+    // Create a real temp file
+    let temp_file = NamedTempFile::new().unwrap();
+    let path = temp_file.path();
+    fs::write(path, "fn foo() {}\n").unwrap();
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    // Dispatch read — path now in ledger
+    let read_result = d
+        .dispatch(make_call(
+            "read",
+            json!({ "paths": [path.to_str().unwrap()] }),
+        ))
+        .await;
+
+    assert!(!read_result.is_error);
+    assert!(
+        d.read_ledger().has_been_read(path),
+        "path should be in ledger after read"
+    );
+
+    // Call notify_compaction
+    d.notify_compaction();
+
+    // Ledger should be cleared
+    assert!(
+        d.read_ledger().is_empty(),
+        "ledger should be empty after compaction"
+    );
+
+    // Dispatch edit — should now be blocked (ledger was cleared)
+    let edit_result = d
+        .dispatch(make_call(
+            "edit",
+            json!({
+                "path": path.to_str().unwrap(),
+                "edits": [
+                    {
+                        "old_string": "fn foo() {}",
+                        "new_string": "fn bar() {}"
+                    }
+                ]
+            }),
+        ))
+        .await;
+
+    assert!(
+        edit_result.is_error,
+        "edit should be blocked after compaction cleared the ledger"
+    );
+}
+
+#[tokio::test]
+async fn test_failed_read_does_not_record() {
+    use tempfile::TempDir;
+
+    // Dispatch read on a path that doesn't exist
+    let dir = TempDir::new().unwrap();
+    let nonexistent_path = dir.path().join("does_not_exist.txt");
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    let read_result = d
+        .dispatch(make_call(
+            "read",
+            json!({ "paths": [nonexistent_path.to_str().unwrap()] }),
+        ))
+        .await;
+
+    // read returns per-file errors, not top-level errors
+    assert!(!read_result.is_error, "read tool returns per-file errors");
+
+    // The nonexistent path should NOT be in the ledger
+    assert!(
+        !d.read_ledger().has_been_read(&nonexistent_path),
+        "failed read should not record path in ledger"
+    );
+
+    // Dispatch edit on that path — should be blocked
+    let edit_result = d
+        .dispatch(make_call(
+            "edit",
+            json!({
+                "path": nonexistent_path.to_str().unwrap(),
+                "edits": [
+                    {
+                        "old_string": "anything",
+                        "new_string": "something"
+                    }
+                ]
+            }),
+        ))
+        .await;
+
+    assert!(
+        edit_result.is_error,
+        "edit should be blocked for path that failed to read"
+    );
+}

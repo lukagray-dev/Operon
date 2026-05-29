@@ -32,7 +32,7 @@
 
 use std::collections::{HashMap, HashSet};
 use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult};
-use operon_tools_core::ToolDispatchError;
+use operon_tools_core::{ReadLedger, ToolDispatchError};
 
 /// A registered tool: its tiered definition + its async execute function.
 struct ToolEntry {
@@ -72,6 +72,8 @@ pub struct Dispatcher {
     /// Tool names for which the model has made at least one malformed call
     /// in this session. These tools get the detailed description.
     degraded: HashSet<String>,
+    /// Tracks paths read this session for read-before-write/edit enforcement.
+    read_ledger: ReadLedger,
 }
 
 impl Dispatcher {
@@ -80,6 +82,7 @@ impl Dispatcher {
         Self {
             tools: HashMap::new(),
             degraded: HashSet::new(),
+            read_ledger: ReadLedger::new(),
         }
     }
 
@@ -171,6 +174,16 @@ impl Dispatcher {
         );
     }
 
+    /// Clears the read ledger after context compaction.
+    ///
+    /// Must be called by the session runner whenever compaction fires.
+    /// Compaction summarizes context — the model's mental model of file contents
+    /// becomes stale. Clearing the ledger forces re-reads before any subsequent
+    /// write or edit.
+    pub fn notify_compaction(&mut self) {
+        self.read_ledger.clear();
+    }
+
     /// Returns the tool definitions to include in the next model request.
     ///
     /// Each tool gets its `short` definition unless it is degraded (had a malformed
@@ -207,14 +220,50 @@ impl Dispatcher {
             }
         };
 
+        // Read-before-write/edit enforcement.
+        // For `write` on existing files and all `edit` calls, the model must have
+        // read the file at least once this session before modifying it.
+        // New files (write to a path that doesn't exist) are exempt.
+        if call.name == "write" || call.name == "edit" {
+            if let Some(path_str) = call.arguments.get("path").and_then(|v| v.as_str()) {
+                let path = std::path::Path::new(path_str);
+
+                // For write: only enforce if the file already exists.
+                // Creating a new file doesn't require a prior read.
+                let requires_read = if call.name == "write" {
+                    path.exists()
+                } else {
+                    // edit always requires a prior read — it modifies existing content.
+                    true
+                };
+
+                if requires_read && !self.read_ledger.has_been_read(path) {
+                    return error_result(
+                        call.id,
+                        &call.name,
+                        &format!(
+                            "read-before-{name} enforcement: '{path}' has not been read in this session. \
+                             Use the read tool to read the file first, then retry.\n\
+                             Note: if context compaction occurred recently, the ledger was reset — \
+                             re-reading is required even if you read this file earlier.",
+                            name = call.name,
+                            path = path_str,
+                        ),
+                    );
+                }
+            }
+            // If path arg is missing/malformed, fall through — the tool itself will
+            // return a proper args error via the execute fn.
+        }
+
         // Execute — the execute fn signals malformed args via Err(String).
-        match (entry.execute)(call.id.clone(), call.arguments).await {
+        let tool_result = match (entry.execute)(call.id.clone(), call.arguments).await {
             Ok(result) => result,
             Err(reason) => {
                 // Mark degraded so the next request sends the detailed description.
                 self.degraded.insert(tool_name.clone());
 
-                error_result(
+                return error_result(
                     call.id,
                     &tool_name,
                     &ToolDispatchError::MalformedArgs {
@@ -222,9 +271,19 @@ impl Dispatcher {
                         reason,
                     }
                     .to_string(),
-                )
+                );
             }
+        };
+
+        // Record successful reads into the ledger.
+        // A read is successful when is_error is false. We extract the paths that
+        // were actually read from the tool result content.
+        // Only fires for the `read` tool.
+        if tool_name == "read" && !tool_result.is_error {
+            record_read_paths(&mut self.read_ledger, &tool_result);
         }
+
+        tool_result
     }
 
     /// Returns the set of tool names currently in degraded mode.
@@ -237,6 +296,13 @@ impl Dispatcher {
     /// Checks whether a specific tool is currently in degraded mode.
     pub fn is_degraded(&self, tool_name: &str) -> bool {
         self.degraded.contains(tool_name)
+    }
+
+    /// Returns a reference to the read ledger.
+    ///
+    /// Primarily for testing — allows asserting ledger state after tool calls.
+    pub fn read_ledger(&self) -> &ReadLedger {
+        &self.read_ledger
     }
 }
 
@@ -253,5 +319,44 @@ fn error_result(call_id: ToolCallId, tool_name: &str, reason: &str) -> ToolResul
         name: tool_name.to_string(),
         content: ToolContent::Text(reason.to_string()),
         is_error: true,
+    }
+}
+
+/// Extracts successfully-read file paths from a `read` tool result and
+/// records them in the ledger.
+///
+/// The `read` tool returns a JSON array of `FileReadResult` objects. Each has:
+/// - `path: String` — the file path
+/// - `success: bool` — true if the file was successfully read
+/// - `error: Option<String>` — present and non-null if the file failed to read
+///
+/// Only paths with success=true (successfully read) are recorded.
+/// If the content is not JSON or doesn't match the expected shape, this is a
+/// no-op — we don't fail the dispatch over a ledger recording failure.
+fn record_read_paths(ledger: &mut ReadLedger, result: &ToolResult) {
+    // read tool returns ToolContent::Json with shape:
+    // { "files": [ { "path": "...", "success": true, "error": null }, ... ] }
+    let json = match &result.content {
+        ToolContent::Json(v) => v,
+        _ => return,
+    };
+
+    let files = match json.get("files").and_then(|f| f.as_array()) {
+        Some(arr) => arr,
+        None => return,
+    };
+
+    for file in files {
+        // Only record if success is true (file was successfully read).
+        let is_success = file
+            .get("success")
+            .and_then(|s| s.as_bool())
+            .unwrap_or(false);
+
+        if is_success {
+            if let Some(path_str) = file.get("path").and_then(|p| p.as_str()) {
+                ledger.record_read(std::path::Path::new(path_str));
+            }
+        }
     }
 }
