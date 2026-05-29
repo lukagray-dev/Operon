@@ -10,3 +10,4 @@ repository.workspace = true
 [dependencies]
 operon-tools-fs-read.workspace = true
 operon-tools-fs-grep.workspace = true
+operon-tools-fs-ls.workspace = true

@@ -2930,6 +2930,7 @@ dependencies = [
  "operon-tools-core",
  "operon-tools-fs",
  "operon-tools-fs-grep",
+ "operon-tools-fs-ls",
  "operon-tools-fs-read",
  "serde_json",
  "tempfile",
@@ -2951,6 +2952,7 @@ name = "operon-tools-fs"
 version = "0.1.0"
 dependencies = [
  "operon-tools-fs-grep",
+ "operon-tools-fs-ls",
  "operon-tools-fs-read",
 ]
 
@@ -2962,6 +2964,20 @@ dependencies = [
  "grep-regex",
  "grep-searcher",
  "ignore",
+ "operon-context-normalize-tools",
+ "operon-tools-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-fs-ls"
+version = "0.1.0"
+dependencies = [
+ "globset",
  "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
