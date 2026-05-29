@@ -7,6 +7,7 @@
 //! - `read`: Reads one or multiple files in a single call with optional line ranges.
 //! - `edit`: Edits an existing file by replacing exact text with atomic writes.
 //! - `write`: Creates a new file or fully overwrites an existing file with atomic writes.
+//! - `append`: Appends text to the end of an existing file without modifying existing content.
 //!
 //! ## Usage
 //! ```rust
@@ -24,3 +25,4 @@
 pub use operon_tools_fs_read as read;
 pub use operon_tools_fs_edit as edit;
 pub use operon_tools_fs_write as write;
+pub use operon_tools_fs_append as append;

@@ -13,3 +13,4 @@ operon-tools-fs-grep.workspace = true
 operon-tools-fs-ls.workspace = true
 operon-tools-fs-edit.workspace = true
 operon-tools-fs-write.workspace = true
+operon-tools-fs-append.workspace = true
