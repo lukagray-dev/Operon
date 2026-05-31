@@ -1,0 +1,60 @@
+// The Window menu mirrors the native shell actions at the top-right corner.
+//
+// Closing and exiting are wired to Rust; this file just keeps the dropdown
+// layout and styling in the same shared system as the other menus.
+
+import { DropdownItem, DropdownSurface, DropdownTokens, DropdownTrigger } from "../../shared/dropdown.slint";
+import { Tokens } from "../../shared/tokens.slint";
+
+export component WindowMenu inherits Rectangle {
+    in property <bool> open: false;
+    in property <float> ui_scale: 1.0;
+    callback header_clicked();
+    callback dismiss();
+    callback close_window_requested();
+    callback exit_requested();
+
+    width: trigger.width;
+    height: Tokens.titlebar_height;
+
+    trigger := DropdownTrigger {
+        x: 0px;
+        y: (Tokens.titlebar_height - DropdownTokens.trigger_hit_height) / 2;
+        label: "Window";
+        active: root.open;
+        ui_scale: root.ui_scale;
+        clicked => {
+            root.header_clicked();
+        }
+    }
+
+    panel := DropdownSurface {
+        x: 0px;
+        y: Tokens.titlebar_height;
+        width: DropdownTokens.surface_width;
+        height: 70px;
+        visible: root.open;
+
+        close_item := DropdownItem {
+            x: DropdownTokens.surface_padding;
+            y: DropdownTokens.surface_padding;
+            label: "Close window";
+            ui_scale: root.ui_scale;
+            clicked => {
+                root.dismiss();
+                root.close_window_requested();
+            }
+        }
+
+        exit_item := DropdownItem {
+            x: DropdownTokens.surface_padding;
+            y: DropdownTokens.surface_padding + DropdownTokens.item_height + DropdownTokens.item_gap;
+            label: "Exit";
+            ui_scale: root.ui_scale;
+            clicked => {
+                root.dismiss();
+                root.exit_requested();
+            }
+        }
+    }
+}

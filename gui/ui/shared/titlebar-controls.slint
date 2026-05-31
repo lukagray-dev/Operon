@@ -1,0 +1,63 @@
+// Shared icon button primitive for the titlebar.
+//
+// The navigation buttons and the window action buttons both use the same small
+// hit target and hover treatment, so this file keeps the chrome consistent
+// without repeating the styling in multiple places.
+
+import { Tokens } from "./tokens.slint";
+
+export component TitlebarIconButton inherits Rectangle {
+    in property <image> icon;
+    in property <color> idle_color: Tokens.text_secondary;
+    in property <color> hover_color: Tokens.text_primary;
+    in property <color> pressed_color: Tokens.text_primary;
+    in property <length> icon_size: Tokens.titlebar_icon_size;
+    in property <bool> show_surface: false;
+    in property <color> surface_idle_color: transparent;
+    in property <color> surface_hover_color: #2a2d31;
+    in property <color> surface_pressed_color: #353a40;
+    in property <length> surface_radius: 6px;
+    callback clicked();
+
+    width: Tokens.titlebar_icon_hit_width;
+    height: Tokens.titlebar_icon_hit_height;
+    background: transparent;
+
+    surface := Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        border-radius: root.surface_radius;
+        visible: root.show_surface;
+        background: icon_touch.pressed
+            ? root.surface_pressed_color
+            : icon_touch.has-hover
+                ? root.surface_hover_color
+                : root.surface_idle_color;
+    }
+
+    icon_image := Image {
+        source: root.icon;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.icon_size;
+        height: root.icon_size;
+        colorize: icon_touch.pressed
+            ? root.pressed_color
+            : icon_touch.has-hover
+                ? root.hover_color
+                : root.idle_color;
+    }
+
+    icon_touch := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

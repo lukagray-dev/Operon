@@ -1,0 +1,27 @@
+// The back and forward controls live here so the titlebar can keep the same
+// structure later even though these buttons do not have real history behavior
+// yet.
+
+import { TitlebarIconButton } from "../shared/titlebar-controls.slint";
+import { Tokens } from "../shared/tokens.slint";
+
+export component NavigationControls inherits Rectangle {
+    width: Tokens.titlebar_navigation_width;
+    height: Tokens.titlebar_icon_hit_height;
+
+    back_button := TitlebarIconButton {
+        x: 0px;
+        y: 0px;
+        icon: @image-url("../../assets/icons/arrow-left.svg");
+        clicked => {
+        }
+    }
+
+    forward_button := TitlebarIconButton {
+        x: Tokens.titlebar_icon_hit_width + Tokens.titlebar_button_gap;
+        y: 0px;
+        icon: @image-url("../../assets/icons/arrow-right.svg");
+        clicked => {
+        }
+    }
+}

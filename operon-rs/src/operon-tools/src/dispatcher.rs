@@ -33,6 +33,10 @@
 use std::collections::{HashMap, HashSet};
 use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult};
 use operon_tools_core::{ReadLedger, ToolDispatchError};
+use operon_tools_todo_create;
+use operon_tools_todo_list;
+use operon_tools_todo_update;
+use operon_tools_todo_delete;
 
 /// A registered tool: its tiered definition + its async execute function.
 struct ToolEntry {
@@ -74,6 +78,8 @@ pub struct Dispatcher {
     degraded: HashSet<String>,
     /// Tracks paths read this session for read-before-write/edit enforcement.
     read_ledger: ReadLedger,
+    /// In-memory todo list for the current agent session.
+    todo_store: operon_tools_core::TodoStore,
 }
 
 impl Dispatcher {
@@ -83,6 +89,7 @@ impl Dispatcher {
             tools: HashMap::new(),
             degraded: HashSet::new(),
             read_ledger: ReadLedger::new(),
+            todo_store: operon_tools_core::TodoStore::new(),
         }
     }
 
@@ -193,6 +200,39 @@ impl Dispatcher {
         );
     }
 
+    /// Registers all todo tools.
+    ///
+    /// Call this after `Dispatcher::new()` to make todo tools available.
+    /// Todo tools are stateful — they require mutable access to todo_store.
+    /// Definitions are registered here, but actual dispatch is handled directly
+    /// in the dispatch() method with explicit routing.
+    pub fn register_todo_tools(&mut self) {
+        // Register todo tool definitions only — actual dispatch is handled directly
+        // in dispatch() because todo tools require mutable access to todo_store.
+        use operon_tools_core::TieredToolDefinition;
+
+        let defs = [
+            operon_tools_todo_create::definition(),
+            operon_tools_todo_list::definition(),
+            operon_tools_todo_update::definition(),
+            operon_tools_todo_delete::definition(),
+        ];
+
+        for def in defs {
+            let name = def.name().to_string();
+            self.tools.insert(name.clone(), ToolEntry {
+                tiered: def,
+                execute: Box::new(move |call_id, _args| {
+                    // This path is never reached — todo tools are intercepted in dispatch().
+                    let n = name.clone();
+                    Box::pin(async move {
+                        Err(format!("todo tool '{}' should have been intercepted", n))
+                    })
+                }),
+            });
+        }
+    }
+
     /// Clears the read ledger after context compaction.
     ///
     /// Must be called by the session runner whenever compaction fires.
@@ -226,6 +266,47 @@ impl Dispatcher {
     /// so subsequent requests use the detailed description for that tool.
     pub async fn dispatch(&mut self, call: ToolCall) -> ToolResult {
         let tool_name = call.name.clone();
+
+        // Todo tools: routed directly because they require mutable access to todo_store.
+        match call.name.as_str() {
+            "todo_create" => {
+                return operon_tools_todo_create::execute(
+                    call.id,
+                    call.arguments,
+                    &mut self.todo_store,
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call.id, "todo_create", &e.to_string()));
+            }
+            "todo_list" => {
+                return operon_tools_todo_list::execute(
+                    call.id,
+                    call.arguments,
+                    &self.todo_store,
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call.id, "todo_list", &e.to_string()));
+            }
+            "todo_update" => {
+                return operon_tools_todo_update::execute(
+                    call.id,
+                    call.arguments,
+                    &mut self.todo_store,
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call.id, "todo_update", &e.to_string()));
+            }
+            "todo_delete" => {
+                return operon_tools_todo_delete::execute(
+                    call.id,
+                    call.arguments,
+                    &mut self.todo_store,
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call.id, "todo_delete", &e.to_string()));
+            }
+            _ => {} // fall through to generic tool dispatch
+        }
 
         // Look up the tool.
         let entry = match self.tools.get(&tool_name) {
@@ -322,6 +403,13 @@ impl Dispatcher {
     /// Primarily for testing — allows asserting ledger state after tool calls.
     pub fn read_ledger(&self) -> &ReadLedger {
         &self.read_ledger
+    }
+
+    /// Returns a mutable reference to the todo store.
+    ///
+    /// Used by todo tool execute functions which receive the store as a parameter.
+    pub fn todo_store_mut(&mut self) -> &mut operon_tools_core::TodoStore {
+        &mut self.todo_store
     }
 }
 

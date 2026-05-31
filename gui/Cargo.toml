@@ -6,6 +6,7 @@ edition.workspace    = true
 authors.workspace    = true
 license.workspace    = true
 repository.workspace = true
+build = "build.rs"
 
 [dependencies]
 # ── Workspace shared deps ─────────────────────────────────────────────────────
@@ -19,12 +20,8 @@ dirs.workspace        = true
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 
 # Slint GUI framework — declarative UI language and runtime
-slint = "1.14.1"
+slint = { version = "1.16.1", features = ["unstable-winit-030"] }
 
 [build-dependencies]
 # Slint build script — compiles .slint files to Rust
-slint-build = "1.14.1"
-
-[profile.release]
-codegen-units = 1
-lto = true
+slint-build = "1.16.1"

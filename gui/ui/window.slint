@@ -1,0 +1,93 @@
+// Top-level window composition for the Operon GUI.
+//
+// This file stays intentionally small on purpose: it defines the native shell,
+// sets the global visual defaults, and hands the chrome rendering off to the
+// dedicated titlebar component.
+
+import "../assets/fonts/google_sans/GoogleSans-Regular.ttf";
+import { Tokens } from "./shared/tokens.slint";
+import { Titlebar } from "./window/titlebar.slint";
+
+export component OperonWindow inherits Window {
+    // The window opens in a centered 16:9-ish landscape shape. The runtime
+    // bootstrap still adjusts the final size and position to match the active
+    // monitor, but these values keep the fallback behavior sensible.
+    preferred-width: 960px;
+    preferred-height: 540px;
+    min-width: 800px;
+    min-height: 450px;
+    no-frame: true;
+    resize-border-width: Tokens.window_resize_border_width;
+
+    // Keep the shell background neutral so the UI reads as black and gray
+    // instead of drifting toward a bluish desktop aesthetic.
+    background: Tokens.window_background;
+    title: "Operon";
+    icon: @image-url("../assets/brand/operon.svg");
+
+    // The Google Sans import above makes this family available globally. The
+    // base size stays compact, while the chrome uses the shared titlebar
+    // tokens for a slightly larger and more polished feel.
+    default-font-family: Tokens.font_family;
+    default-font-size: Tokens.body_font_size * root.ui_scale;
+    default-font-weight: 400;
+
+    // Shared state exposed to Rust. The titlebar reacts to these values and the
+    // content area can bind to them later without changing the UI wiring.
+    in-out property <bool> window_maximized: false;
+    in-out property <float> ui_scale: 1.0;
+    in-out property <int> reload_generation: 0;
+
+    // The titlebar only exposes the actions that need Rust-side behavior.
+    callback minimize_requested();
+    callback maximize_requested();
+    callback close_window_requested();
+    callback exit_requested();
+    callback drag_window_requested();
+    callback reload_requested();
+    callback zoom_in_requested();
+    callback zoom_out_requested();
+    callback actual_size_requested();
+    callback documentation_requested();
+    callback report_bug_requested();
+    callback follow_creator_requested();
+    callback see_repo_requested();
+
+    // Clicking anywhere in the content region should dismiss any open dropdown
+    // without interfering with the titlebar's own controls and popovers.
+    content_dismiss_area := TouchArea {
+        x: 0px;
+        y: titlebar.height;
+        width: parent.width;
+        height: parent.height - titlebar.height;
+        enabled: titlebar.active_menu != 0;
+        clicked => {
+            titlebar.active_menu = 0;
+        }
+    }
+
+    // The custom titlebar is painted above the content region so its dropdowns
+    // can extend downward without being clipped by the background surface.
+    titlebar := Titlebar {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: Tokens.titlebar_height;
+        is_maximized: root.window_maximized;
+        ui_scale: root.ui_scale;
+
+        minimize_requested => { root.minimize_requested(); }
+        maximize_requested => { root.maximize_requested(); }
+        close_window_requested => { root.close_window_requested(); }
+        exit_requested => { root.exit_requested(); }
+        drag_window_requested => { root.drag_window_requested(); }
+        reload_requested => { root.reload_requested(); }
+        zoom_in_requested => { root.zoom_in_requested(); }
+        zoom_out_requested => { root.zoom_out_requested(); }
+        actual_size_requested => { root.actual_size_requested(); }
+        documentation_requested => { root.documentation_requested(); }
+        report_bug_requested => { root.report_bug_requested(); }
+        follow_creator_requested => { root.follow_creator_requested(); }
+        see_repo_requested => { root.see_repo_requested(); }
+    }
+}

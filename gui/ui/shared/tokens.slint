@@ -1,0 +1,83 @@
+// Centralized visual tokens for the whole GUI.
+//
+// Keeping the palette and sizing rules here makes the titlebar, dropdowns, and
+// future content panes feel like one coherent system instead of separate UI
+// fragments that just happen to live in the same window.
+
+export global Tokens {
+    // Font family used throughout the native shell. Changing this affects all
+    // text that does not override `font-family` locally.
+    in property <string> font_family: "Google Sans";
+
+    // The main app canvas behind the titlebar and content. Darkening this makes
+    // the entire window feel heavier and less exposed.
+    in property <color> window_background: #000000;
+
+    // The titlebar strip itself. This is the token you asked about: darkening
+    // this value makes the top chrome darker without touching the rest of the
+    // window.
+    in property <color> titlebar_background: #191919;
+
+    // A slightly softer companion shade used for future chrome gradients and
+    // hover surfaces, so the titlebar can stay monochrome without looking flat.
+    in property <color> titlebar_background_soft: #202020;
+
+    // Primary foreground colors. These control the contrast of labels, helper
+    // text, and hover states throughout the GUI.
+    in property <color> text_primary: #ffffff;
+    in property <color> text_secondary: #d3d3d3;
+    in property <color> text_muted: #888888;
+
+    // Accent colors. Blue is reserved for interactive affordances, while red
+    // is reserved for destructive or high-risk actions.
+    in property <color> accent_blue: #0800ff;
+    in property <color> accent_blue_hover: #1f2bff;
+    in property <color> danger_red: #ff0000;
+    in property <color> danger_red_hover: #ff4747;
+
+    // Dropdown and popover styling. These are used by the menu surfaces and
+    // their hover/pressed rows.
+    in property <color> dropdown_surface: #1f1f1f;
+    in property <color> dropdown_surface_hover: #2b2b2b;
+    in property <color> dropdown_surface_pressed: #2a2a2a;
+    in property <color> dropdown_border: #373737;
+    in property <color> dropdown_separator: #474747;
+    in property <color> shadow_color: #000000b8;
+
+    // Base font sizes. Increase these when you want the whole chrome to feel
+    // larger; the titlebar uses the titlebar size and the menu items use the
+    // dropdown size.
+    in property <length> body_font_size: 13px;
+    in property <length> titlebar_font_size: 14px;
+    in property <length> dropdown_font_size: 13px;
+
+    // Titlebar geometry. This controls the overall chrome height, the brand
+    // logo size, and the clickable area of the buttons and menu headers.
+    in property <length> titlebar_height: 36px;
+    // Borderless windows still need a thin invisible resize strip. On desktop
+    // this lets the top edge show the height-resize cursor instead of being
+    // swallowed by the custom titlebar drag region.
+    in property <length> window_resize_border_width: 6px;
+    in property <length> titlebar_padding_x: 12px;
+    in property <length> titlebar_logo_size: 20px;
+    in property <length> titlebar_icon_size: 14px;
+    in property <length> titlebar_icon_hit_width: 24px;
+    in property <length> titlebar_icon_hit_height: 22px;
+    in property <length> titlebar_navigation_width: 52px;
+    in property <length> titlebar_actions_width: 80px;
+    in property <length> titlebar_button_gap: 4px;
+    in property <length> titlebar_menu_gap: 2px;
+    in property <length> titlebar_menu_hit_height: 22px;
+    in property <length> titlebar_menu_trigger_padding_x: 4px;
+
+    // Dropdown geometry. These values control the shared menu panel width,
+    // corner radius, row spacing, and horizontal padding.
+    in property <length> dropdown_surface_width: 220px;
+    in property <length> dropdown_surface_radius: 10px;
+    in property <length> dropdown_surface_padding: 6px;
+    in property <length> dropdown_item_height: 28px;
+    in property <length> dropdown_item_gap: 2px;
+    in property <length> dropdown_item_padding_x: 12px;
+    in property <length> dropdown_trigger_padding_x: 4px;
+    in property <length> dropdown_trigger_hit_height: 22px;
+}

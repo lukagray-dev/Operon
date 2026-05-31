@@ -1,0 +1,16 @@
+[package]
+name        = "operon-tools-todo-update"
+description = "Updates an existing todo item in the agent's task list."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                      = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+tokio.workspace                          = true
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
