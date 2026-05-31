@@ -1,0 +1,278 @@
+// Example/test file demonstrating the Sidebar component.
+//
+// This file can be used to preview and test the sidebar independently
+// before integrating it into the main application window.
+//
+// To preview this file, use the Slint LSP preview feature in your IDE
+// or compile it with the Slint viewer.
+
+import { Sidebar } from "./sidebar.slint";
+import { Tokens } from "../shared/tokens.slint";
+
+// Example window showcasing the sidebar with sample data
+export component SidebarExample inherits Window {
+    title: "Operon Sidebar Example";
+    preferred-width: 1200px;
+    preferred-height: 700px;
+    background: Tokens.window-background;
+    
+    // Sample project data matching the screenshot reference
+    property <[{name: string, conversations: [string]}]> sample-projects: [
+        {
+            name: "Lunify",
+            conversations: [
+                "Hi",
+                "You are working in this directory: 'D:\...",
+                "Add CloudStream style streaming",
+                "Fix FFI error handling",
+                "Fix player bar position",
+                "Show more"
+            ]
+        },
+        {
+            name: "Operon",
+            conversations: [
+                "I was building an AI agent named Operon...",
+                "Continue plan implementation",
+                "Execute Prompt.md",
+                "I was building an AI agent named Op...",
+                "Replace markdown renderer",
+                "Show more"
+            ]
+        }
+    ];
+    
+    // Sample standalone chats
+    property <[string]> sample-chats: [
+        "Execute Prompt.md",
+        "Explain this project to me",
+        "Connect to GitHub",
+        "Connect your favorite apps to Codex"
+    ];
+    
+    // Track active selections for demonstration
+    property <string> status-text: "Click on items to see interactions";
+    
+    // Main horizontal layout: sidebar + content area
+    HorizontalLayout {
+        spacing: 0px;
+        
+        // Left sidebar component
+        sidebar := Sidebar {
+            // Bind sample data
+            projects: root.sample-projects;
+            chats: root.sample-chats;
+            
+            // Set initial active state for demonstration
+            active-project-index: 0;
+            active-conversation-index: 1;
+            
+            // Handle new chat button click
+            new-chat-clicked => {
+                root.status-text = "New Chat clicked - would create a new conversation";
+                debug("New chat clicked");
+            }
+            
+            // Handle search button click
+            search-clicked => {
+                root.status-text = "Search clicked - would open search interface";
+                debug("Search clicked");
+            }
+            
+            // Handle plugins button click
+            plugins-clicked => {
+                root.status-text = "Plugins clicked - would open plugins manager";
+                debug("Plugins clicked");
+            }
+            
+            // Handle settings button click
+            settings-clicked => {
+                root.status-text = "Settings clicked - would open settings panel";
+                debug("Settings clicked");
+            }
+            
+            // Handle project conversation click
+            project-conversation-clicked(proj-idx, conv-idx) => {
+                root.status-text = "Selected: " + 
+                    root.sample-projects[proj-idx].name + 
+                    " > " + 
+                    root.sample-projects[proj-idx].conversations[conv-idx];
+                debug("Project conversation clicked:", proj-idx, conv-idx);
+            }
+            
+            // Handle standalone chat click
+            chat-clicked(chat-idx) => {
+                root.status-text = "Selected chat: " + root.sample-chats[chat-idx];
+                debug("Chat clicked:", chat-idx);
+            }
+            
+            // Handle sidebar width change
+            width-changed(new-width) => {
+                root.status-text = "Sidebar width: " + new-width;
+                debug("Sidebar width changed:", new-width);
+            }
+        }
+        
+        // Vertical separator line
+        Rectangle {
+            width: 1px;
+            background: Tokens.dropdown-border;
+        }
+        
+        // Main content area (placeholder)
+        content-area := Rectangle {
+            horizontal-stretch: 1;
+            background: Tokens.window-background;
+            
+            // Content area layout
+            VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+                alignment: start;
+                
+                // Title
+                Text {
+                    text: "Sidebar Example";
+                    color: Tokens.text-primary;
+                    font-size: 24px;
+                    font-weight: 600;
+                }
+                
+                // Description
+                Text {
+                    text: "This is a demonstration of the Operon left sidebar component.";
+                    color: Tokens.text-secondary;
+                    font-size: Tokens.body-font-size;
+                }
+                
+                // Instructions
+                Rectangle {
+                    height: 120px;
+                    background: Tokens.titlebar-background;
+                    border-radius: 8px;
+                    horizontal-stretch: 1;
+                    
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 8px;
+                        alignment: start;
+                        
+                        Text {
+                            text: "Try these interactions:";
+                            color: Tokens.text-primary;
+                            font-size: Tokens.body-font-size;
+                            font-weight: 600;
+                        }
+                        
+                        Text {
+                            text: "• Click 'New chat' to create a conversation";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "• Click on project names to expand/collapse";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "• Click on conversations to select them";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "• Drag the right edge of the sidebar to resize";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                    }
+                }
+                
+                // Status display
+                Rectangle {
+                    height: 60px;
+                    background: Tokens.dropdown-surface;
+                    border-radius: 8px;
+                    horizontal-stretch: 1;
+                    
+                    VerticalLayout {
+                        padding: 16px;
+                        alignment: center;
+                        
+                        Text {
+                            text: "Status:";
+                            color: Tokens.text-muted;
+                            font-size: Tokens.body-font-size - 1px;
+                        }
+                        
+                        Text {
+                            text: root.status-text;
+                            color: Tokens.text-primary;
+                            font-size: Tokens.body-font-size;
+                            font-weight: 500;
+                        }
+                    }
+                }
+                
+                // Feature list
+                Rectangle {
+                    height: 200px;
+                    background: Tokens.titlebar-background;
+                    border-radius: 8px;
+                    horizontal-stretch: 1;
+                    
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 8px;
+                        alignment: start;
+                        
+                        Text {
+                            text: "Features:";
+                            color: Tokens.text-primary;
+                            font-size: Tokens.body-font-size;
+                            font-weight: 600;
+                        }
+                        
+                        Text {
+                            text: "✓ Resizable sidebar (180px - 400px)";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "✓ Expandable/collapsible project groups";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "✓ Scrollable content area";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "✓ Hover states and smooth animations";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "✓ Active selection highlighting";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                        
+                        Text {
+                            text: "✓ Professional SVG icons";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

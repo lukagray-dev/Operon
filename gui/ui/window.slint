@@ -7,6 +7,7 @@
 import "../assets/fonts/google_sans/GoogleSans-Regular.ttf";
 import { Tokens } from "./shared/tokens.slint";
 import { Titlebar } from "./window/titlebar.slint";
+import { Sidebar } from "./left-sidebar/sidebar.slint";
 
 export component OperonWindow inherits Window {
     // The window opens in a centered 16:9-ish landscape shape. The runtime
@@ -37,6 +38,39 @@ export component OperonWindow inherits Window {
     in-out property <bool> window_maximized: false;
     in-out property <float> ui_scale: 1.0;
     in-out property <int> reload_generation: 0;
+    
+    // Sidebar data properties - bind these from Rust
+    in property <[{name: string, conversations: [string]}]> sidebar_projects: [
+        {
+            name: "Lunify",
+            conversations: [
+                "Hi",
+                "You are working in this directory",
+                "Add CloudStream style streaming",
+                "Fix FFI error handling",
+                "Fix player bar position"
+            ]
+        },
+        {
+            name: "Operon",
+            conversations: [
+                "I was building an AI agent named Operon...",
+                "Continue plan implementation",
+                "Execute Prompt.md",
+                "I was building an AI agent named Op...",
+                "Replace markdown renderer"
+            ]
+        }
+    ];
+    in property <[string]> sidebar_chats: [
+        "Execute Prompt.md",
+        "Explain this project to me",
+        "Connect to GitHub",
+        "Connect your favorite apps to Codex"
+    ];
+    in-out property <int> active_project_index: 0;
+    in-out property <int> active_conversation_index: 0;
+    in-out property <int> active_chat_index: 0;
 
     // The titlebar only exposes the actions that need Rust-side behavior.
     callback minimize_requested();
@@ -52,17 +86,76 @@ export component OperonWindow inherits Window {
     callback report_bug_requested();
     callback follow_creator_requested();
     callback see_repo_requested();
+    
+    // Sidebar callbacks - wire these to Rust handlers
+    callback sidebar_new_chat_clicked();
+    callback sidebar_search_clicked();
+    callback sidebar_plugins_clicked();
+    callback sidebar_settings_clicked();
+    callback sidebar_project_conversation_clicked(int /* project-index */, int /* conversation-index */);
+    callback sidebar_chat_clicked(int /* chat-index */);
+    callback sidebar_width_changed(length /* new-width */);
 
-    // Clicking anywhere in the content region should dismiss any open dropdown
-    // without interfering with the titlebar's own controls and popovers.
-    content_dismiss_area := TouchArea {
-        x: 0px;
+    // Main content layout: sidebar + content area
+    HorizontalLayout {
+        spacing: 0px;
         y: titlebar.height;
-        width: parent.width;
         height: parent.height - titlebar.height;
-        enabled: titlebar.active_menu != 0;
-        clicked => {
-            titlebar.active_menu = 0;
+        
+        // Left sidebar navigation
+        sidebar := Sidebar {
+            // Bind data from Rust
+            projects: root.sidebar_projects;
+            chats: root.sidebar_chats;
+            active-project-index: root.active_project_index;
+            active-conversation-index: root.active_conversation_index;
+            active-chat-index: root.active_chat_index;
+            
+            // Wire callbacks to root
+            new-chat-clicked => { root.sidebar_new_chat_clicked(); }
+            search-clicked => { root.sidebar_search_clicked(); }
+            plugins-clicked => { root.sidebar_plugins_clicked(); }
+            settings-clicked => { root.sidebar_settings_clicked(); }
+            project-conversation-clicked(proj-idx, conv-idx) => {
+                root.active_project_index = proj-idx;
+                root.active_conversation_index = conv-idx;
+                root.sidebar_project_conversation_clicked(proj-idx, conv-idx);
+            }
+            chat-clicked(chat-idx) => {
+                root.active_chat_index = chat-idx;
+                root.sidebar_chat_clicked(chat-idx);
+            }
+            width-changed(new-width) => {
+                root.sidebar_width_changed(new-width);
+            }
+        }
+        
+        // Vertical separator between sidebar and content
+        Rectangle {
+            width: 1px;
+            background: Tokens.dropdown-border;
+        }
+        
+        // Main content area (placeholder for future content)
+        content_area := Rectangle {
+            horizontal-stretch: 1;
+            background: Tokens.window_background;
+            
+            // Clicking in the content area dismisses any open titlebar dropdown
+            content_dismiss_area := TouchArea {
+                enabled: titlebar.active_menu != 0;
+                clicked => {
+                    titlebar.active_menu = 0;
+                }
+            }
+            
+            // Placeholder text for now
+            Text {
+                text: "Main Content Area";
+                color: Tokens.text-muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
         }
     }
 
