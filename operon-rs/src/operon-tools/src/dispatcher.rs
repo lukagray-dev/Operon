@@ -37,6 +37,8 @@ use operon_tools_todo_create;
 use operon_tools_todo_list;
 use operon_tools_todo_update;
 use operon_tools_todo_delete;
+use operon_tools_web_search;
+use operon_tools_web_fetch;
 
 /// A registered tool: its tiered definition + its async execute function.
 struct ToolEntry {
@@ -194,6 +196,31 @@ impl Dispatcher {
             operon_tools_shell_bash::definition(),
             |call_id, args| async move {
                 operon_tools_shell_bash::execute(call_id, args)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+    }
+
+    /// Registers all web tools.
+    ///
+    /// Call this after `Dispatcher::new()` to make web tools available.
+    /// Currently includes: web_search, web_fetch.
+    pub fn register_web_tools(&mut self) {
+        // Register all web tools: web_search, web_fetch.
+        // Each tool is registered with its tiered definition and async execute function.
+        self.register(
+            operon_tools_web_search::definition(),
+            |call_id, args| async move {
+                operon_tools_web_search::execute(call_id, args)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+        self.register(
+            operon_tools_web_fetch::definition(),
+            |call_id, args| async move {
+                operon_tools_web_fetch::execute(call_id, args)
                     .await
                     .map_err(|e| e.to_string())
             },

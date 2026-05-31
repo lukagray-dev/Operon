@@ -1,0 +1,13 @@
+[package]
+name        = "operon-tools-web"
+description = "Web tools: web_search and web_fetch for agent-driven web interaction"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-tools-web-search.workspace = true
+operon-tools-web-fetch.workspace  = true
+operon-tools-core.workspace       = true

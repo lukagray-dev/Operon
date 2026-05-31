@@ -40,6 +40,11 @@ members = [
     "operon-rs/src/operon-tools/src/shell",
     "operon-rs/src/operon-tools/src/shell/src/bash",
 
+    # Web tools
+    "operon-rs/src/operon-tools/src/web",
+    "operon-rs/src/operon-tools/src/web/src/web_search",
+    "operon-rs/src/operon-tools/src/web/src/web_fetch",
+
     # Todo tools
     "operon-rs/src/operon-tools/src/todo",
     "operon-rs/src/operon-tools/src/todo/src/todo_create",
@@ -73,6 +78,8 @@ notify       = "8.2.0"
 tempfile     = "3.15.0"
 globset      = "0.4"
 trash        = "5"
+duckduckgo   = "0.3"
+htmd         = "0.5"
 
 # Internal crates
 # features = ["bpe"] is Operon's activation of the BPE feature in the token-tracker.
@@ -101,6 +108,9 @@ operon-tools-fs-append                = { path = "operon-rs/src/operon-tools/src
 operon-tools-fs-delete                = { path = "operon-rs/src/operon-tools/src/fs/src/delete" }
 operon-tools-shell                    = { path = "operon-rs/src/operon-tools/src/shell" }
 operon-tools-shell-bash               = { path = "operon-rs/src/operon-tools/src/shell/src/bash" }
+operon-tools-web                      = { path = "operon-rs/src/operon-tools/src/web" }
+operon-tools-web-search               = { path = "operon-rs/src/operon-tools/src/web/src/web_search" }
+operon-tools-web-fetch                = { path = "operon-rs/src/operon-tools/src/web/src/web_fetch" }
 operon-tools-todo                     = { path = "operon-rs/src/operon-tools/src/todo" }
 operon-tools-todo-create              = { path = "operon-rs/src/operon-tools/src/todo/src/todo_create" }
 operon-tools-todo-list                = { path = "operon-rs/src/operon-tools/src/todo/src/todo_list" }

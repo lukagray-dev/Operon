@@ -1,0 +1,17 @@
+[package]
+name        = "operon-tools-web-search"
+description = "Web search tool: queries DuckDuckGo and returns structured results (title, URL, snippet). No API key required. Returns up to max_results results."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                      = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+tokio.workspace                          = true
+duckduckgo.workspace                     = true
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
