@@ -42,11 +42,10 @@ mod tests;
 
 pub use args::TodoCreateArgs;
 pub use error::TodoCreateToolError;
-pub use executor::execute;
 pub use output::TodoCreateOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::TieredToolDefinition;
+use operon_tools_core::{TieredToolDefinition, TodoStore};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_create` tool.

@@ -42,11 +42,10 @@ mod tests;
 
 pub use args::TodoUpdateArgs;
 pub use error::TodoUpdateToolError;
-pub use executor::execute;
 pub use output::TodoUpdateOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::TieredToolDefinition;
+use operon_tools_core::{TieredToolDefinition, TodoStore};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_update` tool.

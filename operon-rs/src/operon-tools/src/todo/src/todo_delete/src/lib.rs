@@ -40,11 +40,10 @@ mod tests;
 
 pub use args::TodoDeleteArgs;
 pub use error::TodoDeleteToolError;
-pub use executor::execute;
 pub use output::TodoDeleteOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::TieredToolDefinition;
+use operon_tools_core::{TieredToolDefinition, TodoStore};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_delete` tool.

@@ -22,21 +22,6 @@ echo   Terminal User Interface Launcher
 echo ============================================================================
 echo.
 
-REM Navigate to TUI directory
-echo [*] Navigating to TUI directory...
-cd /d "%~dp0..\tui"
-
-if errorlevel 1 (
-    color 0C
-    echo [ERROR] Failed to navigate to TUI directory!
-    echo.
-    pause
-    exit /b 1
-)
-
-echo [OK] Directory: %CD%
-echo.
-
 REM Check if Cargo is installed
 echo [*] Checking Rust toolchain...
 cargo --version >nul 2>&1
@@ -58,7 +43,7 @@ echo   Building and launching Operon TUI...
 echo ============================================================================
 echo.
 
-cargo run
+cargo run --bin operon-tui
 
 REM Capture exit code
 set EXIT_CODE=%errorlevel%

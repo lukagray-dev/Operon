@@ -58,6 +58,7 @@ members = [
 ]
 
 [workspace.dependencies]
+# ── Workspace shared deps ─────────────────────────────────────────────────────
 tokio        = { version = "1.52.3",    features = ["full"] }
 async-trait  = "0.1.89"
 anyhow       = "1.0.102"

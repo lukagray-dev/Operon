@@ -18,14 +18,14 @@ dirs.workspace        = true
 
 # ── TUI-only deps (not shared — terminal/UI specific) ─────────────────────────
 
+# Production-grade text input widget — cursor, undo/redo, multi-line editing
+tui-textarea = { path = "../vendor/tui-textarea" }
+
 # Terminal UI framework
-ratatui = "0.29"
+ratatui = "0.30.0"
 
 # Low-level terminal control — raw mode, alternate screen, keyboard/mouse events
-crossterm = "0.28"
-
-# Production-grade text input widget — cursor, undo/redo, multi-line editing
-tui-textarea = "0.7"
+crossterm = "0.29.0"
 
 # Cross-platform clipboard access
-arboard = "3.4"
+arboard = "3.6.1"

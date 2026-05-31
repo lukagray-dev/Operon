@@ -236,8 +236,6 @@ impl Dispatcher {
     pub fn register_todo_tools(&mut self) {
         // Register todo tool definitions only — actual dispatch is handled directly
         // in dispatch() because todo tools require mutable access to todo_store.
-        use operon_tools_core::TieredToolDefinition;
-
         let defs = [
             operon_tools_todo_create::definition(),
             operon_tools_todo_list::definition(),
@@ -249,7 +247,7 @@ impl Dispatcher {
             let name = def.name().to_string();
             self.tools.insert(name.clone(), ToolEntry {
                 tiered: def,
-                execute: Box::new(move |call_id, _args| {
+                execute: Box::new(move |_call_id, _args| {
                     // This path is never reached — todo tools are intercepted in dispatch().
                     let n = name.clone();
                     Box::pin(async move {
@@ -293,44 +291,45 @@ impl Dispatcher {
     /// so subsequent requests use the detailed description for that tool.
     pub async fn dispatch(&mut self, call: ToolCall) -> ToolResult {
         let tool_name = call.name.clone();
+        let call_id = call.id.clone();
 
         // Todo tools: routed directly because they require mutable access to todo_store.
         match call.name.as_str() {
             "todo_create" => {
                 return operon_tools_todo_create::execute(
-                    call.id,
+                    call_id.clone(),
                     call.arguments,
                     &mut self.todo_store,
                 )
                 .await
-                .unwrap_or_else(|e| error_result(call.id, "todo_create", &e.to_string()));
+                .unwrap_or_else(|e| error_result(call_id.clone(), "todo_create", &e.to_string()));
             }
             "todo_list" => {
                 return operon_tools_todo_list::execute(
-                    call.id,
+                    call_id.clone(),
                     call.arguments,
                     &self.todo_store,
                 )
                 .await
-                .unwrap_or_else(|e| error_result(call.id, "todo_list", &e.to_string()));
+                .unwrap_or_else(|e| error_result(call_id.clone(), "todo_list", &e.to_string()));
             }
             "todo_update" => {
                 return operon_tools_todo_update::execute(
-                    call.id,
+                    call_id.clone(),
                     call.arguments,
                     &mut self.todo_store,
                 )
                 .await
-                .unwrap_or_else(|e| error_result(call.id, "todo_update", &e.to_string()));
+                .unwrap_or_else(|e| error_result(call_id.clone(), "todo_update", &e.to_string()));
             }
             "todo_delete" => {
                 return operon_tools_todo_delete::execute(
-                    call.id,
+                    call_id.clone(),
                     call.arguments,
                     &mut self.todo_store,
                 )
                 .await
-                .unwrap_or_else(|e| error_result(call.id, "todo_delete", &e.to_string()));
+                .unwrap_or_else(|e| error_result(call_id.clone(), "todo_delete", &e.to_string()));
             }
             _ => {} // fall through to generic tool dispatch
         }
@@ -340,7 +339,7 @@ impl Dispatcher {
             Some(e) => e,
             None => {
                 return error_result(
-                    call.id,
+                    call_id.clone(),
                     &tool_name,
                     &ToolDispatchError::UnknownTool { name: tool_name.clone() }.to_string(),
                 );
@@ -366,7 +365,7 @@ impl Dispatcher {
 
                 if requires_read && !self.read_ledger.has_been_read(path) {
                     return error_result(
-                        call.id,
+                        call_id.clone(),
                         &call.name,
                         &format!(
                             "read-before-{name} enforcement: '{path}' has not been read in this session. \
@@ -384,14 +383,14 @@ impl Dispatcher {
         }
 
         // Execute — the execute fn signals malformed args via Err(String).
-        let tool_result = match (entry.execute)(call.id.clone(), call.arguments).await {
+        let tool_result = match (entry.execute)(call_id.clone(), call.arguments).await {
             Ok(result) => result,
             Err(reason) => {
                 // Mark degraded so the next request sends the detailed description.
                 self.degraded.insert(tool_name.clone());
 
                 return error_result(
-                    call.id,
+                    call_id.clone(),
                     &tool_name,
                     &ToolDispatchError::MalformedArgs {
                         tool: tool_name.clone(),
