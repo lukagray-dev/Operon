@@ -1,0 +1,14 @@
+[package]
+name        = "operon-events"
+description = "Pure-types event enum for the Operon agent session loop"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+# serde is the only dependency — this crate is intentionally lightweight.
+# No async, no I/O, no tokio. Any workspace crate can depend on it without
+# pulling in a runtime.
+serde = { workspace = true }

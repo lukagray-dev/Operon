@@ -16,11 +16,19 @@ serde.workspace       = true
 serde_json.workspace  = true
 async-trait.workspace = true
 
+# reqwest is only pulled in when the http-client feature is enabled.
+# This keeps the crate lightweight for test-only or library consumers.
+reqwest = { workspace = true, features = ["json"], optional = true }
+
 [dev-dependencies]
 operon-context-normalize-reasoning.workspace = true
 operon-context-normalize-tools.workspace     = true
 tokio.workspace                              = true
 
 [features]
+# Default has no features — consumers must opt in.
 default = []
+# Enables AnthropicCompactionClient (real HTTP calls via reqwest).
+http-client = ["dep:reqwest"]
+# Exposes MockCompactionClient outside of #[cfg(test)] blocks.
 test-utils = []

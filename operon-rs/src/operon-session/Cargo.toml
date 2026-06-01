@@ -1,0 +1,43 @@
+[package]
+name        = "operon-session"
+description = "Operon agent loop — HTTP provider calls, SSE stream, tool dispatch, compaction, persistence"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+# ── Context pipeline ──────────────────────────────────────────────────────────
+# http-client feature enables AnthropicCompactionClient for run_compaction().
+operon-context-compaction    = { workspace = true, features = ["http-client"] }
+operon-context-sanitizer     = { workspace = true }
+operon-context-snapshot      = { workspace = true }
+operon-context-token-tracker = { workspace = true }
+
+# ── Normalize pipeline ────────────────────────────────────────────────────────
+operon-context-normalize-tools    = { workspace = true }
+operon-context-normalize-messages = { workspace = true }
+operon-context-normalize-stream   = { workspace = true }
+
+# ── Tool dispatcher ───────────────────────────────────────────────────────────
+operon-tools = { workspace = true }
+
+# ── Event bus ─────────────────────────────────────────────────────────────────
+operon-events = { workspace = true }
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+tokio      = { workspace = true }
+reqwest    = { workspace = true, features = ["json", "stream"] }
+futures    = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+tracing    = { workspace = true }
+thiserror  = { workspace = true }
+async-trait = { workspace = true }
+
+# SQLite session persistence — workspace-declared.
+sqlx = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
