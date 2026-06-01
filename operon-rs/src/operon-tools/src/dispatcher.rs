@@ -39,10 +39,14 @@ use operon_tools_todo_update;
 use operon_tools_todo_delete;
 use operon_tools_web_search;
 use operon_tools_web_fetch;
+use operon_tools_load;
 
-/// A registered tool: its tiered definition + its async execute function.
+/// A registered tool: its tiered definition, group tag, and async execute function.
 struct ToolEntry {
     tiered: operon_tools_core::TieredToolDefinition,
+    /// The tool group this tool belongs to (e.g., "fs", "shell", "web", "todo", "core").
+    /// Used by load_tools to filter definitions by group.
+    group: &'static str,
     /// Type-erased async execute fn.
     /// Takes (call_id, args_json) → ToolResult.
     /// Malformed args must be surfaced as Err(String) describing the parse failure.
@@ -99,12 +103,14 @@ impl Dispatcher {
     ///
     /// # Arguments
     /// - `tiered`: The tool's tiered definition (from the tool crate's `definition()`).
+    /// - `group`: The tool group name (e.g., "fs", "shell", "web", "todo", "core").
     /// - `execute`: An async function `(ToolCallId, serde_json::Value) -> Result<ToolResult, String>`.
     ///   Return `Err(reason)` if and only if the args failed to parse.
     ///   Runtime errors (e.g. file not found) must be returned as `Ok(ToolResult { is_error: true, ... })`.
     pub fn register<F, Fut>(
         &mut self,
         tiered: operon_tools_core::TieredToolDefinition,
+        group: &'static str,
         execute: F,
     ) where
         F: Fn(ToolCallId, serde_json::Value) -> Fut + Send + Sync + 'static,
@@ -115,6 +121,7 @@ impl Dispatcher {
             name,
             ToolEntry {
                 tiered,
+                group,
                 execute: Box::new(move |call_id, args| Box::pin(execute(call_id, args))),
             },
         );
@@ -126,9 +133,10 @@ impl Dispatcher {
     /// As new tool groups are implemented, add analogous `register_*_tools` methods.
     pub fn register_fs_tools(&mut self) {
         // Register all filesystem tools: read, grep, ls, edit, write, append, delete.
-        // Each tool is registered with its tiered definition and async execute function.
+        // Each tool is registered with its tiered definition, group tag, and async execute function.
         self.register(
             operon_tools_fs_read::definition(),
+            "fs",
             |call_id, args| async move {
                 operon_tools_fs_read::execute(call_id, args)
                     .await
@@ -137,6 +145,7 @@ impl Dispatcher {
         );
         self.register(
             operon_tools_fs_grep::definition(),
+            "fs",
             |call_id, args| async move {
                 operon_tools_fs_grep::execute(call_id, args)
                     .await
@@ -145,6 +154,7 @@ impl Dispatcher {
         );
         self.register(
             operon_tools_fs_ls::definition(),
+            "fs",
             |call_id, args| async move {
                 operon_tools_fs_ls::execute(call_id, args)
                     .await
@@ -153,6 +163,7 @@ impl Dispatcher {
         );
         self.register(
             operon_tools_fs_edit::definition(),
+            "fs",
             |call_id, args| async move {
                 operon_tools_fs_edit::execute(call_id, args)
                     .await
@@ -161,6 +172,7 @@ impl Dispatcher {
         );
         self.register(
             operon_tools_fs_write::definition(),
+            "fs",
             |call_id, args| async move {
                 operon_tools_fs_write::execute(call_id, args)
                     .await
@@ -169,6 +181,7 @@ impl Dispatcher {
         );
         self.register(
             operon_tools_fs_append::definition(),
+            "fs",
             |call_id, args| async move {
                 operon_tools_fs_append::execute(call_id, args)
                     .await
@@ -177,6 +190,7 @@ impl Dispatcher {
         );
         self.register(
             operon_tools_fs_delete::definition(),
+            "fs",
             |call_id, args| async move {
                 operon_tools_fs_delete::execute(call_id, args)
                     .await
@@ -191,9 +205,10 @@ impl Dispatcher {
     /// Currently includes: bash.
     pub fn register_shell_tools(&mut self) {
         // Register all shell tools: bash.
-        // Each tool is registered with its tiered definition and async execute function.
+        // Each tool is registered with its tiered definition, group tag, and async execute function.
         self.register(
             operon_tools_shell_bash::definition(),
+            "shell",
             |call_id, args| async move {
                 operon_tools_shell_bash::execute(call_id, args)
                     .await
@@ -208,9 +223,10 @@ impl Dispatcher {
     /// Currently includes: web_search, web_fetch.
     pub fn register_web_tools(&mut self) {
         // Register all web tools: web_search, web_fetch.
-        // Each tool is registered with its tiered definition and async execute function.
+        // Each tool is registered with its tiered definition, group tag, and async execute function.
         self.register(
             operon_tools_web_search::definition(),
+            "web",
             |call_id, args| async move {
                 operon_tools_web_search::execute(call_id, args)
                     .await
@@ -219,6 +235,7 @@ impl Dispatcher {
         );
         self.register(
             operon_tools_web_fetch::definition(),
+            "web",
             |call_id, args| async move {
                 operon_tools_web_fetch::execute(call_id, args)
                     .await
@@ -247,6 +264,7 @@ impl Dispatcher {
             let name = def.name().to_string();
             self.tools.insert(name.clone(), ToolEntry {
                 tiered: def,
+                group: "todo",
                 execute: Box::new(move |_call_id, _args| {
                     // This path is never reached — todo tools are intercepted in dispatch().
                     let n = name.clone();
@@ -256,6 +274,27 @@ impl Dispatcher {
                 }),
             });
         }
+    }
+
+    /// Registers the load_tools tool.
+    ///
+    /// The load_tools tool is special: it's always available without loading,
+    /// and it's intercepted directly in dispatch() before the generic tool lookup.
+    /// This registration is for definition purposes only — the execute function
+    /// is never called (dispatch intercepts it first).
+    pub fn register_load_tool(&mut self) {
+        let name = "load_tools".to_string();
+        self.tools.insert(name.clone(), ToolEntry {
+            tiered: operon_tools_load::definition(),
+            group: "core",  // load_tools is in the "core" group — not user-loadable
+            execute: Box::new(move |_call_id, _args| {
+                // Never reached — load_tools is intercepted in dispatch().
+                let n = name.clone();
+                Box::pin(async move {
+                    Err(format!("'{}' should have been intercepted", n))
+                })
+            }),
+        });
     }
 
     /// Clears the read ledger after context compaction.
@@ -279,6 +318,38 @@ impl Dispatcher {
         })
     }
 
+    /// Returns the short-tier `ToolDefinition` for every tool in the given group.
+    ///
+    /// Used by the `load_tools` executor to serve tool definitions on demand.
+    /// Always returns the `short` tier — the `detailed` tier is only used for
+    /// malformed call recovery and is never exposed via `load_tools`.
+    pub fn definitions_for_group(
+        &self,
+        group: &str,
+    ) -> Vec<&operon_context_normalize_tools::ToolDefinition> {
+        self.tools
+            .values()
+            .filter(|entry| entry.group == group)
+            .map(|entry| &entry.tiered.short)
+            .collect()
+    }
+
+    /// Returns all unique group names currently registered, excluding internal groups.
+    ///
+    /// Used by `load_tools` when the model calls it with no group to list groups.
+    /// Filters out the "core" group (internal tools like load_tools itself).
+    pub fn registered_groups(&self) -> Vec<&str> {
+        let mut groups: Vec<&str> = self.tools
+            .values()
+            .filter(|e| e.group != "core")
+            .map(|e| e.group)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+        groups.sort();
+        groups
+    }
+
     /// Dispatches a tool call from the model to the correct implementation.
     ///
     /// # Returns
@@ -292,6 +363,28 @@ impl Dispatcher {
     pub async fn dispatch(&mut self, call: ToolCall) -> ToolResult {
         let tool_name = call.name.clone();
         let call_id = call.id.clone();
+
+        // load_tools: intercepted directly because it needs access to dispatcher state.
+        // Extract the data before the borrow to avoid conflicts.
+        if call.name == "load_tools" {
+            let group_arg = call.arguments
+                .get("group")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let result = if let Some(group) = &group_arg {
+                let defs = self.definitions_for_group(group);
+                operon_tools_load::execute_with_defs(call_id.clone(), group, defs)
+            } else {
+                let groups = self.registered_groups()
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>();
+                operon_tools_load::execute_list_groups(call_id.clone(), groups)
+            };
+
+            return result;
+        }
 
         // Todo tools: routed directly because they require mutable access to todo_store.
         match call.name.as_str() {

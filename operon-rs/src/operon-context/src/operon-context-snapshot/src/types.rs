@@ -60,6 +60,8 @@ pub struct SessionSnapshot {
     pub agents_md: Option<String>,
     pub tree: DirectoryTree,
     pub git: Option<GitStatus>,
+    /// Available tool groups block. None if no groups configured.
+    pub tool_groups: Option<String>,
 }
 
 impl SessionSnapshot {
@@ -119,6 +121,11 @@ impl SessionSnapshot {
             output.push_str(&git.insertions.to_string());
             output.push_str(" -");
             output.push_str(&git.deletions.to_string());
+            output.push('\n');
+        }
+
+        if let Some(groups_block) = &self.tool_groups {
+            output.push_str(groups_block);
             output.push('\n');
         }
 

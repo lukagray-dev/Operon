@@ -16,6 +16,11 @@ pub struct SnapshotConfig {
     pub role: Role,
     pub session_id: String,
     pub tree_depth: usize,
+    /// Names of available built-in tool groups, in display order.
+    /// Populated by whoever constructs the builder (the session runner).
+    /// Example: vec!["fs", "shell", "web", "todo", "memory", "media"]
+    /// If empty, the 5th block is omitted from the snapshot entirely.
+    pub tool_groups: Vec<String>,
 }
 
 impl Default for SnapshotConfig {
@@ -26,6 +31,7 @@ impl Default for SnapshotConfig {
             role: Role::External,
             session_id: generate_session_id(),
             tree_depth: 1,
+            tool_groups: Vec::new(),
         }
     }
 }
@@ -134,11 +140,14 @@ impl SnapshotBuilder {
 
         let agents_md = self.cached_agents_md.clone().unwrap_or(None);
 
+        let tool_groups_block = blocks::tool_groups::render_tool_groups(&self.config.tool_groups);
+
         Ok(SessionSnapshot {
             bootstrap,
             agents_md,
             tree,
             git,
+            tool_groups: tool_groups_block,
         })
     }
 }

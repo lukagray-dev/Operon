@@ -27,6 +27,7 @@ operon-tools-todo-create.workspace       = true
 operon-tools-todo-list.workspace         = true
 operon-tools-todo-update.workspace       = true
 operon-tools-todo-delete.workspace       = true
+operon-tools-load.workspace              = true
 operon-context-normalize-tools.workspace = true
 serde_json.workspace                     = true
 tokio.workspace                          = true

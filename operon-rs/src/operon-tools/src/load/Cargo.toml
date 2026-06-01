@@ -1,0 +1,16 @@
+[package]
+name        = "operon-tools-load"
+description = "load_tools: returns tool names, short descriptions, and schemas for a named built-in group on demand. Call this before using any tool group."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                      = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+tokio.workspace                          = true
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
