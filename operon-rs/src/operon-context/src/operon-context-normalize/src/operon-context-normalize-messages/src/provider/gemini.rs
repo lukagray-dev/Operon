@@ -31,13 +31,12 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     }
 
     let (message_value, finish_reason) = extract_message_and_finish_reason(raw)?;
-    let role_str = message_value
-        .get("role")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
+    let role_str = message_value.get("role").and_then(Value::as_str).ok_or(
+        MessageNormalizeError::MissingField {
             field: "role",
             provider: PROVIDER,
-        })?;
+        },
+    )?;
 
     let role = match role_str {
         "user" => MessageRole::User,
@@ -56,13 +55,12 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         return Ok(ConversationMessage::system(text));
     }
 
-    let parts = message_value
-        .get("parts")
-        .and_then(Value::as_array)
-        .ok_or(MessageNormalizeError::MissingField {
+    let parts = message_value.get("parts").and_then(Value::as_array).ok_or(
+        MessageNormalizeError::MissingField {
             field: "parts",
             provider: PROVIDER,
-        })?;
+        },
+    )?;
 
     let mut content: Vec<ContentBlock> = Vec::new();
     for part in parts {
@@ -94,20 +92,18 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
                     field: "inline_data",
                     provider: PROVIDER,
                 })?;
-            let mime_type = inline
-                .get("mime_type")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+            let mime_type = inline.get("mime_type").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "inline_data.mime_type",
                     provider: PROVIDER,
-                })?;
-            let data = inline
-                .get("data")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+                },
+            )?;
+            let data = inline.get("data").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "inline_data.data",
                     provider: PROVIDER,
-                })?;
+                },
+            )?;
             content.push(ContentBlock::Image(ImageBlock {
                 source: ImageSource::Base64 {
                     media_type: mime_type.to_string(),
@@ -124,13 +120,12 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
                     field: "file_data",
                     provider: PROVIDER,
                 })?;
-            let uri = file
-                .get("file_uri")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+            let uri = file.get("file_uri").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "file_data.file_uri",
                     provider: PROVIDER,
-                })?;
+                },
+            )?;
             content.push(ContentBlock::Image(ImageBlock {
                 source: ImageSource::Url(uri.to_string()),
             }));
@@ -155,7 +150,10 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     };
 
     if let Some(fr) = finish_reason {
-        out.stop_reason = Some(normalize_stop_reason(&fr, &crate::provider::Provider::Gemini));
+        out.stop_reason = Some(normalize_stop_reason(
+            &fr,
+            &crate::provider::Provider::Gemini,
+        ));
     }
 
     Ok(out)
@@ -216,7 +214,9 @@ fn normalize_system_instruction(raw: Value) -> Result<ConversationMessage> {
         .and_then(|v| v.get("parts"))
         .and_then(Value::as_array)
         .and_then(|parts| {
-            parts.iter().find_map(|p| p.get("text").and_then(Value::as_str))
+            parts
+                .iter()
+                .find_map(|p| p.get("text").and_then(Value::as_str))
         })
         .ok_or(MessageNormalizeError::MissingField {
             field: "system_instruction.parts[].text",
@@ -227,10 +227,12 @@ fn normalize_system_instruction(raw: Value) -> Result<ConversationMessage> {
 
 fn extract_message_and_finish_reason(raw: Value) -> Result<(Value, Option<String>)> {
     if let Some(candidates) = raw.get("candidates").and_then(Value::as_array) {
-        let first = candidates.first().ok_or(MessageNormalizeError::MissingField {
-            field: "candidates[0]",
-            provider: PROVIDER,
-        })?;
+        let first = candidates
+            .first()
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "candidates[0]",
+                provider: PROVIDER,
+            })?;
         let content = first
             .get("content")
             .ok_or(MessageNormalizeError::MissingField {
@@ -259,12 +261,13 @@ fn extract_message_and_finish_reason(raw: Value) -> Result<(Value, Option<String
 }
 
 fn extract_system_text_from_parts(parts_value: Option<&Value>) -> Result<String> {
-    let parts = parts_value
-        .and_then(Value::as_array)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "parts",
-            provider: PROVIDER,
-        })?;
+    let parts =
+        parts_value
+            .and_then(Value::as_array)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "parts",
+                provider: PROVIDER,
+            })?;
 
     let text = parts
         .iter()
@@ -285,13 +288,13 @@ fn parse_function_response(part: &Value) -> Result<ToolResult> {
             provider: PROVIDER,
         })?;
 
-    let name = fr
-        .get("name")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "functionResponse.name",
-            provider: PROVIDER,
-        })?;
+    let name =
+        fr.get("name")
+            .and_then(Value::as_str)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "functionResponse.name",
+                provider: PROVIDER,
+            })?;
 
     let response = fr
         .get("response")
@@ -356,12 +359,14 @@ fn render_parts_for_message(msg: &ConversationMessage) -> Result<Vec<Value>> {
                 }));
             }
             ContentBlock::ToolResult(tr) => {
-                let wire = denormalize_tool_result(tr, &ToolProvider::Gemini).map_err(map_tool_err)?;
+                let wire =
+                    denormalize_tool_result(tr, &ToolProvider::Gemini).map_err(map_tool_err)?;
                 parts.push(wire);
             }
             ContentBlock::Reasoning(rb) => {
-                let wire = denormalize_reasoning(std::slice::from_ref(rb), &ReasoningProvider::Gemini)
-                    .map_err(map_reasoning_err)?;
+                let wire =
+                    denormalize_reasoning(std::slice::from_ref(rb), &ReasoningProvider::Gemini)
+                        .map_err(map_reasoning_err)?;
                 if let Value::Array(arr) = wire {
                     for p in arr {
                         parts.push(p);
@@ -369,7 +374,8 @@ fn render_parts_for_message(msg: &ConversationMessage) -> Result<Vec<Value>> {
                 } else {
                     return Err(MessageNormalizeError::UnknownShape {
                         provider: PROVIDER,
-                        detail: "expected Gemini reasoning denormalization to return array".to_string(),
+                        detail: "expected Gemini reasoning denormalization to return array"
+                            .to_string(),
                     });
                 }
             }
@@ -416,14 +422,16 @@ fn map_tool_err(err: operon_context_normalize_tools::ToolNormalizeError) -> Mess
     }
 }
 
-fn map_reasoning_err(err: operon_context_normalize_reasoning::ReasoningNormalizeError) -> MessageNormalizeError {
+fn map_reasoning_err(
+    err: operon_context_normalize_reasoning::ReasoningNormalizeError,
+) -> MessageNormalizeError {
     match err {
-        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField { field, .. } => {
-            MessageNormalizeError::MissingField {
-                field,
-                provider: PROVIDER,
-            }
-        }
+        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField {
+            field, ..
+        } => MessageNormalizeError::MissingField {
+            field,
+            provider: PROVIDER,
+        },
         other => MessageNormalizeError::UnsupportedContentType {
             provider: PROVIDER,
             detail: other.to_string(),

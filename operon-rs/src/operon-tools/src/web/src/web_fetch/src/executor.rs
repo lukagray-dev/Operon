@@ -44,9 +44,7 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
         return ToolResult {
             call_id,
             name: "web_fetch".to_string(),
-            content: ToolContent::Text(
-                "url must start with http:// or https://".to_string(),
-            ),
+            content: ToolContent::Text("url must start with http:// or https://".to_string()),
             is_error: true,
         };
     }
@@ -100,9 +98,10 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
         return ToolResult {
             call_id,
             name: "web_fetch".to_string(),
-            content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|_| {
-                serde_json::json!({ "status_code": status_code })
-            })),
+            content: ToolContent::Json(
+                serde_json::to_value(&output)
+                    .unwrap_or_else(|_| serde_json::json!({ "status_code": status_code })),
+            ),
             is_error: false,
         };
     }
@@ -154,9 +153,9 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "web_fetch".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
-            serde_json::json!({ "error": format!("serialization bug: {}", e) })
-        })),
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
+            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        )),
         is_error: false,
     }
 }

@@ -9,18 +9,19 @@ const PROVIDER: &str = "Cohere";
 
 /// Parse one Cohere stream payload line.
 pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
-    let raw: Value = serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
-        provider: PROVIDER,
-        source,
-    })?;
-
-    let event_type = raw
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or(StreamNormalizeError::MissingField {
-            field: "type",
+    let raw: Value =
+        serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
             provider: PROVIDER,
+            source,
         })?;
+
+    let event_type =
+        raw.get("type")
+            .and_then(Value::as_str)
+            .ok_or(StreamNormalizeError::MissingField {
+                field: "type",
+                provider: PROVIDER,
+            })?;
 
     match event_type {
         "message-start" => Ok(vec![StreamEvent::StreamStart { model: None }]),
@@ -44,13 +45,12 @@ pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
         }
 
         "tool-call-start" => {
-            let index = raw
-                .get("index")
-                .and_then(Value::as_u64)
-                .ok_or(StreamNormalizeError::MissingField {
+            let index = raw.get("index").and_then(Value::as_u64).ok_or(
+                StreamNormalizeError::MissingField {
                     field: "index",
                     provider: PROVIDER,
-                })? as usize;
+                },
+            )? as usize;
 
             let tool_calls = raw
                 .get("delta")
@@ -70,7 +70,10 @@ pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
                 tool_calls
             };
 
-            let id = tool_call.get("id").and_then(Value::as_str).map(str::to_string);
+            let id = tool_call
+                .get("id")
+                .and_then(Value::as_str)
+                .map(str::to_string);
             let name = tool_call
                 .get("function")
                 .and_then(|function| function.get("name"))
@@ -81,13 +84,12 @@ pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
         }
 
         "tool-call-delta" => {
-            let index = raw
-                .get("index")
-                .and_then(Value::as_u64)
-                .ok_or(StreamNormalizeError::MissingField {
+            let index = raw.get("index").and_then(Value::as_u64).ok_or(
+                StreamNormalizeError::MissingField {
                     field: "index",
                     provider: PROVIDER,
-                })? as usize;
+                },
+            )? as usize;
 
             let arguments = raw
                 .get("delta")
@@ -115,13 +117,12 @@ pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
         }
 
         "tool-call-end" => {
-            let index = raw
-                .get("index")
-                .and_then(Value::as_u64)
-                .ok_or(StreamNormalizeError::MissingField {
+            let index = raw.get("index").and_then(Value::as_u64).ok_or(
+                StreamNormalizeError::MissingField {
                     field: "index",
                     provider: PROVIDER,
-                })? as usize;
+                },
+            )? as usize;
 
             Ok(vec![StreamEvent::ToolCallEnd { index }])
         }

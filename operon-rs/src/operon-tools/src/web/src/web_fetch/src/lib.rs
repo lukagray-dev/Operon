@@ -48,7 +48,9 @@ pub use error::WebFetchToolError;
 pub use output::WebFetchOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::TieredToolDefinition;
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
+};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `web_fetch` tool.
@@ -231,5 +233,27 @@ pub async fn execute(
 
     // Execute the tool and return the result. The executor always returns a
     // ToolResult (never panics or returns an error), so we can unwrap safely.
+    Ok(executor::execute(call_id, args).await)
+}
+
+/// Deserializes `args_json` and executes the web_fetch tool with optional progress reporting.
+pub async fn execute_with_progress(
+    call_id: ToolCallId,
+    args_json: serde_json::Value,
+    progress: Option<ToolProgressEmitter>,
+) -> Result<ToolResult, WebFetchToolError> {
+    // Deserialize the arguments. If this fails, return an ArgsParse error.
+    let args: WebFetchArgs = serde_json::from_value(args_json)?;
+
+    emit_tool_progress(
+        progress.as_ref(),
+        ToolProgress::running(
+            call_id.clone(),
+            "web_fetch",
+            Some(args.url.clone()),
+            format!("Fetching {}", args.url),
+        ),
+    );
+
     Ok(executor::execute(call_id, args).await)
 }

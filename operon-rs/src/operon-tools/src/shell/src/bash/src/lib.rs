@@ -61,7 +61,9 @@ pub use error::BashToolError;
 pub use output::BashOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::TieredToolDefinition;
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
+};
 use serde_json::json;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -271,5 +273,30 @@ pub async fn execute(
 
     // Execute the tool. The executor handles all runtime validation
     // and always returns a ToolResult — it never panics or propagates errors.
+    Ok(executor::execute(call_id, args).await)
+}
+
+/// Deserializes `args_json` and executes the bash tool with optional progress reporting.
+pub async fn execute_with_progress(
+    call_id: ToolCallId,
+    args_json: serde_json::Value,
+    progress: Option<ToolProgressEmitter>,
+) -> Result<ToolResult, BashToolError> {
+    // Deserialize args. Missing `command` or `cwd` â†’ ArgsParse error.
+    // This surfaces to the dispatcher which marks the tool as degraded.
+    let args: BashArgs = serde_json::from_value(args_json)?;
+
+    emit_tool_progress(
+        progress.as_ref(),
+        ToolProgress::running(
+            call_id.clone(),
+            "bash",
+            Some(args.cwd.clone()),
+            format!("Running shell command in {}", args.cwd),
+        ),
+    );
+
+    // Execute the tool. The executor handles all runtime validation
+    // and always returns a ToolResult â€” it never panics or propagates errors.
     Ok(executor::execute(call_id, args).await)
 }

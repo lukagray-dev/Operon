@@ -4,7 +4,7 @@
 //! failure paths (nonexistent path, permission issues), and edge cases
 //! (nested directories, symlinks, default permanent value).
 
-use crate::{execute, DeletedKind, DeleteOutput};
+use crate::{execute, DeleteOutput, DeletedKind};
 use operon_context_normalize_tools::{ToolCallId, ToolContent};
 use serde_json::json;
 use std::fs;
@@ -21,8 +21,9 @@ fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String
 /// Helper to extract and deserialize DeleteOutput from a ToolResult.
 fn get_output(result: &operon_context_normalize_tools::ToolResult) -> DeleteOutput {
     match &result.content {
-        ToolContent::Json(v) => serde_json::from_value(v.clone())
-            .expect("failed to deserialize DeleteOutput"),
+        ToolContent::Json(v) => {
+            serde_json::from_value(v.clone()).expect("failed to deserialize DeleteOutput")
+        }
         other => panic!("expected Json content for success, got {:?}", other),
     }
 }

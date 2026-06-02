@@ -67,22 +67,18 @@ pub fn load() -> Result<AppConfig, ConfigError> {
     let toml_text = read_or_create_config(&paths)?;
 
     // Step 4: Parse TOML.
-    let toml_config: AppConfigToml = toml::from_str(&toml_text).map_err(|e| {
-        ConfigError::TomlParse {
-            path:   paths.config_file.display().to_string(),
+    let toml_config: AppConfigToml =
+        toml::from_str(&toml_text).map_err(|e| ConfigError::TomlParse {
+            path: paths.config_file.display().to_string(),
             source: e,
-        }
-    })?;
+        })?;
 
     // Step 5: Resolve the API key (config file first, then env var).
     let env_api_key = resolve_env_api_key(&toml_config.provider.name);
 
     // Step 6: Build ProviderConfig and validate credentials.
-    let provider = build_provider_config(
-        &toml_config.provider,
-        &toml_config.credentials,
-        env_api_key,
-    )?;
+    let provider =
+        build_provider_config(&toml_config.provider, &toml_config.credentials, env_api_key)?;
 
     // Step 7a: Check that a key exists for providers that require one.
     validate_credentials(&provider.provider, &provider.credentials.api_key)?;
@@ -103,10 +99,17 @@ pub fn load() -> Result<AppConfig, ConfigError> {
     inject_default_workspace(&mut directories, &paths);
 
     // Step 8: Assemble and validate the PolicyConfig.
-    let mut policy = PolicyConfig { global, directories };
+    let mut policy = PolicyConfig {
+        global,
+        directories,
+    };
     policy.validate()?;
 
-    Ok(AppConfig { provider, policy, paths })
+    Ok(AppConfig {
+        provider,
+        policy,
+        paths,
+    })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,17 +149,17 @@ fn inject_default_workspace(directories: &mut Vec<DirectoryPolicy>, paths: &Oper
 /// Returns the provider-specific environment variable name for the API key.
 fn api_key_env_var(provider_name: &str) -> &'static str {
     match provider_name {
-        "anthropic"    => "ANTHROPIC_API_KEY",
-        "open_ai"      => "OPENAI_API_KEY",
-        "gemini"       => "GEMINI_API_KEY",
-        "ollama"       => "",                  // Ollama is auth-free — no env var
-        "deep_seek"    => "DEEPSEEK_API_KEY",
-        "open_router"  => "OPENROUTER_API_KEY",
-        "groq"         => "GROQ_API_KEY",
-        "mistral"      => "MISTRAL_API_KEY",
-        "xai"          => "XAI_API_KEY",
-        "cohere"       => "COHERE_API_KEY",
-        _              => "",                  // Unknown provider — handled by parse_provider later
+        "anthropic" => "ANTHROPIC_API_KEY",
+        "open_ai" => "OPENAI_API_KEY",
+        "gemini" => "GEMINI_API_KEY",
+        "ollama" => "", // Ollama is auth-free — no env var
+        "deep_seek" => "DEEPSEEK_API_KEY",
+        "open_router" => "OPENROUTER_API_KEY",
+        "groq" => "GROQ_API_KEY",
+        "mistral" => "MISTRAL_API_KEY",
+        "xai" => "XAI_API_KEY",
+        "cohere" => "COHERE_API_KEY",
+        _ => "", // Unknown provider — handled by parse_provider later
     }
 }
 
@@ -316,7 +319,8 @@ load_tools = "deny"
 # [directories.permissions.external]
 # fs   = "ask"
 # bash = "deny"
-"#.to_string()
+"#
+    .to_string()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -332,24 +336,27 @@ mod tests {
     fn test_default_config_parses_cleanly() {
         // The default config file content must parse without errors.
         let content = default_config_content();
-        let parsed: AppConfigToml = toml::from_str(&content)
-            .expect("default config content should parse without errors");
+        let parsed: AppConfigToml =
+            toml::from_str(&content).expect("default config content should parse without errors");
         assert_eq!(parsed.provider.name, "anthropic");
-        assert!(parsed.directories.is_empty(), "default config has no user directories");
+        assert!(
+            parsed.directories.is_empty(),
+            "default config has no user directories"
+        );
     }
 
     #[test]
     fn test_api_key_env_var_all_providers() {
         // Every provider must return either a known env var or "".
         assert_eq!(api_key_env_var("anthropic"), "ANTHROPIC_API_KEY");
-        assert_eq!(api_key_env_var("open_ai"),   "OPENAI_API_KEY");
-        assert_eq!(api_key_env_var("gemini"),     "GEMINI_API_KEY");
-        assert_eq!(api_key_env_var("ollama"),     "");
-        assert_eq!(api_key_env_var("deep_seek"),  "DEEPSEEK_API_KEY");
-        assert_eq!(api_key_env_var("groq"),       "GROQ_API_KEY");
-        assert_eq!(api_key_env_var("mistral"),    "MISTRAL_API_KEY");
-        assert_eq!(api_key_env_var("xai"),        "XAI_API_KEY");
-        assert_eq!(api_key_env_var("cohere"),     "COHERE_API_KEY");
+        assert_eq!(api_key_env_var("open_ai"), "OPENAI_API_KEY");
+        assert_eq!(api_key_env_var("gemini"), "GEMINI_API_KEY");
+        assert_eq!(api_key_env_var("ollama"), "");
+        assert_eq!(api_key_env_var("deep_seek"), "DEEPSEEK_API_KEY");
+        assert_eq!(api_key_env_var("groq"), "GROQ_API_KEY");
+        assert_eq!(api_key_env_var("mistral"), "MISTRAL_API_KEY");
+        assert_eq!(api_key_env_var("xai"), "XAI_API_KEY");
+        assert_eq!(api_key_env_var("cohere"), "COHERE_API_KEY");
     }
 
     #[test]
@@ -366,7 +373,9 @@ mod tests {
     fn test_inject_default_workspace_does_not_duplicate() {
         // If workspace is already in the list, do not add a second entry.
         let paths = OperonPaths::resolve().unwrap();
-        let mut dirs = vec![DirectoryPolicy::owner_full_access(paths.workspace_dir.clone())];
+        let mut dirs = vec![DirectoryPolicy::owner_full_access(
+            paths.workspace_dir.clone(),
+        )];
         inject_default_workspace(&mut dirs, &paths);
         assert_eq!(dirs.len(), 1, "workspace should not be duplicated");
     }
@@ -377,10 +386,10 @@ mod tests {
         // touching the real ~/.operon directory.
         let tmp = tempfile::tempdir().unwrap();
         let fake_paths = OperonPaths {
-            config_dir:    tmp.path().join(".operon"),
+            config_dir: tmp.path().join(".operon"),
             workspace_dir: tmp.path().join(".operon").join("workspace"),
-            config_file:   tmp.path().join(".operon").join("config.toml"),
-            sessions_dir:  tmp.path().join(".operon").join("sessions"),
+            config_file: tmp.path().join(".operon").join("config.toml"),
+            sessions_dir: tmp.path().join(".operon").join("sessions"),
         };
 
         // Create the dirs manually (normally done by ensure_dirs_exist).
@@ -407,11 +416,8 @@ web = "allow"
         let toml_config: AppConfigToml = toml::from_str(&toml_text).unwrap();
 
         // Build provider config (Ollama — no key required).
-        let provider = build_provider_config(
-            &toml_config.provider,
-            &toml_config.credentials,
-            None,
-        ).unwrap();
+        let provider =
+            build_provider_config(&toml_config.provider, &toml_config.credentials, None).unwrap();
 
         assert_eq!(provider.provider, operon_providers::Provider::Ollama);
         assert_eq!(provider.model_id(), "llama3.2");
@@ -421,10 +427,16 @@ web = "allow"
         let mut directories: Vec<DirectoryPolicy> = Vec::new();
         inject_default_workspace(&mut directories, &fake_paths);
 
-        let mut policy = PolicyConfig { global, directories };
+        let mut policy = PolicyConfig {
+            global,
+            directories,
+        };
         // validate() would fail if workspace doesn't exist — it does in our temp dir.
         policy.validate().unwrap();
 
-        assert!(!policy.directories.is_empty(), "workspace should be in policy");
+        assert!(
+            !policy.directories.is_empty(),
+            "workspace should be in policy"
+        );
     }
 }

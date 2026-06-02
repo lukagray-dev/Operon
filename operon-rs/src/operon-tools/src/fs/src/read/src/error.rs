@@ -3,7 +3,6 @@
 /// This module defines all error conditions that can occur during read tool
 /// argument parsing and execution. Per-file read failures are NOT represented
 /// here — they are embedded in the success/error fields of FileReadResult.
-
 use thiserror::Error;
 
 /// Errors that can occur during read tool execution.

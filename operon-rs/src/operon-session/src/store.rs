@@ -50,8 +50,9 @@ impl SessionStore {
     pub async fn open(path: &Path) -> Result<Self, SessionError> {
         // Ensure the parent directory exists so SQLite can create the file.
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| SessionError::Store(format!("Failed to create store directory: {e}")))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                SessionError::Store(format!("Failed to create store directory: {e}"))
+            })?;
         }
 
         // Build connection options — create the file if it doesn't exist yet.
@@ -281,12 +282,16 @@ mod tests {
     /// sqlx supports the ":memory:" path for ephemeral databases.
     async fn memory_store() -> SessionStore {
         let path = std::path::Path::new(":memory:");
-        SessionStore::open(path).await.expect("Failed to open in-memory store")
+        SessionStore::open(path)
+            .await
+            .expect("Failed to open in-memory store")
     }
 
     /// Build a minimal conversation for testing.
     fn make_messages(text: &str) -> Vec<ConversationMessage> {
-        vec![ConversationMessage::user(vec![ContentBlock::Text(text.to_string())])]
+        vec![ConversationMessage::user(vec![ContentBlock::Text(
+            text.to_string(),
+        )])]
     }
 
     #[tokio::test]
@@ -299,7 +304,10 @@ mod tests {
             .await
             .expect("create_session should succeed");
 
-        let sessions = store.list_sessions().await.expect("list_sessions should succeed");
+        let sessions = store
+            .list_sessions()
+            .await
+            .expect("list_sessions should succeed");
 
         assert_eq!(sessions.len(), 1, "Should have exactly one session");
         assert_eq!(sessions[0].id, "session-1");
@@ -327,7 +335,10 @@ mod tests {
         let loaded = store.load_turns("session-rt").await.expect("load_turns");
 
         assert_eq!(loaded.len(), 1, "Should have exactly one turn");
-        assert_eq!(loaded[0], messages, "Loaded messages must match saved messages");
+        assert_eq!(
+            loaded[0], messages,
+            "Loaded messages must match saved messages"
+        );
     }
 
     #[tokio::test]
@@ -341,7 +352,10 @@ mod tests {
             .expect("create_session");
 
         let loaded = store.load_turns("session-empty").await.expect("load_turns");
-        assert!(loaded.is_empty(), "No turns saved — should return empty vec");
+        assert!(
+            loaded.is_empty(),
+            "No turns saved — should return empty vec"
+        );
     }
 
     #[tokio::test]
@@ -358,9 +372,18 @@ mod tests {
         let turn1 = make_messages("Turn one");
         let turn2 = make_messages("Turn two");
 
-        store.save_turn("session-order", 0, &turn0, None).await.unwrap();
-        store.save_turn("session-order", 1, &turn1, None).await.unwrap();
-        store.save_turn("session-order", 2, &turn2, None).await.unwrap();
+        store
+            .save_turn("session-order", 0, &turn0, None)
+            .await
+            .unwrap();
+        store
+            .save_turn("session-order", 1, &turn1, None)
+            .await
+            .unwrap();
+        store
+            .save_turn("session-order", 2, &turn2, None)
+            .await
+            .unwrap();
 
         let loaded = store.load_turns("session-order").await.unwrap();
         assert_eq!(loaded.len(), 3);

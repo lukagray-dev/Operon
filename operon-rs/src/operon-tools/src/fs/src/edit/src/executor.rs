@@ -25,9 +25,7 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         return ToolResult {
             call_id,
             name: "edit".to_string(),
-            content: ToolContent::Text(
-                "edits array must contain at least one hunk".to_string(),
-            ),
+            content: ToolContent::Text("edits array must contain at least one hunk".to_string()),
             is_error: true,
         };
     }
@@ -54,10 +52,7 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
             return ToolResult {
                 call_id,
                 name: "edit".to_string(),
-                content: ToolContent::Text(format!(
-                    "failed to read file: {}: {}",
-                    args.path, e
-                )),
+                content: ToolContent::Text(format!("failed to read file: {}: {}", args.path, e)),
                 is_error: true,
             };
         }
@@ -157,9 +152,9 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "edit".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
-            serde_json::json!({ "error": format!("serialization bug: {}", e) })
-        })),
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
+            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        )),
         is_error: false,
     }
 }

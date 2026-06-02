@@ -238,9 +238,9 @@ mod tests {
     fn total_tokens_sums_correctly_across_multiple_records() {
         // Real-world scenario: 3 turns of a conversation.
         let mut rec = TokenRecorder::new();
-        rec.record(make_record(500, 100));  // turn 1
-        rec.record(make_record(700, 200));  // turn 2
-        rec.record(make_record(900, 300));  // turn 3
+        rec.record(make_record(500, 100)); // turn 1
+        rec.record(make_record(700, 200)); // turn 2
+        rec.record(make_record(900, 300)); // turn 3
 
         assert_eq!(rec.total_input(), 500 + 700 + 900);
         assert_eq!(rec.total_output(), 100 + 200 + 300);

@@ -45,7 +45,9 @@ pub use error::WriteToolError;
 pub use output::WriteOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::TieredToolDefinition;
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
+};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `write` tool.
@@ -224,8 +226,27 @@ pub async fn execute(
     call_id: ToolCallId,
     args_json: serde_json::Value,
 ) -> Result<ToolResult, WriteToolError> {
+    execute_with_progress(call_id, args_json, None).await
+}
+
+/// Deserializes `args_json` and executes the write tool with optional progress reporting.
+pub async fn execute_with_progress(
+    call_id: ToolCallId,
+    args_json: serde_json::Value,
+    progress: Option<ToolProgressEmitter>,
+) -> Result<ToolResult, WriteToolError> {
     // Deserialize the arguments. If this fails, return an ArgsParse error.
     let args: WriteArgs = serde_json::from_value(args_json)?;
+
+    emit_tool_progress(
+        progress.as_ref(),
+        ToolProgress::running(
+            call_id.clone(),
+            "write",
+            Some(args.path.clone()),
+            format!("Writing {}", args.path),
+        ),
+    );
 
     // Execute the tool and return the result. The executor always returns a
     // ToolResult (never panics or returns an error), so we can unwrap safely.

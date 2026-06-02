@@ -3,7 +3,6 @@
 /// This module defines the structured result format returned by the grep tool.
 /// Each file search produces a FileGrepResult, and all results are wrapped in
 /// a GrepOutput container with summary statistics.
-
 use serde::{Deserialize, Serialize};
 
 /// A single line match (or context line) within a file.

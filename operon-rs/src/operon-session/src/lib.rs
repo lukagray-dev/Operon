@@ -10,7 +10,7 @@
 //!
 //! ```text
 //! Frontend
-//!   └── SessionRunner::new(config, event_tx)
+//!   └── SessionRunner::new(config, event_tx, cmd_rx)
 //!         └── runner.run(user_message)
 //!               ├── SnapshotBuilder::build()       → system prompt
 //!               ├── sanitize()                     → clean messages

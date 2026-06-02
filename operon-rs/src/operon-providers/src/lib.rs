@@ -20,7 +20,7 @@
 //!       ↑
 //! operon-session  (uses ProviderConfig to build HTTP requests)
 //!       ↑
-//! operon-config   (TODO: loads ProviderConfig from TOML/env)
+//! operon-config   (loads ProviderConfig from TOML/env via AppConfig)
 //! ```
 //!
 //! ## What this crate provides

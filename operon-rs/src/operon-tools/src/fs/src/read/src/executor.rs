@@ -3,7 +3,6 @@
 /// This module contains the core logic for reading files, applying line ranges,
 /// detecting binary content, enforcing size limits, and assembling the final
 /// ToolResult. All file I/O is async via tokio::fs.
-
 use crate::args::{ReadArgs, ReadTarget};
 use crate::output::{FileReadResult, LineRange, ReadOutput};
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
@@ -157,7 +156,9 @@ async fn read_single_file(target: ReadTarget) -> FileReadResult {
             path: path_str,
             success: false,
             content: None,
-            error: Some("Binary file detected. Use the image/video tool for media files.".to_string()),
+            error: Some(
+                "Binary file detected. Use the image/video tool for media files.".to_string(),
+            ),
             total_lines: None,
             lines_returned: None,
         };
@@ -255,11 +256,11 @@ fn apply_line_range(
 
     // Extract the requested lines and join them back into a string.
     let selected_lines = &lines[start_idx..end_idx];
-    
+
     // Reconstruct the content with proper line endings.
     // We need to check if the original file had trailing newlines.
     let has_trailing_newline = content.ends_with('\n');
-    
+
     let mut result_content = String::new();
     for (i, line) in selected_lines.iter().enumerate() {
         result_content.push_str(line);
@@ -268,7 +269,7 @@ fn apply_line_range(
         // - It IS the last line AND (we're at EOF with trailing newline OR we're not at EOF)
         let is_last_in_selection = i == selected_lines.len() - 1;
         let is_at_eof = end_clamped == total_lines;
-        
+
         if !is_last_in_selection {
             // Always add newline between lines
             result_content.push('\n');

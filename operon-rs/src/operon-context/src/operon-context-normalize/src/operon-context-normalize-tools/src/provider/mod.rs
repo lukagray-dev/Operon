@@ -90,16 +90,16 @@ impl FromWire for ToolCall {
     /// Dispatch to the provider-specific `from_wire_tool_call` function.
     fn from_wire(raw: Value, provider: &Provider) -> Result<Self, ToolNormalizeError> {
         match provider {
-            Provider::Anthropic  => anthropic::from_wire_tool_call(raw),
-            Provider::OpenAI     => openai::from_wire_tool_call(raw),
-            Provider::Gemini     => gemini::from_wire_tool_call(raw),
-            Provider::Ollama     => ollama::from_wire_tool_call(raw),
-            Provider::DeepSeek   => deepseek::from_wire_tool_call(raw),
+            Provider::Anthropic => anthropic::from_wire_tool_call(raw),
+            Provider::OpenAI => openai::from_wire_tool_call(raw),
+            Provider::Gemini => gemini::from_wire_tool_call(raw),
+            Provider::Ollama => ollama::from_wire_tool_call(raw),
+            Provider::DeepSeek => deepseek::from_wire_tool_call(raw),
             Provider::OpenRouter => openrouter::from_wire_tool_call(raw),
-            Provider::Groq       => groq::from_wire_tool_call(raw),
-            Provider::Mistral    => mistral::from_wire_tool_call(raw),
-            Provider::XAI        => xai::from_wire_tool_call(raw),
-            Provider::Cohere     => cohere::from_wire_tool_call(raw),
+            Provider::Groq => groq::from_wire_tool_call(raw),
+            Provider::Mistral => mistral::from_wire_tool_call(raw),
+            Provider::XAI => xai::from_wire_tool_call(raw),
+            Provider::Cohere => cohere::from_wire_tool_call(raw),
         }
     }
 }
@@ -108,16 +108,16 @@ impl ToWire for ToolDefinition {
     /// Dispatch to the provider-specific `to_wire_tool_definition` function.
     fn to_wire(&self, provider: &Provider) -> Result<Value, ToolNormalizeError> {
         match provider {
-            Provider::Anthropic  => anthropic::to_wire_tool_definition(self),
-            Provider::OpenAI     => openai::to_wire_tool_definition(self),
-            Provider::Gemini     => gemini::to_wire_tool_definition(self),
-            Provider::Ollama     => ollama::to_wire_tool_definition(self),
-            Provider::DeepSeek   => deepseek::to_wire_tool_definition(self),
+            Provider::Anthropic => anthropic::to_wire_tool_definition(self),
+            Provider::OpenAI => openai::to_wire_tool_definition(self),
+            Provider::Gemini => gemini::to_wire_tool_definition(self),
+            Provider::Ollama => ollama::to_wire_tool_definition(self),
+            Provider::DeepSeek => deepseek::to_wire_tool_definition(self),
             Provider::OpenRouter => openrouter::to_wire_tool_definition(self),
-            Provider::Groq       => groq::to_wire_tool_definition(self),
-            Provider::Mistral    => mistral::to_wire_tool_definition(self),
-            Provider::XAI        => xai::to_wire_tool_definition(self),
-            Provider::Cohere     => cohere::to_wire_tool_definition(self),
+            Provider::Groq => groq::to_wire_tool_definition(self),
+            Provider::Mistral => mistral::to_wire_tool_definition(self),
+            Provider::XAI => xai::to_wire_tool_definition(self),
+            Provider::Cohere => cohere::to_wire_tool_definition(self),
         }
     }
 }
@@ -126,16 +126,16 @@ impl ToWire for ToolResult {
     /// Dispatch to the provider-specific `to_wire_tool_result` function.
     fn to_wire(&self, provider: &Provider) -> Result<Value, ToolNormalizeError> {
         match provider {
-            Provider::Anthropic  => anthropic::to_wire_tool_result(self),
-            Provider::OpenAI     => openai::to_wire_tool_result(self),
-            Provider::Gemini     => gemini::to_wire_tool_result(self),
-            Provider::Ollama     => ollama::to_wire_tool_result(self),
-            Provider::DeepSeek   => deepseek::to_wire_tool_result(self),
+            Provider::Anthropic => anthropic::to_wire_tool_result(self),
+            Provider::OpenAI => openai::to_wire_tool_result(self),
+            Provider::Gemini => gemini::to_wire_tool_result(self),
+            Provider::Ollama => ollama::to_wire_tool_result(self),
+            Provider::DeepSeek => deepseek::to_wire_tool_result(self),
             Provider::OpenRouter => openrouter::to_wire_tool_result(self),
-            Provider::Groq       => groq::to_wire_tool_result(self),
-            Provider::Mistral    => mistral::to_wire_tool_result(self),
-            Provider::XAI        => xai::to_wire_tool_result(self),
-            Provider::Cohere     => cohere::to_wire_tool_result(self),
+            Provider::Groq => groq::to_wire_tool_result(self),
+            Provider::Mistral => mistral::to_wire_tool_result(self),
+            Provider::XAI => xai::to_wire_tool_result(self),
+            Provider::Cohere => cohere::to_wire_tool_result(self),
         }
     }
 }

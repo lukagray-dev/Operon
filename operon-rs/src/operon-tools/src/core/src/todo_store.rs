@@ -53,11 +53,7 @@ impl TodoStore {
     /// assert_eq!(item.id, "1");
     /// assert_eq!(item.status, TodoStatus::Pending);
     /// ```
-    pub fn create(
-        &mut self,
-        content: String,
-        priority: Option<TodoPriority>,
-    ) -> TodoItem {
+    pub fn create(&mut self, content: String, priority: Option<TodoPriority>) -> TodoItem {
         self.next_id += 1;
         let item = TodoItem {
             id: self.next_id.to_string(),

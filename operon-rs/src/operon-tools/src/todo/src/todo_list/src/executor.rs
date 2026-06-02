@@ -18,11 +18,7 @@ use operon_tools_core::{TodoStatus, TodoStore};
 /// # Returns
 /// A `ToolResult` with success (JSON TodoListOutput). Never returns is_error: true —
 /// an empty list is valid, not an error.
-pub async fn execute(
-    call_id: ToolCallId,
-    args: TodoListArgs,
-    store: &TodoStore,
-) -> ToolResult {
+pub async fn execute(call_id: ToolCallId, args: TodoListArgs, store: &TodoStore) -> ToolResult {
     // Step 1: Get all items from the store.
     let all_items = store.list();
 
@@ -48,7 +44,10 @@ pub async fn execute(
         .collect();
 
     // Step 3: Compute status counts from the full unfiltered list.
-    let pending = all_items.iter().filter(|i| i.status == TodoStatus::Pending).count();
+    let pending = all_items
+        .iter()
+        .filter(|i| i.status == TodoStatus::Pending)
+        .count();
     let in_progress = all_items
         .iter()
         .filter(|i| i.status == TodoStatus::InProgress)

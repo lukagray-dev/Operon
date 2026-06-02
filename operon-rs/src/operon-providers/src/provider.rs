@@ -93,86 +93,86 @@ impl Provider {
     pub fn capabilities(self) -> ProviderCapabilities {
         match self {
             Provider::Anthropic => ProviderCapabilities {
-                default_base_url:    "https://api.anthropic.com/v1",
-                auth_header:         AuthHeader::XApiKey,
-                supports_streaming:  true,
+                default_base_url: "https://api.anthropic.com/v1",
+                auth_header: AuthHeader::XApiKey,
+                supports_streaming: true,
                 // Extended thinking is a request-time opt-in for claude-3-7+ models.
-                supports_thinking:   true,
-                supports_tool_use:   true,
+                supports_thinking: true,
+                supports_tool_use: true,
             },
             Provider::OpenAI => ProviderCapabilities {
-                default_base_url:    "https://api.openai.com/v1",
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                default_base_url: "https://api.openai.com/v1",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // o1/o3/o4 models expose reasoning_summary — not all GPT-4o models.
-                supports_thinking:   true,
-                supports_tool_use:   true,
+                supports_thinking: true,
+                supports_tool_use: true,
             },
             Provider::Gemini => ProviderCapabilities {
-                default_base_url:    "https://generativelanguage.googleapis.com/v1beta",
-                auth_header:         AuthHeader::XGoogApiKey,
-                supports_streaming:  true,
+                default_base_url: "https://generativelanguage.googleapis.com/v1beta",
+                auth_header: AuthHeader::XGoogApiKey,
+                supports_streaming: true,
                 // Gemini 2.5+ supports thinking via thought parts.
-                supports_thinking:   true,
-                supports_tool_use:   true,
+                supports_thinking: true,
+                supports_tool_use: true,
             },
             Provider::Ollama => ProviderCapabilities {
                 // Ollama runs locally — operator may override this via base_url_override.
-                default_base_url:    "http://localhost:11434/v1",
+                default_base_url: "http://localhost:11434/v1",
                 // Ollama doesn't require an API key — empty string is the convention.
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // Some models served by Ollama support thinking (e.g. qwq, deepseek-r1).
-                supports_thinking:   true,
-                supports_tool_use:   true,
+                supports_thinking: true,
+                supports_tool_use: true,
             },
             Provider::DeepSeek => ProviderCapabilities {
-                default_base_url:    "https://api.deepseek.com/v1",
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                default_base_url: "https://api.deepseek.com/v1",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // deepseek-reasoner exposes reasoning_content.
-                supports_thinking:   true,
-                supports_tool_use:   true,
+                supports_thinking: true,
+                supports_tool_use: true,
             },
             Provider::OpenRouter => ProviderCapabilities {
-                default_base_url:    "https://openrouter.ai/api/v1",
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                default_base_url: "https://openrouter.ai/api/v1",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // Depends on underlying model — we conservatively say true.
-                supports_thinking:   true,
-                supports_tool_use:   true,
+                supports_thinking: true,
+                supports_tool_use: true,
             },
             Provider::Groq => ProviderCapabilities {
-                default_base_url:    "https://api.groq.com/openai/v1",
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                default_base_url: "https://api.groq.com/openai/v1",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // Groq does not expose chain-of-thought reasoning content.
-                supports_thinking:   false,
-                supports_tool_use:   true,
+                supports_thinking: false,
+                supports_tool_use: true,
             },
             Provider::Mistral => ProviderCapabilities {
-                default_base_url:    "https://api.mistral.ai/v1",
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                default_base_url: "https://api.mistral.ai/v1",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // Mistral does not expose reasoning content currently.
-                supports_thinking:   false,
-                supports_tool_use:   true,
+                supports_thinking: false,
+                supports_tool_use: true,
             },
             Provider::XAI => ProviderCapabilities {
-                default_base_url:    "https://api.x.ai/v1",
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                default_base_url: "https://api.x.ai/v1",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // Grok reasoning models expose reasoning_content.
-                supports_thinking:   true,
-                supports_tool_use:   true,
+                supports_thinking: true,
+                supports_tool_use: true,
             },
             Provider::Cohere => ProviderCapabilities {
-                default_base_url:    "https://api.cohere.com/v2",
-                auth_header:         AuthHeader::Bearer,
-                supports_streaming:  true,
+                default_base_url: "https://api.cohere.com/v2",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
                 // Cohere does not expose chain-of-thought reasoning content.
-                supports_thinking:   false,
-                supports_tool_use:   true,
+                supports_thinking: false,
+                supports_tool_use: true,
             },
         }
     }
@@ -180,16 +180,16 @@ impl Provider {
     /// Returns the display name of this provider (for UI and logs).
     pub fn display_name(self) -> &'static str {
         match self {
-            Provider::Anthropic   => "Anthropic",
-            Provider::OpenAI      => "OpenAI",
-            Provider::Gemini      => "Google Gemini",
-            Provider::Ollama      => "Ollama",
-            Provider::DeepSeek    => "DeepSeek",
-            Provider::OpenRouter  => "OpenRouter",
-            Provider::Groq        => "Groq",
-            Provider::Mistral     => "Mistral",
-            Provider::XAI         => "xAI",
-            Provider::Cohere      => "Cohere",
+            Provider::Anthropic => "Anthropic",
+            Provider::OpenAI => "OpenAI",
+            Provider::Gemini => "Google Gemini",
+            Provider::Ollama => "Ollama",
+            Provider::DeepSeek => "DeepSeek",
+            Provider::OpenRouter => "OpenRouter",
+            Provider::Groq => "Groq",
+            Provider::Mistral => "Mistral",
+            Provider::XAI => "xAI",
+            Provider::Cohere => "Cohere",
         }
     }
 

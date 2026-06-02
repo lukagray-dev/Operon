@@ -11,10 +11,11 @@ const PROVIDER: &str = "OpenRouter";
 
 /// Parse one OpenRouter stream payload line.
 pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
-    let raw: Value = serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
-        provider: PROVIDER,
-        source,
-    })?;
+    let raw: Value =
+        serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
+            provider: PROVIDER,
+            source,
+        })?;
 
     parse_value(raw)
 }

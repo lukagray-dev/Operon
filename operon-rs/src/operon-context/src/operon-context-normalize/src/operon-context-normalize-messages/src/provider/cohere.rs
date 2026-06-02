@@ -18,10 +18,13 @@ const PROVIDER: &str = "Cohere";
 /// Normalize a Cohere wire message or response envelope into canonical form.
 pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     let (message_value, finish_reason) = if raw.get("message").is_some() {
-        let msg = raw.get("message").cloned().ok_or(MessageNormalizeError::MissingField {
-            field: "message",
-            provider: PROVIDER,
-        })?;
+        let msg = raw
+            .get("message")
+            .cloned()
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "message",
+                provider: PROVIDER,
+            })?;
         let fr = raw
             .get("finish_reason")
             .and_then(Value::as_str)
@@ -35,13 +38,12 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         (raw, fr)
     };
 
-    let role_str = message_value
-        .get("role")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
+    let role_str = message_value.get("role").and_then(Value::as_str).ok_or(
+        MessageNormalizeError::MissingField {
             field: "role",
             provider: PROVIDER,
-        })?;
+        },
+    )?;
 
     let role = match role_str {
         "user" => MessageRole::User,
@@ -57,7 +59,9 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     };
 
     let mut content = if role == MessageRole::Tool {
-        vec![ContentBlock::ToolResult(parse_cohere_tool_result(&message_value)?)]
+        vec![ContentBlock::ToolResult(parse_cohere_tool_result(
+            &message_value,
+        )?)]
     } else {
         parse_cohere_content(message_value.get("content"))?
     };
@@ -66,8 +70,8 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         if let Some(tool_calls) = message_value.get("tool_calls").and_then(Value::as_array) {
             for tc in tool_calls {
                 // Cohere tool_calls are OpenAI-shaped in v2 messages.
-                let tool_call = normalize_tool_call(tc.clone(), &ToolProvider::OpenAI)
-                    .map_err(map_tool_err)?;
+                let tool_call =
+                    normalize_tool_call(tc.clone(), &ToolProvider::OpenAI).map_err(map_tool_err)?;
                 content.push(ContentBlock::ToolCall(tool_call));
             }
         }
@@ -80,7 +84,10 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     };
 
     if let Some(fr) = finish_reason {
-        out.stop_reason = Some(normalize_stop_reason(&fr, &crate::provider::Provider::Cohere));
+        out.stop_reason = Some(normalize_stop_reason(
+            &fr,
+            &crate::provider::Provider::Cohere,
+        ));
     }
 
     Ok(out)
@@ -96,7 +103,8 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
             MessageRole::Tool => {
                 let tool_results = extract_tool_results(&msg.content)?;
                 for tr in tool_results {
-                    let wire = denormalize_tool_result(tr, &ToolProvider::Cohere).map_err(map_tool_err)?;
+                    let wire =
+                        denormalize_tool_result(tr, &ToolProvider::Cohere).map_err(map_tool_err)?;
                     wire_messages.push(wire);
                 }
             }
@@ -163,22 +171,20 @@ fn parse_cohere_content(raw: Option<&Value>) -> Result<Vec<ContentBlock>> {
         Some(Value::Array(arr)) => {
             let mut out = Vec::new();
             for block in arr {
-                let ty = block
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .ok_or(MessageNormalizeError::MissingField {
+                let ty = block.get("type").and_then(Value::as_str).ok_or(
+                    MessageNormalizeError::MissingField {
                         field: "content[].type",
                         provider: PROVIDER,
-                    })?;
+                    },
+                )?;
                 match ty {
                     "text" => {
-                        let text = block
-                            .get("text")
-                            .and_then(Value::as_str)
-                            .ok_or(MessageNormalizeError::MissingField {
+                        let text = block.get("text").and_then(Value::as_str).ok_or(
+                            MessageNormalizeError::MissingField {
                                 field: "content[].text",
                                 provider: PROVIDER,
-                            })?;
+                            },
+                        )?;
                         out.push(ContentBlock::Text(text.to_string()));
                     }
                     "image" | "image_url" => {
@@ -205,13 +211,12 @@ fn parse_cohere_content(raw: Option<&Value>) -> Result<Vec<ContentBlock>> {
 }
 
 fn parse_cohere_tool_result(message: &Value) -> Result<ToolResult> {
-    let tool_call_id = message
-        .get("tool_call_id")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
+    let tool_call_id = message.get("tool_call_id").and_then(Value::as_str).ok_or(
+        MessageNormalizeError::MissingField {
             field: "tool_call_id",
             provider: PROVIDER,
-        })?;
+        },
+    )?;
 
     let content = match message.get("content") {
         None | Some(Value::Null) => ToolContent::Text(String::new()),

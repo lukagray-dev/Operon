@@ -14,7 +14,7 @@
 //!
 //! ```text
 //! model emits ToolCall
-//!   → dispatcher.dispatch(call) 
+//!   → dispatcher.dispatch(call)
 //!       → look up tool by name         [UnknownTool if missing]
 //!       → parse args                   [MalformedArgs if fail → mark degraded → return error ToolResult]
 //!       → execute tool                 [InternalError if runtime bug]
@@ -30,16 +30,20 @@
 //!       else                            → return short ToolDefinition
 //! ```
 
-use std::collections::{HashMap, HashSet};
-use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult};
-use operon_tools_core::{ReadLedger, ToolDispatchError};
+use operon_context_normalize_tools::{
+    ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
+};
+use operon_tools_core::{
+    emit_tool_progress, ReadLedger, ToolDispatchError, ToolProgress, ToolProgressEmitter,
+};
+use operon_tools_load;
 use operon_tools_todo_create;
+use operon_tools_todo_delete;
 use operon_tools_todo_list;
 use operon_tools_todo_update;
-use operon_tools_todo_delete;
-use operon_tools_web_search;
 use operon_tools_web_fetch;
-use operon_tools_load;
+use operon_tools_web_search;
+use std::collections::{HashMap, HashSet};
 
 /// A registered tool: its tiered definition, group tag, and async execute function.
 struct ToolEntry {
@@ -48,12 +52,13 @@ struct ToolEntry {
     /// Used by load_tools to filter definitions by group.
     group: &'static str,
     /// Type-erased async execute fn.
-    /// Takes (call_id, args_json) → ToolResult.
+    /// Takes (call_id, args_json, progress) → ToolResult.
     /// Malformed args must be surfaced as Err(String) describing the parse failure.
     execute: Box<
         dyn Fn(
                 ToolCallId,
                 serde_json::Value,
+                Option<ToolProgressEmitter>,
             ) -> std::pin::Pin<
                 Box<dyn std::future::Future<Output = Result<ToolResult, String>> + Send>,
             > + Send
@@ -63,10 +68,11 @@ struct ToolEntry {
 
 /// The result of a single tool dispatch, including metadata about side effects.
 ///
-/// Returned by `Dispatcher::dispatch()` instead of a bare `ToolResult` so the
-/// session runner can observe dispatch-level side effects — specifically, when a
-/// tool first enters degraded mode — and emit the corresponding `SessionEvent`
-/// without the dispatcher needing to know about the event bus.
+/// Returned by `Dispatcher::dispatch_with_progress()` instead of a bare
+/// `ToolResult` so the session runner can observe dispatch-level side effects —
+/// specifically, when a tool first enters degraded mode — and emit the
+/// corresponding `SessionEvent` without the dispatcher needing to know about
+/// the event bus.
 ///
 /// # Why not return ToolResult directly?
 ///
@@ -126,7 +132,7 @@ impl Dispatcher {
     /// # Arguments
     /// - `tiered`: The tool's tiered definition (from the tool crate's `definition()`).
     /// - `group`: The tool group name (e.g., "fs", "shell", "web", "todo", "core").
-    /// - `execute`: An async function `(ToolCallId, serde_json::Value) -> Result<ToolResult, String>`.
+    /// - `execute`: An async function `(ToolCallId, serde_json::Value, Option<ToolProgressEmitter>) -> Result<ToolResult, String>`.
     ///   Return `Err(reason)` if and only if the args failed to parse.
     ///   Runtime errors (e.g. file not found) must be returned as `Ok(ToolResult { is_error: true, ... })`.
     pub fn register<F, Fut>(
@@ -135,7 +141,10 @@ impl Dispatcher {
         group: &'static str,
         execute: F,
     ) where
-        F: Fn(ToolCallId, serde_json::Value) -> Fut + Send + Sync + 'static,
+        F: Fn(ToolCallId, serde_json::Value, Option<ToolProgressEmitter>) -> Fut
+            + Send
+            + Sync
+            + 'static,
         Fut: std::future::Future<Output = Result<ToolResult, String>> + Send + 'static,
     {
         let name = tiered.name().to_string();
@@ -144,7 +153,9 @@ impl Dispatcher {
             ToolEntry {
                 tiered,
                 group,
-                execute: Box::new(move |call_id, args| Box::pin(execute(call_id, args))),
+                execute: Box::new(move |call_id, args, progress| {
+                    Box::pin(execute(call_id, args, progress))
+                }),
             },
         );
     }
@@ -159,8 +170,8 @@ impl Dispatcher {
         self.register(
             operon_tools_fs_read::definition(),
             "fs",
-            |call_id, args| async move {
-                operon_tools_fs_read::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_fs_read::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -168,8 +179,8 @@ impl Dispatcher {
         self.register(
             operon_tools_fs_grep::definition(),
             "fs",
-            |call_id, args| async move {
-                operon_tools_fs_grep::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_fs_grep::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -177,8 +188,8 @@ impl Dispatcher {
         self.register(
             operon_tools_fs_ls::definition(),
             "fs",
-            |call_id, args| async move {
-                operon_tools_fs_ls::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_fs_ls::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -186,8 +197,8 @@ impl Dispatcher {
         self.register(
             operon_tools_fs_edit::definition(),
             "fs",
-            |call_id, args| async move {
-                operon_tools_fs_edit::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_fs_edit::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -195,8 +206,8 @@ impl Dispatcher {
         self.register(
             operon_tools_fs_write::definition(),
             "fs",
-            |call_id, args| async move {
-                operon_tools_fs_write::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_fs_write::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -204,8 +215,8 @@ impl Dispatcher {
         self.register(
             operon_tools_fs_append::definition(),
             "fs",
-            |call_id, args| async move {
-                operon_tools_fs_append::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_fs_append::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -213,8 +224,8 @@ impl Dispatcher {
         self.register(
             operon_tools_fs_delete::definition(),
             "fs",
-            |call_id, args| async move {
-                operon_tools_fs_delete::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_fs_delete::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -231,8 +242,8 @@ impl Dispatcher {
         self.register(
             operon_tools_shell_bash::definition(),
             "shell",
-            |call_id, args| async move {
-                operon_tools_shell_bash::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_shell_bash::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -249,8 +260,8 @@ impl Dispatcher {
         self.register(
             operon_tools_web_search::definition(),
             "web",
-            |call_id, args| async move {
-                operon_tools_web_search::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_web_search::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -258,8 +269,8 @@ impl Dispatcher {
         self.register(
             operon_tools_web_fetch::definition(),
             "web",
-            |call_id, args| async move {
-                operon_tools_web_fetch::execute(call_id, args)
+            |call_id, args, progress| async move {
+                operon_tools_web_fetch::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -284,17 +295,20 @@ impl Dispatcher {
 
         for def in defs {
             let name = def.name().to_string();
-            self.tools.insert(name.clone(), ToolEntry {
-                tiered: def,
-                group: "todo",
-                execute: Box::new(move |_call_id, _args| {
-                    // This path is never reached — todo tools are intercepted in dispatch().
-                    let n = name.clone();
-                    Box::pin(async move {
-                        Err(format!("todo tool '{}' should have been intercepted", n))
-                    })
-                }),
-            });
+            self.tools.insert(
+                name.clone(),
+                ToolEntry {
+                    tiered: def,
+                    group: "todo",
+                    execute: Box::new(move |_call_id, _args, _progress| {
+                        // This path is never reached — todo tools are intercepted in dispatch().
+                        let n = name.clone();
+                        Box::pin(async move {
+                            Err(format!("todo tool '{}' should have been intercepted", n))
+                        })
+                    }),
+                },
+            );
         }
     }
 
@@ -306,17 +320,18 @@ impl Dispatcher {
     /// is never called (dispatch intercepts it first).
     pub fn register_load_tool(&mut self) {
         let name = "load_tools".to_string();
-        self.tools.insert(name.clone(), ToolEntry {
-            tiered: operon_tools_load::definition(),
-            group: "core",  // load_tools is in the "core" group — not user-loadable
-            execute: Box::new(move |_call_id, _args| {
-                // Never reached — load_tools is intercepted in dispatch().
-                let n = name.clone();
-                Box::pin(async move {
-                    Err(format!("'{}' should have been intercepted", n))
-                })
-            }),
-        });
+        self.tools.insert(
+            name.clone(),
+            ToolEntry {
+                tiered: operon_tools_load::definition(),
+                group: "core", // load_tools is in the "core" group — not user-loadable
+                execute: Box::new(move |_call_id, _args, _progress| {
+                    // Never reached — load_tools is intercepted in dispatch().
+                    let n = name.clone();
+                    Box::pin(async move { Err(format!("'{}' should have been intercepted", n)) })
+                }),
+            },
+        );
     }
 
     /// Clears the read ledger after context compaction.
@@ -361,7 +376,8 @@ impl Dispatcher {
     /// Used by `load_tools` when the model calls it with no group to list groups.
     /// Filters out the "core" group (internal tools like load_tools itself).
     pub fn registered_groups(&self) -> Vec<&str> {
-        let mut groups: Vec<&str> = self.tools
+        let mut groups: Vec<&str> = self
+            .tools
             .values()
             .filter(|e| e.group != "core")
             .map(|e| e.group)
@@ -384,64 +400,252 @@ impl Dispatcher {
     /// The `newly_degraded` field in the outcome is `Some(name)` on the FIRST malformed
     /// call for a tool this session, allowing the runner to emit `SessionEvent::ToolDegraded`.
     /// Subsequent malformed calls for the same tool return `newly_degraded: None`.
-    pub async fn dispatch(&mut self, call: ToolCall) -> DispatchOutcome {
+    pub async fn dispatch(&mut self, call: ToolCall) -> ToolResult {
+        self.dispatch_with_progress(call, None).await.result
+    }
+
+    /// Dispatches a tool call and forwards optional progress updates to the caller.
+    pub async fn dispatch_with_progress(
+        &mut self,
+        call: ToolCall,
+        progress: Option<ToolProgressEmitter>,
+    ) -> DispatchOutcome {
         let tool_name = call.name.clone();
         let call_id = call.id.clone();
 
         // load_tools: intercepted directly because it needs access to dispatcher state.
         if call.name == "load_tools" {
-            let group_arg = call.arguments
+            let group_arg = call
+                .arguments
                 .get("group")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
+            let started_message = match &group_arg {
+                Some(group) => format!("Loading tool group {}", group),
+                None => "Listing available tool groups".to_string(),
+            };
+            emit_tool_progress(
+                progress.as_ref(),
+                ToolProgress::started(
+                    call_id.clone(),
+                    call.name.clone(),
+                    group_arg.clone(),
+                    started_message,
+                ),
+            );
+
             let result = if let Some(group) = &group_arg {
                 let defs = self.definitions_for_group(group);
-                operon_tools_load::execute_with_defs(call_id.clone(), group, defs)
+                operon_tools_load::execute_with_progress(
+                    call_id.clone(),
+                    group,
+                    defs,
+                    progress.clone(),
+                )
             } else {
-                let groups = self.registered_groups()
+                let groups = self
+                    .registered_groups()
                     .into_iter()
                     .map(|s| s.to_string())
                     .collect::<Vec<_>>();
-                operon_tools_load::execute_list_groups(call_id.clone(), groups)
+                operon_tools_load::execute_list_groups_with_progress(
+                    call_id.clone(),
+                    groups,
+                    progress.clone(),
+                )
             };
 
-            return DispatchOutcome { result, newly_degraded: None };
+            emit_tool_progress(
+                progress.as_ref(),
+                if result.is_error {
+                    ToolProgress::failed(
+                        call_id.clone(),
+                        call.name.clone(),
+                        group_arg.clone(),
+                        "load_tools failed",
+                    )
+                } else {
+                    ToolProgress::completed(
+                        call_id.clone(),
+                        call.name.clone(),
+                        group_arg.clone(),
+                        "load_tools completed",
+                    )
+                },
+            );
+
+            return DispatchOutcome {
+                result,
+                newly_degraded: None,
+            };
         }
 
         // Todo tools: routed directly because they require mutable access to todo_store.
         match call.name.as_str() {
             "todo_create" => {
-                let result = operon_tools_todo_create::execute(
-                    call_id.clone(), call.arguments, &mut self.todo_store,
+                emit_tool_progress(
+                    progress.as_ref(),
+                    ToolProgress::started(
+                        call_id.clone(),
+                        call.name.clone(),
+                        None,
+                        "Creating todo item",
+                    ),
+                );
+                let result = operon_tools_todo_create::execute_with_progress(
+                    call_id.clone(),
+                    call.arguments,
+                    &mut self.todo_store,
+                    progress.clone(),
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_create", &e.to_string()));
-                return DispatchOutcome { result, newly_degraded: None };
+                emit_tool_progress(
+                    progress.as_ref(),
+                    if result.is_error {
+                        ToolProgress::failed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_create failed",
+                        )
+                    } else {
+                        ToolProgress::completed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_create completed",
+                        )
+                    },
+                );
+                return DispatchOutcome {
+                    result,
+                    newly_degraded: None,
+                };
             }
             "todo_list" => {
-                let result = operon_tools_todo_list::execute(
-                    call_id.clone(), call.arguments, &self.todo_store,
+                emit_tool_progress(
+                    progress.as_ref(),
+                    ToolProgress::started(
+                        call_id.clone(),
+                        call.name.clone(),
+                        None,
+                        "Listing todos",
+                    ),
+                );
+                let result = operon_tools_todo_list::execute_with_progress(
+                    call_id.clone(),
+                    call.arguments,
+                    &self.todo_store,
+                    progress.clone(),
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_list", &e.to_string()));
-                return DispatchOutcome { result, newly_degraded: None };
+                emit_tool_progress(
+                    progress.as_ref(),
+                    if result.is_error {
+                        ToolProgress::failed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_list failed",
+                        )
+                    } else {
+                        ToolProgress::completed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_list completed",
+                        )
+                    },
+                );
+                return DispatchOutcome {
+                    result,
+                    newly_degraded: None,
+                };
             }
             "todo_update" => {
-                let result = operon_tools_todo_update::execute(
-                    call_id.clone(), call.arguments, &mut self.todo_store,
+                emit_tool_progress(
+                    progress.as_ref(),
+                    ToolProgress::started(
+                        call_id.clone(),
+                        call.name.clone(),
+                        None,
+                        "Updating todo item",
+                    ),
+                );
+                let result = operon_tools_todo_update::execute_with_progress(
+                    call_id.clone(),
+                    call.arguments,
+                    &mut self.todo_store,
+                    progress.clone(),
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_update", &e.to_string()));
-                return DispatchOutcome { result, newly_degraded: None };
+                emit_tool_progress(
+                    progress.as_ref(),
+                    if result.is_error {
+                        ToolProgress::failed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_update failed",
+                        )
+                    } else {
+                        ToolProgress::completed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_update completed",
+                        )
+                    },
+                );
+                return DispatchOutcome {
+                    result,
+                    newly_degraded: None,
+                };
             }
             "todo_delete" => {
-                let result = operon_tools_todo_delete::execute(
-                    call_id.clone(), call.arguments, &mut self.todo_store,
+                emit_tool_progress(
+                    progress.as_ref(),
+                    ToolProgress::started(
+                        call_id.clone(),
+                        call.name.clone(),
+                        None,
+                        "Deleting todo item",
+                    ),
+                );
+                let result = operon_tools_todo_delete::execute_with_progress(
+                    call_id.clone(),
+                    call.arguments,
+                    &mut self.todo_store,
+                    progress.clone(),
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_delete", &e.to_string()));
-                return DispatchOutcome { result, newly_degraded: None };
+                emit_tool_progress(
+                    progress.as_ref(),
+                    if result.is_error {
+                        ToolProgress::failed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_delete failed",
+                        )
+                    } else {
+                        ToolProgress::completed(
+                            call_id.clone(),
+                            call.name.clone(),
+                            None,
+                            "todo_delete completed",
+                        )
+                    },
+                );
+                return DispatchOutcome {
+                    result,
+                    newly_degraded: None,
+                };
             }
             _ => {} // fall through to generic tool dispatch
         }
@@ -454,7 +658,10 @@ impl Dispatcher {
                     result: error_result(
                         call_id.clone(),
                         &tool_name,
-                        &ToolDispatchError::UnknownTool { name: tool_name.clone() }.to_string(),
+                        &ToolDispatchError::UnknownTool {
+                            name: tool_name.clone(),
+                        }
+                        .to_string(),
                     ),
                     newly_degraded: None,
                 };
@@ -496,36 +703,84 @@ impl Dispatcher {
         }
 
         // Execute — the execute fn signals malformed args via Err(String).
-        let tool_result = match (entry.execute)(call_id.clone(), call.arguments).await {
-            Ok(result) => result,
-            Err(reason) => {
-                // Track whether this is the FIRST malformed call for this tool.
-                // The runner uses newly_degraded to emit SessionEvent::ToolDegraded.
-                let was_degraded = self.degraded.contains(&tool_name);
-                self.degraded.insert(tool_name.clone());
-                let newly_degraded = if was_degraded { None } else { Some(tool_name.clone()) };
+        emit_tool_progress(
+            progress.as_ref(),
+            ToolProgress::started(
+                call_id.clone(),
+                tool_name.clone(),
+                None,
+                format!("Dispatching {}", tool_name),
+            ),
+        );
 
-                return DispatchOutcome {
-                    result: error_result(
-                        call_id.clone(),
-                        &tool_name,
-                        &ToolDispatchError::MalformedArgs {
-                            tool: tool_name.clone(),
-                            reason,
-                        }
-                        .to_string(),
-                    ),
-                    newly_degraded,
-                };
-            }
-        };
+        let tool_result =
+            match (entry.execute)(call_id.clone(), call.arguments, progress.clone()).await {
+                Ok(result) => result,
+                Err(reason) => {
+                    // Track whether this is the FIRST malformed call for this tool.
+                    // The runner uses newly_degraded to emit SessionEvent::ToolDegraded.
+                    let reason_text = reason.clone();
+                    let was_degraded = self.degraded.contains(&tool_name);
+                    self.degraded.insert(tool_name.clone());
+                    let newly_degraded = if was_degraded {
+                        None
+                    } else {
+                        Some(tool_name.clone())
+                    };
+
+                    emit_tool_progress(
+                        progress.as_ref(),
+                        ToolProgress::failed(
+                            call_id.clone(),
+                            tool_name.clone(),
+                            None,
+                            format!("{} malformed arguments: {}", tool_name, reason_text),
+                        ),
+                    );
+
+                    return DispatchOutcome {
+                        result: error_result(
+                            call_id.clone(),
+                            &tool_name,
+                            &ToolDispatchError::MalformedArgs {
+                                tool: tool_name.clone(),
+                                reason,
+                            }
+                            .to_string(),
+                        ),
+                        newly_degraded,
+                    };
+                }
+            };
 
         // Record successful reads into the ledger.
         if tool_name == "read" && !tool_result.is_error {
             record_read_paths(&mut self.read_ledger, &tool_result);
         }
 
-        DispatchOutcome { result: tool_result, newly_degraded: None }
+        emit_tool_progress(
+            progress.as_ref(),
+            if tool_result.is_error {
+                ToolProgress::failed(
+                    call_id.clone(),
+                    tool_name.clone(),
+                    None,
+                    format!("{} failed", tool_name),
+                )
+            } else {
+                ToolProgress::completed(
+                    call_id.clone(),
+                    tool_name.clone(),
+                    None,
+                    format!("{} completed", tool_name),
+                )
+            },
+        );
+
+        DispatchOutcome {
+            result: tool_result,
+            newly_degraded: None,
+        }
     }
 
     /// Returns the set of tool names currently in degraded mode.

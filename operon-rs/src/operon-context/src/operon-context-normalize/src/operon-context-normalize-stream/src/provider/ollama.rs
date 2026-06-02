@@ -19,10 +19,11 @@ pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
         return openai::parse_line_with_provider(line, PROVIDER);
     }
 
-    let raw: Value = serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
-        provider: PROVIDER,
-        source,
-    })?;
+    let raw: Value =
+        serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
+            provider: PROVIDER,
+            source,
+        })?;
 
     parse_native_value(raw)
 }
@@ -53,20 +54,20 @@ fn parse_native_value(raw: Value) -> Result<Vec<StreamEvent>> {
 
         if let Some(tool_calls) = message.get("tool_calls").and_then(Value::as_array) {
             for (index, tool_call) in tool_calls.iter().enumerate() {
-                let function = tool_call
-                    .get("function")
-                    .ok_or(StreamNormalizeError::MissingField {
-                        field: "message.tool_calls[].function",
-                        provider: PROVIDER,
-                    })?;
+                let function =
+                    tool_call
+                        .get("function")
+                        .ok_or(StreamNormalizeError::MissingField {
+                            field: "message.tool_calls[].function",
+                            provider: PROVIDER,
+                        })?;
 
-                let name = function
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .ok_or(StreamNormalizeError::MissingField {
+                let name = function.get("name").and_then(Value::as_str).ok_or(
+                    StreamNormalizeError::MissingField {
                         field: "message.tool_calls[].function.name",
                         provider: PROVIDER,
-                    })?;
+                    },
+                )?;
 
                 let arguments = function
                     .get("arguments")

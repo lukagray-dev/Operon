@@ -52,10 +52,12 @@ pub fn from_wire_reasoning(raw: Value) -> Result<Vec<ReasoningBlock>, ReasoningN
     if raw.is_array() {
         // OpenAI shape: array of summary_text blocks.
         // We parse it manually here to ensure any errors mention "OpenRouter" instead of "OpenAI".
-        let arr = raw.as_array().ok_or(ReasoningNormalizeError::MissingField {
-            field: "reasoning_summary",
-            provider: PROVIDER,
-        })?;
+        let arr = raw
+            .as_array()
+            .ok_or(ReasoningNormalizeError::MissingField {
+                field: "reasoning_summary",
+                provider: PROVIDER,
+            })?;
 
         if arr.is_empty() {
             return Err(ReasoningNormalizeError::EmptyReasoningSummary { provider: PROVIDER });

@@ -17,9 +17,9 @@
 // Every field is serde-compatible so the config can be stored as TOML or JSON
 // by operon-config and loaded into this struct at runtime.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 
 use crate::error::PolicyError;
 use crate::types::{CallerRole, DirTool, FsTool, GlobalTool, PermissionMode};
@@ -63,7 +63,7 @@ impl GlobalPolicy {
     /// This enforces the "default deny" posture for unset entries.
     pub fn mode_for(&self, tool: GlobalTool, role: CallerRole) -> PermissionMode {
         let map = match role {
-            CallerRole::Owner    => &self.owner,
+            CallerRole::Owner => &self.owner,
             CallerRole::External => &self.external,
         };
         // Default to Deny if the tool has no explicit entry.
@@ -133,7 +133,7 @@ impl DirectoryPolicy {
     /// Returns `PermissionMode::Deny` if the tool has no explicit entry.
     pub fn mode_for(&self, tool: DirTool, role: CallerRole) -> PermissionMode {
         let map = match role {
-            CallerRole::Owner    => &self.owner,
+            CallerRole::Owner => &self.owner,
             CallerRole::External => &self.external,
         };
         map.get(&tool).copied().unwrap_or(PermissionMode::Deny)
@@ -148,14 +148,14 @@ impl DirectoryPolicy {
         use DirTool::{Bash, Fs};
         use FsTool::*;
         let all_allow: HashMap<DirTool, PermissionMode> = [
-            (Fs(Read),   PermissionMode::Allow),
-            (Fs(Write),  PermissionMode::Allow),
-            (Fs(Edit),   PermissionMode::Allow),
+            (Fs(Read), PermissionMode::Allow),
+            (Fs(Write), PermissionMode::Allow),
+            (Fs(Edit), PermissionMode::Allow),
             (Fs(Append), PermissionMode::Allow),
-            (Fs(Grep),   PermissionMode::Allow),
-            (Fs(Ls),     PermissionMode::Allow),
+            (Fs(Grep), PermissionMode::Allow),
+            (Fs(Ls), PermissionMode::Allow),
             (Fs(Delete), PermissionMode::Allow),
-            (Bash,       PermissionMode::Allow),
+            (Bash, PermissionMode::Allow),
         ]
         .into_iter()
         .collect();
@@ -232,11 +232,12 @@ impl PolicyConfig {
     /// Mutates all `DirectoryPolicy.path` fields in `self.directories` in place.
     pub fn validate(&mut self) -> Result<(), PolicyError> {
         for dir_policy in &mut self.directories {
-            let canonical = std::fs::canonicalize(&dir_policy.path)
-                .map_err(|e| PolicyError::PathCanonicalization {
+            let canonical = std::fs::canonicalize(&dir_policy.path).map_err(|e| {
+                PolicyError::PathCanonicalization {
                     path: dir_policy.path.display().to_string(),
                     reason: e.to_string(),
-                })?;
+                }
+            })?;
             dir_policy.path = canonical;
         }
         Ok(())

@@ -25,10 +25,10 @@
 //! # }
 //! ```
 
-pub use operon_tools_fs_read as read;
-pub use operon_tools_fs_edit as edit;
-pub use operon_tools_fs_write as write;
 pub use operon_tools_fs_append as append;
 pub use operon_tools_fs_delete as delete;
+pub use operon_tools_fs_edit as edit;
 pub use operon_tools_fs_grep as grep;
 pub use operon_tools_fs_ls as ls;
+pub use operon_tools_fs_read as read;
+pub use operon_tools_fs_write as write;

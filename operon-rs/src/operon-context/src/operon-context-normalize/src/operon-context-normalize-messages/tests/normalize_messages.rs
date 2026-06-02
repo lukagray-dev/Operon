@@ -4,8 +4,8 @@
 //! supported providers.
 
 use operon_context_normalize_messages::{
-    denormalize_messages, normalize_message, ContentBlock, ConversationMessage, MessageNormalizeError,
-    MessageRole, Provider, StopReason,
+    denormalize_messages, normalize_message, ContentBlock, ConversationMessage,
+    MessageNormalizeError, MessageRole, Provider, StopReason,
 };
 use operon_context_normalize_reasoning::ReasoningBlock;
 use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
@@ -88,7 +88,10 @@ fn anthropic_system_field() {
     let raw = json!({"system":"You are helpful"});
     let msg = normalize_message(raw, &Provider::Anthropic).unwrap();
     assert_eq!(msg.role, MessageRole::System);
-    assert_eq!(msg.content, vec![ContentBlock::Text("You are helpful".to_string())]);
+    assert_eq!(
+        msg.content,
+        vec![ContentBlock::Text("You are helpful".to_string())]
+    );
 }
 
 #[test]
@@ -110,14 +113,26 @@ fn anthropic_missing_required_field() {
         "content":[{"type":"tool_use","name":"read_file","input":{}}]
     });
     let err = normalize_message(raw, &Provider::Anthropic).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::MissingField { field: "id", provider: "Anthropic" }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::MissingField {
+            field: "id",
+            provider: "Anthropic"
+        }
+    ));
 }
 
 #[test]
 fn anthropic_unknown_role() {
     let raw = json!({"role":"developer","content":"x"});
     let err = normalize_message(raw, &Provider::Anthropic).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::UnknownRole { provider: "Anthropic", .. }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnknownRole {
+            provider: "Anthropic",
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -151,7 +166,10 @@ fn openai_tool_call_and_null_content() {
         ]
     });
     let msg = normalize_message(raw, &Provider::OpenAI).unwrap();
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
 }
 
 #[test]
@@ -200,14 +218,26 @@ fn openai_missing_required_field() {
         "tool_calls":[{"type":"function","function":{"name":"read_file","arguments":"{}"}}]
     });
     let err = normalize_message(raw, &Provider::OpenAI).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::MissingField { field: "id", provider: "OpenAI" }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::MissingField {
+            field: "id",
+            provider: "OpenAI"
+        }
+    ));
 }
 
 #[test]
 fn openai_unknown_role() {
     let raw = json!({"role":"developer","content":"x"});
     let err = normalize_message(raw, &Provider::OpenAI).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::UnknownRole { provider: "OpenAI", .. }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnknownRole {
+            provider: "OpenAI",
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -242,9 +272,18 @@ fn gemini_tool_call_reasoning_and_inline_data() {
         ]
     });
     let msg = normalize_message(raw, &Provider::Gemini).unwrap();
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::Reasoning(_))));
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::ToolCall(_))));
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::Image(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::Reasoning(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::Image(_))));
 }
 
 #[test]
@@ -276,14 +315,26 @@ fn gemini_denormalize_shape() {
 fn gemini_missing_required_field() {
     let raw = json!({"role":"model","parts":[{"functionCall":{"args":{}}}]});
     let err = normalize_message(raw, &Provider::Gemini).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::MissingField { field: "functionCall.name", provider: "Gemini" }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::MissingField {
+            field: "functionCall.name",
+            provider: "Gemini"
+        }
+    ));
 }
 
 #[test]
 fn gemini_unknown_role() {
     let raw = json!({"role":"assistant","parts":[{"text":"x"}]});
     let err = normalize_message(raw, &Provider::Gemini).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::UnknownRole { provider: "Gemini", .. }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnknownRole {
+            provider: "Gemini",
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -321,41 +372,75 @@ fn deepseek_and_xai_denormalize_include_reasoning_content() {
 fn deepseek_unknown_role() {
     let raw = json!({"role":"developer","content":"x"});
     let err = normalize_message(raw, &Provider::DeepSeek).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::UnknownRole { provider: "DeepSeek", .. }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnknownRole {
+            provider: "DeepSeek",
+            ..
+        }
+    ));
 }
 
 #[test]
 fn xai_unknown_role() {
     let raw = json!({"role":"developer","content":"x"});
     let err = normalize_message(raw, &Provider::XAI).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::UnknownRole { provider: "xAI", .. }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnknownRole {
+            provider: "xAI",
+            ..
+        }
+    ));
 }
 
 #[test]
 fn groq_delegate_basic_paths() {
-    let user = normalize_message(json!({"role":"user","content":"hello"}), &Provider::Groq).unwrap();
+    let user =
+        normalize_message(json!({"role":"user","content":"hello"}), &Provider::Groq).unwrap();
     assert_eq!(user.role, MessageRole::User);
 
-    let assistant = normalize_message(json!({
-        "choices":[{"message":{"role":"assistant","content":"done"},"finish_reason":"stop"}]
-    }), &Provider::Groq).unwrap();
+    let assistant = normalize_message(
+        json!({
+            "choices":[{"message":{"role":"assistant","content":"done"},"finish_reason":"stop"}]
+        }),
+        &Provider::Groq,
+    )
+    .unwrap();
     assert_eq!(assistant.stop_reason, Some(StopReason::EndTurn));
 
-    let wire = denormalize_messages(&[ConversationMessage::user(vec![ContentBlock::Text("x".into())])], &Provider::Groq).unwrap();
+    let wire = denormalize_messages(
+        &[ConversationMessage::user(vec![ContentBlock::Text(
+            "x".into(),
+        )])],
+        &Provider::Groq,
+    )
+    .unwrap();
     assert!(wire["messages"].is_array());
 }
 
 #[test]
 fn mistral_delegate_basic_paths() {
-    let user = normalize_message(json!({"role":"user","content":"hello"}), &Provider::Mistral).unwrap();
+    let user =
+        normalize_message(json!({"role":"user","content":"hello"}), &Provider::Mistral).unwrap();
     assert_eq!(user.role, MessageRole::User);
 
-    let assistant = normalize_message(json!({
-        "choices":[{"message":{"role":"assistant","content":"done"},"finish_reason":"length"}]
-    }), &Provider::Mistral).unwrap();
+    let assistant = normalize_message(
+        json!({
+            "choices":[{"message":{"role":"assistant","content":"done"},"finish_reason":"length"}]
+        }),
+        &Provider::Mistral,
+    )
+    .unwrap();
     assert_eq!(assistant.stop_reason, Some(StopReason::MaxTokens));
 
-    let wire = denormalize_messages(&[ConversationMessage::user(vec![ContentBlock::Text("x".into())])], &Provider::Mistral).unwrap();
+    let wire = denormalize_messages(
+        &[ConversationMessage::user(vec![ContentBlock::Text(
+            "x".into(),
+        )])],
+        &Provider::Mistral,
+    )
+    .unwrap();
     assert!(wire["messages"].is_array());
 }
 
@@ -367,14 +452,20 @@ fn openrouter_openai_and_anthropic_shape_detection() {
         "tool_calls":[{"id":"call_123","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"/tmp/a.txt\"}"}}]
     });
     let msg = normalize_message(openai_shape, &Provider::OpenRouter).unwrap();
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
 
     let anthropic_shape = json!({
         "role":"assistant",
         "content":[{"type":"tool_use","id":"toolu_1","name":"read_file","input":{"path":"/tmp/a.txt"}}]
     });
     let msg2 = normalize_message(anthropic_shape, &Provider::OpenRouter).unwrap();
-    assert!(msg2.content.iter().any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    assert!(msg2
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
 }
 
 #[test]
@@ -388,14 +479,22 @@ fn openrouter_openai_array_content_shape_detection() {
     });
     let msg = normalize_message(raw, &Provider::OpenRouter).unwrap();
     assert_eq!(msg.role, MessageRole::Assistant);
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::Text(_))));
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::Image(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::Text(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::Image(_))));
 }
 
 #[test]
 fn openrouter_denormalize_openai_style() {
     let wire = denormalize_messages(
-        &[ConversationMessage::assistant(vec![ContentBlock::ToolCall(sample_tool_call())])],
+        &[ConversationMessage::assistant(vec![
+            ContentBlock::ToolCall(sample_tool_call()),
+        ])],
         &Provider::OpenRouter,
     )
     .unwrap();
@@ -405,7 +504,13 @@ fn openrouter_denormalize_openai_style() {
 #[test]
 fn openrouter_unknown_shape() {
     let err = normalize_message(json!({"weird":true}), &Provider::OpenRouter).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::UnknownShape { provider: "OpenRouter", .. }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnknownShape {
+            provider: "OpenRouter",
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -417,7 +522,10 @@ fn ollama_native_plain_text_and_thinking_stop_reason() {
     let msg = normalize_message(raw, &Provider::Ollama).unwrap();
     assert_eq!(msg.role, MessageRole::Assistant);
     assert_eq!(msg.stop_reason, Some(StopReason::EndTurn));
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::Reasoning(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::Reasoning(_))));
 }
 
 #[test]
@@ -437,9 +545,13 @@ fn ollama_tool_call_and_system_and_denormalize_native() {
         "tool_calls":[{"id":"call_123","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"/tmp/a.txt\"}"}}]
     });
     let msg = normalize_message(raw, &Provider::Ollama).unwrap();
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
 
-    let sys = normalize_message(json!({"role":"system","content":"sys"}), &Provider::Ollama).unwrap();
+    let sys =
+        normalize_message(json!({"role":"system","content":"sys"}), &Provider::Ollama).unwrap();
     assert_eq!(sys.role, MessageRole::System);
 
     let native_wire = denormalize_messages(
@@ -456,15 +568,29 @@ fn ollama_tool_call_and_system_and_denormalize_native() {
 #[test]
 fn ollama_missing_and_unknown_role() {
     let missing = normalize_message(json!({"content":"x"}), &Provider::Ollama).unwrap_err();
-    assert!(matches!(missing, MessageNormalizeError::MissingField { field: "role", provider: "Ollama" }));
+    assert!(matches!(
+        missing,
+        MessageNormalizeError::MissingField {
+            field: "role",
+            provider: "Ollama"
+        }
+    ));
 
-    let unknown = normalize_message(json!({"role":"developer","content":"x"}), &Provider::Ollama).unwrap_err();
-    assert!(matches!(unknown, MessageNormalizeError::UnknownRole { provider: "Ollama", .. }));
+    let unknown = normalize_message(json!({"role":"developer","content":"x"}), &Provider::Ollama)
+        .unwrap_err();
+    assert!(matches!(
+        unknown,
+        MessageNormalizeError::UnknownRole {
+            provider: "Ollama",
+            ..
+        }
+    ));
 }
 
 #[test]
 fn cohere_plain_user_and_assistant_stop_reason() {
-    let user = normalize_message(json!({"role":"user","content":"hello"}), &Provider::Cohere).unwrap();
+    let user =
+        normalize_message(json!({"role":"user","content":"hello"}), &Provider::Cohere).unwrap();
     assert_eq!(user.role, MessageRole::User);
 
     let assistant = normalize_message(
@@ -486,9 +612,13 @@ fn cohere_tool_call_and_system_and_denormalize() {
         "tool_calls":[{"id":"call_123","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"/tmp/a.txt\"}"}}]
     });
     let msg = normalize_message(raw, &Provider::Cohere).unwrap();
-    assert!(msg.content.iter().any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    assert!(msg
+        .content
+        .iter()
+        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
 
-    let sys = normalize_message(json!({"role":"system","content":"sys"}), &Provider::Cohere).unwrap();
+    let sys =
+        normalize_message(json!({"role":"system","content":"sys"}), &Provider::Cohere).unwrap();
     assert_eq!(sys.role, MessageRole::System);
 
     let wire = denormalize_messages(
@@ -505,19 +635,40 @@ fn cohere_tool_call_and_system_and_denormalize() {
 #[test]
 fn cohere_missing_field_and_unknown_role() {
     let missing = normalize_message(json!({"content":"x"}), &Provider::Cohere).unwrap_err();
-    assert!(matches!(missing, MessageNormalizeError::MissingField { field: "role", provider: "Cohere" }));
+    assert!(matches!(
+        missing,
+        MessageNormalizeError::MissingField {
+            field: "role",
+            provider: "Cohere"
+        }
+    ));
 
-    let unknown = normalize_message(json!({"role":"developer","content":"x"}), &Provider::Cohere).unwrap_err();
-    assert!(matches!(unknown, MessageNormalizeError::UnknownRole { provider: "Cohere", .. }));
+    let unknown = normalize_message(json!({"role":"developer","content":"x"}), &Provider::Cohere)
+        .unwrap_err();
+    assert!(matches!(
+        unknown,
+        MessageNormalizeError::UnknownRole {
+            provider: "Cohere",
+            ..
+        }
+    ));
 }
 
 #[test]
 fn cohere_image_denormalize_unsupported() {
     let msgs = vec![ConversationMessage::user(vec![ContentBlock::Image(
         operon_context_normalize_messages::ImageBlock {
-            source: operon_context_normalize_messages::ImageSource::Url("https://example.com/a.jpg".to_string()),
+            source: operon_context_normalize_messages::ImageSource::Url(
+                "https://example.com/a.jpg".to_string(),
+            ),
         },
     )])];
     let err = denormalize_messages(&msgs, &Provider::Cohere).unwrap_err();
-    assert!(matches!(err, MessageNormalizeError::UnsupportedContentType { provider: "Cohere", .. }));
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnsupportedContentType {
+            provider: "Cohere",
+            ..
+        }
+    ));
 }

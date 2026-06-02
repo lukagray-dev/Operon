@@ -45,7 +45,9 @@ pub use error::TodoCreateToolError;
 pub use output::TodoCreateOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{TieredToolDefinition, TodoStore};
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
+};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_create` tool.
@@ -213,8 +215,23 @@ pub async fn execute(
     args_json: serde_json::Value,
     store: &mut TodoStore,
 ) -> Result<ToolResult, TodoCreateToolError> {
+    execute_with_progress(call_id, args_json, store, None).await
+}
+
+/// Deserializes `args_json` and executes the todo_create tool with optional progress reporting.
+pub async fn execute_with_progress(
+    call_id: ToolCallId,
+    args_json: serde_json::Value,
+    store: &mut TodoStore,
+    progress: Option<ToolProgressEmitter>,
+) -> Result<ToolResult, TodoCreateToolError> {
     // Deserialize the arguments. If this fails, return an ArgsParse error.
     let args: TodoCreateArgs = serde_json::from_value(args_json)?;
+
+    emit_tool_progress(
+        progress.as_ref(),
+        ToolProgress::running(call_id.clone(), "todo_create", None, "Creating todo item"),
+    );
 
     // Execute the tool and return the result. The executor always returns a
     // ToolResult (never panics or returns an error), so we can wrap it in Ok.

@@ -30,9 +30,7 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
         return ToolResult {
             call_id,
             name: "append".to_string(),
-            content: ToolContent::Text(
-                "content is empty — nothing to append".to_string(),
-            ),
+            content: ToolContent::Text("content is empty — nothing to append".to_string()),
             is_error: true,
         };
     }
@@ -75,10 +73,7 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
             return ToolResult {
                 call_id,
                 name: "append".to_string(),
-                content: ToolContent::Text(format!(
-                    "failed to access file: {}: {}",
-                    args.path, e
-                )),
+                content: ToolContent::Text(format!("failed to access file: {}: {}", args.path, e)),
                 is_error: true,
             };
         }
@@ -89,20 +84,13 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
     // cursor at EOF at the OS level, atomically. No temp file needed — append
     // mode with O_APPEND is atomic per POSIX for writes under the pipe buffer
     // size, and safe for all practical agent use cases.
-    let mut file = match tokio::fs::OpenOptions::new()
-        .append(true)
-        .open(path)
-        .await
-    {
+    let mut file = match tokio::fs::OpenOptions::new().append(true).open(path).await {
         Ok(f) => f,
         Err(e) => {
             return ToolResult {
                 call_id,
                 name: "append".to_string(),
-                content: ToolContent::Text(format!(
-                    "failed to append to file: {}",
-                    e
-                )),
+                content: ToolContent::Text(format!("failed to append to file: {}", e)),
                 is_error: true,
             };
         }
@@ -113,10 +101,7 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
         return ToolResult {
             call_id,
             name: "append".to_string(),
-            content: ToolContent::Text(format!(
-                "failed to append to file: {}",
-                e
-            )),
+            content: ToolContent::Text(format!("failed to append to file: {}", e)),
             is_error: true,
         };
     }
@@ -128,10 +113,7 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
         return ToolResult {
             call_id,
             name: "append".to_string(),
-            content: ToolContent::Text(format!(
-                "failed to flush file after append: {}",
-                e
-            )),
+            content: ToolContent::Text(format!("failed to flush file after append: {}", e)),
             is_error: true,
         };
     }
@@ -162,9 +144,9 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "append".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
-            serde_json::json!({ "error": format!("serialization bug: {}", e) })
-        })),
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
+            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        )),
         is_error: false,
     }
 }

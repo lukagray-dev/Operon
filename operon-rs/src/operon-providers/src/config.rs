@@ -11,10 +11,10 @@
 // cohesive type that is easy to pass around, validate, and eventually
 // serialize to/from TOML via operon-config.
 //
-// TODO: When operon-config is built, ProviderConfig will be loaded from:
-//   - TOML config file: ~/.config/operon/config.toml
-//   - Environment variables: OPERON_PROVIDER, ANTHROPIC_API_KEY, etc.
-// Until then, it is constructed manually in tests and the TUI/CLI.
+// ProviderConfig is loaded by operon-config from:
+//   - TOML config file: ~/.operon/config.toml
+//   - Environment variables: ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.
+// The frontend still constructs it manually when building a SessionConfig.
 
 use serde::{Deserialize, Serialize};
 
@@ -88,7 +88,7 @@ impl ProviderConfig {
     pub fn effective_base_url(&self) -> &str {
         match &self.base_url_override {
             Some(url) => url.as_str(),
-            None      => self.provider.capabilities().default_base_url,
+            None => self.provider.capabilities().default_base_url,
         }
     }
 
@@ -142,18 +142,18 @@ mod tests {
 
     fn anthropic_config() -> ProviderConfig {
         ProviderConfig {
-            provider:          Provider::Anthropic,
-            credentials:       ApiCredentials::with_key("sk-ant-test-key"),
-            model:             ModelConfig::claude_sonnet_4(),
+            provider: Provider::Anthropic,
+            credentials: ApiCredentials::with_key("sk-ant-test-key"),
+            model: ModelConfig::claude_sonnet_4(),
             base_url_override: None,
         }
     }
 
     fn ollama_config() -> ProviderConfig {
         ProviderConfig {
-            provider:          Provider::Ollama,
-            credentials:       ApiCredentials::unauthenticated(),
-            model:             ModelConfig::ollama_llama3_2(),
+            provider: Provider::Ollama,
+            credentials: ApiCredentials::unauthenticated(),
+            model: ModelConfig::ollama_llama3_2(),
             base_url_override: None,
         }
     }
@@ -168,7 +168,10 @@ mod tests {
     fn test_effective_base_url_uses_override_when_set() {
         let mut config = anthropic_config();
         config.base_url_override = Some("https://proxy.internal/anthropic/v1".to_string());
-        assert_eq!(config.effective_base_url(), "https://proxy.internal/anthropic/v1");
+        assert_eq!(
+            config.effective_base_url(),
+            "https://proxy.internal/anthropic/v1"
+        );
     }
 
     #[test]
@@ -193,9 +196,9 @@ mod tests {
     #[test]
     fn test_auth_header_openai() {
         let config = ProviderConfig {
-            provider:          Provider::OpenAI,
-            credentials:       ApiCredentials::with_key("sk-test"),
-            model:             ModelConfig::gpt_4o(),
+            provider: Provider::OpenAI,
+            credentials: ApiCredentials::with_key("sk-test"),
+            model: ModelConfig::gpt_4o(),
             base_url_override: None,
         };
         assert_eq!(config.auth_header(), AuthHeader::Bearer);
@@ -204,25 +207,34 @@ mod tests {
     #[test]
     fn test_has_credentials_true_for_key_bearing_provider() {
         let config = anthropic_config();
-        assert!(config.has_credentials(), "Anthropic with key should have credentials");
+        assert!(
+            config.has_credentials(),
+            "Anthropic with key should have credentials"
+        );
     }
 
     #[test]
     fn test_has_credentials_true_for_ollama_even_without_key() {
         let config = ollama_config();
         // Ollama doesn't need a key — has_credentials() is always true for it.
-        assert!(config.has_credentials(), "Ollama should pass credentials check even without key");
+        assert!(
+            config.has_credentials(),
+            "Ollama should pass credentials check even without key"
+        );
     }
 
     #[test]
     fn test_has_credentials_false_for_empty_key() {
         let config = ProviderConfig {
-            provider:          Provider::OpenAI,
-            credentials:       ApiCredentials::with_key(""),
-            model:             ModelConfig::gpt_4o(),
+            provider: Provider::OpenAI,
+            credentials: ApiCredentials::with_key(""),
+            model: ModelConfig::gpt_4o(),
             base_url_override: None,
         };
-        assert!(!config.has_credentials(), "Empty key should fail credentials check");
+        assert!(
+            !config.has_credentials(),
+            "Empty key should fail credentials check"
+        );
     }
 
     #[test]

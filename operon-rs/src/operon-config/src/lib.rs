@@ -69,9 +69,9 @@
 //! | ollama      | *(no key required)*  |
 
 pub mod error;
+mod loader;
 pub mod paths;
 pub mod schema;
-mod loader;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public re-exports

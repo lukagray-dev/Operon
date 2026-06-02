@@ -9,10 +9,11 @@ const PROVIDER: &str = "Gemini";
 
 /// Parse one Gemini SSE payload line.
 pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
-    let raw: Value = serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
-        provider: PROVIDER,
-        source,
-    })?;
+    let raw: Value =
+        serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
+            provider: PROVIDER,
+            source,
+        })?;
 
     parse_value(raw)
 }
@@ -85,13 +86,12 @@ fn parse_parts(parts: &[Value], events: &mut Vec<StreamEvent>) -> Result<()> {
         }
 
         if let Some(function_call) = part.get("functionCall") {
-            let name = function_call
-                .get("name")
-                .and_then(Value::as_str)
-                .ok_or(StreamNormalizeError::MissingField {
+            let name = function_call.get("name").and_then(Value::as_str).ok_or(
+                StreamNormalizeError::MissingField {
                     field: "parts[].functionCall.name",
                     provider: PROVIDER,
-                })?;
+                },
+            )?;
             let arguments = function_call
                 .get("args")
                 .cloned()

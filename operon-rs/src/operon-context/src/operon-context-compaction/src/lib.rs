@@ -17,11 +17,11 @@ mod trigger;
 use operon_context_normalize_messages::ConversationMessage;
 use serde::{Deserialize, Serialize};
 
-pub use client::CompactionClient;
 /// Re-export the Anthropic HTTP client when the `http-client` feature is enabled.
 /// The session crate depends on this feature so it can construct the client directly.
 #[cfg(feature = "http-client")]
 pub use client::AnthropicCompactionClient;
+pub use client::CompactionClient;
 #[cfg(any(test, feature = "test-utils"))]
 pub use client::MockCompactionClient;
 pub use compactor::compact;

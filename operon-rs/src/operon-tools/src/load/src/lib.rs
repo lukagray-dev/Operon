@@ -45,7 +45,9 @@ pub use error::LoadToolsError;
 pub use output::{GroupListOutput, GroupLoadOutput, LoadedTool};
 
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolDefinition, ToolResult};
-use operon_tools_core::TieredToolDefinition;
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
+};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `load_tools` tool.
@@ -131,6 +133,26 @@ pub fn execute_with_defs(
     group: &str,
     defs: Vec<&ToolDefinition>,
 ) -> ToolResult {
+    execute_with_progress(call_id, group, defs, None)
+}
+
+/// Called by the dispatcher when a group name was provided, with optional progress reporting.
+pub fn execute_with_progress(
+    call_id: ToolCallId,
+    group: &str,
+    defs: Vec<&ToolDefinition>,
+    progress: Option<ToolProgressEmitter>,
+) -> ToolResult {
+    emit_tool_progress(
+        progress.as_ref(),
+        ToolProgress::running(
+            call_id.clone(),
+            "load_tools",
+            Some(group.to_string()),
+            format!("Loading tool group {}", group),
+        ),
+    );
+
     // If no tools found for this group, return an error.
     if defs.is_empty() {
         return ToolResult {
@@ -164,9 +186,8 @@ pub fn execute_with_defs(
         call_id,
         name: "load_tools".to_string(),
         content: ToolContent::Json(
-            serde_json::to_value(&output).unwrap_or_else(|e| {
-                json!({ "error": format!("serialization bug: {}", e) })
-            }),
+            serde_json::to_value(&output)
+                .unwrap_or_else(|e| json!({ "error": format!("serialization bug: {}", e) })),
         ),
         is_error: false,
     }
@@ -175,10 +196,26 @@ pub fn execute_with_defs(
 /// Called by the dispatcher when no group was provided — lists all groups.
 ///
 /// Returns a ToolResult with the list of available groups and a helpful message.
-pub fn execute_list_groups(
+pub fn execute_list_groups(call_id: ToolCallId, groups: Vec<String>) -> ToolResult {
+    execute_list_groups_with_progress(call_id, groups, None)
+}
+
+/// Called by the dispatcher when no group was provided â€” lists all groups, with optional progress reporting.
+pub fn execute_list_groups_with_progress(
     call_id: ToolCallId,
     groups: Vec<String>,
+    progress: Option<ToolProgressEmitter>,
 ) -> ToolResult {
+    emit_tool_progress(
+        progress.as_ref(),
+        ToolProgress::running(
+            call_id.clone(),
+            "load_tools",
+            None,
+            "Listing available tool groups",
+        ),
+    );
+
     let output = GroupListOutput {
         available_groups: groups.clone(),
         message: format!(
@@ -192,9 +229,8 @@ pub fn execute_list_groups(
         call_id,
         name: "load_tools".to_string(),
         content: ToolContent::Json(
-            serde_json::to_value(&output).unwrap_or_else(|e| {
-                json!({ "error": format!("serialization bug: {}", e) })
-            }),
+            serde_json::to_value(&output)
+                .unwrap_or_else(|e| json!({ "error": format!("serialization bug: {}", e) })),
         ),
         is_error: false,
     }

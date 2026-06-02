@@ -65,7 +65,7 @@ pub fn from_wire_reasoning(raw: Value) -> Result<Vec<ReasoningBlock>, ReasoningN
     // Build the canonical block — with or without signature
     let block = match signature {
         Some(sig) => ReasoningBlock::with_signature(thinking, sig),
-        None      => ReasoningBlock::new(thinking),
+        None => ReasoningBlock::new(thinking),
     };
 
     // Anthropic always produces a single thinking block per content block

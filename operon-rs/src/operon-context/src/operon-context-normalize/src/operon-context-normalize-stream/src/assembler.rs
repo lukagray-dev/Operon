@@ -65,13 +65,16 @@ impl StreamAssembler {
             }
 
             StreamEvent::ToolCallStart { index, id, name } => {
-                let buffer = self.tool_call_buffers.entry(index).or_insert(ToolCallBuffer {
-                    index,
-                    id: None,
-                    name: None,
-                    arguments_json: String::new(),
-                    complete: false,
-                });
+                let buffer = self
+                    .tool_call_buffers
+                    .entry(index)
+                    .or_insert(ToolCallBuffer {
+                        index,
+                        id: None,
+                        name: None,
+                        arguments_json: String::new(),
+                        complete: false,
+                    });
 
                 if id.is_some() {
                     buffer.id = id;
@@ -87,13 +90,16 @@ impl StreamAssembler {
                 index,
                 arguments_fragment,
             } => {
-                let buffer = self.tool_call_buffers.entry(index).or_insert(ToolCallBuffer {
-                    index,
-                    id: None,
-                    name: None,
-                    arguments_json: String::new(),
-                    complete: false,
-                });
+                let buffer = self
+                    .tool_call_buffers
+                    .entry(index)
+                    .or_insert(ToolCallBuffer {
+                        index,
+                        id: None,
+                        name: None,
+                        arguments_json: String::new(),
+                        complete: false,
+                    });
                 buffer.arguments_json.push_str(&arguments_fragment);
                 Ok(AssemblerOutput::Pending)
             }
@@ -127,9 +133,9 @@ impl StreamAssembler {
                 Ok(AssemblerOutput::Pending)
             }
 
-            StreamEvent::StreamStart { .. }
-            | StreamEvent::UsageMeta { .. }
-            | StreamEvent::Ping => Ok(AssemblerOutput::Pending),
+            StreamEvent::StreamStart { .. } | StreamEvent::UsageMeta { .. } | StreamEvent::Ping => {
+                Ok(AssemblerOutput::Pending)
+            }
         }
     }
 
@@ -145,7 +151,10 @@ impl StreamAssembler {
             pending_indices.sort_unstable();
             return Err(StreamNormalizeError::AssemblerIncomplete {
                 provider: provider_label(&self.provider),
-                detail: format!("unfinalized tool call buffers at indices: {:?}", pending_indices),
+                detail: format!(
+                    "unfinalized tool call buffers at indices: {:?}",
+                    pending_indices
+                ),
             });
         }
 
@@ -166,13 +175,12 @@ impl StreamAssembler {
 
     /// Finalize one buffered tool call into a canonical `ToolCall`.
     fn finalize_tool_call(&mut self, index: usize) -> Result<AssemblerOutput> {
-        let buffer = self
-            .tool_call_buffers
-            .remove(&index)
-            .ok_or_else(|| StreamNormalizeError::AssemblerIncomplete {
+        let buffer = self.tool_call_buffers.remove(&index).ok_or_else(|| {
+            StreamNormalizeError::AssemblerIncomplete {
                 provider: provider_label(&self.provider),
                 detail: format!("missing tool call buffer for index {index}"),
-            })?;
+            }
+        })?;
 
         let arguments = serde_json::from_str(&buffer.arguments_json).map_err(|source| {
             StreamNormalizeError::ToolArgsParseFailed {

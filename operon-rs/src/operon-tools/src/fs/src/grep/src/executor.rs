@@ -3,7 +3,6 @@
 /// This module contains the core logic for searching files with regex patterns,
 /// applying filename filters, respecting gitignore rules, collecting context lines,
 /// enforcing size and match limits, and assembling the final ToolResult.
-
 use crate::args::GrepArgs;
 use crate::output::{FileGrepResult, GrepLine, GrepOutput};
 use grep_regex::RegexMatcherBuilder;
@@ -154,23 +153,20 @@ pub async fn execute(call_id: ToolCallId, args: GrepArgs) -> ToolResult {
     // Search all files in a blocking task (grep-searcher is not async-friendly).
     // We pass owned data into the blocking task to avoid lifetime issues.
     let context_lines = args.context_lines.unwrap_or(0);
-    let (results, truncated) = match tokio::task::spawn_blocking(move || {
-        search_files(file_paths, matcher, context_lines)
-    })
-    .await
-    {
-        Ok(r) => r,
-        Err(_) => {
-            return ToolResult {
-                call_id,
-                name: "grep".to_string(),
-                content: ToolContent::Text(
-                    "Internal error: search task panicked".to_string(),
-                ),
-                is_error: true,
-            };
-        }
-    };
+    let (results, truncated) =
+        match tokio::task::spawn_blocking(move || search_files(file_paths, matcher, context_lines))
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => {
+                return ToolResult {
+                    call_id,
+                    name: "grep".to_string(),
+                    content: ToolContent::Text("Internal error: search task panicked".to_string()),
+                    is_error: true,
+                };
+            }
+        };
 
     // Assemble the final output structure with summary statistics.
     let total_matches: usize = results.iter().map(|r| r.match_count).sum();

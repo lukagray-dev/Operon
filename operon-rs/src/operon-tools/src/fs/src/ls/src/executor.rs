@@ -190,11 +190,7 @@ async fn list_directory(args: &LsArgs) -> LsOutput {
                 EntryKind::Symlink
             };
 
-            let size_bytes = if m.is_file() {
-                Some(m.len())
-            } else {
-                None
-            };
+            let size_bytes = if m.is_file() { Some(m.len()) } else { None };
 
             let modified_unix = m
                 .modified()
@@ -281,5 +277,7 @@ fn build_globset(ignore: &Option<Vec<String>>) -> Result<globset::GlobSet, Strin
         }
     }
 
-    builder.build().map_err(|e| format!("failed to build glob set: {}", e))
+    builder
+        .build()
+        .map_err(|e| format!("failed to build glob set: {}", e))
 }

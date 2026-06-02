@@ -21,8 +21,9 @@ fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String
 /// Helper to extract and deserialize AppendOutput from a ToolResult.
 fn get_output(result: &operon_context_normalize_tools::ToolResult) -> AppendOutput {
     match &result.content {
-        ToolContent::Json(v) => serde_json::from_value(v.clone())
-            .expect("failed to deserialize AppendOutput"),
+        ToolContent::Json(v) => {
+            serde_json::from_value(v.clone()).expect("failed to deserialize AppendOutput")
+        }
         other => panic!("expected Json content for success, got {:?}", other),
     }
 }
@@ -55,7 +56,10 @@ async fn test_basic_append() {
     assert!(!result.is_error, "append should succeed");
     let output = get_output(&result);
     assert_eq!(output.bytes_appended, append_content.len());
-    assert_eq!(output.total_bytes, (initial_content.len() + append_content.len()) as u64);
+    assert_eq!(
+        output.total_bytes,
+        (initial_content.len() + append_content.len()) as u64
+    );
 
     // Verify file content.
     let file_content = fs::read_to_string(&path).unwrap();

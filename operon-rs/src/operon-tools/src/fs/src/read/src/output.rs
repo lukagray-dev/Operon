@@ -3,7 +3,6 @@
 /// This module defines the structured result format returned by the read tool.
 /// Each file read attempt produces a FileReadResult, and all results are wrapped
 /// in a ReadOutput container.
-
 use serde::{Deserialize, Serialize};
 
 /// The outcome for a single file read attempt.

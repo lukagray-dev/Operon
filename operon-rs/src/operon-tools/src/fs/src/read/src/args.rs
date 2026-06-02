@@ -2,7 +2,6 @@
 ///
 /// This module defines the deserialization schema for the read tool's input.
 /// The tool accepts either plain path strings or objects with optional line ranges.
-
 use serde::Deserialize;
 
 /// A single read target — a path with an optional line range.

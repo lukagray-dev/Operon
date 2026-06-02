@@ -95,9 +95,7 @@ impl SessionTokenState {
     /// the model's context window, so a silent clamp is safe.
     pub fn record_turn(&mut self, record: &UsageRecord) {
         // Accumulate into session-level totals for cost/analytics reporting.
-        self.total_input_tokens = self
-            .total_input_tokens
-            .saturating_add(record.input_tokens);
+        self.total_input_tokens = self.total_input_tokens.saturating_add(record.input_tokens);
         self.total_output_tokens = self
             .total_output_tokens
             .saturating_add(record.output_tokens);
@@ -230,9 +228,9 @@ mod tests {
     fn record_turn_multiple_turns_accumulate_correctly() {
         // Simulate a 3-turn conversation.
         let mut s = SessionTokenState::new();
-        s.record_turn(&make_record(500, 100));   // turn 1
-        s.record_turn(&make_record(700, 150));   // turn 2
-        s.record_turn(&make_record(900, 200));   // turn 3
+        s.record_turn(&make_record(500, 100)); // turn 1
+        s.record_turn(&make_record(700, 150)); // turn 2
+        s.record_turn(&make_record(900, 200)); // turn 3
 
         // Cumulative totals must sum all turns.
         assert_eq!(s.total_input_tokens, 500 + 700 + 900);

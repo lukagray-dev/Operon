@@ -81,8 +81,8 @@ impl OperonPaths {
 
         Ok(Self {
             workspace_dir: config_dir.join("workspace"),
-            config_file:   config_dir.join("config.toml"),
-            sessions_dir:  config_dir.join("sessions"),
+            config_file: config_dir.join("config.toml"),
+            sessions_dir: config_dir.join("sessions"),
             config_dir,
         })
     }
@@ -167,14 +167,18 @@ mod tests {
         // Use a temp dir to avoid touching the real ~/.operon.
         let tmp = tempfile::tempdir().unwrap();
         let fake_paths = OperonPaths {
-            config_dir:    tmp.path().join(".operon"),
+            config_dir: tmp.path().join(".operon"),
             workspace_dir: tmp.path().join(".operon").join("workspace"),
-            config_file:   tmp.path().join(".operon").join("config.toml"),
-            sessions_dir:  tmp.path().join(".operon").join("sessions"),
+            config_file: tmp.path().join(".operon").join("config.toml"),
+            sessions_dir: tmp.path().join(".operon").join("sessions"),
         };
 
-        fake_paths.ensure_dirs_exist().expect("first call should succeed");
-        fake_paths.ensure_dirs_exist().expect("second call should be idempotent");
+        fake_paths
+            .ensure_dirs_exist()
+            .expect("first call should succeed");
+        fake_paths
+            .ensure_dirs_exist()
+            .expect("second call should be idempotent");
 
         assert!(fake_paths.workspace_dir.is_dir());
         assert!(fake_paths.sessions_dir.is_dir());

@@ -23,8 +23,8 @@ use serde_json::Value;
 use tokio::sync::mpsc;
 
 use operon_context_normalize_messages::StopReason;
-use operon_context_normalize_stream::{parse_line, new_assembler, AssemblerOutput};
 use operon_context_normalize_stream::types::StreamEvent;
+use operon_context_normalize_stream::{new_assembler, parse_line, AssemblerOutput};
 use operon_context_normalize_tools::ToolCall;
 use operon_events::SessionEvent;
 use operon_providers::Provider;
@@ -63,7 +63,7 @@ pub struct StreamResult {
 /// Anthropic uses a custom `x-api-key` header plus an API version pin.
 /// All other (OpenAI-family) providers use the standard `Authorization: Bearer` header.
 fn build_headers(provider: &Provider, api_key: &str) -> reqwest::header::HeaderMap {
-    use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, AUTHORIZATION};
+    use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 
     let mut headers = HeaderMap::new();
 
@@ -80,10 +80,7 @@ fn build_headers(provider: &Provider, api_key: &str) -> reqwest::header::HeaderM
             );
             // Version pin — ensures we always get the same response shape regardless
             // of future Anthropic API changes.
-            headers.insert(
-                "anthropic-version",
-                HeaderValue::from_static("2023-06-01"),
-            );
+            headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
         }
         _ => {
             // OpenAI-family and all other providers use Bearer token auth.
@@ -221,9 +218,7 @@ pub async fn send_streaming(
 
                         // Reasoning block flushed — send to UI for display.
                         AssemblerOutput::Reasoning { text, .. } => {
-                            let _ = event_tx
-                                .send(SessionEvent::ThinkingDelta { text })
-                                .await;
+                            let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
                         }
 
                         // Complete tool call — notify UI with args then start.
@@ -231,15 +226,15 @@ pub async fn send_streaming(
                             // Serialize the call arguments for the ToolCallArgsReady event.
                             // unwrap_or_default is safe — serde_json::to_string only fails on
                             // non-serializable types, and ToolCall.arguments is a serde_json::Value.
-                            let args_json = serde_json::to_string(&call.arguments)
-                                .unwrap_or_default();
+                            let args_json =
+                                serde_json::to_string(&call.arguments).unwrap_or_default();
 
                             // Fire ToolCallArgsReady FIRST — full args are now available.
                             // The TUI can show an expandable "Arguments" section.
                             let _ = event_tx
                                 .send(SessionEvent::ToolCallArgsReady {
                                     call_id: call.id.0.clone(),
-                                    name:    call.name.clone(),
+                                    name: call.name.clone(),
                                     args_json,
                                 })
                                 .await;
@@ -248,7 +243,7 @@ pub async fn send_streaming(
                             let _ = event_tx
                                 .send(SessionEvent::ToolCallStart {
                                     call_id: call.id.0.clone(),
-                                    name:    call.name.clone(),
+                                    name: call.name.clone(),
                                 })
                                 .await;
                             result.tool_calls.push(call);
@@ -278,9 +273,7 @@ pub async fn send_streaming(
     {
         // Flush any remaining buffered reasoning text.
         AssemblerOutput::Reasoning { text, .. } => {
-            let _ = event_tx
-                .send(SessionEvent::ThinkingDelta { text })
-                .await;
+            let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
         }
 
         // Final stop reason from assembler (may differ from stream-embedded one).

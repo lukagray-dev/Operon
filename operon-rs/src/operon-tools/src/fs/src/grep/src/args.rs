@@ -3,7 +3,6 @@
 /// This module defines the deserialization schema for the grep tool's input.
 /// The tool accepts a regex pattern, a list of paths to search, and optional
 /// filtering and context parameters.
-
 use serde::Deserialize;
 
 /// Top-level args the model sends when calling the `grep` tool.

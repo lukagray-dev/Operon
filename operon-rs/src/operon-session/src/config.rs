@@ -73,7 +73,6 @@ use operon_providers::ProviderConfig;
 /// ```
 pub struct SessionConfig {
     // ── Provider + model ──────────────────────────────────────────────────────
-
     /// Fully assembled provider configuration: which provider, model, and API key.
     ///
     /// Contains `provider` (enum), `credentials` (API key + optional org_id),
@@ -84,7 +83,6 @@ pub struct SessionConfig {
     pub provider_config: ProviderConfig,
 
     // ── Permission policy ─────────────────────────────────────────────────────
-
     /// Resolved tool permission policy for this session.
     ///
     /// Carries global tool permissions (web, subagent, ask, todo, load_tools)
@@ -99,7 +97,6 @@ pub struct SessionConfig {
     pub policy: PolicyConfig,
 
     // ── Directory model ───────────────────────────────────────────────────────
-
     /// Optional project directory opened VS Code-style (Direction 3).
     ///
     /// `None`  → NORMAL mode: snapshot root = `workspace_root` (~/.operon/workspace/).
@@ -121,7 +118,6 @@ pub struct SessionConfig {
     pub workspace_root: PathBuf,
 
     // ── Agent identity ────────────────────────────────────────────────────────
-
     /// Agent role for this session — determines which policy column is consulted.
     ///
     /// `Role::Owner` for local (terminal, TUI, GUI) sessions.
@@ -132,7 +128,6 @@ pub struct SessionConfig {
     pub role: Role,
 
     // ── Tool groups ───────────────────────────────────────────────────────────
-
     /// Names of tool groups to register on the `Dispatcher` at startup.
     ///
     /// Valid values: `"fs"`, `"shell"`, `"web"`, `"todo"`.
@@ -142,14 +137,12 @@ pub struct SessionConfig {
     pub tool_groups: Vec<String>,
 
     // ── Context compaction ────────────────────────────────────────────────────
-
     /// Compaction settings — threshold percentage and preserved turn count.
     ///
     /// `CompactionConfig::default()` gives a sensible 90% threshold with 2 preserved turns.
     pub compaction: CompactionConfig,
 
     // ── Session persistence ───────────────────────────────────────────────────
-
     /// Path to the SQLite database file for turn persistence.
     ///
     /// `None` → persistence disabled (turns are in-memory only).
@@ -167,12 +160,12 @@ impl SessionConfig {
     /// The `workspace_root` and `tool_groups` are cloned (both are cheap).
     pub fn snapshot_config(&self, session_id: &str) -> SnapshotConfig {
         SnapshotConfig {
-            root:        self.workspace_root.clone(),
-            role:        self.role,
-            session_id:  session_id.to_string(),
+            root: self.workspace_root.clone(),
+            role: self.role,
+            session_id: session_id.to_string(),
             // One-level tree traversal gives the agent enough context without
             // flooding the system prompt with deeply nested paths.
-            tree_depth:  1,
+            tree_depth: 1,
             tool_groups: self.tool_groups.clone(),
         }
     }

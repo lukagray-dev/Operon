@@ -13,13 +13,15 @@
 //! Tool implementations, tool registries, async runtimes, I/O. This is a pure types crate.
 
 pub mod dispatch;
-pub mod tiered;
+pub mod progress;
 pub mod read_ledger;
+pub mod tiered;
 pub mod todo;
 pub mod todo_store;
 
 pub use dispatch::ToolDispatchError;
-pub use tiered::TieredToolDefinition;
+pub use progress::{emit_tool_progress, ToolProgress, ToolProgressEmitter, ToolProgressStage};
 pub use read_ledger::ReadLedger;
+pub use tiered::TieredToolDefinition;
 pub use todo::{TodoItem, TodoPriority, TodoStatus};
 pub use todo_store::TodoStore;

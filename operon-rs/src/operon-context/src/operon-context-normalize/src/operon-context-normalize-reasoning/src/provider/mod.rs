@@ -76,10 +76,7 @@ pub trait FromWireReasoning: Sized {
     /// Returns a `Vec` because some providers return multiple reasoning blocks
     /// from a single wire value (e.g., OpenAI's `reasoning_summary` array
     /// can contain multiple `summary_text` elements).
-    fn from_wire(
-        raw: Value,
-        provider: &Provider,
-    ) -> Result<Vec<Self>, ReasoningNormalizeError>;
+    fn from_wire(raw: Value, provider: &Provider) -> Result<Vec<Self>, ReasoningNormalizeError>;
 }
 
 /// Convert canonical [`ReasoningBlock`]s back to a provider reasoning wire
@@ -115,16 +112,16 @@ impl FromWireReasoning for ReasoningBlock {
     /// `from_wire_reasoning` function.
     fn from_wire(raw: Value, provider: &Provider) -> Result<Vec<Self>, ReasoningNormalizeError> {
         match provider {
-            Provider::Anthropic  => anthropic::from_wire_reasoning(raw),
-            Provider::OpenAI     => openai::from_wire_reasoning(raw),
-            Provider::Gemini     => gemini::from_wire_reasoning(raw),
-            Provider::Ollama     => ollama::from_wire_reasoning(raw),
-            Provider::DeepSeek   => deepseek::from_wire_reasoning(raw),
+            Provider::Anthropic => anthropic::from_wire_reasoning(raw),
+            Provider::OpenAI => openai::from_wire_reasoning(raw),
+            Provider::Gemini => gemini::from_wire_reasoning(raw),
+            Provider::Ollama => ollama::from_wire_reasoning(raw),
+            Provider::DeepSeek => deepseek::from_wire_reasoning(raw),
             Provider::OpenRouter => openrouter::from_wire_reasoning(raw),
-            Provider::Groq       => groq::from_wire_reasoning(raw),
-            Provider::Mistral    => mistral::from_wire_reasoning(raw),
-            Provider::XAI        => xai::from_wire_reasoning(raw),
-            Provider::Cohere     => cohere::from_wire_reasoning(raw),
+            Provider::Groq => groq::from_wire_reasoning(raw),
+            Provider::Mistral => mistral::from_wire_reasoning(raw),
+            Provider::XAI => xai::from_wire_reasoning(raw),
+            Provider::Cohere => cohere::from_wire_reasoning(raw),
         }
     }
 }
@@ -134,16 +131,16 @@ impl ToWireReasoning for Vec<ReasoningBlock> {
     /// `to_wire_reasoning` function.
     fn to_wire(&self, provider: &Provider) -> Result<Value, ReasoningNormalizeError> {
         match provider {
-            Provider::Anthropic  => anthropic::to_wire_reasoning(self),
-            Provider::OpenAI     => openai::to_wire_reasoning(self),
-            Provider::Gemini     => gemini::to_wire_reasoning(self),
-            Provider::Ollama     => ollama::to_wire_reasoning(self),
-            Provider::DeepSeek   => deepseek::to_wire_reasoning(self),
+            Provider::Anthropic => anthropic::to_wire_reasoning(self),
+            Provider::OpenAI => openai::to_wire_reasoning(self),
+            Provider::Gemini => gemini::to_wire_reasoning(self),
+            Provider::Ollama => ollama::to_wire_reasoning(self),
+            Provider::DeepSeek => deepseek::to_wire_reasoning(self),
             Provider::OpenRouter => openrouter::to_wire_reasoning(self),
-            Provider::Groq       => groq::to_wire_reasoning(self),
-            Provider::Mistral    => mistral::to_wire_reasoning(self),
-            Provider::XAI        => xai::to_wire_reasoning(self),
-            Provider::Cohere     => cohere::to_wire_reasoning(self),
+            Provider::Groq => groq::to_wire_reasoning(self),
+            Provider::Mistral => mistral::to_wire_reasoning(self),
+            Provider::XAI => xai::to_wire_reasoning(self),
+            Provider::Cohere => cohere::to_wire_reasoning(self),
         }
     }
 }

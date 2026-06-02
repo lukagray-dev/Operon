@@ -21,8 +21,9 @@ fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String
 /// Helper to extract and deserialize WriteOutput from a ToolResult.
 fn get_output(result: &operon_context_normalize_tools::ToolResult) -> WriteOutput {
     match &result.content {
-        ToolContent::Json(v) => serde_json::from_value(v.clone())
-            .expect("failed to deserialize WriteOutput"),
+        ToolContent::Json(v) => {
+            serde_json::from_value(v.clone()).expect("failed to deserialize WriteOutput")
+        }
         other => panic!("expected Json content for success, got {:?}", other),
     }
 }
@@ -128,7 +129,10 @@ async fn test_bytes_written_correct() {
 
     assert!(!result.is_error);
     let output = get_output(&result);
-    assert_eq!(output.bytes_written, expected_bytes, "bytes_written should match UTF-8 byte count");
+    assert_eq!(
+        output.bytes_written, expected_bytes,
+        "bytes_written should match UTF-8 byte count"
+    );
 }
 
 #[tokio::test]
@@ -211,7 +215,10 @@ async fn test_message_create_vs_overwrite() {
     .unwrap();
 
     let output = get_output(&result);
-    assert!(output.message.contains("Created"), "message should contain 'Created' for new file");
+    assert!(
+        output.message.contains("Created"),
+        "message should contain 'Created' for new file"
+    );
 
     // Test overwrite message.
     let result = execute(
@@ -225,7 +232,10 @@ async fn test_message_create_vs_overwrite() {
     .unwrap();
 
     let output = get_output(&result);
-    assert!(output.message.contains("Overwrote"), "message should contain 'Overwrote' for existing file");
+    assert!(
+        output.message.contains("Overwrote"),
+        "message should contain 'Overwrote' for existing file"
+    );
 }
 
 // ============================================================================

@@ -9,23 +9,24 @@ const PROVIDER: &str = "Anthropic";
 
 /// Parse one Anthropic stream payload line.
 pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
-    let raw: Value = serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
-        provider: PROVIDER,
-        source,
-    })?;
+    let raw: Value =
+        serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
+            provider: PROVIDER,
+            source,
+        })?;
 
     parse_value(raw)
 }
 
 /// Parse one Anthropic stream payload value.
 pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
-    let event_type = raw
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or(StreamNormalizeError::MissingField {
-            field: "type",
-            provider: PROVIDER,
-        })?;
+    let event_type =
+        raw.get("type")
+            .and_then(Value::as_str)
+            .ok_or(StreamNormalizeError::MissingField {
+                field: "type",
+                provider: PROVIDER,
+            })?;
 
     match event_type {
         "message_start" => {
@@ -38,13 +39,12 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
         }
 
         "content_block_start" => {
-            let index = raw
-                .get("index")
-                .and_then(Value::as_u64)
-                .ok_or(StreamNormalizeError::MissingField {
+            let index = raw.get("index").and_then(Value::as_u64).ok_or(
+                StreamNormalizeError::MissingField {
                     field: "index",
                     provider: PROVIDER,
-                })? as usize;
+                },
+            )? as usize;
 
             let block_type = raw
                 .get("content_block")
@@ -74,13 +74,12 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
         }
 
         "content_block_delta" => {
-            let index = raw
-                .get("index")
-                .and_then(Value::as_u64)
-                .ok_or(StreamNormalizeError::MissingField {
+            let index = raw.get("index").and_then(Value::as_u64).ok_or(
+                StreamNormalizeError::MissingField {
                     field: "index",
                     provider: PROVIDER,
-                })? as usize;
+                },
+            )? as usize;
 
             let delta_type = raw
                 .get("delta")
@@ -153,13 +152,12 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
         }
 
         "content_block_stop" => {
-            let index = raw
-                .get("index")
-                .and_then(Value::as_u64)
-                .ok_or(StreamNormalizeError::MissingField {
+            let index = raw.get("index").and_then(Value::as_u64).ok_or(
+                StreamNormalizeError::MissingField {
                     field: "index",
                     provider: PROVIDER,
-                })? as usize;
+                },
+            )? as usize;
             Ok(vec![StreamEvent::ToolCallEnd { index }])
         }
 
@@ -178,9 +176,7 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
             }
 
             if let Some(usage) = raw.get("usage") {
-                events.push(StreamEvent::UsageMeta {
-                    raw: usage.clone(),
-                });
+                events.push(StreamEvent::UsageMeta { raw: usage.clone() });
             }
 
             Ok(events)

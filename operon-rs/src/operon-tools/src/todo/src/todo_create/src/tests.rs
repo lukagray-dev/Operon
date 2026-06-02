@@ -129,7 +129,10 @@ async fn test_create_whitespace_trimmed() {
 
     assert!(!result.is_error);
     let output = get_create_output(&result);
-    assert_eq!(output.item.content, "Task with spaces", "whitespace should be trimmed");
+    assert_eq!(
+        output.item.content, "Task with spaces",
+        "whitespace should be trimmed"
+    );
 }
 
 #[tokio::test]
@@ -207,7 +210,10 @@ async fn test_create_whitespace_only_error() {
     .await
     .unwrap();
 
-    assert!(result.is_error, "whitespace-only content should be an error");
+    assert!(
+        result.is_error,
+        "whitespace-only content should be an error"
+    );
     assert!(
         get_error_text(&result).contains("empty"),
         "error message should mention empty"

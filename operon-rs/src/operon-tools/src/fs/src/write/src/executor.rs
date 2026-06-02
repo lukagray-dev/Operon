@@ -103,9 +103,9 @@ pub async fn execute(call_id: ToolCallId, args: WriteArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "write".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
-            serde_json::json!({ "error": format!("serialization bug: {}", e) })
-        })),
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
+            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        )),
         is_error: false,
     }
 }

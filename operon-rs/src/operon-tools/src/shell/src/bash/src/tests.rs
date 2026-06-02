@@ -65,7 +65,11 @@ async fn test_basic_command() {
     .await
     .unwrap();
 
-    assert!(!result.is_error, "expected success, got: {:?}", result.content);
+    assert!(
+        !result.is_error,
+        "expected success, got: {:?}",
+        result.content
+    );
     let output = get_bash_output(&result);
     assert_eq!(output.exit_code, 0);
     assert!(output.output.contains("hello"));
@@ -109,7 +113,10 @@ async fn test_stderr_captured() {
 
     assert!(!result.is_error);
     let output = get_bash_output(&result);
-    assert!(output.output.contains("error"), "stderr should be in merged output");
+    assert!(
+        output.output.contains("error"),
+        "stderr should be in merged output"
+    );
     assert_eq!(output.exit_code, 0);
 }
 
@@ -132,8 +139,14 @@ async fn test_stdout_and_stderr_merged() {
 
     assert!(!result.is_error);
     let output = get_bash_output(&result);
-    assert!(output.output.contains("out"), "stdout should be in merged output");
-    assert!(output.output.contains("err"), "stderr should be in merged output");
+    assert!(
+        output.output.contains("out"),
+        "stdout should be in merged output"
+    );
+    assert!(
+        output.output.contains("err"),
+        "stderr should be in merged output"
+    );
 }
 
 #[tokio::test]
@@ -220,7 +233,10 @@ async fn test_output_truncation() {
 
     assert!(!result.is_error);
     let output = get_bash_output(&result);
-    assert!(output.truncated, "output should be truncated when >10,000 chars");
+    assert!(
+        output.truncated,
+        "output should be truncated when >10,000 chars"
+    );
     assert_eq!(
         output.output.chars().count(),
         10_000,
@@ -255,7 +271,10 @@ async fn test_no_timeout_runs_to_completion() {
     assert!(!result.is_error);
     let output = get_bash_output(&result);
     assert_eq!(output.exit_code, 0);
-    assert!(output.output.contains("done"), "command should complete and print 'done'");
+    assert!(
+        output.output.contains("done"),
+        "command should complete and print 'done'"
+    );
     assert!(!output.timed_out);
 }
 
@@ -305,7 +324,10 @@ async fn test_command_echoed_in_output() {
 
     assert!(!result.is_error);
     let output = get_bash_output(&result);
-    assert_eq!(output.command, cmd, "command should be echoed back unchanged");
+    assert_eq!(
+        output.command, cmd,
+        "command should be echoed back unchanged"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -343,7 +365,10 @@ async fn test_whitespace_only_command() {
     .await
     .unwrap();
 
-    assert!(result.is_error, "whitespace-only command should be an error");
+    assert!(
+        result.is_error,
+        "whitespace-only command should be an error"
+    );
     let error_text = get_error_text(&result);
     assert!(error_text.contains("empty"), "error should mention 'empty'");
 }
@@ -360,7 +385,10 @@ async fn test_malformed_args_missing_command() {
     )
     .await;
 
-    assert!(result.is_err(), "missing command should return Err(ArgsParse)");
+    assert!(
+        result.is_err(),
+        "missing command should return Err(ArgsParse)"
+    );
     match result {
         Err(crate::BashToolError::ArgsParse(_)) => { /* expected */ }
         other => panic!("expected ArgsParse error, got: {:?}", other),
@@ -409,7 +437,7 @@ async fn test_cwd_does_not_exist() {
         }),
     )
     .await
-    .unwrap();  // Returns Ok(ToolResult { is_error: true }) not Err
+    .unwrap(); // Returns Ok(ToolResult { is_error: true }) not Err
 
     assert!(result.is_error, "nonexistent cwd should be an error");
     let error_text = get_error_text(&result);

@@ -3,7 +3,6 @@
 /// This module defines all error conditions that can occur during grep tool
 /// argument parsing. Per-file search failures are NOT represented here — they
 /// are embedded in the FileGrepResult structure with an error field.
-
 use thiserror::Error;
 
 /// Errors that can occur during grep tool execution.

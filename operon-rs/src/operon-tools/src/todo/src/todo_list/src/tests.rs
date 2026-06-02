@@ -162,7 +162,10 @@ async fn test_list_filter_by_priority_high() {
     assert!(!result.is_error);
     let output = get_list_output(&result);
     assert_eq!(output.items.len(), 2, "should have 2 high priority items");
-    assert!(output.items.iter().all(|i| i.priority == TodoPriority::High));
+    assert!(output
+        .items
+        .iter()
+        .all(|i| i.priority == TodoPriority::High));
 }
 
 #[tokio::test]
@@ -207,7 +210,11 @@ async fn test_list_combined_filters() {
 
     assert!(!result.is_error);
     let output = get_list_output(&result);
-    assert_eq!(output.items.len(), 1, "should have 1 item matching both filters");
+    assert_eq!(
+        output.items.len(),
+        1,
+        "should have 1 item matching both filters"
+    );
     assert_eq!(output.items[0].id, item1.id);
 }
 
@@ -219,9 +226,13 @@ async fn test_list_status_counts_all_pending() {
     store.create("Task 2".to_string(), None);
     store.create("Task 3".to_string(), None);
 
-    let result = execute(call_id("test_list_status_counts_all_pending"), json!({}), &store)
-        .await
-        .unwrap();
+    let result = execute(
+        call_id("test_list_status_counts_all_pending"),
+        json!({}),
+        &store,
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
     let output = get_list_output(&result);
@@ -278,8 +289,14 @@ async fn test_list_counts_unaffected_by_filter() {
     assert!(!result.is_error);
     let output = get_list_output(&result);
     assert_eq!(output.items.len(), 1, "filtered items should be 1");
-    assert_eq!(output.pending, 1, "pending count should be 1 (from full list)");
-    assert_eq!(output.completed, 2, "completed count should be 2 (from full list)");
+    assert_eq!(
+        output.pending, 1,
+        "pending count should be 1 (from full list)"
+    );
+    assert_eq!(
+        output.completed, 2,
+        "completed count should be 2 (from full list)"
+    );
     assert_eq!(output.total, 3, "total should be 3 (from full list)");
 }
 

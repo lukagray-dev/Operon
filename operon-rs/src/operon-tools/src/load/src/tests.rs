@@ -16,11 +16,7 @@ mod tests {
         };
         let defs = vec![&tool_def];
 
-        let result = execute_with_defs(
-            ToolCallId("test".to_string()),
-            "fs",
-            defs,
-        );
+        let result = execute_with_defs(ToolCallId("test".to_string()), "fs", defs);
 
         assert!(!result.is_error);
         let output: GroupLoadOutput = match result.content {
@@ -35,11 +31,7 @@ mod tests {
     /// Test that execute_with_defs returns error for empty group.
     #[test]
     fn execute_with_defs_empty_returns_error() {
-        let result = execute_with_defs(
-            ToolCallId("test".to_string()),
-            "nonexistent",
-            vec![],
-        );
+        let result = execute_with_defs(ToolCallId("test".to_string()), "nonexistent", vec![]);
         assert!(result.is_error);
         match result.content {
             ToolContent::Text(msg) => {
@@ -70,10 +62,7 @@ mod tests {
     /// Test that execute_list_groups handles empty group list.
     #[test]
     fn execute_list_groups_empty() {
-        let result = execute_list_groups(
-            ToolCallId("test".to_string()),
-            vec![],
-        );
+        let result = execute_list_groups(ToolCallId("test".to_string()), vec![]);
         assert!(!result.is_error);
         let output: GroupListOutput = match result.content {
             ToolContent::Json(v) => serde_json::from_value(v).unwrap(),

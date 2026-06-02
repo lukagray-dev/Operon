@@ -8,6 +8,7 @@
 //   - No dependency on operon-tools — tool call IDs are plain strings here.
 //   - Serializable with serde so events can be logged, replayed, or persisted.
 
+use operon_tools_core::ToolProgress;
 use serde::{Deserialize, Serialize};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,10 +31,13 @@ use serde::{Deserialize, Serialize};
 ///   TextDelta* + ThinkingDelta*             (model streaming)
 ///   ToolCallStart                           (one per tool call)
 ///   ToolCallArgsReady                       (full args assembled)
-///   [ PermissionDenied | ApprovalRequired ] (policy — future)
+///   ToolProgress*                           (runtime progress updates)
+///   [ PermissionDenied | ApprovalRequired ] (policy)
+///   ApprovalGranted                         (Ask was approved)
 ///   ToolCallResult                          (dispatch complete)
 ///   ToolDegraded                            (if args were malformed)
 ///   TokenUsageUpdated                       (from API usage block)
+///   ContextUsageUpdated                     (status-bar budget gauge)
 ///   TurnComplete
 ///   ↓ (loop or end)
 /// Done | Error
@@ -41,7 +45,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SessionEvent {
     // ── Session lifecycle ─────────────────────────────────────────────────────
-
     /// The session has been initialized and is ready to run.
     ///
     /// Emitted once at the end of `SessionRunner::new()` before the first turn.
@@ -52,7 +55,6 @@ pub enum SessionEvent {
     },
 
     // ── Streaming output ──────────────────────────────────────────────────────
-
     /// A streaming text delta from the model.
     ///
     /// Each `TextDelta` contains one fragment from the SSE stream. Concatenate
@@ -66,8 +68,24 @@ pub enum SessionEvent {
     /// emit reasoning deltas.
     ThinkingDelta { text: String },
 
-    // ── Tool calls ────────────────────────────────────────────────────────────
+    /// Current context-window usage for the active model.
+    ///
+    /// This is the status-bar gauge event. It is emitted at session start,
+    /// after each token usage update, and after compaction.
+    ContextUsageUpdated {
+        /// Tokens currently occupying the active context window.
+        current_context_tokens: usize,
+        /// Total hard window size of the active model.
+        context_window: usize,
+        /// Remaining tokens before the hard window is full.
+        remaining_context_tokens: usize,
+        /// Fraction of the window already used, clamped to `0.0..=1.0`.
+        utilization: f32,
+        /// Compaction threshold for this model/session.
+        compaction_limit: usize,
+    },
 
+    // ── Tool calls ────────────────────────────────────────────────────────────
     /// The model started a tool call — name is now known.
     ///
     /// Emitted when the assembler detects a complete tool call in the stream.
@@ -93,6 +111,13 @@ pub enum SessionEvent {
         /// The full serialized JSON object of the tool call arguments.
         args_json: String,
     },
+
+    /// Progress update emitted while a tool is executing.
+    ///
+    /// The dispatcher emits `Started` / `Completed` / `Failed`, and individual
+    /// tool crates may emit `Running` updates for more specific UI states such as
+    /// "writing file" or "fetching URL".
+    ToolProgress(ToolProgress),
 
     /// A tool call completed and was dispatched. Contains the full result.
     ///
@@ -121,9 +146,8 @@ pub enum SessionEvent {
     },
 
     // ── Policy decisions ──────────────────────────────────────────────────────
-    // NOTE: These variants are defined now and emitted in a future phase when
-    // the policy resolver is wired into the tool dispatcher.
-
+    // NOTE: These variants are emitted by the session runner when policy
+    // blocks or pauses a tool call.
     /// A tool call was flat-out denied by the permission policy.
     ///
     /// The tool is NOT dispatched. The runner returns an error ToolResult to the
@@ -141,9 +165,8 @@ pub enum SessionEvent {
     ///
     /// The agent loop is suspended at this point. The UI must respond with a
     /// `SessionCommand::Approve` or `SessionCommand::Deny` using the same `id`.
+    /// On approval, the runner emits `ApprovalGranted` and continues.
     /// The loop will not advance until a response is received.
-    ///
-    /// This variant is defined now and wired in a future phase.
     ApprovalRequired {
         /// Unique ID for this approval request. Used to correlate with SessionCommand.
         id: String,
@@ -151,12 +174,26 @@ pub enum SessionEvent {
         tool: String,
         /// Path argument, if the tool operates on a file or directory.
         path: Option<String>,
+        /// Human-readable reason the policy system requested approval.
+        reason: String,
         /// Full serialized JSON arguments of the pending tool call.
         args_json: String,
     },
 
-    // ── Turn lifecycle ────────────────────────────────────────────────────────
+    /// A previously pending approval was granted and the tool will run.
+    ///
+    /// Emitted after the UI sends `SessionCommand::Approve` and before the
+    /// dispatcher starts executing the tool call.
+    ApprovalGranted {
+        /// Unique ID for this approval request.
+        id: String,
+        /// Tool name that was approved.
+        tool: String,
+        /// Path argument, if the tool operates on a file or directory.
+        path: Option<String>,
+    },
 
+    // ── Turn lifecycle ────────────────────────────────────────────────────────
     /// One full agent turn completed (model responded; all tool calls dispatched).
     ///
     /// `turn_index` is 0-based and increments monotonically within a session.
@@ -164,11 +201,11 @@ pub enum SessionEvent {
     TurnComplete { turn_index: usize },
 
     // ── Token usage ───────────────────────────────────────────────────────────
-
     /// Token usage reported by the provider after a turn completes.
     ///
     /// Emitted after the session token state is updated from the API usage block.
     /// The TUI uses this to populate the token budget indicator in the status bar.
+    /// For a full window gauge, combine this with `ContextUsageUpdated`.
     TokenUsageUpdated {
         /// Input tokens consumed this turn (prompt + context).
         input_tokens: usize,
@@ -183,7 +220,6 @@ pub enum SessionEvent {
     },
 
     // ── Compaction ────────────────────────────────────────────────────────────
-
     /// Context compaction is about to begin.
     ///
     /// Emitted immediately before the compaction API call. The TUI can show
@@ -205,7 +241,6 @@ pub enum SessionEvent {
     },
 
     // ── Terminal events ───────────────────────────────────────────────────────
-
     /// The agent loop finished naturally (model returned EndTurn with no tool calls).
     ///
     /// This is the expected happy-path terminal event. After `Done`, the runner

@@ -13,12 +13,13 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ConfigError {
     // ── Filesystem / environment ───────────────────────────────────────────────
-
     /// `dirs::home_dir()` returned `None` — running in a context without a HOME.
     ///
     /// This is extremely rare (headless CI, certain containers). The user must
     /// set HOME or USERPROFILE explicitly in that environment.
-    #[error("cannot determine the home directory; set the HOME or USERPROFILE environment variable")]
+    #[error(
+        "cannot determine the home directory; set the HOME or USERPROFILE environment variable"
+    )]
     NoHomeDir,
 
     /// Any I/O error — file not found, permission denied, disk full, etc.
@@ -26,7 +27,6 @@ pub enum ConfigError {
     Io(#[from] std::io::Error),
 
     // ── TOML parsing ──────────────────────────────────────────────────────────
-
     /// The config file exists but contains invalid TOML or doesn't match the schema.
     ///
     /// `path` is the absolute path to the file, `source` is the toml parse error.
@@ -38,14 +38,11 @@ pub enum ConfigError {
     },
 
     // ── Provider / credentials ────────────────────────────────────────────────
-
     /// The `[provider]` section contains an unrecognised provider name.
     ///
     /// `name` is the literal string from the config, `valid` lists the accepted
     /// values so the user knows exactly what to fix.
-    #[error(
-        "unknown provider '{name}' in config; valid values are: {valid}"
-    )]
+    #[error("unknown provider '{name}' in config; valid values are: {valid}")]
     UnknownProvider { name: String, valid: String },
 
     /// No API key was found for the configured provider.
@@ -60,7 +57,6 @@ pub enum ConfigError {
     MissingApiKey { provider: String, env_var: String },
 
     // ── Policy validation ─────────────────────────────────────────────────────
-
     /// A directory path listed in `[[directories]]` could not be canonicalized.
     ///
     /// This wraps `operon_policy::PolicyError` which carries the path and the OS
@@ -69,7 +65,6 @@ pub enum ConfigError {
     PolicyValidation(#[from] operon_policy::PolicyError),
 
     // ── Internal consistency ──────────────────────────────────────────────────
-
     /// A logic error that should not occur in correct code — indicates a bug.
     /// Used for unreachable branches guarded by invariants we maintain.
     #[error("internal config error: {0}")]

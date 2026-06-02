@@ -102,7 +102,10 @@ async fn test_update_content() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(output.item.content, "New content", "content should be updated");
+    assert_eq!(
+        output.item.content, "New content",
+        "content should be updated"
+    );
     assert_eq!(
         output.item.status,
         TodoStatus::Pending,
@@ -129,7 +132,11 @@ async fn test_update_priority() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(output.item.priority, TodoPriority::High, "priority should be high");
+    assert_eq!(
+        output.item.priority,
+        TodoPriority::High,
+        "priority should be high"
+    );
 }
 
 #[tokio::test]
@@ -177,7 +184,10 @@ async fn test_update_content_with_whitespace_trimmed() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(output.item.content, "New content", "whitespace should be trimmed");
+    assert_eq!(
+        output.item.content, "New content",
+        "whitespace should be trimmed"
+    );
 }
 
 #[tokio::test]
@@ -291,7 +301,10 @@ async fn test_update_whitespace_only_content_error() {
     .await
     .unwrap();
 
-    assert!(result.is_error, "whitespace-only content should be an error");
+    assert!(
+        result.is_error,
+        "whitespace-only content should be an error"
+    );
     assert!(
         get_error_text(&result).contains("empty"),
         "error message should mention empty"
@@ -343,8 +356,16 @@ async fn test_update_only_status_leaves_others_unchanged() {
 
     let items = store.list();
     assert_eq!(items[0].content, "Task", "content should be unchanged");
-    assert_eq!(items[0].priority, TodoPriority::High, "priority should be unchanged");
-    assert_eq!(items[0].status, TodoStatus::InProgress, "status should be updated");
+    assert_eq!(
+        items[0].priority,
+        TodoPriority::High,
+        "priority should be unchanged"
+    );
+    assert_eq!(
+        items[0].status,
+        TodoStatus::InProgress,
+        "status should be updated"
+    );
 }
 
 #[tokio::test]
@@ -366,8 +387,16 @@ async fn test_update_only_priority_leaves_others_unchanged() {
 
     let items = store.list();
     assert_eq!(items[0].content, "Task", "content should be unchanged");
-    assert_eq!(items[0].status, TodoStatus::Pending, "status should be unchanged");
-    assert_eq!(items[0].priority, TodoPriority::High, "priority should be updated");
+    assert_eq!(
+        items[0].status,
+        TodoStatus::Pending,
+        "status should be unchanged"
+    );
+    assert_eq!(
+        items[0].priority,
+        TodoPriority::High,
+        "priority should be updated"
+    );
 }
 
 #[tokio::test]
@@ -390,6 +419,14 @@ async fn test_update_only_content_leaves_others_unchanged() {
 
     let items = store.list();
     assert_eq!(items[0].content, "New", "content should be updated");
-    assert_eq!(items[0].status, TodoStatus::InProgress, "status should be unchanged");
-    assert_eq!(items[0].priority, TodoPriority::High, "priority should be unchanged");
+    assert_eq!(
+        items[0].status,
+        TodoStatus::InProgress,
+        "status should be unchanged"
+    );
+    assert_eq!(
+        items[0].priority,
+        TodoPriority::High,
+        "priority should be unchanged"
+    );
 }

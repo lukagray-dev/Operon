@@ -67,13 +67,13 @@ const PROVIDER: &str = "Cohere";
 /// failing hard, since Cohere still needs a type value to accept the definition.
 fn json_schema_type_to_cohere(json_type: &str) -> &'static str {
     match json_type {
-        "string"  => "str",
+        "string" => "str",
         "integer" => "int",
-        "number"  => "float",
+        "number" => "float",
         "boolean" => "bool",
-        "object"  => "dict",
+        "object" => "dict",
         // Arrays, nulls, unions, and unknown types all fall back to "str"
-        _         => "str",
+        _ => "str",
     }
 }
 
@@ -101,10 +101,12 @@ pub fn from_wire_tool_call(raw: Value) -> Result<ToolCall, ToolNormalizeError> {
         .to_string();
 
     // The actual call details are nested under the "tool_call" sub-object
-    let tool_call = raw.get("tool_call").ok_or(ToolNormalizeError::MissingField {
-        field: "tool_call",
-        provider: PROVIDER,
-    })?;
+    let tool_call = raw
+        .get("tool_call")
+        .ok_or(ToolNormalizeError::MissingField {
+            field: "tool_call",
+            provider: PROVIDER,
+        })?;
 
     // Extract the function name from inside the sub-object
     let name = tool_call

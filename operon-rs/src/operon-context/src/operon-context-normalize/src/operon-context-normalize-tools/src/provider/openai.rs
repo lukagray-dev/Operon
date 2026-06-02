@@ -85,13 +85,12 @@ pub fn from_wire_tool_call_with_provider(
     // The "arguments" field is a JSON-encoded STRING, not a JSON object.
     // Example: "{\"path\":\"/foo\"}" — we MUST parse it with serde_json::from_str.
     // Never assume it is already an object; the OpenAI spec is explicit about this.
-    let arguments_str = function
-        .get("arguments")
-        .and_then(Value::as_str)
-        .ok_or(ToolNormalizeError::MissingField {
+    let arguments_str = function.get("arguments").and_then(Value::as_str).ok_or(
+        ToolNormalizeError::MissingField {
             field: "function.arguments",
             provider: provider_name,
-        })?;
+        },
+    )?;
 
     // Parse the JSON-encoded argument string into an actual serde_json::Value object
     let arguments: Value = serde_json::from_str(arguments_str).map_err(|e| {

@@ -43,7 +43,9 @@ pub use error::TodoDeleteToolError;
 pub use output::TodoDeleteOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{TieredToolDefinition, TodoStore};
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
+};
 use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_delete` tool.
@@ -147,8 +149,28 @@ pub async fn execute(
     args_json: serde_json::Value,
     store: &mut TodoStore,
 ) -> Result<ToolResult, TodoDeleteToolError> {
+    execute_with_progress(call_id, args_json, store, None).await
+}
+
+/// Deserializes `args_json` and executes the todo_delete tool with optional progress reporting.
+pub async fn execute_with_progress(
+    call_id: ToolCallId,
+    args_json: serde_json::Value,
+    store: &mut TodoStore,
+    progress: Option<ToolProgressEmitter>,
+) -> Result<ToolResult, TodoDeleteToolError> {
     // Deserialize the arguments. If this fails, return an ArgsParse error.
     let args: TodoDeleteArgs = serde_json::from_value(args_json)?;
+
+    emit_tool_progress(
+        progress.as_ref(),
+        ToolProgress::running(
+            call_id.clone(),
+            "todo_delete",
+            Some(args.id.clone()),
+            format!("Deleting todo {}", args.id),
+        ),
+    );
 
     // Execute the tool and return the result.
     Ok(executor::execute(call_id, args, store).await)

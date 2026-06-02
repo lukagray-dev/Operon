@@ -1,4 +1,3 @@
-
 //! # operon-context-token-tracker
 //!
 //! Token estimation and budget management for LLM context window control.
@@ -69,19 +68,19 @@
 
 // Declare all internal modules.
 // They are `pub(crate)` by default; only the items re-exported below are public.
+mod budget;
 mod error;
-mod tier;
 mod estimator;
 mod recorder;
-mod budget;
 mod session;
+mod tier;
 
 // ---------------------------------------------------------------------------
 // Public API re-exports
 // ---------------------------------------------------------------------------
 
 /// Error type and Result alias for all fallible operations in this crate.
-pub use error::{TokenTrackerError, Result};
+pub use error::{Result, TokenTrackerError};
 
 /// Identifies which tier produced a given token estimate.
 pub use tier::EstimationTier;

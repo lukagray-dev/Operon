@@ -42,8 +42,8 @@ mod tests {
             operon_context_normalize_tools::ToolContent::Json(v) => v.clone(),
             other => panic!("expected JSON content, got {:?}", other),
         };
-        let output: GrepOutput = serde_json::from_value(content_value)
-            .expect("failed to deserialize GrepOutput");
+        let output: GrepOutput =
+            serde_json::from_value(content_value).expect("failed to deserialize GrepOutput");
 
         assert_eq!(output.total_matches, 1, "expected exactly 1 match");
         assert_eq!(output.files_with_matches, 1);
@@ -93,8 +93,8 @@ mod tests {
             operon_context_normalize_tools::ToolContent::Json(v) => v.clone(),
             other => panic!("expected JSON content, got {:?}", other),
         };
-        let output: GrepOutput = serde_json::from_value(content_value)
-            .expect("failed to deserialize GrepOutput");
+        let output: GrepOutput =
+            serde_json::from_value(content_value).expect("failed to deserialize GrepOutput");
 
         assert_eq!(output.total_matches, 3, "expected exactly 3 matches");
         assert_eq!(output.files_with_matches, 1);
@@ -123,7 +123,7 @@ mod tests {
     #[tokio::test]
     async fn test_truncation() {
         let temp = TempDir::new().expect("failed to create temp dir");
-        
+
         // Create a file with 400 lines, each containing the pattern.
         let mut content = String::new();
         for i in 1..=400 {
@@ -147,19 +147,25 @@ mod tests {
             operon_context_normalize_tools::ToolContent::Json(v) => v.clone(),
             other => panic!("expected JSON content, got {:?}", other),
         };
-        let output: GrepOutput = serde_json::from_value(content_value)
-            .expect("failed to deserialize GrepOutput");
+        let output: GrepOutput =
+            serde_json::from_value(content_value).expect("failed to deserialize GrepOutput");
 
         // Should hit the 300 match limit and stop.
-        assert_eq!(output.total_matches, 300, "expected exactly 300 matches (limit)");
-        assert!(!output.truncated, "truncated should be false when searching a single file");
+        assert_eq!(
+            output.total_matches, 300,
+            "expected exactly 300 matches (limit)"
+        );
+        assert!(
+            !output.truncated,
+            "truncated should be false when searching a single file"
+        );
         assert_eq!(output.files_with_matches, 1);
     }
 
     #[tokio::test]
     async fn test_truncation_multiple_files() {
         let temp = TempDir::new().expect("failed to create temp dir");
-        
+
         // Create 3 files, each with 150 lines containing the pattern.
         // File1: 150 matches (total: 150)
         // File2: 150 matches (total: 300) - hits limit exactly
@@ -188,13 +194,19 @@ mod tests {
             operon_context_normalize_tools::ToolContent::Json(v) => v.clone(),
             other => panic!("expected JSON content, got {:?}", other),
         };
-        let output: GrepOutput = serde_json::from_value(content_value)
-            .expect("failed to deserialize GrepOutput");
+        let output: GrepOutput =
+            serde_json::from_value(content_value).expect("failed to deserialize GrepOutput");
 
         // After file2 completes with 300 total matches, we check before file3.
         // Since 300 >= 300, we break and set truncated = true.
-        assert!(output.truncated, "truncated should be true when skipping files");
-        assert_eq!(output.total_matches, 300, "expected exactly 300 matches (limit)");
+        assert!(
+            output.truncated,
+            "truncated should be true when skipping files"
+        );
+        assert_eq!(
+            output.total_matches, 300,
+            "expected exactly 300 matches (limit)"
+        );
         // Only file1 and file2 should be in results since file3 was skipped.
         assert_eq!(output.files_with_matches, 2);
         assert_eq!(output.files.len(), 2);
@@ -203,7 +215,7 @@ mod tests {
     #[tokio::test]
     async fn test_include_filter() {
         let temp = TempDir::new().expect("failed to create temp dir");
-        
+
         // Create two files with the same pattern, but different extensions.
         let _file_rs = create_test_file(&temp, "file.rs", "fn main() { pattern }");
         let _file_py = create_test_file(&temp, "file.py", "def main(): pattern");
@@ -226,14 +238,17 @@ mod tests {
             operon_context_normalize_tools::ToolContent::Json(v) => v.clone(),
             other => panic!("expected JSON content, got {:?}", other),
         };
-        let output: GrepOutput = serde_json::from_value(content_value)
-            .expect("failed to deserialize GrepOutput");
+        let output: GrepOutput =
+            serde_json::from_value(content_value).expect("failed to deserialize GrepOutput");
 
         assert_eq!(output.total_matches, 1, "expected exactly 1 match");
         assert_eq!(output.files_with_matches, 1);
         assert_eq!(output.files.len(), 1);
         // Verify the matched file is the .rs file.
-        assert!(output.files[0].path.ends_with("file.rs"), 
-                "expected file.rs, got {}", output.files[0].path);
+        assert!(
+            output.files[0].path.ends_with("file.rs"),
+            "expected file.rs, got {}",
+            output.files[0].path
+        );
     }
 }

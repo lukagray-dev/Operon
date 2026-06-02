@@ -29,8 +29,8 @@
 //   responsible for using a fixed opaque message when constructing the error
 //   ToolResult (e.g. "Tool not available.").
 
-use std::path::PathBuf;
 use operon_context_normalize_tools::ToolCall;
+use std::path::PathBuf;
 
 use crate::config::PolicyConfig;
 use crate::path_guard::PathGuard;
@@ -179,24 +179,23 @@ fn classify_tool(name: &str) -> ToolScope {
         // ── Global tools ───────────────────────────────────────────────────────
         "web_search" | "web_fetch" => ToolScope::Global(GlobalTool::Web),
         "subagent" | "spawn_agent" => ToolScope::Global(GlobalTool::SubAgent),
-        "ask"                      => ToolScope::Global(GlobalTool::Ask),
-        "todo_create"
-        | "todo_list"
-        | "todo_update"
-        | "todo_delete"            => ToolScope::Global(GlobalTool::Todo),
-        "load_tools"               => ToolScope::Global(GlobalTool::LoadTools),
+        "ask" => ToolScope::Global(GlobalTool::Ask),
+        "todo_create" | "todo_list" | "todo_update" | "todo_delete" => {
+            ToolScope::Global(GlobalTool::Todo)
+        }
+        "load_tools" => ToolScope::Global(GlobalTool::LoadTools),
 
         // ── Directory-scoped: filesystem tools ────────────────────────────────
-        "read"   => ToolScope::Dir(DirTool::Fs(FsTool::Read)),
-        "write"  => ToolScope::Dir(DirTool::Fs(FsTool::Write)),
-        "edit"   => ToolScope::Dir(DirTool::Fs(FsTool::Edit)),
+        "read" => ToolScope::Dir(DirTool::Fs(FsTool::Read)),
+        "write" => ToolScope::Dir(DirTool::Fs(FsTool::Write)),
+        "edit" => ToolScope::Dir(DirTool::Fs(FsTool::Edit)),
         "append" => ToolScope::Dir(DirTool::Fs(FsTool::Append)),
-        "grep"   => ToolScope::Dir(DirTool::Fs(FsTool::Grep)),
-        "ls"     => ToolScope::Dir(DirTool::Fs(FsTool::Ls)),
+        "grep" => ToolScope::Dir(DirTool::Fs(FsTool::Grep)),
+        "ls" => ToolScope::Dir(DirTool::Fs(FsTool::Ls)),
         "delete" => ToolScope::Dir(DirTool::Fs(FsTool::Delete)),
 
         // ── Directory-scoped: shell tool ──────────────────────────────────────
-        "bash"   => ToolScope::Dir(DirTool::Bash),
+        "bash" => ToolScope::Dir(DirTool::Bash),
 
         // ── Unknown tool name ─────────────────────────────────────────────────
         // Unknown tools are treated as global unknowns — they have no path argument
@@ -241,29 +240,20 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
         //
         // TODO: Consider per-element checking in a future revision. For now,
         // first-element policy is the pragmatic trade-off.
-        DirTool::Fs(FsTool::Read) => {
-            args.get("paths")
-                .and_then(|v| v.as_array())
-                .and_then(|arr| arr.first())
-                .and_then(|v| v.as_str())
-                .map(PathBuf::from)
-        }
+        DirTool::Fs(FsTool::Read) => args
+            .get("paths")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from),
 
         // The `bash` tool uses `"cwd"` as the policy anchor (Option C).
         // If cwd is missing, the tool executor would also reject it — but we
         // reject it here first so the policy layer catches it before dispatch.
-        DirTool::Bash => {
-            args.get("cwd")
-                .and_then(|v| v.as_str())
-                .map(PathBuf::from)
-        }
+        DirTool::Bash => args.get("cwd").and_then(|v| v.as_str()).map(PathBuf::from),
 
         // All other filesystem tools use a single `"path"` string argument.
-        DirTool::Fs(_) => {
-            args.get("path")
-                .and_then(|v| v.as_str())
-                .map(PathBuf::from)
-        }
+        DirTool::Fs(_) => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
     }
 }
 
@@ -296,12 +286,11 @@ fn mode_to_decision(
             let reason = match path {
                 Some(p) => format!(
                     "{:?} caller requested '{}' on path '{}'",
-                    role, tool_name, p.display()
+                    role,
+                    tool_name,
+                    p.display()
                 ),
-                None => format!(
-                    "{:?} caller requested global tool '{}'",
-                    role, tool_name
-                ),
+                None => format!("{:?} caller requested global tool '{}'", role, tool_name),
             };
             PolicyDecision::Ask { reason }
         }
@@ -312,12 +301,11 @@ fn mode_to_decision(
             let reason = match path {
                 Some(p) => format!(
                     "tool '{}' denied for {:?} at path '{}'",
-                    tool_name, role, p.display()
+                    tool_name,
+                    role,
+                    p.display()
                 ),
-                None => format!(
-                    "global tool '{}' denied for {:?}",
-                    tool_name, role
-                ),
+                None => format!("global tool '{}' denied for {:?}", tool_name, role),
             };
             PolicyDecision::Deny { reason }
         }
@@ -384,14 +372,14 @@ mod tests {
     #[test]
     fn test_global_tool_allow_for_owner() {
         // Owner has web=Allow → check returns Allow.
-        let config = make_global_config(
-            vec![(GlobalTool::Web, PermissionMode::Allow)],
-            vec![],
-        );
+        let config = make_global_config(vec![(GlobalTool::Web, PermissionMode::Allow)], vec![]);
         let resolver = PolicyResolver::new(config);
         let call = make_call("web_search", json!({ "query": "test" }));
         let decision = resolver.check(&call, CallerRole::Owner);
-        assert!(decision.is_allow(), "web_search should be allowed for owner");
+        assert!(
+            decision.is_allow(),
+            "web_search should be allowed for owner"
+        );
     }
 
     #[test]
@@ -404,7 +392,10 @@ mod tests {
         let resolver = PolicyResolver::new(config);
         let call = make_call("web_search", json!({ "query": "test" }));
         let decision = resolver.check(&call, CallerRole::External);
-        assert!(decision.is_deny(), "web_search should be denied for external by default");
+        assert!(
+            decision.is_deny(),
+            "web_search should be denied for external by default"
+        );
     }
 
     #[test]
@@ -417,17 +408,25 @@ mod tests {
         let resolver = PolicyResolver::new(config);
         let call = make_call("todo_create", json!({ "title": "task" }));
         let decision = resolver.check(&call, CallerRole::External);
-        assert!(decision.is_ask(), "todo_create should require confirmation for external");
+        assert!(
+            decision.is_ask(),
+            "todo_create should require confirmation for external"
+        );
     }
 
     #[test]
     fn test_all_global_tool_names_classified() {
         // Verify every tool name we claim is global is actually classified that way.
         let global_names = [
-            "web_search", "web_fetch",
-            "subagent", "spawn_agent",
+            "web_search",
+            "web_fetch",
+            "subagent",
+            "spawn_agent",
             "ask",
-            "todo_create", "todo_list", "todo_update", "todo_delete",
+            "todo_create",
+            "todo_list",
+            "todo_update",
+            "todo_delete",
             "load_tools",
         ];
         for name in &global_names {
@@ -456,7 +455,10 @@ mod tests {
         let resolver = PolicyResolver::new(config);
         let call = make_call("read", json!({ "paths": [file.to_str().unwrap()] }));
         let decision = resolver.check(&call, CallerRole::Owner);
-        assert!(decision.is_allow(), "read inside allowed dir should be allowed for owner");
+        assert!(
+            decision.is_allow(),
+            "read inside allowed dir should be allowed for owner"
+        );
     }
 
     #[test]
@@ -479,7 +481,10 @@ mod tests {
 
         let call = make_call("read", json!({ "paths": [outside_file.to_str().unwrap()] }));
         let decision = resolver.check(&call, CallerRole::Owner);
-        assert!(decision.is_deny(), "read outside allowed dirs should be denied even for owner");
+        assert!(
+            decision.is_deny(),
+            "read outside allowed dirs should be denied even for owner"
+        );
     }
 
     #[test]
@@ -496,9 +501,15 @@ mod tests {
             vec![(DirTool::Fs(FsTool::Write), PermissionMode::Ask)],
         );
         let resolver = PolicyResolver::new(config);
-        let call = make_call("write", json!({ "path": file.to_str().unwrap(), "content": "new" }));
+        let call = make_call(
+            "write",
+            json!({ "path": file.to_str().unwrap(), "content": "new" }),
+        );
         let decision = resolver.check(&call, CallerRole::External);
-        assert!(decision.is_ask(), "write for external should require confirmation");
+        assert!(
+            decision.is_ask(),
+            "write for external should require confirmation"
+        );
     }
 
     #[test]
@@ -520,7 +531,10 @@ mod tests {
             json!({ "command": "ls", "cwd": tmp.path().to_str().unwrap() }),
         );
         let owner_decision = resolver.check(&owner_call, CallerRole::Owner);
-        assert!(owner_decision.is_allow(), "bash with valid cwd should be allowed for owner");
+        assert!(
+            owner_decision.is_allow(),
+            "bash with valid cwd should be allowed for owner"
+        );
 
         // External calls bash with same cwd → Deny (per config).
         let ext_call = make_call(
@@ -528,7 +542,10 @@ mod tests {
             json!({ "command": "ls", "cwd": tmp.path().to_str().unwrap() }),
         );
         let ext_decision = resolver.check(&ext_call, CallerRole::External);
-        assert!(ext_decision.is_deny(), "bash should be denied for external per config");
+        assert!(
+            ext_decision.is_deny(),
+            "bash should be denied for external per config"
+        );
     }
 
     #[test]
@@ -646,7 +663,10 @@ mod tests {
         );
         let resolver = PolicyResolver::new(config);
 
-        let write_call = make_call("write", json!({ "path": file.to_str().unwrap(), "content": "x" }));
+        let write_call = make_call(
+            "write",
+            json!({ "path": file.to_str().unwrap(), "content": "x" }),
+        );
         let decision = resolver.check(&write_call, CallerRole::Owner);
         assert!(
             decision.is_deny(),
@@ -657,7 +677,9 @@ mod tests {
     #[test]
     fn test_all_dir_tool_names_classified() {
         // Verify every tool name we claim is dir-scoped is actually classified that way.
-        let dir_names = ["read", "write", "edit", "append", "grep", "ls", "delete", "bash"];
+        let dir_names = [
+            "read", "write", "edit", "append", "grep", "ls", "delete", "bash",
+        ];
         for name in &dir_names {
             match classify_tool(name) {
                 ToolScope::Dir(_) => { /* correct */ }

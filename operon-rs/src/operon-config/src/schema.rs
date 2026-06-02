@@ -69,10 +69,10 @@ pub(crate) struct AppConfigToml {
 impl Default for AppConfigToml {
     fn default() -> Self {
         Self {
-            provider:     ProviderToml::default(),
-            credentials:  CredentialsToml::default(),
-            policy:       PolicyToml::default(),
-            directories:  Vec::new(),
+            provider: ProviderToml::default(),
+            credentials: CredentialsToml::default(),
+            policy: PolicyToml::default(),
+            directories: Vec::new(),
         }
     }
 }
@@ -106,18 +106,26 @@ pub(crate) struct ProviderToml {
 impl Default for ProviderToml {
     fn default() -> Self {
         Self {
-            name:           default_provider_name(),
-            model_id:       default_model_id(),
+            name: default_provider_name(),
+            model_id: default_model_id(),
             context_window: default_context_window(),
-            max_tokens:     default_max_tokens(),
+            max_tokens: default_max_tokens(),
         }
     }
 }
 
-fn default_provider_name()   -> String { "anthropic".to_string() }
-fn default_model_id()        -> String { "claude-sonnet-4-20250514".to_string() }
-fn default_context_window()  -> usize  { 200_000 }
-fn default_max_tokens()      -> usize  { 16_000 }
+fn default_provider_name() -> String {
+    "anthropic".to_string()
+}
+fn default_model_id() -> String {
+    "claude-sonnet-4-20250514".to_string()
+}
+fn default_context_window() -> usize {
+    200_000
+}
+fn default_max_tokens() -> usize {
+    16_000
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -209,24 +217,21 @@ pub(crate) struct DirPermissionsToml {
 #[derive(Debug, Default, Deserialize)]
 pub(crate) struct DirRolePermsToml {
     // ── Filesystem group shorthand ────────────────────────────────────────────
-
     /// Applies to all fs tools not overridden individually.
     /// Equivalent to setting all of fs_read/write/edit/append/grep/ls/delete.
     pub(crate) fs: Option<PermissionMode>,
 
     // ── Individual filesystem tool overrides ──────────────────────────────────
     // Each takes precedence over `fs` (the group shorthand) when present.
-
-    pub(crate) fs_read:   Option<PermissionMode>,
-    pub(crate) fs_write:  Option<PermissionMode>,
-    pub(crate) fs_edit:   Option<PermissionMode>,
+    pub(crate) fs_read: Option<PermissionMode>,
+    pub(crate) fs_write: Option<PermissionMode>,
+    pub(crate) fs_edit: Option<PermissionMode>,
     pub(crate) fs_append: Option<PermissionMode>,
-    pub(crate) fs_grep:   Option<PermissionMode>,
-    pub(crate) fs_ls:     Option<PermissionMode>,
+    pub(crate) fs_grep: Option<PermissionMode>,
+    pub(crate) fs_ls: Option<PermissionMode>,
     pub(crate) fs_delete: Option<PermissionMode>,
 
     // ── Shell ─────────────────────────────────────────────────────────────────
-
     /// Permission for the bash tool (shell execution) in this directory.
     pub(crate) bash: Option<PermissionMode>,
 }
@@ -254,12 +259,12 @@ impl DirRolePermsToml {
             }
         };
 
-        insert_fs(FsTool::Read,   self.fs_read);
-        insert_fs(FsTool::Write,  self.fs_write);
-        insert_fs(FsTool::Edit,   self.fs_edit);
+        insert_fs(FsTool::Read, self.fs_read);
+        insert_fs(FsTool::Write, self.fs_write);
+        insert_fs(FsTool::Edit, self.fs_edit);
         insert_fs(FsTool::Append, self.fs_append);
-        insert_fs(FsTool::Grep,   self.fs_grep);
-        insert_fs(FsTool::Ls,     self.fs_ls);
+        insert_fs(FsTool::Grep, self.fs_grep);
+        insert_fs(FsTool::Ls, self.fs_ls);
         insert_fs(FsTool::Delete, self.fs_delete);
 
         if let Some(bash_mode) = self.bash {
@@ -359,13 +364,13 @@ pub(crate) fn build_provider_config(
 
     let credentials = match creds.org_id.clone() {
         Some(org) => ApiCredentials::with_key_and_org(raw_key, org),
-        None      => ApiCredentials::with_key(raw_key),
+        None => ApiCredentials::with_key(raw_key),
     };
 
     let model = ModelConfig {
-        model_id:       toml.model_id.clone(),
+        model_id: toml.model_id.clone(),
         context_window: toml.context_window,
-        max_tokens:     toml.max_tokens,
+        max_tokens: toml.max_tokens,
     };
 
     Ok(ProviderConfig {
@@ -386,7 +391,9 @@ pub(crate) fn build_directory_policy(entry: &DirEntryToml) -> DirectoryPolicy {
     let path = if raw_path.starts_with('~') {
         if let Some(home) = dirs::home_dir() {
             // Replace leading ~ with the home directory.
-            let without_tilde = raw_path.trim_start_matches('~').trim_start_matches(['/', '\\']);
+            let without_tilde = raw_path
+                .trim_start_matches('~')
+                .trim_start_matches(['/', '\\']);
             home.join(without_tilde)
         } else {
             PathBuf::from(raw_path)
@@ -398,7 +405,7 @@ pub(crate) fn build_directory_policy(entry: &DirEntryToml) -> DirectoryPolicy {
     DirectoryPolicy {
         path,
         // Clone the toml structs so we can call into_dir_tool_map() which takes self.
-        owner:    entry.permissions.owner.clone_into_dir_tool_map(),
+        owner: entry.permissions.owner.clone_into_dir_tool_map(),
         external: entry.permissions.external.clone_into_dir_tool_map(),
     }
 }
@@ -406,7 +413,7 @@ pub(crate) fn build_directory_policy(entry: &DirEntryToml) -> DirectoryPolicy {
 /// Builds a `GlobalPolicy` from the TOML global section.
 pub(crate) fn build_global_policy(toml: &GlobalPolicyToml) -> GlobalPolicy {
     GlobalPolicy {
-        owner:    toml.owner.clone(),
+        owner: toml.owner.clone(),
         external: toml.external.clone(),
     }
 }
@@ -423,15 +430,15 @@ impl Clone for DirRolePermsToml {
     fn clone(&self) -> Self {
         // All fields are Option<PermissionMode> where PermissionMode is Copy.
         Self {
-            fs:        self.fs,
-            fs_read:   self.fs_read,
-            fs_write:  self.fs_write,
-            fs_edit:   self.fs_edit,
+            fs: self.fs,
+            fs_read: self.fs_read,
+            fs_write: self.fs_write,
+            fs_edit: self.fs_edit,
             fs_append: self.fs_append,
-            fs_grep:   self.fs_grep,
-            fs_ls:     self.fs_ls,
+            fs_grep: self.fs_grep,
+            fs_ls: self.fs_ls,
             fs_delete: self.fs_delete,
-            bash:      self.bash,
+            bash: self.bash,
         }
     }
 }
@@ -460,16 +467,16 @@ mod tests {
         // These names match the serde serialized form of each Provider variant.
         // OpenAI uses explicit #[serde(rename = "open_ai")] to avoid "open_a_i".
         // XAI uses explicit #[serde(rename = "xai")] to avoid "x_a_i".
-        assert_eq!(parse_provider("anthropic").unwrap(),  Provider::Anthropic);
-        assert_eq!(parse_provider("open_ai").unwrap(),    Provider::OpenAI);
-        assert_eq!(parse_provider("gemini").unwrap(),     Provider::Gemini);
-        assert_eq!(parse_provider("ollama").unwrap(),     Provider::Ollama);
-        assert_eq!(parse_provider("deep_seek").unwrap(),  Provider::DeepSeek);
-        assert_eq!(parse_provider("open_router").unwrap(),Provider::OpenRouter);
-        assert_eq!(parse_provider("groq").unwrap(),       Provider::Groq);
-        assert_eq!(parse_provider("mistral").unwrap(),    Provider::Mistral);
-        assert_eq!(parse_provider("xai").unwrap(),        Provider::XAI);
-        assert_eq!(parse_provider("cohere").unwrap(),     Provider::Cohere);
+        assert_eq!(parse_provider("anthropic").unwrap(), Provider::Anthropic);
+        assert_eq!(parse_provider("open_ai").unwrap(), Provider::OpenAI);
+        assert_eq!(parse_provider("gemini").unwrap(), Provider::Gemini);
+        assert_eq!(parse_provider("ollama").unwrap(), Provider::Ollama);
+        assert_eq!(parse_provider("deep_seek").unwrap(), Provider::DeepSeek);
+        assert_eq!(parse_provider("open_router").unwrap(), Provider::OpenRouter);
+        assert_eq!(parse_provider("groq").unwrap(), Provider::Groq);
+        assert_eq!(parse_provider("mistral").unwrap(), Provider::Mistral);
+        assert_eq!(parse_provider("xai").unwrap(), Provider::XAI);
+        assert_eq!(parse_provider("cohere").unwrap(), Provider::Cohere);
     }
 
     #[test]
@@ -486,23 +493,41 @@ mod tests {
             ..Default::default()
         };
         let map = perms.into_dir_tool_map();
-        assert_eq!(map.get(&DirTool::Fs(FsTool::Read)).copied(), Some(PermissionMode::Allow));
-        assert_eq!(map.get(&DirTool::Fs(FsTool::Delete)).copied(), Some(PermissionMode::Allow));
-        assert!(map.get(&DirTool::Bash).is_none(), "bash absent when not set");
+        assert_eq!(
+            map.get(&DirTool::Fs(FsTool::Read)).copied(),
+            Some(PermissionMode::Allow)
+        );
+        assert_eq!(
+            map.get(&DirTool::Fs(FsTool::Delete)).copied(),
+            Some(PermissionMode::Allow)
+        );
+        assert!(
+            map.get(&DirTool::Bash).is_none(),
+            "bash absent when not set"
+        );
     }
 
     #[test]
     fn test_dir_role_perms_individual_overrides_group() {
         // fs = "allow", fs_delete = "deny" — delete should be Deny, others Allow.
         let perms = DirRolePermsToml {
-            fs:        Some(PermissionMode::Allow),
+            fs: Some(PermissionMode::Allow),
             fs_delete: Some(PermissionMode::Deny),
             ..Default::default()
         };
         let map = perms.into_dir_tool_map();
-        assert_eq!(map.get(&DirTool::Fs(FsTool::Read)).copied(),   Some(PermissionMode::Allow));
-        assert_eq!(map.get(&DirTool::Fs(FsTool::Write)).copied(),  Some(PermissionMode::Allow));
-        assert_eq!(map.get(&DirTool::Fs(FsTool::Delete)).copied(), Some(PermissionMode::Deny));
+        assert_eq!(
+            map.get(&DirTool::Fs(FsTool::Read)).copied(),
+            Some(PermissionMode::Allow)
+        );
+        assert_eq!(
+            map.get(&DirTool::Fs(FsTool::Write)).copied(),
+            Some(PermissionMode::Allow)
+        );
+        assert_eq!(
+            map.get(&DirTool::Fs(FsTool::Delete)).copied(),
+            Some(PermissionMode::Deny)
+        );
     }
 
     #[test]
@@ -566,12 +591,24 @@ bash = "deny"
         assert_eq!(parsed.provider.name, "anthropic");
         assert_eq!(parsed.credentials.api_key, "sk-ant-test");
         assert_eq!(parsed.directories.len(), 1);
-        assert_eq!(parsed.directories[0].permissions.owner.fs, Some(PermissionMode::Allow));
-        assert_eq!(parsed.directories[0].permissions.external.bash, Some(PermissionMode::Deny));
+        assert_eq!(
+            parsed.directories[0].permissions.owner.fs,
+            Some(PermissionMode::Allow)
+        );
+        assert_eq!(
+            parsed.directories[0].permissions.external.bash,
+            Some(PermissionMode::Deny)
+        );
 
         // Global policy should have all owner tools set.
         let global_owner = &parsed.policy.global.owner;
-        assert_eq!(global_owner.get(&GlobalTool::Web).copied(), Some(PermissionMode::Allow));
-        assert_eq!(global_owner.get(&GlobalTool::LoadTools).copied(), Some(PermissionMode::Allow));
+        assert_eq!(
+            global_owner.get(&GlobalTool::Web).copied(),
+            Some(PermissionMode::Allow)
+        );
+        assert_eq!(
+            global_owner.get(&GlobalTool::LoadTools).copied(),
+            Some(PermissionMode::Allow)
+        );
     }
 }

@@ -6,7 +6,7 @@
 //! blocking the async runtime.
 
 use crate::args::DeleteArgs;
-use crate::output::{DeletedKind, DeleteOutput};
+use crate::output::{DeleteOutput, DeletedKind};
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 
 /// Executes the delete tool with the given arguments.
@@ -34,10 +34,7 @@ pub async fn execute(call_id: ToolCallId, args: DeleteArgs) -> ToolResult {
             return ToolResult {
                 call_id,
                 name: "delete".to_string(),
-                content: ToolContent::Text(format!(
-                    "path does not exist: {}",
-                    args.path
-                )),
+                content: ToolContent::Text(format!("path does not exist: {}", args.path)),
                 is_error: true,
             };
         }
@@ -45,10 +42,7 @@ pub async fn execute(call_id: ToolCallId, args: DeleteArgs) -> ToolResult {
             return ToolResult {
                 call_id,
                 name: "delete".to_string(),
-                content: ToolContent::Text(format!(
-                    "failed to access path: {}: {}",
-                    args.path, e
-                )),
+                content: ToolContent::Text(format!("failed to access path: {}: {}", args.path, e)),
                 is_error: true,
             };
         }
@@ -75,12 +69,10 @@ pub async fn execute(call_id: ToolCallId, args: DeleteArgs) -> ToolResult {
             // Permanent deletion: use std::fs directly.
             if p.is_dir() {
                 // For directories, recursively remove all contents.
-                std::fs::remove_dir_all(p)
-                    .map_err(|e| format!("failed to delete directory: {}", e))
+                std::fs::remove_dir_all(p).map_err(|e| format!("failed to delete directory: {}", e))
             } else {
                 // For files and symlinks, remove the file.
-                std::fs::remove_file(p)
-                    .map_err(|e| format!("failed to delete file: {}", e))
+                std::fs::remove_file(p).map_err(|e| format!("failed to delete file: {}", e))
             }
         } else {
             // Trash deletion: use the trash crate.
@@ -99,9 +91,7 @@ pub async fn execute(call_id: ToolCallId, args: DeleteArgs) -> ToolResult {
             return ToolResult {
                 call_id,
                 name: "delete".to_string(),
-                content: ToolContent::Text(
-                    "internal error: delete task panicked".to_string(),
-                ),
+                content: ToolContent::Text("internal error: delete task panicked".to_string()),
                 is_error: true,
             };
         }
@@ -125,13 +115,21 @@ pub async fn execute(call_id: ToolCallId, args: DeleteArgs) -> ToolResult {
         format!(
             "Permanently deleted {} ({})",
             args.path,
-            if kind == DeletedKind::Dir { "dir" } else { "file" }
+            if kind == DeletedKind::Dir {
+                "dir"
+            } else {
+                "file"
+            }
         )
     } else {
         format!(
             "Moved {} to trash ({})",
             args.path,
-            if kind == DeletedKind::Dir { "dir" } else { "file" }
+            if kind == DeletedKind::Dir {
+                "dir"
+            } else {
+                "file"
+            }
         )
     };
 
@@ -145,9 +143,9 @@ pub async fn execute(call_id: ToolCallId, args: DeleteArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "delete".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
-            serde_json::json!({ "error": format!("serialization bug: {}", e) })
-        })),
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
+            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        )),
         is_error: false,
     }
 }

@@ -124,7 +124,13 @@ fn anthropic_missing_id() {
     let err = normalize(raw, &Provider::Anthropic).unwrap_err();
 
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "id", provider: "Anthropic" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "id",
+                provider: "Anthropic"
+            }
+        ),
         "expected MissingField for 'id', got: {err}"
     );
 }
@@ -136,7 +142,13 @@ fn anthropic_missing_input() {
     let err = normalize(raw, &Provider::Anthropic).unwrap_err();
 
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "input", provider: "Anthropic" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "input",
+                provider: "Anthropic"
+            }
+        ),
         "expected MissingField for 'input', got: {err}"
     );
 }
@@ -148,7 +160,13 @@ fn anthropic_missing_name() {
     let err = normalize(raw, &Provider::Anthropic).unwrap_err();
 
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "name", provider: "Anthropic" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "name",
+                provider: "Anthropic"
+            }
+        ),
         "expected MissingField for 'name', got: {err}"
     );
 }
@@ -175,7 +193,10 @@ fn openai_valid_normalize() {
     assert_eq!(call.name, "read_file");
     // Arguments must be a parsed object, not the raw string
     assert_eq!(call.arguments, json!({ "path": "/etc/hosts" }));
-    assert!(call.arguments.is_object(), "arguments must be a JSON object");
+    assert!(
+        call.arguments.is_object(),
+        "arguments must be a JSON object"
+    );
 }
 
 #[test]
@@ -211,7 +232,13 @@ fn openai_missing_id() {
     let err = normalize(raw, &Provider::OpenAI).unwrap_err();
 
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "id", provider: "OpenAI" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "id",
+                provider: "OpenAI"
+            }
+        ),
         "expected MissingField for 'id', got: {err}"
     );
 }
@@ -223,7 +250,13 @@ fn openai_missing_function_key() {
     let err = normalize(raw, &Provider::OpenAI).unwrap_err();
 
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "function", provider: "OpenAI" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "function",
+                provider: "OpenAI"
+            }
+        ),
         "expected MissingField for 'function', got: {err}"
     );
 }
@@ -242,7 +275,13 @@ fn openai_malformed_arguments() {
     let err = normalize(raw, &Provider::OpenAI).unwrap_err();
 
     assert!(
-        matches!(err, ToolNormalizeError::ArgumentParseFailed { provider: "OpenAI", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "OpenAI",
+                ..
+            }
+        ),
         "expected ArgumentParseFailed, got: {err}"
     );
 }
@@ -274,7 +313,11 @@ fn gemini_valid_normalize() {
     );
     // The ID string after the prefix must be 16 hex characters
     let hex_part = call.id.0.strip_prefix("gemini-").unwrap();
-    assert_eq!(hex_part.len(), 16, "hex part must be 16 chars, got: {hex_part}");
+    assert_eq!(
+        hex_part.len(),
+        16,
+        "hex part must be 16 chars, got: {hex_part}"
+    );
 }
 
 #[test]
@@ -287,7 +330,10 @@ fn gemini_id_is_deterministic() {
     let call1 = normalize(raw.clone(), &Provider::Gemini).unwrap();
     let call2 = normalize(raw, &Provider::Gemini).unwrap();
 
-    assert_eq!(call1.id, call2.id, "Gemini IDs must be deterministic for the same input");
+    assert_eq!(
+        call1.id, call2.id,
+        "Gemini IDs must be deterministic for the same input"
+    );
 }
 
 #[test]
@@ -331,7 +377,10 @@ fn gemini_missing_function_call() {
     assert!(
         matches!(
             err,
-            ToolNormalizeError::MissingField { field: "functionCall", provider: "Gemini" }
+            ToolNormalizeError::MissingField {
+                field: "functionCall",
+                provider: "Gemini"
+            }
         ),
         "expected MissingField for 'functionCall', got: {err}"
     );
@@ -346,7 +395,10 @@ fn gemini_missing_args() {
     assert!(
         matches!(
             err,
-            ToolNormalizeError::MissingField { field: "functionCall.args", provider: "Gemini" }
+            ToolNormalizeError::MissingField {
+                field: "functionCall.args",
+                provider: "Gemini"
+            }
         ),
         "expected MissingField for 'functionCall.args', got: {err}"
     );
@@ -398,7 +450,13 @@ fn ollama_missing_id() {
     let err = normalize(raw, &Provider::Ollama).unwrap_err();
     // Error should mention "Ollama", not "OpenAI"
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "id", provider: "Ollama" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "id",
+                provider: "Ollama"
+            }
+        ),
         "expected MissingField for Ollama, got: {err}"
     );
 }
@@ -412,7 +470,13 @@ fn ollama_malformed_arguments() {
     });
     let err = normalize(raw, &Provider::Ollama).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::ArgumentParseFailed { provider: "Ollama", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "Ollama",
+                ..
+            }
+        ),
         "expected ArgumentParseFailed for Ollama, got: {err}"
     );
 }
@@ -458,7 +522,13 @@ fn deepseek_missing_id() {
     });
     let err = normalize(raw, &Provider::DeepSeek).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "id", provider: "DeepSeek" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "id",
+                provider: "DeepSeek"
+            }
+        ),
         "expected MissingField for DeepSeek, got: {err}"
     );
 }
@@ -472,7 +542,13 @@ fn deepseek_malformed_arguments() {
     });
     let err = normalize(raw, &Provider::DeepSeek).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::ArgumentParseFailed { provider: "DeepSeek", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "DeepSeek",
+                ..
+            }
+        ),
         "expected ArgumentParseFailed for DeepSeek, got: {err}"
     );
 }
@@ -515,7 +591,13 @@ fn groq_missing_function_key() {
     let raw = json!({ "id": "call_groq_99", "type": "function" });
     let err = normalize(raw, &Provider::Groq).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "function", provider: "Groq" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "function",
+                provider: "Groq"
+            }
+        ),
         "expected MissingField for Groq 'function' key, got: {err}"
     );
 }
@@ -529,7 +611,13 @@ fn groq_malformed_arguments() {
     });
     let err = normalize(raw, &Provider::Groq).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::ArgumentParseFailed { provider: "Groq", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "Groq",
+                ..
+            }
+        ),
         "expected ArgumentParseFailed for Groq, got: {err}"
     );
 }
@@ -576,7 +664,13 @@ fn mistral_missing_id() {
     });
     let err = normalize(raw, &Provider::Mistral).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "id", provider: "Mistral" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "id",
+                provider: "Mistral"
+            }
+        ),
         "expected MissingField for Mistral, got: {err}"
     );
 }
@@ -590,7 +684,13 @@ fn mistral_malformed_arguments() {
     });
     let err = normalize(raw, &Provider::Mistral).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::ArgumentParseFailed { provider: "Mistral", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "Mistral",
+                ..
+            }
+        ),
         "expected ArgumentParseFailed for Mistral, got: {err}"
     );
 }
@@ -636,7 +736,13 @@ fn xai_missing_id() {
     });
     let err = normalize(raw, &Provider::XAI).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "id", provider: "xAI" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "id",
+                provider: "xAI"
+            }
+        ),
         "expected MissingField for xAI, got: {err}"
     );
 }
@@ -650,7 +756,13 @@ fn xai_malformed_arguments() {
     });
     let err = normalize(raw, &Provider::XAI).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::ArgumentParseFailed { provider: "xAI", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "xAI",
+                ..
+            }
+        ),
         "expected ArgumentParseFailed for xAI, got: {err}"
     );
 }
@@ -711,7 +823,13 @@ fn openrouter_unknown_shape() {
     let err = normalize(raw, &Provider::OpenRouter).unwrap_err();
 
     assert!(
-        matches!(err, ToolNormalizeError::UnknownShape { provider: "OpenRouter", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::UnknownShape {
+                provider: "OpenRouter",
+                ..
+            }
+        ),
         "expected UnknownShape for OpenRouter, got: {err}"
     );
 }
@@ -726,7 +844,13 @@ fn openrouter_openai_shape_malformed_arguments() {
     });
     let err = normalize(raw, &Provider::OpenRouter).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::ArgumentParseFailed { provider: "OpenRouter", .. }),
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "OpenRouter",
+                ..
+            }
+        ),
         "expected ArgumentParseFailed for OpenRouter, got: {err}"
     );
 }
@@ -794,18 +918,18 @@ fn cohere_denormalize_definition_type_mapping() {
     let wire = denormalize_definition(&def, &Provider::Cohere).unwrap();
     let pd = wire.get("parameter_definitions").unwrap();
 
-    assert_eq!(pd["str_field"]["type"],  "str");
-    assert_eq!(pd["int_field"]["type"],  "int");
-    assert_eq!(pd["num_field"]["type"],  "float");
+    assert_eq!(pd["str_field"]["type"], "str");
+    assert_eq!(pd["int_field"]["type"], "int");
+    assert_eq!(pd["num_field"]["type"], "float");
     assert_eq!(pd["bool_field"]["type"], "bool");
-    assert_eq!(pd["obj_field"]["type"],  "dict");
+    assert_eq!(pd["obj_field"]["type"], "dict");
     // "array" has no Cohere equivalent — falls back to "str"
-    assert_eq!(pd["arr_field"]["type"],  "str");
+    assert_eq!(pd["arr_field"]["type"], "str");
 
     // Only the required fields should have required=true
-    assert_eq!(pd["str_field"]["required"],  true);
-    assert_eq!(pd["int_field"]["required"],  true);
-    assert_eq!(pd["num_field"]["required"],  false);
+    assert_eq!(pd["str_field"]["required"], true);
+    assert_eq!(pd["int_field"]["required"], true);
+    assert_eq!(pd["num_field"]["required"], false);
 }
 
 #[test]
@@ -817,7 +941,9 @@ fn cohere_denormalize_result_text() {
     assert_eq!(wire["tool_call_id"], "tool_call_id_1");
 
     // Cohere uses an array of content blocks
-    let content = wire["content"].as_array().expect("content must be an array");
+    let content = wire["content"]
+        .as_array()
+        .expect("content must be an array");
     assert_eq!(content.len(), 1);
     assert_eq!(content[0]["type"], "text");
     assert_eq!(content[0]["text"], "contents of /etc/hosts");
@@ -828,7 +954,9 @@ fn cohere_denormalize_result_json_content() {
     let result = make_json_tool_result("tool_call_id_2", "read_file");
     let wire = denormalize_result(&result, &Provider::Cohere).unwrap();
 
-    let content = wire["content"].as_array().expect("content must be an array");
+    let content = wire["content"]
+        .as_array()
+        .expect("content must be an array");
     assert_eq!(content[0]["type"], "text");
     // JSON content is serialized to a compact string
     assert!(content[0]["text"].is_string());
@@ -843,7 +971,13 @@ fn cohere_missing_id() {
     });
     let err = normalize(raw, &Provider::Cohere).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "id", provider: "Cohere" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "id",
+                provider: "Cohere"
+            }
+        ),
         "expected MissingField for 'id', got: {err}"
     );
 }
@@ -854,7 +988,13 @@ fn cohere_missing_tool_call_key() {
     let raw = json!({ "id": "tool_call_id_1", "type": "tool_call" });
     let err = normalize(raw, &Provider::Cohere).unwrap_err();
     assert!(
-        matches!(err, ToolNormalizeError::MissingField { field: "tool_call", provider: "Cohere" }),
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "tool_call",
+                provider: "Cohere"
+            }
+        ),
         "expected MissingField for 'tool_call', got: {err}"
     );
 }

@@ -47,7 +47,7 @@ pub mod types;
 
 // Re-export public types at the root level of the crate for user convenience.
 pub use error::ReasoningNormalizeError;
-pub use provider::{Provider, FromWireReasoning, ToWireReasoning};
+pub use provider::{FromWireReasoning, Provider, ToWireReasoning};
 pub use types::{ReasoningBlock, ReasoningSignature};
 
 use serde_json::Value;

@@ -73,7 +73,7 @@ pub fn from_wire_reasoning(raw: Value) -> Result<Vec<ReasoningBlock>, ReasoningN
     // Build canonical block — with or without the opaque signature token
     let block = match signature {
         Some(sig) => ReasoningBlock::with_signature(thinking, sig),
-        None      => ReasoningBlock::new(thinking),
+        None => ReasoningBlock::new(thinking),
     };
 
     Ok(vec![block])

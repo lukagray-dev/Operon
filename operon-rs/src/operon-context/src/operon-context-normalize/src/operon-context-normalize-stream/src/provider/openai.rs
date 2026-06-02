@@ -15,10 +15,8 @@ pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
 /// Parse one OpenAI-compatible stream payload line using a custom provider
 /// label in errors (used by delegating provider modules).
 pub fn parse_line_with_provider(line: &str, provider: &'static str) -> Result<Vec<StreamEvent>> {
-    let raw: Value = serde_json::from_str(line).map_err(|source| StreamNormalizeError::MalformedJson {
-        provider,
-        source,
-    })?;
+    let raw: Value = serde_json::from_str(line)
+        .map_err(|source| StreamNormalizeError::MalformedJson { provider, source })?;
     parse_value_with_provider(raw, provider)
 }
 
@@ -56,13 +54,12 @@ pub fn parse_value_with_provider(raw: Value, provider: &'static str) -> Result<V
 
             if let Some(tool_calls) = delta.get("tool_calls").and_then(Value::as_array) {
                 for tool_call in tool_calls {
-                    let index = tool_call
-                        .get("index")
-                        .and_then(Value::as_u64)
-                        .ok_or(StreamNormalizeError::MissingField {
+                    let index = tool_call.get("index").and_then(Value::as_u64).ok_or(
+                        StreamNormalizeError::MissingField {
                             field: "choices[].delta.tool_calls[].index",
                             provider,
-                        })? as usize;
+                        },
+                    )? as usize;
 
                     let id = tool_call
                         .get("id")

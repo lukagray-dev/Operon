@@ -12,3 +12,4 @@ repository.workspace = true
 # No async, no I/O, no tokio. Any workspace crate can depend on it without
 # pulling in a runtime.
 serde = { workspace = true }
+operon-tools-core = { workspace = true }

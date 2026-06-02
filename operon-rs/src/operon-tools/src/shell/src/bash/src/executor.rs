@@ -59,31 +59,16 @@ pub async fn execute(call_id: ToolCallId, args: BashArgs) -> ToolResult {
     if !cwd_path.is_absolute() {
         return make_error(
             call_id,
-            &format!(
-                "cwd must be an absolute path, got: {:?}",
-                args.cwd
-            ),
+            &format!("cwd must be an absolute path, got: {:?}", args.cwd),
         );
     }
 
     if !cwd_path.exists() {
-        return make_error(
-            call_id,
-            &format!(
-                "cwd does not exist: {:?}",
-                args.cwd
-            ),
-        );
+        return make_error(call_id, &format!("cwd does not exist: {:?}", args.cwd));
     }
 
     if !cwd_path.is_dir() {
-        return make_error(
-            call_id,
-            &format!(
-                "cwd is not a directory: {:?}",
-                args.cwd
-            ),
-        );
+        return make_error(call_id, &format!("cwd is not a directory: {:?}", args.cwd));
     }
 
     // ── Step 3: Spawn the subprocess ───────────────────────────────────────────
@@ -103,10 +88,7 @@ pub async fn execute(call_id: ToolCallId, args: BashArgs) -> ToolResult {
     {
         Ok(c) => c,
         Err(e) => {
-            return make_error(
-                call_id,
-                &format!("failed to spawn process: {}", e),
-            );
+            return make_error(call_id, &format!("failed to spawn process: {}", e));
         }
     };
 
@@ -136,43 +118,35 @@ pub async fn execute(call_id: ToolCallId, args: BashArgs) -> ToolResult {
     // If timeout_ms is set, wrap the entire read+wait in tokio::time::timeout.
     // On timeout: kill the process, drain whatever partial output was buffered,
     // and return timed_out=true with exit_code=-1.
-    let (timed_out, stdout_bytes, stderr_bytes, exit_code) =
-        if let Some(ms) = args.timeout_ms {
-            match tokio::time::timeout(
-                std::time::Duration::from_millis(ms),
-                async {
-                    let (out, err, status) = tokio::join!(read_stdout, read_stderr, wait);
-                    (out, err, status)
-                },
-            )
-            .await
-            {
-                Ok((out, err, status)) => {
-                    // Command finished within the timeout window.
-                    let code = status
-                        .map(|s| s.code().unwrap_or(-1))
-                        .unwrap_or(-1);
-                    (false, out, err, code)
-                }
-                Err(_timeout) => {
-                    // Timeout expired — kill the subprocess.
-                    let _ = child.kill().await;
-                    // Drain whatever partial output was buffered before the kill.
-                    let mut out = Vec::new();
-                    let mut err = Vec::new();
-                    let _ = stdout.read_to_end(&mut out).await;
-                    let _ = stderr.read_to_end(&mut err).await;
-                    (true, out, err, -1i32)
-                }
-            }
-        } else {
-            // No timeout — wait indefinitely for the process to finish.
+    let (timed_out, stdout_bytes, stderr_bytes, exit_code) = if let Some(ms) = args.timeout_ms {
+        match tokio::time::timeout(std::time::Duration::from_millis(ms), async {
             let (out, err, status) = tokio::join!(read_stdout, read_stderr, wait);
-            let code = status
-                .map(|s| s.code().unwrap_or(-1))
-                .unwrap_or(-1);
-            (false, out, err, code)
-        };
+            (out, err, status)
+        })
+        .await
+        {
+            Ok((out, err, status)) => {
+                // Command finished within the timeout window.
+                let code = status.map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
+                (false, out, err, code)
+            }
+            Err(_timeout) => {
+                // Timeout expired — kill the subprocess.
+                let _ = child.kill().await;
+                // Drain whatever partial output was buffered before the kill.
+                let mut out = Vec::new();
+                let mut err = Vec::new();
+                let _ = stdout.read_to_end(&mut out).await;
+                let _ = stderr.read_to_end(&mut err).await;
+                (true, out, err, -1i32)
+            }
+        }
+    } else {
+        // No timeout — wait indefinitely for the process to finish.
+        let (out, err, status) = tokio::join!(read_stdout, read_stderr, wait);
+        let code = status.map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
+        (false, out, err, code)
+    };
 
     // ── Step 7: Merge stdout + stderr and truncate ─────────────────────────────
     // Stdout first, then stderr — same order as `2>&1` redirection in shells.

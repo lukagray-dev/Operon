@@ -51,10 +51,13 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
 }
 
 fn normalize_native_envelope(raw: Value) -> Result<ConversationMessage> {
-    let message = raw.get("message").cloned().ok_or(MessageNormalizeError::MissingField {
-        field: "message",
-        provider: PROVIDER,
-    })?;
+    let message = raw
+        .get("message")
+        .cloned()
+        .ok_or(MessageNormalizeError::MissingField {
+            field: "message",
+            provider: PROVIDER,
+        })?;
 
     let done_reason = raw
         .get("done_reason")
@@ -64,14 +67,17 @@ fn normalize_native_envelope(raw: Value) -> Result<ConversationMessage> {
     normalize_native_message(message, done_reason)
 }
 
-fn normalize_native_message(raw: Value, done_reason: Option<String>) -> Result<ConversationMessage> {
-    let role_str = raw
-        .get("role")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "role",
-            provider: PROVIDER,
-        })?;
+fn normalize_native_message(
+    raw: Value,
+    done_reason: Option<String>,
+) -> Result<ConversationMessage> {
+    let role_str =
+        raw.get("role")
+            .and_then(Value::as_str)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "role",
+                provider: PROVIDER,
+            })?;
 
     let role = match role_str {
         "system" => MessageRole::System,
@@ -111,7 +117,8 @@ fn normalize_native_message(raw: Value, done_reason: Option<String>) -> Result<C
                 } else {
                     native_tool_call_to_openai_shape(tc)?
                 };
-                let call = normalize_tool_call(candidate, &ToolProvider::Ollama).map_err(map_tool_err)?;
+                let call =
+                    normalize_tool_call(candidate, &ToolProvider::Ollama).map_err(map_tool_err)?;
                 content.push(ContentBlock::ToolCall(call));
             }
         }
@@ -123,9 +130,16 @@ fn normalize_native_message(raw: Value, done_reason: Option<String>) -> Result<C
         stop_reason: None,
     };
 
-    let stop_raw = done_reason.or_else(|| raw.get("done_reason").and_then(Value::as_str).map(str::to_string));
+    let stop_raw = done_reason.or_else(|| {
+        raw.get("done_reason")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    });
     if let Some(stop) = stop_raw {
-        out.stop_reason = Some(normalize_stop_reason(&stop, &crate::provider::Provider::Ollama));
+        out.stop_reason = Some(normalize_stop_reason(
+            &stop,
+            &crate::provider::Provider::Ollama,
+        ));
     }
 
     Ok(out)
@@ -176,22 +190,20 @@ fn parse_native_content(raw_content: Option<&Value>) -> Result<Vec<ContentBlock>
 fn parse_typed_content_blocks(arr: &[Value]) -> Result<Vec<ContentBlock>> {
     let mut out = Vec::new();
     for block in arr {
-        let ty = block
-            .get("type")
-            .and_then(Value::as_str)
-            .ok_or(MessageNormalizeError::MissingField {
+        let ty = block.get("type").and_then(Value::as_str).ok_or(
+            MessageNormalizeError::MissingField {
                 field: "content[].type",
                 provider: PROVIDER,
-            })?;
+            },
+        )?;
         match ty {
             "text" => {
-                let text = block
-                    .get("text")
-                    .and_then(Value::as_str)
-                    .ok_or(MessageNormalizeError::MissingField {
+                let text = block.get("text").and_then(Value::as_str).ok_or(
+                    MessageNormalizeError::MissingField {
                         field: "content[].text",
                         provider: PROVIDER,
-                    })?;
+                    },
+                )?;
                 out.push(ContentBlock::Text(text.to_string()));
             }
             "image_url" => {
@@ -233,13 +245,13 @@ fn parse_image_source(url: &str) -> ImageSource {
 }
 
 fn native_tool_call_to_openai_shape(raw: &Value) -> Result<Value> {
-    let name = raw
-        .get("name")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "tool_calls[].name",
-            provider: PROVIDER,
-        })?;
+    let name =
+        raw.get("name")
+            .and_then(Value::as_str)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "tool_calls[].name",
+                provider: PROVIDER,
+            })?;
     let args = raw.get("arguments").cloned().unwrap_or_else(|| json!({}));
     let id = raw
         .get("id")
@@ -316,8 +328,9 @@ fn denormalize_native_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                 }
 
                 if !reasoning_blocks.is_empty() {
-                    let thinking = denormalize_reasoning(&reasoning_blocks, &ReasoningProvider::Ollama)
-                        .map_err(map_reasoning_err)?;
+                    let thinking =
+                        denormalize_reasoning(&reasoning_blocks, &ReasoningProvider::Ollama)
+                            .map_err(map_reasoning_err)?;
                     obj.insert("thinking".to_string(), thinking);
                 }
 
@@ -326,7 +339,8 @@ fn denormalize_native_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                         obj.insert(
                             "done_reason".to_string(),
                             Value::String(
-                                denormalize_stop_reason(stop, &crate::provider::Provider::Ollama).to_string(),
+                                denormalize_stop_reason(stop, &crate::provider::Provider::Ollama)
+                                    .to_string(),
                             ),
                         );
                     }
@@ -337,7 +351,8 @@ fn denormalize_native_messages(msgs: &[ConversationMessage]) -> Result<Value> {
             MessageRole::Tool => {
                 let tool_results = extract_tool_results(&msg.content)?;
                 for tr in tool_results {
-                    let mut wire = denormalize_tool_result(tr, &ToolProvider::OpenAI).map_err(map_tool_err)?;
+                    let mut wire =
+                        denormalize_tool_result(tr, &ToolProvider::OpenAI).map_err(map_tool_err)?;
                     if let Some(obj) = wire.as_object_mut() {
                         obj.insert("role".to_string(), Value::String("tool".to_string()));
                     }
@@ -383,7 +398,8 @@ fn render_text_and_images(blocks: &[ContentBlock]) -> Result<Value> {
             ContentBlock::ToolCall(_) | ContentBlock::ToolResult(_) => {
                 return Err(MessageNormalizeError::UnsupportedContentType {
                     provider: PROVIDER,
-                    detail: "tool blocks must be serialized via `tool_calls` or role=tool messages".to_string(),
+                    detail: "tool blocks must be serialized via `tool_calls` or role=tool messages"
+                        .to_string(),
                 })
             }
             ContentBlock::Document(_) => {
@@ -450,14 +466,16 @@ fn map_tool_err(err: operon_context_normalize_tools::ToolNormalizeError) -> Mess
     }
 }
 
-fn map_reasoning_err(err: operon_context_normalize_reasoning::ReasoningNormalizeError) -> MessageNormalizeError {
+fn map_reasoning_err(
+    err: operon_context_normalize_reasoning::ReasoningNormalizeError,
+) -> MessageNormalizeError {
     match err {
-        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField { field, .. } => {
-            MessageNormalizeError::MissingField {
-                field,
-                provider: PROVIDER,
-            }
-        }
+        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField {
+            field, ..
+        } => MessageNormalizeError::MissingField {
+            field,
+            provider: PROVIDER,
+        },
         other => MessageNormalizeError::UnsupportedContentType {
             provider: PROVIDER,
             detail: other.to_string(),

@@ -18,8 +18,8 @@
 // DO NOT add Clone to SecretString unless explicitly required — limiting copies
 // reduces the surface area for accidental exposure.
 
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SecretString
@@ -42,7 +42,7 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(key.expose(), "sk-abc123");
 /// ```
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(transparent)]  // serializes/deserializes as a plain string, not a struct
+#[serde(transparent)] // serializes/deserializes as a plain string, not a struct
 pub struct SecretString(String);
 
 impl SecretString {
@@ -121,12 +121,12 @@ impl From<&str> for SecretString {
 /// - **OpenRouter**: `api_key` required. No org ID.
 /// - All others: `api_key` only.
 ///
-/// # TODO: operon-config migration
-///
-/// `ApiCredentials` is currently constructed manually in tests and the TUI.
-/// Once `operon-config` is built, it will be loaded from:
-///   - TOML config file (`~/.config/operon/config.toml`)
+/// `ApiCredentials` is loaded by `operon-config` from:
+///   - TOML config file (`~/.operon/config.toml`)
 ///   - Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.)
+///
+/// The frontend still constructs it manually when building tests or ad-hoc
+/// provider configs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiCredentials {
     /// The provider's API key.

@@ -48,13 +48,12 @@ pub fn normalize_message_with_provider_and_reasoning(
 ) -> Result<ConversationMessage> {
     let (message_value, finish_reason) = extract_message_and_finish_reason(raw, provider_name)?;
 
-    let role_str = message_value
-        .get("role")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
+    let role_str = message_value.get("role").and_then(Value::as_str).ok_or(
+        MessageNormalizeError::MissingField {
             field: "role",
             provider: provider_name,
-        })?;
+        },
+    )?;
 
     let role = parse_openai_role(role_str, provider_name)?;
 
@@ -73,8 +72,8 @@ pub fn normalize_message_with_provider_and_reasoning(
         // reasoning blocks before normal answer text as requested.
         if let (Some(field), Some(rp)) = (reasoning_field, reasoning_provider) {
             if let Some(reasoning_raw) = message_value.get(field).cloned() {
-                let mut reasoning_blocks =
-                    normalize_reasoning(reasoning_raw, &rp).map_err(|e| map_reasoning_err(e, provider_name))?;
+                let mut reasoning_blocks = normalize_reasoning(reasoning_raw, &rp)
+                    .map_err(|e| map_reasoning_err(e, provider_name))?;
                 let mut canonical = Vec::with_capacity(reasoning_blocks.len() + content.len());
                 for rb in reasoning_blocks.drain(..) {
                     canonical.push(ContentBlock::Reasoning(rb));
@@ -86,11 +85,9 @@ pub fn normalize_message_with_provider_and_reasoning(
 
         if let Some(tool_calls) = message_value.get("tool_calls").and_then(Value::as_array) {
             for tc in tool_calls {
-                let tool_call = normalize_tool_call(
-                    tc.clone(),
-                    &tool_provider_from_name(provider_name),
-                )
-                .map_err(|e| map_tool_err(e, provider_name))?;
+                let tool_call =
+                    normalize_tool_call(tc.clone(), &tool_provider_from_name(provider_name))
+                        .map_err(|e| map_tool_err(e, provider_name))?;
                 content.push(ContentBlock::ToolCall(tool_call));
             }
         }
@@ -103,7 +100,10 @@ pub fn normalize_message_with_provider_and_reasoning(
     };
 
     if let Some(raw_reason) = finish_reason {
-        out.stop_reason = Some(normalize_stop_reason(&raw_reason, &provider_from_name(provider_name)));
+        out.stop_reason = Some(normalize_stop_reason(
+            &raw_reason,
+            &provider_from_name(provider_name),
+        ));
     }
 
     Ok(out)
@@ -143,7 +143,8 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                 wire_messages.push(Value::Object(obj));
             }
             MessageRole::User => {
-                let content_value = render_openai_text_image_content(&msg.content, provider_name, true)?;
+                let content_value =
+                    render_openai_text_image_content(&msg.content, provider_name, true)?;
                 let mut obj = serde_json::Map::new();
                 obj.insert("role".to_string(), Value::String("user".to_string()));
                 obj.insert("content".to_string(), content_value);
@@ -151,7 +152,8 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                     obj.insert(
                         "finish_reason".to_string(),
                         Value::String(
-                            denormalize_stop_reason(stop, &provider_from_name(provider_name)).to_string(),
+                            denormalize_stop_reason(stop, &provider_from_name(provider_name))
+                                .to_string(),
                         ),
                     );
                 }
@@ -205,7 +207,8 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                     obj.insert(
                         "finish_reason".to_string(),
                         Value::String(
-                            denormalize_stop_reason(stop, &provider_from_name(provider_name)).to_string(),
+                            denormalize_stop_reason(stop, &provider_from_name(provider_name))
+                                .to_string(),
                         ),
                     );
                 }
@@ -215,11 +218,8 @@ pub fn denormalize_messages_with_provider_and_reasoning(
             MessageRole::Tool => {
                 let tool_results = extract_tool_results(&msg.content, provider_name)?;
                 for tr in tool_results {
-                    let wire = denormalize_tool_result(
-                        tr,
-                        &tool_provider_from_name(provider_name),
-                    )
-                    .map_err(|e| map_tool_err(e, provider_name))?;
+                    let wire = denormalize_tool_result(tr, &tool_provider_from_name(provider_name))
+                        .map_err(|e| map_tool_err(e, provider_name))?;
                     wire_messages.push(wire);
                 }
             }
@@ -301,26 +301,27 @@ fn parse_content_field(
     }
 }
 
-fn parse_openai_content_array(arr: &[Value], provider_name: &'static str) -> Result<Vec<ContentBlock>> {
+fn parse_openai_content_array(
+    arr: &[Value],
+    provider_name: &'static str,
+) -> Result<Vec<ContentBlock>> {
     let mut out = Vec::new();
     for block in arr {
-        let t = block
-            .get("type")
-            .and_then(Value::as_str)
-            .ok_or(MessageNormalizeError::MissingField {
+        let t = block.get("type").and_then(Value::as_str).ok_or(
+            MessageNormalizeError::MissingField {
                 field: "content[].type",
                 provider: provider_name,
-            })?;
+            },
+        )?;
 
         match t {
             "text" | "input_text" | "output_text" => {
-                let text = block
-                    .get("text")
-                    .and_then(Value::as_str)
-                    .ok_or(MessageNormalizeError::MissingField {
+                let text = block.get("text").and_then(Value::as_str).ok_or(
+                    MessageNormalizeError::MissingField {
                         field: "content[].text",
                         provider: provider_name,
-                    })?;
+                    },
+                )?;
                 out.push(ContentBlock::Text(text.to_string()));
             }
             "image_url" => {
@@ -361,7 +362,10 @@ fn parse_image_source_from_url(url: &str) -> ImageSource {
     ImageSource::Url(url.to_string())
 }
 
-fn normalize_tool_role_message(message_value: Value, provider_name: &'static str) -> Result<ConversationMessage> {
+fn normalize_tool_role_message(
+    message_value: Value,
+    provider_name: &'static str,
+) -> Result<ConversationMessage> {
     let call_id = message_value
         .get("tool_call_id")
         .and_then(Value::as_str)
@@ -483,7 +487,10 @@ fn render_openai_text_image_content(
     Ok(Value::Array(typed_blocks))
 }
 
-fn render_system_content_as_string(content: &[ContentBlock], provider_name: &'static str) -> Result<String> {
+fn render_system_content_as_string(
+    content: &[ContentBlock],
+    provider_name: &'static str,
+) -> Result<String> {
     let mut text = Vec::new();
     for block in content {
         match block {
@@ -535,7 +542,10 @@ fn tool_call_to_openai_wire(call: &ToolCall) -> Value {
     })
 }
 
-fn map_tool_err(err: operon_context_normalize_tools::ToolNormalizeError, provider_name: &'static str) -> MessageNormalizeError {
+fn map_tool_err(
+    err: operon_context_normalize_tools::ToolNormalizeError,
+    provider_name: &'static str,
+) -> MessageNormalizeError {
     match err {
         operon_context_normalize_tools::ToolNormalizeError::MissingField { field, .. } => {
             MessageNormalizeError::MissingField {
@@ -555,12 +565,12 @@ fn map_reasoning_err(
     provider_name: &'static str,
 ) -> MessageNormalizeError {
     match err {
-        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField { field, .. } => {
-            MessageNormalizeError::MissingField {
-                field,
-                provider: provider_name,
-            }
-        }
+        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField {
+            field, ..
+        } => MessageNormalizeError::MissingField {
+            field,
+            provider: provider_name,
+        },
         other => MessageNormalizeError::UnsupportedContentType {
             provider: provider_name,
             detail: other.to_string(),

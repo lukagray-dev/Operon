@@ -35,7 +35,9 @@ pub enum StreamNormalizeError {
     },
 
     /// Assembled tool arguments could not be parsed as valid JSON.
-    #[error("failed to parse assembled tool arguments for {provider} tool index {index}: {source}")]
+    #[error(
+        "failed to parse assembled tool arguments for {provider} tool index {index}: {source}"
+    )]
     ToolArgsParseFailed {
         /// Provider label used in diagnostics.
         provider: &'static str,

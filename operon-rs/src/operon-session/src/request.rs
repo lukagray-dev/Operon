@@ -18,8 +18,8 @@
 // re-export `Provider` from `operon_providers`. They are the same type — no
 // conversion function is needed. We import directly from operon_providers here.
 
-use operon_context_normalize_messages::{ConversationMessage, denormalize_messages};
-use operon_context_normalize_tools::{ToolDefinition, denormalize_definition};
+use operon_context_normalize_messages::{denormalize_messages, ConversationMessage};
+use operon_context_normalize_tools::{denormalize_definition, ToolDefinition};
 use operon_providers::Provider;
 use serde_json::{json, Value};
 
@@ -58,7 +58,7 @@ pub fn build_request(
 
     // Extract the two relevant fields from the wire envelope.
     let messages_arr = wire["messages"].clone();
-    let system_val   = wire["system"].clone();
+    let system_val = wire["system"].clone();
 
     // ── Step 2: Denormalize tool definitions ──────────────────────────────────
     // Each ToolDefinition is converted independently. The provider enum selects
@@ -131,16 +131,16 @@ pub fn build_request(
 /// This function is kept as a pure static lookup for reference and testing.
 pub fn provider_endpoint(provider: &Provider) -> &'static str {
     match provider {
-        Provider::Anthropic  => "https://api.anthropic.com/v1/messages",
-        Provider::OpenAI     => "https://api.openai.com/v1/chat/completions",
-        Provider::DeepSeek   => "https://api.deepseek.com/v1/chat/completions",
+        Provider::Anthropic => "https://api.anthropic.com/v1/messages",
+        Provider::OpenAI => "https://api.openai.com/v1/chat/completions",
+        Provider::DeepSeek => "https://api.deepseek.com/v1/chat/completions",
         Provider::OpenRouter => "https://openrouter.ai/api/v1/chat/completions",
-        Provider::Groq       => "https://api.groq.com/openai/v1/chat/completions",
-        Provider::Mistral    => "https://api.mistral.ai/v1/chat/completions",
-        Provider::XAI        => "https://api.x.ai/v1/chat/completions",
-        Provider::Ollama     => "http://localhost:11434/v1/chat/completions",
-        Provider::Gemini     => "https://generativelanguage.googleapis.com/v1beta/models",
-        Provider::Cohere     => "https://api.cohere.com/v2/chat",
+        Provider::Groq => "https://api.groq.com/openai/v1/chat/completions",
+        Provider::Mistral => "https://api.mistral.ai/v1/chat/completions",
+        Provider::XAI => "https://api.x.ai/v1/chat/completions",
+        Provider::Ollama => "http://localhost:11434/v1/chat/completions",
+        Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
+        Provider::Cohere => "https://api.cohere.com/v2/chat",
     }
 }
 
@@ -167,9 +167,9 @@ mod tests {
     /// Helper: build a single no-arg tool definition for testing.
     fn simple_tool() -> ToolDefinition {
         ToolDefinition {
-            name:        "ping".to_string(),
+            name: "ping".to_string(),
             description: "Returns pong.".to_string(),
-            parameters:  json!({
+            parameters: json!({
                 "type": "object",
                 "properties": {},
                 "required": []
@@ -191,9 +191,9 @@ mod tests {
         )
         .expect("build_request should succeed");
 
-        assert_eq!(body["model"],      "claude-sonnet-4-20250514");
+        assert_eq!(body["model"], "claude-sonnet-4-20250514");
         assert_eq!(body["max_tokens"], 1024);
-        assert_eq!(body["stream"],     true);
+        assert_eq!(body["stream"], true);
         assert!(body["messages"].is_array());
     }
 
@@ -221,9 +221,9 @@ mod tests {
     #[test]
     fn anthropic_body_includes_tools_when_provided() {
         // When tool definitions are supplied, they should appear in the body.
-        let msgs  = simple_messages();
+        let msgs = simple_messages();
         let tools = vec![simple_tool()];
-        let body  = build_request(
+        let body = build_request(
             &Provider::Anthropic,
             "claude-sonnet-4-20250514",
             1024,

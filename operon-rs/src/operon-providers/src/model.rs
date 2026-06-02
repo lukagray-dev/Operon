@@ -78,86 +78,142 @@ impl ModelConfig {
 
     /// Claude Sonnet 4 — balanced performance and speed (Anthropic's sweet spot model).
     pub fn claude_sonnet_4() -> Self {
-        Self { model_id: "claude-sonnet-4-20250514".to_string(), context_window: 200_000, max_tokens: 16_000 }
+        Self {
+            model_id: "claude-sonnet-4-20250514".to_string(),
+            context_window: 200_000,
+            max_tokens: 16_000,
+        }
     }
 
     /// Claude Opus 4 — highest capability Anthropic model, higher cost.
     pub fn claude_opus_4() -> Self {
-        Self { model_id: "claude-opus-4-20250514".to_string(), context_window: 200_000, max_tokens: 32_000 }
+        Self {
+            model_id: "claude-opus-4-20250514".to_string(),
+            context_window: 200_000,
+            max_tokens: 32_000,
+        }
     }
 
     /// Claude Haiku 3.5 — fastest and cheapest Anthropic model.
     pub fn claude_haiku_3_5() -> Self {
-        Self { model_id: "claude-haiku-3-5-20241022".to_string(), context_window: 200_000, max_tokens: 8_000 }
+        Self {
+            model_id: "claude-haiku-3-5-20241022".to_string(),
+            context_window: 200_000,
+            max_tokens: 8_000,
+        }
     }
 
     // ── OpenAI ────────────────────────────────────────────────────────────────
 
     /// GPT-4o — flagship multimodal OpenAI model.
     pub fn gpt_4o() -> Self {
-        Self { model_id: "gpt-4o".to_string(), context_window: 128_000, max_tokens: 16_384 }
+        Self {
+            model_id: "gpt-4o".to_string(),
+            context_window: 128_000,
+            max_tokens: 16_384,
+        }
     }
 
     /// o4-mini — compact OpenAI reasoning model, fast and affordable.
     pub fn o4_mini() -> Self {
-        Self { model_id: "o4-mini".to_string(), context_window: 200_000, max_tokens: 100_000 }
+        Self {
+            model_id: "o4-mini".to_string(),
+            context_window: 200_000,
+            max_tokens: 100_000,
+        }
     }
 
     /// o3 — full OpenAI reasoning model, highest capability.
     pub fn o3() -> Self {
-        Self { model_id: "o3".to_string(), context_window: 200_000, max_tokens: 100_000 }
+        Self {
+            model_id: "o3".to_string(),
+            context_window: 200_000,
+            max_tokens: 100_000,
+        }
     }
 
     // ── Google Gemini ─────────────────────────────────────────────────────────
 
     /// Gemini 2.5 Pro — Google's highest-capability model with 1M context window.
     pub fn gemini_2_5_pro() -> Self {
-        Self { model_id: "gemini-2.5-pro".to_string(), context_window: 1_048_576, max_tokens: 65_536 }
+        Self {
+            model_id: "gemini-2.5-pro".to_string(),
+            context_window: 1_048_576,
+            max_tokens: 65_536,
+        }
     }
 
     /// Gemini 2.0 Flash — Google's fast, efficient model.
     pub fn gemini_2_0_flash() -> Self {
-        Self { model_id: "gemini-2.0-flash".to_string(), context_window: 1_048_576, max_tokens: 8_192 }
+        Self {
+            model_id: "gemini-2.0-flash".to_string(),
+            context_window: 1_048_576,
+            max_tokens: 8_192,
+        }
     }
 
     // ── DeepSeek ──────────────────────────────────────────────────────────────
 
     /// DeepSeek-V3 Chat — DeepSeek's general-purpose model.
     pub fn deepseek_chat() -> Self {
-        Self { model_id: "deepseek-chat".to_string(), context_window: 64_000, max_tokens: 8_000 }
+        Self {
+            model_id: "deepseek-chat".to_string(),
+            context_window: 64_000,
+            max_tokens: 8_000,
+        }
     }
 
     /// DeepSeek-R1 — reasoning model, exposes `reasoning_content` in responses.
     pub fn deepseek_reasoner() -> Self {
-        Self { model_id: "deepseek-reasoner".to_string(), context_window: 64_000, max_tokens: 8_000 }
+        Self {
+            model_id: "deepseek-reasoner".to_string(),
+            context_window: 64_000,
+            max_tokens: 8_000,
+        }
     }
 
     // ── Groq ──────────────────────────────────────────────────────────────────
 
     /// Llama 3.3 70B on Groq — high-quality model at extremely fast inference speed.
     pub fn groq_llama_3_3_70b() -> Self {
-        Self { model_id: "llama-3.3-70b-versatile".to_string(), context_window: 128_000, max_tokens: 32_768 }
+        Self {
+            model_id: "llama-3.3-70b-versatile".to_string(),
+            context_window: 128_000,
+            max_tokens: 32_768,
+        }
     }
 
     // ── Mistral ───────────────────────────────────────────────────────────────
 
     /// Mistral Large — Mistral's highest capability model.
     pub fn mistral_large() -> Self {
-        Self { model_id: "mistral-large-latest".to_string(), context_window: 128_000, max_tokens: 4_096 }
+        Self {
+            model_id: "mistral-large-latest".to_string(),
+            context_window: 128_000,
+            max_tokens: 4_096,
+        }
     }
 
     // ── xAI ───────────────────────────────────────────────────────────────────
 
     /// Grok 4 — xAI's latest model.
     pub fn grok_4() -> Self {
-        Self { model_id: "grok-4".to_string(), context_window: 256_000, max_tokens: 16_384 }
+        Self {
+            model_id: "grok-4".to_string(),
+            context_window: 256_000,
+            max_tokens: 16_384,
+        }
     }
 
     // ── Cohere ────────────────────────────────────────────────────────────────
 
     /// Command R+ — Cohere's most capable model.
     pub fn cohere_command_r_plus() -> Self {
-        Self { model_id: "command-r-plus".to_string(), context_window: 128_000, max_tokens: 4_096 }
+        Self {
+            model_id: "command-r-plus".to_string(),
+            context_window: 128_000,
+            max_tokens: 4_096,
+        }
     }
 
     // ── Ollama ────────────────────────────────────────────────────────────────
@@ -166,14 +222,22 @@ impl ModelConfig {
     ///
     /// Pull with: `ollama pull llama3.2`
     pub fn ollama_llama3_2() -> Self {
-        Self { model_id: "llama3.2".to_string(), context_window: 128_000, max_tokens: 8_192 }
+        Self {
+            model_id: "llama3.2".to_string(),
+            context_window: 128_000,
+            max_tokens: 8_192,
+        }
     }
 
     // ── OpenRouter ────────────────────────────────────────────────────────────
 
     /// OpenRouter routing to Claude Sonnet 4 — useful for OpenRouter-specific features.
     pub fn openrouter_claude_sonnet_4() -> Self {
-        Self { model_id: "anthropic/claude-sonnet-4".to_string(), context_window: 200_000, max_tokens: 16_000 }
+        Self {
+            model_id: "anthropic/claude-sonnet-4".to_string(),
+            context_window: 200_000,
+            max_tokens: 16_000,
+        }
     }
 }
 
@@ -208,13 +272,27 @@ mod tests {
         ];
 
         for preset in &presets {
-            assert!(!preset.model_id.is_empty(), "model_id must not be empty: {:?}", preset);
-            assert!(preset.context_window > 0, "context_window must be > 0: {:?}", preset);
-            assert!(preset.max_tokens > 0, "max_tokens must be > 0: {:?}", preset);
+            assert!(
+                !preset.model_id.is_empty(),
+                "model_id must not be empty: {:?}",
+                preset
+            );
+            assert!(
+                preset.context_window > 0,
+                "context_window must be > 0: {:?}",
+                preset
+            );
+            assert!(
+                preset.max_tokens > 0,
+                "max_tokens must be > 0: {:?}",
+                preset
+            );
             assert!(
                 preset.max_tokens <= preset.context_window,
                 "max_tokens ({}) must be <= context_window ({}) for model {}",
-                preset.max_tokens, preset.context_window, preset.model_id
+                preset.max_tokens,
+                preset.context_window,
+                preset.model_id
             );
         }
     }

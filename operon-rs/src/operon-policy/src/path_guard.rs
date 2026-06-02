@@ -26,8 +26,8 @@
 //   outside the allowed root — and will fail the containment check.
 //   This is the correct behavior: we block the traversal.
 
-use std::path::{Path, PathBuf};
 use crate::config::DirectoryPolicy;
+use std::path::{Path, PathBuf};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PathGuard
@@ -273,7 +273,10 @@ mod tests {
         // Use a different temp dir that is NOT in the policies.
         let other_tmp = TempDir::new().unwrap();
         let result = guard.find_directory(other_tmp.path());
-        assert!(result.is_none(), "path outside allowed dirs should return None");
+        assert!(
+            result.is_none(),
+            "path outside allowed dirs should return None"
+        );
     }
 
     #[test]
@@ -370,7 +373,11 @@ mod tests {
 
         let result = guard.find_directory(&file_a);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().path, canonical_a, "should match dir_a policy");
+        assert_eq!(
+            result.unwrap().path,
+            canonical_a,
+            "should match dir_a policy"
+        );
     }
 
     #[test]

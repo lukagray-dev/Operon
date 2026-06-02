@@ -12,8 +12,7 @@
 //! `serde_json::json!` to quickly build JSON structures that mimic what providers return.
 
 use operon_context_normalize_reasoning::{
-    denormalize_reasoning, normalize_reasoning, Provider, ReasoningBlock,
-    ReasoningNormalizeError,
+    denormalize_reasoning, normalize_reasoning, Provider, ReasoningBlock, ReasoningNormalizeError,
 };
 use serde_json::json;
 
@@ -39,12 +38,12 @@ fn test_anthropic_normalization_with_signature() {
     assert!(result.is_ok());
     let blocks = result.unwrap();
     assert_eq!(blocks.len(), 1);
-    assert_eq!(blocks[0].thinking, "We need to approach this problem step-by-step.");
-    assert!(blocks[0].has_signature());
     assert_eq!(
-        blocks[0].signature.as_ref().unwrap().0,
-        "opaque_sig_123"
+        blocks[0].thinking,
+        "We need to approach this problem step-by-step."
     );
+    assert!(blocks[0].has_signature());
+    assert_eq!(blocks[0].signature.as_ref().unwrap().0, "opaque_sig_123");
 }
 
 #[test]
@@ -90,7 +89,10 @@ fn test_anthropic_normalization_missing_field() {
 #[test]
 fn test_anthropic_denormalization() {
     // Arrange: Create a canonical reasoning block with a signature.
-    let blocks = vec![ReasoningBlock::with_signature("Thinking text...", "sig_abc")];
+    let blocks = vec![ReasoningBlock::with_signature(
+        "Thinking text...",
+        "sig_abc",
+    )];
 
     // Act: Denormalize it to Anthropic wire format.
     let wire = denormalize_reasoning(&blocks, &Provider::Anthropic).unwrap();
@@ -233,10 +235,7 @@ fn test_gemini_normalization_with_signature() {
     assert_eq!(blocks.len(), 1);
     assert_eq!(blocks[0].thinking, "Thinking about Gemini models...");
     assert!(blocks[0].has_signature());
-    assert_eq!(
-        blocks[0].signature.as_ref().unwrap().0,
-        "gemini_sig_xyz"
-    );
+    assert_eq!(blocks[0].signature.as_ref().unwrap().0, "gemini_sig_xyz");
 }
 
 #[test]
@@ -281,7 +280,10 @@ fn test_gemini_normalization_missing_text() {
 #[test]
 fn test_gemini_denormalization() {
     // Arrange: A block with a signature.
-    let blocks = vec![ReasoningBlock::with_signature("Hello Gemini", "signature_123")];
+    let blocks = vec![ReasoningBlock::with_signature(
+        "Hello Gemini",
+        "signature_123",
+    )];
 
     // Act: Denormalize.
     let wire = denormalize_reasoning(&blocks, &Provider::Gemini).unwrap();

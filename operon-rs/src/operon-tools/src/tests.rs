@@ -5,8 +5,8 @@
 /// - Malformed args detection and degradation
 /// - Tiered description switching
 /// - Successful dispatch without degradation
-
 use crate::dispatcher::Dispatcher;
+use crate::{ToolProgress, ToolProgressEmitter, ToolProgressStage};
 use operon_context_normalize_tools::{ToolCall, ToolCallId};
 use serde_json::json;
 
@@ -38,10 +38,15 @@ async fn test_malformed_args_marks_tool_degraded() {
     assert!(!d.is_degraded("read"));
 
     // Send malformed args — missing required "paths" field
-    let result = d.dispatch(make_call("read", json!({ "wrong_key": [] }))).await;
+    let result = d
+        .dispatch(make_call("read", json!({ "wrong_key": [] })))
+        .await;
 
     assert!(result.is_error);
-    assert!(d.is_degraded("read"), "read should be degraded after malformed call");
+    assert!(
+        d.is_degraded("read"),
+        "read should be degraded after malformed call"
+    );
 }
 
 #[tokio::test]
@@ -58,7 +63,8 @@ async fn test_degraded_tool_uses_detailed_definition() {
         .clone();
 
     // Trigger degradation
-    d.dispatch(make_call("read", json!({ "bad": "args" }))).await;
+    d.dispatch(make_call("read", json!({ "bad": "args" })))
+        .await;
 
     // Detailed description is now used
     let detailed_desc = d
@@ -84,7 +90,8 @@ async fn test_other_tools_unaffected_by_degradation() {
     d.register_fs_tools();
 
     // Degrade "read"
-    d.dispatch(make_call("read", json!({ "bad": "args" }))).await;
+    d.dispatch(make_call("read", json!({ "bad": "args" })))
+        .await;
 
     assert!(d.is_degraded("read"));
     // "write" is not yet implemented but the degraded set must not contain it
@@ -94,8 +101,8 @@ async fn test_other_tools_unaffected_by_degradation() {
 
 #[tokio::test]
 async fn test_successful_dispatch_does_not_degrade() {
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     let dir = TempDir::new().unwrap();
     let file = dir.path().join("hello.txt");
@@ -115,15 +122,14 @@ async fn test_successful_dispatch_does_not_degrade() {
     assert!(!d.is_degraded("read"));
 }
 
-
 // ============================================================================
 // Read-before-write/edit enforcement tests
 // ============================================================================
 
 #[tokio::test]
 async fn test_write_existing_file_blocked_without_read() {
-    use tempfile::NamedTempFile;
     use std::fs;
+    use tempfile::NamedTempFile;
 
     // Create a real temp file on disk with some content
     let temp_file = NamedTempFile::new().unwrap();
@@ -186,8 +192,8 @@ async fn test_write_new_file_allowed_without_read() {
 
 #[tokio::test]
 async fn test_edit_blocked_without_read() {
-    use tempfile::NamedTempFile;
     use std::fs;
+    use tempfile::NamedTempFile;
 
     // Create a real temp file with content
     let temp_file = NamedTempFile::new().unwrap();
@@ -226,8 +232,8 @@ async fn test_edit_blocked_without_read() {
 
 #[tokio::test]
 async fn test_read_then_edit_allowed() {
-    use tempfile::NamedTempFile;
     use std::fs;
+    use tempfile::NamedTempFile;
 
     // Create a real temp file with content
     let temp_file = NamedTempFile::new().unwrap();
@@ -281,8 +287,8 @@ async fn test_read_then_edit_allowed() {
 
 #[tokio::test]
 async fn test_read_then_write_allowed() {
-    use tempfile::NamedTempFile;
     use std::fs;
+    use tempfile::NamedTempFile;
 
     // Create a real temp file
     let temp_file = NamedTempFile::new().unwrap();
@@ -325,8 +331,8 @@ async fn test_read_then_write_allowed() {
 
 #[tokio::test]
 async fn test_compaction_clears_ledger() {
-    use tempfile::NamedTempFile;
     use std::fs;
+    use tempfile::NamedTempFile;
 
     // Create a real temp file
     let temp_file = NamedTempFile::new().unwrap();
@@ -543,4 +549,55 @@ async fn test_bash_tool_nonzero_exit_not_error() {
         }
         other => panic!("expected Json content, got {:?}", other),
     }
+}
+
+#[tokio::test]
+async fn test_progress_events_flow_through_dispatcher() {
+    use std::sync::{Arc, Mutex};
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("progress_write.txt");
+
+    let seen: Arc<Mutex<Vec<ToolProgress>>> = Arc::new(Mutex::new(Vec::new()));
+    let emitter: ToolProgressEmitter = {
+        let seen = Arc::clone(&seen);
+        Arc::new(move |progress: ToolProgress| {
+            seen.lock().unwrap().push(progress);
+        })
+    };
+
+    let mut d = Dispatcher::new();
+    d.register_fs_tools();
+
+    let result = d
+        .dispatch_with_progress(
+            make_call(
+                "write",
+                json!({
+                    "path": path.to_str().unwrap(),
+                    "content": "hello progress\n"
+                }),
+            ),
+            Some(emitter),
+        )
+        .await;
+
+    assert!(!result.result.is_error, "write should succeed");
+
+    let events = seen.lock().unwrap().clone();
+    let stages: Vec<_> = events.iter().map(|event| &event.stage).collect();
+    assert_eq!(
+        stages,
+        vec![
+            &ToolProgressStage::Started,
+            &ToolProgressStage::Running,
+            &ToolProgressStage::Completed,
+        ]
+    );
+    assert_eq!(events[1].target.as_deref(), Some(path.to_str().unwrap()));
+    assert!(
+        events[1].message.contains("Writing"),
+        "running update should describe the active file write"
+    );
 }

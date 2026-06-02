@@ -92,7 +92,10 @@ async fn test_delete_remaining_count_decrements() {
 
     assert!(!result.is_error);
     let output = get_delete_output(&result);
-    assert_eq!(output.remaining, 2, "remaining should be 2 after deleting 1 of 3");
+    assert_eq!(
+        output.remaining, 2,
+        "remaining should be 2 after deleting 1 of 3"
+    );
 }
 
 #[tokio::test]
@@ -173,9 +176,18 @@ async fn test_delete_specific_item_leaves_others() {
 
     let items = store.list();
     assert_eq!(items.len(), 2, "should have 2 items remaining");
-    assert!(items.iter().any(|i| i.id == item1.id), "item1 should still exist");
-    assert!(items.iter().any(|i| i.id == item3.id), "item3 should still exist");
-    assert!(!items.iter().any(|i| i.id == item2.id), "item2 should be deleted");
+    assert!(
+        items.iter().any(|i| i.id == item1.id),
+        "item1 should still exist"
+    );
+    assert!(
+        items.iter().any(|i| i.id == item3.id),
+        "item3 should still exist"
+    );
+    assert!(
+        !items.iter().any(|i| i.id == item2.id),
+        "item2 should be deleted"
+    );
 }
 
 // ============================================================================
@@ -254,7 +266,10 @@ async fn test_delete_from_empty_store() {
     .await
     .unwrap();
 
-    assert!(result.is_error, "deleting from empty store should be an error");
+    assert!(
+        result.is_error,
+        "deleting from empty store should be an error"
+    );
 }
 
 #[tokio::test]

@@ -129,10 +129,7 @@ impl TokenEstimator {
         let total_chars = text.chars().count();
 
         // Count how many characters fall into the "code indicator" set.
-        let code_char_count = text
-            .chars()
-            .filter(|c| CODE_CHARS.contains(c))
-            .count();
+        let code_char_count = text.chars().filter(|c| CODE_CHARS.contains(c)).count();
 
         // "code_char_count / total_chars >= 0.15"
         // Rearranged to avoid floating-point: multiply both sides by 100.
@@ -299,7 +296,8 @@ mod tests {
         let (a, _) = TokenEstimator::estimate(msgs[0]);
         let (b, _) = TokenEstimator::estimate(msgs[1]);
         let expected = a + CHAT_MESSAGE_OVERHEAD + b + CHAT_MESSAGE_OVERHEAD;
-        let (total, _) = TokenEstimator::estimate_messages(&msgs.iter().map(|s| *s).collect::<Vec<_>>());
+        let (total, _) =
+            TokenEstimator::estimate_messages(&msgs.iter().map(|s| *s).collect::<Vec<_>>());
         assert_eq!(total, expected);
     }
 

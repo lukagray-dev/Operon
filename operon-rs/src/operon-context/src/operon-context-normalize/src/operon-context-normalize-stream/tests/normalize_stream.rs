@@ -461,7 +461,9 @@ fn assembler_tool_call_reassembly_from_start_delta_end() {
         .unwrap();
     assert_eq!(delta_two, AssemblerOutput::Pending);
 
-    let end_output = assembler.push(StreamEvent::ToolCallEnd { index: 0 }).unwrap();
+    let end_output = assembler
+        .push(StreamEvent::ToolCallEnd { index: 0 })
+        .unwrap();
 
     match end_output {
         AssemblerOutput::ToolCall(call) => {
@@ -507,8 +509,12 @@ fn assembler_emits_two_parallel_tool_calls() {
         })
         .unwrap();
 
-    let first = assembler.push(StreamEvent::ToolCallEnd { index: 0 }).unwrap();
-    let second = assembler.push(StreamEvent::ToolCallEnd { index: 1 }).unwrap();
+    let first = assembler
+        .push(StreamEvent::ToolCallEnd { index: 0 })
+        .unwrap();
+    let second = assembler
+        .push(StreamEvent::ToolCallEnd { index: 1 })
+        .unwrap();
 
     match first {
         AssemblerOutput::ToolCall(call) => {

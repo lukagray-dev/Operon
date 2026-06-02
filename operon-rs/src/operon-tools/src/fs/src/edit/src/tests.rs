@@ -21,8 +21,9 @@ fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String
 /// Helper to extract and deserialize EditOutput from a ToolResult.
 fn get_output(result: &operon_context_normalize_tools::ToolResult) -> EditOutput {
     match &result.content {
-        ToolContent::Json(v) => serde_json::from_value(v.clone())
-            .expect("failed to deserialize EditOutput"),
+        ToolContent::Json(v) => {
+            serde_json::from_value(v.clone()).expect("failed to deserialize EditOutput")
+        }
         other => panic!("expected Json content for success, got {:?}", other),
     }
 }
@@ -464,7 +465,10 @@ async fn test_whitespace_exactness() {
     .unwrap();
 
     // This should fail because the file has spaces, not tabs.
-    assert!(result.is_error, "edit with tabs instead of spaces should fail");
+    assert!(
+        result.is_error,
+        "edit with tabs instead of spaces should fail"
+    );
     let error = get_error_text(&result);
     assert!(error.contains("not found"));
 
@@ -484,7 +488,10 @@ async fn test_whitespace_exactness() {
     .await
     .unwrap();
 
-    assert!(!result.is_error, "edit with correct whitespace should succeed");
+    assert!(
+        !result.is_error,
+        "edit with correct whitespace should succeed"
+    );
     let new_content = fs::read_to_string(&path).unwrap();
     assert!(new_content.contains("    modified line"));
 }
@@ -544,4 +551,3 @@ async fn test_file_with_no_trailing_newline() {
     let new_content = fs::read_to_string(&path).unwrap();
     assert_eq!(new_content, "has trailing newline\n");
 }
-

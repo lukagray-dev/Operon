@@ -75,7 +75,7 @@ pub async fn execute(call_id: ToolCallId, args: WebSearchArgs) -> ToolResult {
             browser
                 .lite_search(
                     &query_owned,
-                    "wt-wt",        // worldwide region — no regional bias
+                    "wt-wt", // worldwide region — no regional bias
                     Some(max_results),
                     ua,
                 )
@@ -92,9 +92,7 @@ pub async fn execute(call_id: ToolCallId, args: WebSearchArgs) -> ToolResult {
             return ToolResult {
                 call_id,
                 name: "web_search".to_string(),
-                content: ToolContent::Text(
-                    "internal error: search task panicked".to_string(),
-                ),
+                content: ToolContent::Text("internal error: search task panicked".to_string()),
                 is_error: true,
             };
         }
@@ -134,9 +132,9 @@ pub async fn execute(call_id: ToolCallId, args: WebSearchArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "web_search".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
-            serde_json::json!({ "error": format!("serialization bug: {}", e) })
-        })),
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
+            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        )),
         is_error: false,
     }
 }

@@ -30,6 +30,9 @@
 //!     SessionEvent::TokenUsageUpdated { context_total, .. } => {
 //!         eprintln!("Tokens used: {context_total}");
 //!     }
+//!     SessionEvent::ContextUsageUpdated { utilization, .. } => {
+//!         eprintln!("Context usage: {:.0}%", utilization * 100.0);
+//!     }
 //!     SessionEvent::Done                   => println!("\nDone."),
 //!     SessionEvent::Error { message }      => eprintln!("Error: {message}"),
 //!     _ => {}

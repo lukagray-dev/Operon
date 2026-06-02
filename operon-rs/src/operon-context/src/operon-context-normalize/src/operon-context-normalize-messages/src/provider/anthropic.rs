@@ -32,13 +32,13 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         return normalize_system_wrapper(raw);
     }
 
-    let role = raw
-        .get("role")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "role",
-            provider: PROVIDER,
-        })?;
+    let role =
+        raw.get("role")
+            .and_then(Value::as_str)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "role",
+                provider: PROVIDER,
+            })?;
 
     let message_role = match role {
         "user" => MessageRole::User,
@@ -53,13 +53,12 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     };
 
     if message_role == MessageRole::System {
-        let text = raw
-            .get("content")
-            .and_then(Value::as_str)
-            .ok_or(MessageNormalizeError::MissingField {
+        let text = raw.get("content").and_then(Value::as_str).ok_or(
+            MessageNormalizeError::MissingField {
                 field: "content",
                 provider: PROVIDER,
-            })?;
+            },
+        )?;
         return Ok(ConversationMessage::system(text));
     }
 
@@ -104,8 +103,11 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                         obj.insert(
                             "stop_reason".to_string(),
                             Value::String(
-                                denormalize_stop_reason(stop, &crate::provider::Provider::Anthropic)
-                                    .to_string(),
+                                denormalize_stop_reason(
+                                    stop,
+                                    &crate::provider::Provider::Anthropic,
+                                )
+                                .to_string(),
                             ),
                         );
                     }
@@ -129,10 +131,12 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
 }
 
 fn normalize_system_wrapper(raw: Value) -> Result<ConversationMessage> {
-    let system = raw.get("system").ok_or(MessageNormalizeError::MissingField {
-        field: "system",
-        provider: PROVIDER,
-    })?;
+    let system = raw
+        .get("system")
+        .ok_or(MessageNormalizeError::MissingField {
+            field: "system",
+            provider: PROVIDER,
+        })?;
 
     let text = match system {
         Value::String(s) => s.to_string(),
@@ -159,36 +163,41 @@ fn normalize_system_wrapper(raw: Value) -> Result<ConversationMessage> {
     Ok(ConversationMessage::system(text))
 }
 
-fn parse_anthropic_content(raw_content: Option<&Value>, provider_name: &'static str) -> Result<Vec<ContentBlock>> {
+fn parse_anthropic_content(
+    raw_content: Option<&Value>,
+    provider_name: &'static str,
+) -> Result<Vec<ContentBlock>> {
     match raw_content {
         None | Some(Value::Null) => Ok(Vec::new()),
         Some(Value::String(s)) => Ok(vec![ContentBlock::Text(s.to_string())]),
         Some(Value::Array(arr)) => {
             let mut out = Vec::new();
             for block in arr {
-                let block_type = block
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .ok_or(MessageNormalizeError::MissingField {
+                let block_type = block.get("type").and_then(Value::as_str).ok_or(
+                    MessageNormalizeError::MissingField {
                         field: "content[].type",
                         provider: provider_name,
-                    })?;
+                    },
+                )?;
 
                 match block_type {
                     "text" => {
-                        let text = block
-                            .get("text")
-                            .and_then(Value::as_str)
-                            .ok_or(MessageNormalizeError::MissingField {
+                        let text = block.get("text").and_then(Value::as_str).ok_or(
+                            MessageNormalizeError::MissingField {
                                 field: "content[].text",
                                 provider: provider_name,
-                            })?;
+                            },
+                        )?;
                         out.push(ContentBlock::Text(text.to_string()));
                     }
-                    "image" => out.push(ContentBlock::Image(parse_anthropic_image_block(block, provider_name)?)),
-                    "document" => {
-                        out.push(ContentBlock::Document(parse_anthropic_document_block(block, provider_name)?))
-                    }
+                    "image" => out.push(ContentBlock::Image(parse_anthropic_image_block(
+                        block,
+                        provider_name,
+                    )?)),
+                    "document" => out.push(ContentBlock::Document(parse_anthropic_document_block(
+                        block,
+                        provider_name,
+                    )?)),
                     "tool_use" => {
                         let tool = normalize_tool_call(block.clone(), &ToolProvider::Anthropic)
                             .map_err(|e| map_tool_err(e, provider_name))?;
@@ -199,8 +208,9 @@ fn parse_anthropic_content(raw_content: Option<&Value>, provider_name: &'static 
                         out.push(ContentBlock::ToolResult(tool_result));
                     }
                     "thinking" => {
-                        let reasoning = normalize_reasoning(block.clone(), &ReasoningProvider::Anthropic)
-                            .map_err(|e| map_reasoning_err(e, provider_name))?;
+                        let reasoning =
+                            normalize_reasoning(block.clone(), &ReasoningProvider::Anthropic)
+                                .map_err(|e| map_reasoning_err(e, provider_name))?;
                         for rb in reasoning {
                             out.push(ContentBlock::Reasoning(rb));
                         }
@@ -230,43 +240,41 @@ fn parse_anthropic_image_block(block: &Value, provider_name: &'static str) -> Re
             provider: provider_name,
         })?;
 
-    let source_type = source
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "content[].source.type",
-            provider: provider_name,
-        })?;
+    let source_type =
+        source
+            .get("type")
+            .and_then(Value::as_str)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "content[].source.type",
+                provider: provider_name,
+            })?;
 
     let image_source = match source_type {
         "base64" => {
-            let media_type = source
-                .get("media_type")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+            let media_type = source.get("media_type").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "content[].source.media_type",
                     provider: provider_name,
-                })?;
-            let data = source
-                .get("data")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+                },
+            )?;
+            let data = source.get("data").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "content[].source.data",
                     provider: provider_name,
-                })?;
+                },
+            )?;
             ImageSource::Base64 {
                 media_type: media_type.to_string(),
                 data: data.to_string(),
             }
         }
         "url" => {
-            let url = source
-                .get("url")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+            let url = source.get("url").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "content[].source.url",
                     provider: provider_name,
-                })?;
+                },
+            )?;
             ImageSource::Url(url.to_string())
         }
         other => {
@@ -277,10 +285,15 @@ fn parse_anthropic_image_block(block: &Value, provider_name: &'static str) -> Re
         }
     };
 
-    Ok(ImageBlock { source: image_source })
+    Ok(ImageBlock {
+        source: image_source,
+    })
 }
 
-fn parse_anthropic_document_block(block: &Value, provider_name: &'static str) -> Result<DocumentBlock> {
+fn parse_anthropic_document_block(
+    block: &Value,
+    provider_name: &'static str,
+) -> Result<DocumentBlock> {
     let source = block
         .get("source")
         .ok_or(MessageNormalizeError::MissingField {
@@ -288,53 +301,50 @@ fn parse_anthropic_document_block(block: &Value, provider_name: &'static str) ->
             provider: provider_name,
         })?;
 
-    let source_type = source
-        .get("type")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "content[].source.type",
-            provider: provider_name,
-        })?;
+    let source_type =
+        source
+            .get("type")
+            .and_then(Value::as_str)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "content[].source.type",
+                provider: provider_name,
+            })?;
 
     let canonical_source = match source_type {
         "base64" => {
-            let media_type = source
-                .get("media_type")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+            let media_type = source.get("media_type").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "content[].source.media_type",
                     provider: provider_name,
-                })?;
-            let data = source
-                .get("data")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+                },
+            )?;
+            let data = source.get("data").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "content[].source.data",
                     provider: provider_name,
-                })?;
+                },
+            )?;
             DocumentSource::Base64 {
                 media_type: media_type.to_string(),
                 data: data.to_string(),
             }
         }
         "url" => {
-            let url = source
-                .get("url")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+            let url = source.get("url").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "content[].source.url",
                     provider: provider_name,
-                })?;
+                },
+            )?;
             DocumentSource::Url(url.to_string())
         }
         "text" => {
-            let text = source
-                .get("text")
-                .and_then(Value::as_str)
-                .ok_or(MessageNormalizeError::MissingField {
+            let text = source.get("text").and_then(Value::as_str).ok_or(
+                MessageNormalizeError::MissingField {
                     field: "content[].source.text",
                     provider: provider_name,
-                })?;
+                },
+            )?;
             DocumentSource::Text(text.to_string())
         }
         other => {
@@ -347,18 +357,20 @@ fn parse_anthropic_document_block(block: &Value, provider_name: &'static str) ->
 
     Ok(DocumentBlock {
         source: canonical_source,
-        title: block.get("title").and_then(Value::as_str).map(str::to_string),
+        title: block
+            .get("title")
+            .and_then(Value::as_str)
+            .map(str::to_string),
     })
 }
 
 fn parse_anthropic_tool_result(block: &Value, provider_name: &'static str) -> Result<ToolResult> {
-    let call_id = block
-        .get("tool_use_id")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
+    let call_id = block.get("tool_use_id").and_then(Value::as_str).ok_or(
+        MessageNormalizeError::MissingField {
             field: "content[].tool_use_id",
             provider: provider_name,
-        })?;
+        },
+    )?;
 
     let content = match block.get("content") {
         None | Some(Value::Null) => ToolContent::Text(String::new()),
@@ -383,7 +395,10 @@ fn parse_anthropic_tool_result(block: &Value, provider_name: &'static str) -> Re
     })
 }
 
-fn render_anthropic_content_blocks(content: &[ContentBlock], provider_name: &'static str) -> Result<Vec<Value>> {
+fn render_anthropic_content_blocks(
+    content: &[ContentBlock],
+    provider_name: &'static str,
+) -> Result<Vec<Value>> {
     let mut out = Vec::new();
 
     for block in content {
@@ -424,8 +439,9 @@ fn render_anthropic_content_blocks(content: &[ContentBlock], provider_name: &'st
                 out.push(wire);
             }
             ContentBlock::Reasoning(rb) => {
-                let wire = denormalize_reasoning(std::slice::from_ref(rb), &ReasoningProvider::Anthropic)
-                    .map_err(|e| map_reasoning_err(e, provider_name))?;
+                let wire =
+                    denormalize_reasoning(std::slice::from_ref(rb), &ReasoningProvider::Anthropic)
+                        .map_err(|e| map_reasoning_err(e, provider_name))?;
                 if let Value::Array(arr) = wire {
                     for item in arr {
                         out.push(item);
@@ -433,7 +449,8 @@ fn render_anthropic_content_blocks(content: &[ContentBlock], provider_name: &'st
                 } else {
                     return Err(MessageNormalizeError::UnknownShape {
                         provider: provider_name,
-                        detail: "expected Anthropic reasoning denormalization to return array".to_string(),
+                        detail: "expected Anthropic reasoning denormalization to return array"
+                            .to_string(),
                     });
                 }
             }
@@ -459,7 +476,10 @@ fn render_system_text(content: &[ContentBlock], provider_name: &'static str) -> 
     Ok(text_parts.join("\n\n"))
 }
 
-fn map_tool_err(err: operon_context_normalize_tools::ToolNormalizeError, provider_name: &'static str) -> MessageNormalizeError {
+fn map_tool_err(
+    err: operon_context_normalize_tools::ToolNormalizeError,
+    provider_name: &'static str,
+) -> MessageNormalizeError {
     match err {
         operon_context_normalize_tools::ToolNormalizeError::MissingField { field, .. } => {
             MessageNormalizeError::MissingField {
@@ -479,12 +499,12 @@ fn map_reasoning_err(
     provider_name: &'static str,
 ) -> MessageNormalizeError {
     match err {
-        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField { field, .. } => {
-            MessageNormalizeError::MissingField {
-                field,
-                provider: provider_name,
-            }
-        }
+        operon_context_normalize_reasoning::ReasoningNormalizeError::MissingField {
+            field, ..
+        } => MessageNormalizeError::MissingField {
+            field,
+            provider: provider_name,
+        },
         other => MessageNormalizeError::UnsupportedContentType {
             provider: provider_name,
             detail: other.to_string(),
