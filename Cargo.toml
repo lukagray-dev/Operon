@@ -72,7 +72,7 @@ members = [
 
     # Frontends
     "tui",
-    "gui",
+    "gui/src-tauri",
 ]
 
 [workspace.dependencies]

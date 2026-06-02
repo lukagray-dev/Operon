@@ -1,0 +1,239 @@
+/**
+ * Global CSS Tokens
+ * 
+ * This file defines all CSS custom properties (variables) used throughout
+ * the Operon GUI application. These tokens ensure visual consistency and
+ * make it easy to maintain and update the design system.
+ * 
+ * All values should be referenced via var(--token-name) in other CSS files.
+ */
+
+/* ============================================================================
+   ROOT VARIABLES
+   ============================================================================ */
+
+:root {
+    /* ------------------------------------------------------------------------
+       COLOR TOKENS
+       ------------------------------------------------------------------------ */
+    
+    /* Primary brand colors */
+    --color-brand-primary: #2563eb;
+    --color-brand-secondary: #60a5fa;
+    
+    /* Titlebar specific colors */
+    --color-titlebar-bg: #191919;
+    --color-titlebar-text: #9e9e9e;
+    --color-titlebar-icon: #9e9e9e;
+    --color-titlebar-icon-hover: #ffffff;
+    --color-titlebar-hover-bg: #2a2a2a;
+    --color-titlebar-active-bg: #333333;
+    
+    /* Window control specific colors */
+    --color-window-close-hover: #e81123;
+    --color-window-close-active: #c50f1f;
+    
+    /* Background colors */
+    --color-bg-primary: #000000;
+    --color-bg-secondary: #000000;
+    --color-bg-tertiary: #191919;
+    
+    /* Text colors */
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #a3a3a3;
+    --color-text-tertiary: #737373;
+    
+    /* Border colors */
+    --color-border-primary: #404040;
+    --color-border-secondary: #333333;
+    
+    /* ------------------------------------------------------------------------
+       SPACING TOKENS
+       ------------------------------------------------------------------------ */
+    
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
+    --spacing-xxl: 32px;
+    
+    /* ------------------------------------------------------------------------
+       TYPOGRAPHY TOKENS
+       ------------------------------------------------------------------------ */
+    
+    /* Font families */
+    --font-family-primary: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family-mono: 'Kode Mono', 'Courier New', monospace;
+    
+    /* Font sizes */
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-md: 13px;
+    --font-size-lg: 14px;
+    --font-size-xl: 16px;
+    --font-size-xxl: 18px;
+    
+    /* Font weights */
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    
+    /* ------------------------------------------------------------------------
+       LAYOUT TOKENS
+       ------------------------------------------------------------------------ */
+    
+    /* Titlebar dimensions */
+    --titlebar-height: 36px;
+    --titlebar-logo-size: 18px;
+    --titlebar-icon-size: 16px;
+    --titlebar-button-width: 46px;
+    
+    /* Border radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    
+    /* ------------------------------------------------------------------------
+       ANIMATION TOKENS
+       ------------------------------------------------------------------------ */
+    
+    --transition-fast: 100ms;
+    --transition-normal: 200ms;
+    --transition-slow: 300ms;
+    
+    /* Easing functions */
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    
+    /* ------------------------------------------------------------------------
+       Z-INDEX TOKENS
+       ------------------------------------------------------------------------ */
+    
+    --z-index-base: 0;
+    --z-index-dropdown: 1000;
+    --z-index-modal: 2000;
+    --z-index-tooltip: 3000;
+    --z-index-notification: 4000;
+    
+    /* ------------------------------------------------------------------------
+       SHADOW TOKENS
+       ------------------------------------------------------------------------ */
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    
+    /* Dropdown specific shadow */
+    --shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* ============================================================================
+   FONT FACE DECLARATIONS
+   ============================================================================ */
+
+/**
+ * Google Sans - Primary font family
+ * Currently only Regular weight is loaded
+ */
+@font-face {
+    font-family: 'Google Sans';
+    src: url('../../assets/fonts/google_sans/GoogleSans-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ============================================================================
+   GLOBAL RESETS AND BASE STYLES
+   ============================================================================ */
+
+/**
+ * Box sizing reset - makes width/height calculations more intuitive
+ * by including padding and border in element dimensions
+ */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/**
+ * Remove default margins and paddings from all elements
+ */
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/**
+ * Root element styles
+ * Sets base font properties and prevents horizontal overflow
+ */
+html {
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-md);
+    color: var(--color-text-primary);
+    overflow-x: hidden;
+}
+
+/**
+ * Body element styles
+ * Sets background color and prevents overflow
+ */
+body {
+    background-color: var(--color-bg-primary);
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+/**
+ * Button reset - removes default button styles
+ */
+button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    color: inherit;
+}
+
+/**
+ * List reset - removes default list styling
+ */
+ul,
+ol {
+    list-style: none;
+}
+
+/**
+ * Link reset - removes default underline
+ */
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/**
+ * Image optimization - makes images responsive by default
+ */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/**
+ * Input and textarea reset - inherits font properties
+ */
+input,
+textarea,
+select {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}

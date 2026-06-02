@@ -1,0 +1,26 @@
+[package]
+name        = "operon-gui"
+description = "Operon graphical UI frontend (Tauri)"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# ── Workspace shared deps ─────────────────────────────────────────────────────
+tokio.workspace       = true
+async-trait.workspace = true
+anyhow.workspace      = true
+serde.workspace       = true
+serde_json.workspace  = true
+# ── GUI-only deps (not shared — Tauri/web-view specific) ──────────────────────
+
+# Tauri framework for building desktop apps with web frontend
+tauri = { version = "2", features = [] }
+
+# Tauri plugin for opening URLs and files in default applications
+tauri-plugin-opener = "2"
