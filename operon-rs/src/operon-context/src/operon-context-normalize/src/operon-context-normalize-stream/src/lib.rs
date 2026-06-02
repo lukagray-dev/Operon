@@ -50,7 +50,11 @@ pub mod normalize;
 pub mod provider;
 pub mod types;
 
-pub use operon_context_normalize_tools::Provider;
+// `Provider` is the single authoritative enum from operon-providers.
+// We import it directly here (not through normalize-tools) so normalize-stream's
+// dependency on Provider is explicit and matches the pattern in the other three
+// normalize crates.
+pub use operon_providers::Provider;
 pub use assembler::StreamAssembler;
 pub use error::{Result, StreamNormalizeError};
 pub use normalize::{new_assembler, parse_line};

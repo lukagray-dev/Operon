@@ -32,45 +32,17 @@ use crate::error::ToolNormalizeError;
 use crate::types::{ToolCall, ToolDefinition, ToolResult};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Provider enum
+// Provider re-export
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Identifies which LLM provider's wire format should be used for normalization
-/// or denormalization.
-///
-/// Pass a reference to this enum to [`normalize`](crate::normalize),
-/// [`denormalize_definition`](crate::denormalize_definition), and
-/// [`denormalize_result`](crate::denormalize_result).
-///
-/// # Example
-/// ```
-/// use operon_context_normalize_tools::Provider;
-///
-/// let provider = Provider::Anthropic;
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum Provider {
-    /// Anthropic Claude models (claude-3-*, claude-opus-*, etc.)
-    Anthropic,
-    /// OpenAI GPT models (gpt-4o, gpt-4-turbo, gpt-3.5-turbo, etc.)
-    OpenAI,
-    /// Google Gemini models (gemini-1.5-pro, gemini-flash, etc.)
-    Gemini,
-    /// Ollama local model server (OpenAI-compatible wire format)
-    Ollama,
-    /// DeepSeek models (OpenAI-compatible wire format)
-    DeepSeek,
-    /// OpenRouter gateway (auto-detects underlying provider shape)
-    OpenRouter,
-    /// Groq inference API (OpenAI-compatible wire format)
-    Groq,
-    /// Mistral AI models (OpenAI-compatible wire format)
-    Mistral,
-    /// xAI Grok models (OpenAI-compatible wire format)
-    XAI,
-    /// Cohere Command models (distinct wire format with parameter_definitions)
-    Cohere,
-}
+// `Provider` is defined in `operon-providers` — the single authoritative source
+// for this enum across the entire Operon codebase. We re-export it here so
+// downstream users of this crate can import it as `operon_context_normalize_tools::Provider`
+// without knowing about `operon-providers` directly.
+//
+// DO NOT redefine Provider in this crate. Add variants in operon-providers/src/provider.rs
+// and they will automatically become available here.
+pub use operon_providers::Provider;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Traits

@@ -4,7 +4,8 @@ use crate::assembler::StreamAssembler;
 use crate::error::Result;
 use crate::provider;
 use crate::types::StreamEvent;
-use operon_context_normalize_tools::Provider;
+// Provider is the single authoritative enum from operon-providers.
+use operon_providers::Provider;
 
 /// Parse one already-split provider stream payload line into zero or more
 /// canonical stream events.

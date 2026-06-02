@@ -58,6 +58,9 @@ members = [
     # Events bus — pure types, no async
     "operon-rs/src/operon-events",
 
+    # Providers — Provider enum, ApiCredentials, ModelConfig, ProviderConfig (root crate, zero operon-* deps)
+    "operon-rs/src/operon-providers",
+
     # Policy — permission enforcement gate (sits between session and tools)
     "operon-rs/src/operon-policy",
 
@@ -134,9 +137,10 @@ operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
 
 # Events, policy, and session crates
-operon-events  = { path = "operon-rs/src/operon-events" }
-operon-policy  = { path = "operon-rs/src/operon-policy" }
-operon-session = { path = "operon-rs/src/operon-session" }
+operon-events    = { path = "operon-rs/src/operon-events" }
+operon-providers = { path = "operon-rs/src/operon-providers" }
+operon-policy    = { path = "operon-rs/src/operon-policy" }
+operon-session   = { path = "operon-rs/src/operon-session" }
 
 # SQLite persistence (used by operon-session)
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }

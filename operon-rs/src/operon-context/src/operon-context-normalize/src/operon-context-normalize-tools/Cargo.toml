@@ -7,10 +7,10 @@ authors.workspace    = true
 license.workspace    = true
 repository.workspace = true
 
-# Leaf crate — no internal operon-* deps.
-# Usable standalone outside Operon.
-
+# operon-providers supplies the canonical Provider enum.
+# This crate re-exports it rather than defining its own copy.
 [dependencies]
+operon-providers.workspace = true
 thiserror.workspace  = true
 serde.workspace      = true
 serde_json.workspace = true

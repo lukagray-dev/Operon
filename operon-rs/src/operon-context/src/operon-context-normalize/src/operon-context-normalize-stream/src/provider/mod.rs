@@ -13,7 +13,8 @@ pub mod xai;
 
 use crate::error::Result;
 use crate::types::StreamEvent;
-use operon_context_normalize_tools::Provider;
+// Provider comes directly from operon-providers — the single authoritative source.
+use operon_providers::Provider;
 
 /// Dispatch one payload line to the provider-specific parser.
 pub fn parse_line_for_provider(line: &str, provider: &Provider) -> Result<Vec<StreamEvent>> {

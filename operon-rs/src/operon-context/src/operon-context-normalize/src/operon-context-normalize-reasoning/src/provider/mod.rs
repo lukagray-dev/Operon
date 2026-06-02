@@ -36,72 +36,14 @@ use crate::error::ReasoningNormalizeError;
 use crate::types::ReasoningBlock;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Provider enum
+// Provider re-export
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Identifies which LLM provider's reasoning wire format to use.
-///
-/// The variants mirror those in `operon-context-normalize-tools` exactly.
-/// Both crates are independent leaf crates with no shared code, but their
-/// `Provider` enums **must stay in sync** — if you add a variant here, add
-/// the matching variant there too.
-///
-/// Pass a reference to this enum to [`normalize_reasoning`] and
-/// [`denormalize_reasoning`].
-///
-/// # Example
-/// ```
-/// use operon_context_normalize_reasoning::Provider;
-///
-/// let provider = Provider::Anthropic;
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum Provider {
-    /// Anthropic Claude models — thinking blocks appear as `"type":"thinking"`
-    /// content blocks inside the assistant message content array.
-    Anthropic,
-
-    /// OpenAI o-series reasoning models (o1, o3, o4) — reasoning is exposed
-    /// via the `"reasoning_summary"` top-level array field.
-    OpenAI,
-
-    /// Google Gemini 2.5 and 3 series — thinking parts appear inside the
-    /// `parts` array of a model content block with `"thought": true`.
-    Gemini,
-
-    /// Ollama native `/api/chat` format — thinking is opt-in via `think:true`
-    /// in the request and returned as the `"thinking"` field on the message
-    /// object. The `/v1/chat/completions` endpoint uses the DeepSeek path.
-    Ollama,
-
-    /// DeepSeek reasoning models — thinking is the `"reasoning_content"` string
-    /// field on the assistant message object.
-    DeepSeek,
-
-    /// OpenRouter gateway — auto-detects the underlying provider shape on
-    /// normalize via key-based detection; always outputs the OpenAI
-    /// `reasoning_summary` format on denormalize.
-    OpenRouter,
-
-    /// Groq inference API — does not expose reasoning content. Both
-    /// `normalize_reasoning` and `denormalize_reasoning` return
-    /// [`ReasoningNormalizeError::NotSupported`].
-    Groq,
-
-    /// Mistral AI models — does not expose reasoning content. Both
-    /// `normalize_reasoning` and `denormalize_reasoning` return
-    /// [`ReasoningNormalizeError::NotSupported`].
-    Mistral,
-
-    /// xAI Grok reasoning models (grok-4.3, grok-4.1-fast-reasoning, etc.) —
-    /// same `reasoning_content` wire shape as DeepSeek.
-    XAI,
-
-    /// Cohere Command models — does not expose reasoning content. Both
-    /// `normalize_reasoning` and `denormalize_reasoning` return
-    /// [`ReasoningNormalizeError::NotSupported`].
-    Cohere,
-}
+// `Provider` is defined in `operon-providers` — the single authoritative source.
+// The comment that previously said "must stay in sync" is now obsolete — there
+// is only one enum to maintain.
+// DO NOT redefine here. Add variants in operon-providers/src/provider.rs only.
+pub use operon_providers::Provider;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Traits

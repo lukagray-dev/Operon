@@ -21,30 +21,13 @@ use serde_json::Value;
 use crate::error::MessageNormalizeError;
 use crate::types::ConversationMessage;
 
-/// Provider selector for message wire-format conversion.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Provider {
-    /// Anthropic Claude models.
-    Anthropic,
-    /// OpenAI chat-completions compatible models.
-    OpenAI,
-    /// Google Gemini models.
-    Gemini,
-    /// Ollama (`/v1` compatible + native `/api/chat`).
-    Ollama,
-    /// DeepSeek chat-completions compatible models.
-    DeepSeek,
-    /// OpenRouter gateway.
-    OpenRouter,
-    /// Groq OpenAI-compatible API.
-    Groq,
-    /// Mistral OpenAI-compatible API.
-    Mistral,
-    /// xAI Grok OpenAI-compatible API.
-    XAI,
-    /// Cohere v2 chat API.
-    Cohere,
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider re-export
+// ─────────────────────────────────────────────────────────────────────────────
+
+// `Provider` is defined in `operon-providers` — the single authoritative source.
+// DO NOT redefine here. Add variants in operon-providers/src/provider.rs only.
+pub use operon_providers::Provider;
 
 /// Convert one provider wire message payload into canonical type.
 pub trait FromWireMessage: Sized {

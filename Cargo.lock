@@ -4595,6 +4595,7 @@ version = "0.1.0"
 dependencies = [
  "operon-context-normalize-reasoning",
  "operon-context-normalize-tools",
+ "operon-providers",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4604,6 +4605,7 @@ dependencies = [
 name = "operon-context-normalize-reasoning"
 version = "0.1.0"
 dependencies = [
+ "operon-providers",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4617,6 +4619,7 @@ dependencies = [
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
  "operon-context-normalize-tools",
+ "operon-providers",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4626,6 +4629,7 @@ dependencies = [
 name = "operon-context-normalize-tools"
 version = "0.1.0"
 dependencies = [
+ "operon-providers",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4697,6 +4701,15 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "operon-providers"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
