@@ -46,6 +46,7 @@ pub enum Provider {
 
     /// OpenAI GPT models (gpt-4o, gpt-4-turbo, o3, o4-mini, etc.)
     /// Wire format: OpenAI Chat Completions API. Auth: `Authorization: Bearer`.
+    #[serde(rename = "open_ai")]
     OpenAI,
 
     /// Google Gemini models (gemini-2.5-pro, gemini-flash, etc.)
@@ -76,6 +77,7 @@ pub enum Provider {
     /// xAI Grok models (grok-4, grok-4-vision, etc.) — OpenAI-compatible wire format
     /// with `reasoning_content` field for reasoning models.
     /// Auth: `Authorization: Bearer`.
+    #[serde(rename = "xai")]
     XAI,
 
     /// Cohere Command models — distinct wire format (`parameter_definitions` instead

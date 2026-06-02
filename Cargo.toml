@@ -61,6 +61,9 @@ members = [
     # Providers — Provider enum, ApiCredentials, ModelConfig, ProviderConfig (root crate, zero operon-* deps)
     "operon-rs/src/operon-providers",
 
+    # Config — config.toml loading, path resolution, env var overrides
+    "operon-rs/src/operon-config",
+
     # Policy — permission enforcement gate (sits between session and tools)
     "operon-rs/src/operon-policy",
 
@@ -136,9 +139,10 @@ operon-tools-load                     = { path = "operon-rs/src/operon-tools/src
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
 
-# Events, policy, and session crates
+# Events, policy, config, and session crates
 operon-events    = { path = "operon-rs/src/operon-events" }
 operon-providers = { path = "operon-rs/src/operon-providers" }
+operon-config    = { path = "operon-rs/src/operon-config" }
 operon-policy    = { path = "operon-rs/src/operon-policy" }
 operon-session   = { path = "operon-rs/src/operon-session" }
 

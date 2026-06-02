@@ -4551,6 +4551,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 
 [[package]]
+name = "operon-config"
+version = "0.1.0"
+dependencies = [
+ "dirs 6.0.0",
+ "operon-policy",
+ "operon-providers",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "toml 1.1.2+spec-1.1.0",
+]
+
+[[package]]
 name = "operon-context"
 version = "0.1.0"
 dependencies = [

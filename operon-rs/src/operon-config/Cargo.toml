@@ -1,0 +1,32 @@
+[package]
+name        = "operon-config"
+description = "Configuration loading for Operon: reads ~/.operon/config.toml, applies env var overrides, and returns strongly-typed ProviderConfig + PolicyConfig + OperonPaths."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# Dependency graph:
+#   operon-providers — for ProviderConfig, Provider, ModelConfig, ApiCredentials
+#   operon-policy    — for PolicyConfig, GlobalPolicy, DirectoryPolicy, DirTool, FsTool
+#   Both are already built and sit below this crate in the dep graph.
+#
+# This crate is the startup configuration source for:
+#   operon-session  (ProviderConfig + PolicyConfig + OperonPaths)
+#   tui / gui       (OperonPaths for workspace dir, sessions dir)
+
+[dependencies]
+operon-providers.workspace = true
+operon-policy.workspace    = true
+
+serde.workspace     = true
+serde_json.workspace = true
+toml.workspace      = true
+thiserror.workspace = true
+dirs.workspace      = true
+
+[dev-dependencies]
+# tempfile is used in paths.rs and loader.rs tests to create isolated
+# temporary directories so tests never touch the real ~/.operon directory.
+tempfile.workspace = true
