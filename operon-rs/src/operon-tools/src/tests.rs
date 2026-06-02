@@ -437,15 +437,17 @@ async fn test_failed_read_does_not_record() {
 #[tokio::test]
 async fn test_bash_tool_registration_and_dispatch() {
     // Test: Verify bash tool can be registered and dispatched successfully.
+    // cwd is required by BashArgs (Option C policy enforcement).
     let mut d = Dispatcher::new();
     d.register_shell_tools();
 
-    // Dispatch a simple bash command
+    // Dispatch a simple bash command with the required cwd field.
     let result = d
         .dispatch(make_call(
             "bash",
             json!({
-                "command": "echo hello"
+                "command": "echo hello",
+                "cwd": std::env::temp_dir().to_str().unwrap()
             }),
         ))
         .await;
@@ -453,12 +455,14 @@ async fn test_bash_tool_registration_and_dispatch() {
     assert!(!result.is_error, "bash tool should execute successfully");
     assert_eq!(result.name, "bash");
 
-    // Verify the result contains JSON output
+    // Verify the result contains JSON output with the expected fields.
     match &result.content {
         operon_context_normalize_tools::ToolContent::Json(v) => {
             assert!(v.get("exit_code").is_some());
             assert!(v.get("output").is_some());
             assert!(v.get("command").is_some());
+            // cwd should be echoed back in the output.
+            assert!(v.get("cwd").is_some());
         }
         other => panic!("expected Json content, got {:?}", other),
     }
@@ -467,12 +471,13 @@ async fn test_bash_tool_registration_and_dispatch() {
 #[tokio::test]
 async fn test_bash_tool_malformed_args_marks_degraded() {
     // Test: Verify bash tool degradation on malformed args.
+    // Missing both `command` and `cwd` → ArgsParse → degraded.
     let mut d = Dispatcher::new();
     d.register_shell_tools();
 
     assert!(!d.is_degraded("bash"));
 
-    // Send malformed args — missing required "command" field
+    // Send malformed args — missing both required fields.
     let result = d
         .dispatch(make_call("bash", json!({ "wrong_key": "value" })))
         .await;
@@ -486,7 +491,9 @@ async fn test_bash_tool_malformed_args_marks_degraded() {
 
 #[tokio::test]
 async fn test_bash_tool_empty_command_error() {
-    // Test: Verify bash tool returns error for empty command.
+    // Test: Empty command with valid cwd → tool-level error (not ArgsParse).
+    // cwd is present and valid, so deserialization succeeds. The executor
+    // catches the empty command and returns is_error=true.
     let mut d = Dispatcher::new();
     d.register_shell_tools();
 
@@ -494,7 +501,8 @@ async fn test_bash_tool_empty_command_error() {
         .dispatch(make_call(
             "bash",
             json!({
-                "command": ""
+                "command": "",
+                "cwd": std::env::temp_dir().to_str().unwrap()
             }),
         ))
         .await;
@@ -502,7 +510,7 @@ async fn test_bash_tool_empty_command_error() {
     assert!(result.is_error);
     match &result.content {
         operon_context_normalize_tools::ToolContent::Text(t) => {
-            assert!(t.contains("empty"));
+            assert!(t.contains("empty"), "error message should mention 'empty'");
         }
         other => panic!("expected Text content, got {:?}", other),
     }
@@ -510,7 +518,8 @@ async fn test_bash_tool_empty_command_error() {
 
 #[tokio::test]
 async fn test_bash_tool_nonzero_exit_not_error() {
-    // Test: Verify bash tool returns non-error for non-zero exit code.
+    // Test: Non-zero exit code is a normal outcome — not a tool error.
+    // The model receives exit_code and decides how to respond.
     let mut d = Dispatcher::new();
     d.register_shell_tools();
 
@@ -518,12 +527,13 @@ async fn test_bash_tool_nonzero_exit_not_error() {
         .dispatch(make_call(
             "bash",
             json!({
-                "command": "exit 42"
+                "command": "exit 42",
+                "cwd": std::env::temp_dir().to_str().unwrap()
             }),
         ))
         .await;
 
-    // Non-zero exit should NOT be a tool error
+    // Non-zero exit should NOT be a tool error.
     assert!(!result.is_error, "non-zero exit should not be a tool error");
 
     match &result.content {

@@ -55,6 +55,15 @@ members = [
     # Load tools
     "operon-rs/src/operon-tools/src/load",
 
+    # Events bus — pure types, no async
+    "operon-rs/src/operon-events",
+
+    # Policy — permission enforcement gate (sits between session and tools)
+    "operon-rs/src/operon-policy",
+
+    # Session — agent loop, HTTP, tool dispatch, persistence
+    "operon-rs/src/operon-session",
+
     # Frontends
     "tui",
     "gui",
@@ -123,6 +132,14 @@ operon-tools-todo-delete              = { path = "operon-rs/src/operon-tools/src
 operon-tools-load                     = { path = "operon-rs/src/operon-tools/src/load" }
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
+
+# Events, policy, and session crates
+operon-events  = { path = "operon-rs/src/operon-events" }
+operon-policy  = { path = "operon-rs/src/operon-policy" }
+operon-session = { path = "operon-rs/src/operon-session" }
+
+# SQLite persistence (used by operon-session)
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }
 
 [workspace.package]
 version    = "0.1.0"

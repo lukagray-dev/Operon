@@ -2,13 +2,27 @@
 //!
 //! Implements the `bash` tool for the Operon agent's shell group.
 //!
-//! Executes a shell command in a stateless subprocess and returns merged stdout+stderr,
-//! exit code, and truncation status. Supports:
-//! - Stateless execution: each call spawns a fresh `sh -c` subprocess
-//! - Output capture: merged stdout and stderr, truncated to 10,000 characters
-//! - Exit codes: 0 = success, non-zero = failure, -1 = timeout
-//! - Optional timeout: specify timeout_ms to kill long-running commands
-//! - Cross-platform: uses `sh -c` on Unix, `cmd /C` on Windows
+//! Executes a shell command in a stateless subprocess with an explicit working
+//! directory (`cwd`) and returns merged stdout+stderr, exit code, and metadata.
+//!
+//! ## Why `cwd` is required
+//!
+//! The bash tool is directory-scoped in the Operon permission model. Every call
+//! must declare the directory it operates in so `operon-policy` can enforce
+//! per-directory shell permissions before the call reaches this tool.
+//!
+//! Without an explicit `cwd`, an external user could trigger shell execution
+//! without providing an anchor for the policy check. Making it required closes
+//! that attack surface at the model schema level — the model cannot omit it.
+//!
+//! ## Features
+//!
+//! - Stateless execution: each call spawns a fresh `sh -c` / `cmd /C` subprocess.
+//! - Working directory: subprocess runs with `cwd` as its working directory.
+//! - Output capture: merged stdout and stderr, truncated to 10,000 characters.
+//! - Exit codes: 0 = success, non-zero = failure, -1 = timeout.
+//! - Optional timeout: specify `timeout_ms` to kill long-running commands.
+//! - Cross-platform: uses `sh -c` on Unix, `cmd /C` on Windows.
 //!
 //! ## Usage
 //!
@@ -18,13 +32,14 @@
 //! use serde_json::json;
 //!
 //! # async fn example() {
-//! // 1. Get the tool definition to register with the model
+//! // 1. Register the tool definition with the model
 //! let def = definition();
 //!
 //! // 2. When the model calls the tool, execute it
 //! let args = json!({
-//!     "command": "echo hello",
-//!     "timeout_ms": 5000
+//!     "command": "cargo build --release",
+//!     "cwd": "/home/user/my-project",
+//!     "timeout_ms": 120_000
 //! });
 //! let result = execute(
 //!     ToolCallId("call_123".to_string()),
@@ -49,55 +64,87 @@ use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::TieredToolDefinition;
 use serde_json::json;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// definition
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Returns the tiered tool definition for the `bash` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraints (stateless execution, output cap).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and common mistakes.
+/// # Tiers
+///
+/// - `short`: Sent under normal conditions. Concise description covering what the
+///   tool does, its key constraints, and all required fields.
+/// - `detailed`: Sent after a malformed call. Full description with input shapes,
+///   cwd semantics, timeout behavior, exit codes, common mistakes, and examples.
+///
+/// # Breaking change note
+///
+/// `cwd` was added as a required field (previously the tool had no working directory
+/// concept). All callers must provide `cwd`. This change was made to enable
+/// directory-scoped shell permissions in `operon-policy`.
 pub fn definition() -> TieredToolDefinition {
+    // The JSON schema is shared between short and detailed definitions.
+    // Only the description text differs between the two tiers.
     let parameters = json!({
         "type": "object",
         "properties": {
             "command": {
                 "type": "string",
-                "description": "Shell command to execute. Runs in a fresh sh -c subprocess each call."
+                "description": "Shell command to execute. Runs in a fresh sh -c subprocess each call. \
+                                No state persists between calls — chain with && or ; for sequential state."
+            },
+            "cwd": {
+                "type": "string",
+                "description": "Absolute path to the working directory for this command. \
+                                Must be within an allowed directory. The subprocess runs with \
+                                this directory as its working directory."
             },
             "timeout_ms": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "Optional timeout in milliseconds. No timeout if omitted."
+                "description": "Optional timeout in milliseconds. Process is killed if it \
+                                exceeds this duration. No timeout if omitted."
             }
         },
-        "required": ["command"]
+        // Both command and cwd are required — cwd is the policy anchor.
+        "required": ["command", "cwd"]
     });
 
     TieredToolDefinition {
         short: ToolDefinition {
             name: "bash".to_string(),
-            description: "Executes a shell command in a stateless subprocess and returns merged \
-                          stdout+stderr, exit code, and truncation status. Each call is independent — \
-                          no state persists between calls. Chain commands with && or ; for sequential \
-                          state. Output capped at 10,000 characters. Optionally specify timeout_ms."
+            description: "Executes a shell command in a stateless subprocess rooted at `cwd` and \
+                          returns merged stdout+stderr, exit code, and truncation status. Each call \
+                          is independent — no state persists between calls. Chain commands with && \
+                          or ; for sequential state within one call. Output capped at 10,000 \
+                          characters. `cwd` (absolute path) and `command` are required. \
+                          Optionally specify `timeout_ms`."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "bash".to_string(),
             description: "\
-Executes a shell command in a stateless subprocess and returns merged stdout+stderr, exit code, \
-and truncation status. Each call is independent — no state (environment variables, working directory, \
-shell variables) persists between calls.
+Executes a shell command in a stateless subprocess rooted at the specified working directory (`cwd`). \
+Returns merged stdout+stderr, exit code, and execution metadata.
 
-## Input shapes
+## Required fields
 
-`command` (required, string): Shell command to execute. Runs in a fresh `sh -c` subprocess on Unix, \
-`cmd /C` on Windows. The command is executed exactly as provided — no escaping or quoting is added. \
-If the command is empty or whitespace-only, the tool returns an error.
+`command` (string): Shell command to execute. Runs in a fresh `sh -c` subprocess on Unix, `cmd /C` \
+on Windows. Empty or whitespace-only commands return an error.
 
-`timeout_ms` (optional, integer, milliseconds): Optional timeout for the command. If provided, the \
-command is killed if it exceeds this duration. If omitted, the command runs until completion with \
-no timeout. There is no maximum — the model is responsible for setting a reasonable value for the task.
+`cwd` (string): Absolute path to the working directory for this command. The subprocess is launched \
+with this directory as its working directory. Must be:
+- An absolute path (starts with `/` on Unix, drive letter on Windows).
+- An existing directory on disk.
+- Within an allowed directory per the active permission policy.
+
+If `cwd` is missing, the call is rejected by the policy layer before reaching this tool.
+
+## Optional fields
+
+`timeout_ms` (integer, milliseconds): If provided, the subprocess is killed after this many \
+milliseconds. When killed, `timed_out` is true and `exit_code` is -1.
 
 ## Stateless execution model
 
@@ -105,173 +152,97 @@ Each call spawns a fresh subprocess. Working directory, environment variables, s
 `cd` changes do NOT persist between calls. To chain commands that depend on prior state, use `&&` or `;` \
 within a single `command` string.
 
-### Example: stateless cd
-
-Incorrect (cd does not persist):
+### Example: stateless cd (wrong)
 ```json
-{
-  \"command\": \"cd /tmp\"
-}
+{ \"command\": \"cd /tmp\" }
 ```
 Then in a separate call:
 ```json
-{
-  \"command\": \"pwd\"
-}
+{ \"command\": \"pwd\", \"cwd\": \"/home/user\" }
 ```
-Result: `pwd` returns the original working directory, NOT `/tmp`. The `cd` from the first call did not persist.
+Result: `pwd` returns `/home/user` (the `cwd`), NOT `/tmp`. The `cd` from the first call did not persist.
 
-Correct (cd and pwd in one call):
+### Example: cd + pwd in one call (correct)
 ```json
-{
-  \"command\": \"cd /tmp && pwd\"
-}
+{ \"command\": \"cd /tmp && pwd\", \"cwd\": \"/home/user\" }
 ```
 Result: `pwd` returns `/tmp` because both commands run in the same subprocess.
 
 ## Output cap
 
 Stdout and stderr are merged and truncated to 10,000 characters. When `truncated: true`, use more \
-targeted commands to retrieve the specific part of the output needed:
-- `| head -n 50` — first 50 lines
-- `| tail -n 20` — last 20 lines
-- `| grep \"pattern\"` — lines matching a pattern
-
-### Example: large output
-
-```json
-{
-  \"command\": \"python3 -c \\\"print('a' * 20000)\\\"\"
-}
-```
-Result: `output` contains the first 10,000 characters, `truncated: true`.
-
-To get the last part:
-```json
-{
-  \"command\": \"python3 -c \\\"print('a' * 20000)\\\" | tail -c 1000\"
-}
-```
+targeted commands: `| head -n 50`, `| tail -n 20`, `| grep \"pattern\"`.
 
 ## Exit codes
 
-- `exit_code: 0` — command succeeded
-- `exit_code: N` (non-zero) — command reported failure. The command ran — the model receives the output \
-  and decides what to do next. Non-zero exit is NOT a tool error.
-- `exit_code: -1` — process was killed due to timeout (see `timed_out: true`)
+- `exit_code: 0` — command succeeded.
+- `exit_code: N` (non-zero) — command reported failure. The command ran — the model receives the \
+  output and decides what to do next. Non-zero exit is NOT a tool error.
+- `exit_code: -1` — process was killed due to timeout (`timed_out: true`).
 
 Always check `exit_code` before treating output as valid.
 
-## Timeout behavior
+## Output fields
 
-When `timed_out: true`, the process was killed and `output` contains whatever was buffered before the kill. \
-`exit_code` will be -1. If the command is expected to take a long time, set `timeout_ms` appropriately.
-
-### Example: timeout
-
-```json
-{
-  \"command\": \"sleep 10\",
-  \"timeout_ms\": 200
-}
-```
-Result: `timed_out: true`, `exit_code: -1`, `output` is empty (sleep produces no output).
-
-## No timeout by default
-
-If `timeout_ms` is omitted, the command runs until completion. Use this for commands with unpredictable \
-duration (builds, package installs). Set a timeout when you need a hard deadline.
-
-## When to use bash vs fs tools
-
-Prefer fs tools (`read`, `edit`, `write`, `grep`, `ls`) for file operations — they are faster, safer, \
-and return structured output. Use `bash` for:
-- Running build systems (make, cargo, npm, etc.)
-- Package managers (apt, pip, npm install, etc.)
-- Git operations (git clone, git commit, etc.)
-- Test runners (pytest, cargo test, npm test, etc.)
-- CLI tools and utilities
-- Anything requiring shell features (pipes, environment variables, process management)
+- `command`: The command that was executed (echoed for correlation).
+- `cwd`: The working directory the command ran in (echoed for correlation).
+- `exit_code`: Exit code (0 = success, non-zero = failure, -1 = timeout).
+- `output`: Merged stdout + stderr, truncated to 10,000 characters.
+- `truncated`: True if output was truncated at 10,000 characters.
+- `timed_out`: True if the process was killed by the timeout.
 
 ## Common mistakes
 
-### Mistake #1: Expecting cd to persist
+### Mistake #1: Missing `cwd`
 ```json
-{
-  \"command\": \"cd /tmp\"
-}
+{ \"command\": \"ls\" }
 ```
-Then later:
+Error: `cwd` is required. Always provide an absolute path.
+
+### Mistake #2: Expecting `cd` to persist
 ```json
-{
-  \"command\": \"pwd\"
-}
+{ \"command\": \"cd /tmp\", \"cwd\": \"/home/user\" }
 ```
-Result: `pwd` returns the original directory, NOT `/tmp`. Each call is stateless.
-
-Fix: Use `cd /tmp && pwd` in a single call.
-
-### Mistake #2: Running a command that produces massive output without piping
+Then separately:
 ```json
-{
-  \"command\": \"cat /var/log/huge_file.log\"
-}
+{ \"command\": \"pwd\", \"cwd\": \"/home/user\" }
 ```
-Result: `output` is truncated to 10,000 characters. Important lines may be lost.
+Result: `pwd` returns `/home/user`, NOT `/tmp`. Fix: use `cd /tmp && pwd` in one call.
 
-Fix: Use `| head -n 50` or `| tail -n 50` to get the specific part you need.
-
-### Mistake #3: Forgetting to set timeout for long-running commands
+### Mistake #3: Massive output without targeting
 ```json
-{
-  \"command\": \"npm install\"
-}
+{ \"command\": \"cat /var/log/huge.log\", \"cwd\": \"/home/user\" }
 ```
-Result: The command may take minutes. If the model's context window expires, the call is abandoned.
+Output will be truncated. Fix: pipe to `head`, `tail`, or `grep` to target the relevant lines.
 
-Fix: Set `timeout_ms` to a reasonable value for the expected duration, or accept that long commands may not complete.
-
-### Mistake #4: Empty command
+### Mistake #4: Long-running command without timeout
 ```json
-{
-  \"command\": \"\"
-}
+{ \"command\": \"npm install\", \"cwd\": \"/home/user/project\" }
 ```
-Error: \"command is empty\"
-
-Fix: Provide a non-empty command.
-
-## Error messages
-
-- \"command is empty\" → Provide a non-empty command.
-- \"failed to spawn process: ...\" → OS-level error (permission denied, command not found, etc.). \
-  The command was not executed.
-
-## Output fields
-
-- `command`: The command that was executed (echoed back for correlation).
-- `exit_code`: Exit code of the process (0 = success, non-zero = failure, -1 = timeout).
-- `output`: Merged stdout + stderr, truncated to 10,000 characters.
-- `truncated`: True if the output was truncated.
-- `timed_out`: True if the command was killed due to timeout."
+May run for minutes. Fix: set `timeout_ms` to a reasonable deadline for the expected duration."
                 .to_string(),
             parameters,
         },
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// execute
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Deserializes `args_json` and executes the bash tool.
 ///
-/// Returns a `ToolResult` with either success (JSON BashOutput) or failure (Text error message).
-/// Returns `Err(BashToolError::ArgsParse)` only if the top-level JSON shape is invalid.
+/// Returns a `ToolResult` with either success (JSON `BashOutput`) or failure
+/// (Text error message). Returns `Err(BashToolError::ArgsParse)` only if the
+/// top-level JSON shape is invalid (i.e. missing required fields).
 ///
 /// # Arguments
 /// - `call_id`: The unique identifier for this tool call (from the model's request).
 /// - `args_json`: The raw JSON arguments sent by the model.
 ///
 /// # Returns
-/// - `Ok(ToolResult)` with either success or failure (both as Ok, not Err).
-/// - `Err(BashToolError::ArgsParse)` if the arguments are malformed.
+/// - `Ok(ToolResult)` — either success or an in-band error (both as `Ok`).
+/// - `Err(BashToolError::ArgsParse)` — if `command` or `cwd` are missing/wrong type.
 ///
 /// # Example
 /// ```rust
@@ -283,6 +254,7 @@ Fix: Provide a non-empty command.
 ///     ToolCallId("call_123".to_string()),
 ///     json!({
 ///         "command": "echo hello",
+///         "cwd": "/tmp",
 ///         "timeout_ms": 5000
 ///     })
 /// ).await.unwrap();
@@ -293,10 +265,11 @@ pub async fn execute(
     call_id: ToolCallId,
     args_json: serde_json::Value,
 ) -> Result<ToolResult, BashToolError> {
-    // Deserialize the arguments. If this fails, return an ArgsParse error.
+    // Deserialize args. Missing `command` or `cwd` → ArgsParse error.
+    // This surfaces to the dispatcher which marks the tool as degraded.
     let args: BashArgs = serde_json::from_value(args_json)?;
 
-    // Execute the tool and return the result. The executor always returns a
-    // ToolResult (never panics or returns an error), so we can unwrap safely.
+    // Execute the tool. The executor handles all runtime validation
+    // and always returns a ToolResult — it never panics or propagates errors.
     Ok(executor::execute(call_id, args).await)
 }
