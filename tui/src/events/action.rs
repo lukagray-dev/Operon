@@ -41,7 +41,7 @@ pub enum Action {
 
     /// Toggle terminal panel (open if closed, close if open)
     ToggleTerminal,
-    
+
     /// Toggle left sidebar (file explorer) (open if closed, close if open)
     ToggleLeftSidebar,
 
@@ -118,77 +118,75 @@ pub enum Action {
     Tick,
 
     // ===== Models Screen Actions =====
-    
     /// Move cursor up in models screen (provider list or model list)
     ModelsUp,
-    
+
     /// Move cursor down in models screen (provider list or model list)
     ModelsDown,
-    
+
     /// Confirm selection in models screen (select provider or model)
     ModelsConfirm,
-    
+
     /// Move to next field in setup form (Tab key)
     ModelsNextField,
-    
+
     /// Start fetching models from provider (mock operation)
     #[allow(dead_code)]
     ModelsFetchModels,
-    
+
     /// Models fetch completed with results
     ModelsFetchComplete(Vec<String>),
-    
+
     /// Toggle compatibility mode in custom provider form
     #[allow(dead_code)]
     ModelsToggleCompat,
-    
+
     /// Left arrow key in models screen (compat toggle or text cursor movement)
     ModelsLeft,
-    
+
     /// Right arrow key in models screen (compat toggle or text cursor movement)
     ModelsRight,
-    
+
     /// Forward key event to TextArea widget in models setup form
     ModelsForwardKeyToInput(crossterm::event::KeyEvent),
-    
+
     // ===== Permissions Screen Actions =====
-    
     /// Switch between Global and Directory sections (or between panels in Directory section)
     PermSwitchSection,
-    
+
     /// Move selection up in active panel
     PermSelectUp,
-    
+
     /// Move selection down in active panel
     PermSelectDown,
-    
+
     /// Toggle expand/collapse for selected group
     PermToggleExpand,
-    
+
     /// Open rule editor modal for selected tool/group
     PermOpenEditor,
-    
+
     /// Open add directory modal
     PermAddDirectory,
-    
+
     /// Delete selected directory
     PermDeleteDirectory,
-    
+
     /// Close any open modal
     PermCloseModal,
-    
+
     /// Move up in rule editor modal
     PermEditorUp,
-    
+
     /// Move down in rule editor modal
     PermEditorDown,
-    
+
     /// Confirm selection in rule editor modal
     PermEditorConfirm,
-    
+
     /// Switch role (Owner ↔ External) in rule editor modal
     PermEditorSwitchRole,
-    
+
     /// Forward key event to TextArea widget in add directory modal
     PermForwardKeyToInput(crossterm::event::KeyEvent),
 }

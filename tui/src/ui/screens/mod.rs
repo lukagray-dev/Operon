@@ -10,8 +10,8 @@ pub mod models;
 pub mod permissions;
 pub mod skills;
 
-use ratatui::{layout::Rect, Frame};
 use crate::state::{screen::ActiveScreen, AppState};
+use ratatui::{layout::Rect, Frame};
 
 /// Render the currently active screen
 /// Dispatches to the appropriate screen renderer based on AppState.active_screen

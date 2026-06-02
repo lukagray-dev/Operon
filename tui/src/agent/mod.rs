@@ -11,7 +11,7 @@ use anyhow::Result;
 #[allow(dead_code)]
 /// The TUI never directly accesses business logic — everything goes through this trait
 /// This allows the TUI to be developed and tested independently of the backend
-/// 
+///
 /// Future methods to add when backend is ready:
 /// - async fn load_config() -> Result<Config>
 /// - async fn list_models() -> Result<Vec<ModelInfo>>
@@ -25,10 +25,10 @@ use anyhow::Result;
 pub trait AgentBridge: Send + Sync {
     /// Send a message to the agent and receive a response
     /// This is the primary interaction method for the chat interface
-    /// 
+    ///
     /// # Arguments
     /// * `msg` - The user's message text
-    /// 
+    ///
     /// # Returns
     /// * `Ok(String)` - The agent's response text
     /// * `Err(...)` - If the agent failed to process the message

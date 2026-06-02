@@ -2,14 +2,14 @@
 // Inline list that appears above the input box when user types '/'
 // Shows all available screens with arrow key navigation
 
+use crate::state::screen::ActiveScreen;
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_NORMAL, STYLE_SELECTED};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
     Frame,
 };
-use crate::state::screen::ActiveScreen;
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_SELECTED, STYLE_NORMAL};
 
 /// Render the screen selector as an inline widget above the input box
 /// Appears directly above input when user types '/'

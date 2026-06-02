@@ -2,12 +2,12 @@
 // Renders unified diff format with syntax highlighting
 // For bootstrap: renders raw diff string as-is
 
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_NORMAL};
 use ratatui::{
     layout::Rect,
     widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_NORMAL};
 
 /// Render a unified diff in the right panel
 /// For bootstrap: displays raw diff string without parsing

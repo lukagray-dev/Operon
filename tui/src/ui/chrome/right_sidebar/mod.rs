@@ -7,9 +7,9 @@ pub mod file_preview;
 pub mod panel_state;
 pub mod terminal;
 
-use ratatui::{layout::Rect, Frame};
 use crate::state::AppState;
 use panel_state::RightPanelContent;
+use ratatui::{layout::Rect, Frame};
 
 /// Render the right sidebar based on current panel content
 /// If AppState.right_panel is None, this function should not be called

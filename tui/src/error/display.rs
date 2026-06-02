@@ -38,13 +38,13 @@ impl TuiError {
 pub enum ErrorSeverity {
     /// Informational message (blue)
     Info,
-    
+
     /// Warning that doesn't prevent operation (yellow)
     Warning,
-    
+
     /// Error that prevents current operation (orange)
     Error,
-    
+
     /// Critical error that may require restart (red)
     Critical,
 }

@@ -2,25 +2,29 @@
 // Maps crossterm KeyEvent to Action based on current screen context
 // Same key can trigger different actions depending on which screen is active
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::events::action::Action;
 use crate::state::screen::ActiveScreen;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 /// Map a key event to an Action based on current screen context
 /// Returns None if the key has no mapped action in the current context
-/// 
+///
 /// Global keybinds (work on all screens):
 /// - Ctrl+Q: Quit application
 /// - Ctrl+C: Quit application
 /// - Ctrl+T: Toggle terminal panel
 /// - Esc: Back to previous screen (eventually Chat)
 /// - /: Open screen selector (when in input)
-/// 
+///
 /// Screen selector keybinds (when selector is open):
 /// - Up/Down: Navigate
 /// - Enter: Confirm selection
 /// - Esc: Close selector
-pub fn map_key(key: KeyEvent, active_screen: &ActiveScreen, state: &crate::state::AppState) -> Option<Action> {
+pub fn map_key(
+    key: KeyEvent,
+    active_screen: &ActiveScreen,
+    state: &crate::state::AppState,
+) -> Option<Action> {
     // Global keybinds that work on all screens
     match (key.code, key.modifiers) {
         // Quit application (Ctrl+Q only)
@@ -43,7 +47,7 @@ pub fn map_key(key: KeyEvent, active_screen: &ActiveScreen, state: &crate::state
         (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
             return Some(Action::ToggleTerminal);
         }
-        
+
         // Toggle left sidebar (file explorer)
         (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
             return Some(Action::ToggleLeftSidebar);
@@ -114,23 +118,23 @@ fn map_chat_keys(key: KeyEvent) -> Option<Action> {
 /// - Esc: Back to provider list
 fn map_models_keys(key: KeyEvent) -> Option<Action> {
     use crate::events::action::Action;
-    
+
     match (key.code, key.modifiers) {
         // Enter and Esc are always handled specially
         (KeyCode::Enter, KeyModifiers::NONE) => Some(Action::ModelsConfirm),
         (KeyCode::Esc, KeyModifiers::NONE) => Some(Action::Back),
-        
+
         // Tab for field navigation
         (KeyCode::Tab, KeyModifiers::NONE) => Some(Action::ModelsNextField),
-        
+
         // Up/Down - will be handled contextually (navigation vs text input)
         (KeyCode::Up, KeyModifiers::NONE) => Some(Action::ModelsUp),
         (KeyCode::Down, KeyModifiers::NONE) => Some(Action::ModelsDown),
-        
+
         // Left/Right - will be handled contextually (compat toggle vs text input)
         (KeyCode::Left, KeyModifiers::NONE) => Some(Action::ModelsLeft),
         (KeyCode::Right, KeyModifiers::NONE) => Some(Action::ModelsRight),
-        
+
         // Forward all other keys to TextArea for text input
         _ => Some(Action::ModelsForwardKeyToInput(key)),
     }
@@ -147,7 +151,7 @@ fn map_models_keys(key: KeyEvent) -> Option<Action> {
 fn map_permissions_keys(key: KeyEvent, state: &crate::state::AppState) -> Option<Action> {
     // Check if any modal is open
     let modal_open = state.permissions.rule_editor.open || state.permissions.add_dir.open;
-    
+
     if modal_open {
         // Modal-specific keybinds
         if state.permissions.rule_editor.open {

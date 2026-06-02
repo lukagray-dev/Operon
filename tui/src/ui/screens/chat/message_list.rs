@@ -3,25 +3,27 @@
 // Displays actual message history from AppState with manual scroll support
 // Shows ASCII art banner when no messages are present — scrolls away naturally as chat fills
 
+use crate::state::AppState;
+use crate::ui::theme::{
+    STYLE_AGENT_MSG, STYLE_INACTIVE_BORDER, STYLE_MUTED, STYLE_TITLE, STYLE_USER_MSG,
+};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
-use crate::state::AppState;
-use crate::ui::theme::{STYLE_AGENT_MSG, STYLE_INACTIVE_BORDER, STYLE_USER_MSG, STYLE_MUTED, STYLE_TITLE};
 
 /// ASCII art banner shown at the top of the chat panel on startup
 /// Uses the same braille/box characters as the rest of the TUI — no emoji
 /// Each string is one line of the banner
 const BANNER: &[&str] = &[
-   r"    ____                               ",
-   r"   / __ \____  ___  _________  ____    ",
-   r"  / / / / __ \/ _ \/ ___/ __ \/ __ \   ",
-   r" / /_/ / /_/ /  __/ /  / /_/ / / / /   ",
-   r" \____/ .___/\___/_/   \____/_/ /_/    ",
-   r"     /_/                               ", 
+    r"    ____                               ",
+    r"   / __ \____  ___  _________  ____    ",
+    r"  / / / / __ \/ _ \/ ___/ __ \/ __ \   ",
+    r" / /_/ / /_/ /  __/ /  / /_/ / / / /   ",
+    r" \____/ .___/\___/_/   \____/_/ /_/    ",
+    r"     /_/                               ",
 ];
 
 /// Render the message list (chat history)
@@ -123,8 +125,9 @@ pub fn render_message_list(frame: &mut Frame, area: Rect, state: &AppState) {
             .begin_symbol(Some("↑"))
             .end_symbol(Some("↓"));
 
-        let mut scrollbar_state = ScrollbarState::new(total_wrapped_lines.saturating_sub(visible_height))
-            .position(scroll_offset as usize);
+        let mut scrollbar_state =
+            ScrollbarState::new(total_wrapped_lines.saturating_sub(visible_height))
+                .position(scroll_offset as usize);
 
         frame.render_stateful_widget(
             scrollbar,

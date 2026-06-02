@@ -64,9 +64,7 @@ pub const STYLE_SELECTED: Style = Style::new()
     .add_modifier(Modifier::BOLD);
 
 /// Active/focused element style
-pub const STYLE_ACTIVE: Style = Style::new()
-    .fg(COLOR_ACCENT)
-    .add_modifier(Modifier::BOLD);
+pub const STYLE_ACTIVE: Style = Style::new().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD);
 
 /// Inactive/unfocused element style
 pub const STYLE_INACTIVE: Style = Style::new().fg(COLOR_MUTED);
@@ -84,19 +82,13 @@ pub const STYLE_STATUSBAR: Style = Style::new()
     .add_modifier(Modifier::BOLD);
 
 /// Error message style
-pub const STYLE_ERROR: Style = Style::new()
-    .fg(COLOR_ERROR)
-    .add_modifier(Modifier::BOLD);
+pub const STYLE_ERROR: Style = Style::new().fg(COLOR_ERROR).add_modifier(Modifier::BOLD);
 
 /// Warning message style
-pub const STYLE_WARNING: Style = Style::new()
-    .fg(COLOR_WARNING)
-    .add_modifier(Modifier::BOLD);
+pub const STYLE_WARNING: Style = Style::new().fg(COLOR_WARNING).add_modifier(Modifier::BOLD);
 
 /// Success message style
-pub const STYLE_SUCCESS: Style = Style::new()
-    .fg(COLOR_SUCCESS)
-    .add_modifier(Modifier::BOLD);
+pub const STYLE_SUCCESS: Style = Style::new().fg(COLOR_SUCCESS).add_modifier(Modifier::BOLD);
 
 /// Agent message style in chat
 pub const STYLE_AGENT_MSG: Style = Style::new().fg(COLOR_AGENT);
@@ -108,9 +100,7 @@ pub const STYLE_USER_MSG: Style = Style::new().fg(COLOR_USER);
 pub const STYLE_MUTED: Style = Style::new().fg(COLOR_MUTED);
 
 /// Title/header style
-pub const STYLE_TITLE: Style = Style::new()
-    .fg(COLOR_ACCENT)
-    .add_modifier(Modifier::BOLD);
+pub const STYLE_TITLE: Style = Style::new().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD);
 
 // ============================================================================
 // HELPER FUNCTIONS

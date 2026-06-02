@@ -2,12 +2,12 @@
 // Displays a pseudo-terminal for running commands
 // For bootstrap: renders a placeholder block
 
+use crate::ui::theme::{STYLE_INACTIVE_BORDER, STYLE_MUTED};
 use ratatui::{
     layout::Rect,
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_INACTIVE_BORDER, STYLE_MUTED};
 
 /// Render an embedded terminal in the right panel
 /// For bootstrap: displays a placeholder message

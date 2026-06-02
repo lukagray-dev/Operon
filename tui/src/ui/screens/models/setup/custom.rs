@@ -1,16 +1,16 @@
 // Custom provider setup form
 // Editable base URL, compatibility mode selector, API key input, model fetch
 
+use crate::state::AppState;
+use crate::ui::screens::models::state::{CompatibilityMode, FetchStatus};
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
+use crate::ui::widgets::spinner;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
-use crate::state::AppState;
-use crate::ui::screens::models::state::{CompatibilityMode, FetchStatus};
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
-use crate::ui::widgets::spinner;
 
 /// Render Custom provider setup form
 /// Layout: Base URL (editable) | Compatibility mode | API Key (editable) | Models section
@@ -25,15 +25,15 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Base URL section (label + value)
-            Constraint::Length(1),  // Spacing
-            Constraint::Length(3),  // Compatibility mode section
-            Constraint::Length(1),  // Spacing
-            Constraint::Length(3),  // API Key section (label + value)
-            Constraint::Length(1),  // Spacing
-            Constraint::Length(1),  // Models separator
-            Constraint::Min(5),     // Models section (fetch button or list)
-            Constraint::Length(3),  // Instructions
+            Constraint::Length(3), // Base URL section (label + value)
+            Constraint::Length(1), // Spacing
+            Constraint::Length(3), // Compatibility mode section
+            Constraint::Length(1), // Spacing
+            Constraint::Length(3), // API Key section (label + value)
+            Constraint::Length(1), // Spacing
+            Constraint::Length(1), // Models separator
+            Constraint::Min(5),    // Models section (fetch button or list)
+            Constraint::Length(3), // Instructions
         ])
         .split(block.inner(area));
 
@@ -42,7 +42,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut AppState) {
 
     // --- Base URL section (editable) ---
     let is_url_focused = state.models.focused_field == 0;
-    
+
     // Configure the TextArea widget for base URL
     {
         let textarea = &mut state.models.base_url_input;
@@ -51,20 +51,20 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut AppState) {
         } else {
             STYLE_MUTED
         };
-        
+
         textarea.set_block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title("Base URL")
+                .title("Base URL"),
         );
-        
+
         // Set placeholder when empty
         if textarea.is_empty() {
             textarea.set_placeholder_text("http://localhost:11434");
         }
     }
-    
+
     // Render the TextArea widget
     frame.render_widget(&state.models.base_url_input, chunks[0]);
 
@@ -101,7 +101,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut AppState) {
 
     // --- API Key section ---
     let is_key_focused = state.models.focused_field == 2;
-    
+
     // Configure the TextArea widget for API key
     {
         let textarea = &mut state.models.api_key_input;
@@ -110,19 +110,19 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut AppState) {
         } else {
             STYLE_MUTED
         };
-        
+
         textarea.set_block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title("API Key")
+                .title("API Key"),
         );
-        
+
         // Set placeholder when empty
         if textarea.is_empty() {
             textarea.set_placeholder_text("Enter your API key...");
         }
-        
+
         // Mask the input if not visible
         if !state.models.api_key_visible {
             textarea.set_mask_char('•');
@@ -130,12 +130,15 @@ pub fn render(frame: &mut Frame, area: Rect, state: &mut AppState) {
             textarea.set_mask_char('\0'); // No masking
         }
     }
-    
+
     // Render the TextArea widget
     frame.render_widget(&state.models.api_key_input, chunks[4]);
 
     // --- Models separator ---
-    let separator = Line::from(Span::styled("── Models ────────────────────────────", STYLE_MUTED));
+    let separator = Line::from(Span::styled(
+        "── Models ────────────────────────────",
+        STYLE_MUTED,
+    ));
     frame.render_widget(Paragraph::new(separator), chunks[6]);
 
     // --- Models section ---
@@ -165,7 +168,10 @@ fn render_models_section(frame: &mut Frame, area: Rect, state: &AppState) {
             // Show instruction to press Enter on API key field
             let lines = vec![
                 Line::from(""),
-                Line::from(Span::styled("Enter API key and press Enter to fetch models", STYLE_MUTED)),
+                Line::from(Span::styled(
+                    "Enter API key and press Enter to fetch models",
+                    STYLE_MUTED,
+                )),
             ];
             let widget = Paragraph::new(lines);
             frame.render_widget(widget, area);
@@ -224,9 +230,15 @@ fn render_models_section(frame: &mut Frame, area: Rect, state: &AppState) {
             // Show error message
             let lines = vec![
                 Line::from(""),
-                Line::from(Span::styled(format!("Error: {}", err), crate::ui::theme::STYLE_ERROR)),
+                Line::from(Span::styled(
+                    format!("Error: {}", err),
+                    crate::ui::theme::STYLE_ERROR,
+                )),
                 Line::from(""),
-                Line::from(Span::styled("Press Enter on API key field to retry", STYLE_MUTED)),
+                Line::from(Span::styled(
+                    "Press Enter on API key field to retry",
+                    STYLE_MUTED,
+                )),
             ];
             let widget = Paragraph::new(lines);
             frame.render_widget(widget, area);

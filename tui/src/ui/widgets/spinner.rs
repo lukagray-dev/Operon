@@ -14,11 +14,11 @@ const SPINNER_FRAMES_ASCII: &[char] = &['|', '/', '-', '\\'];
 /// Get the current spinner frame character based on tick count
 /// This is a pure function — same tick always returns same character
 /// Use this for deterministic, testable animations
-/// 
+///
 /// # Arguments
 /// * `tick` - Current tick counter (incremented each frame)
 /// * `use_unicode` - Whether to use Unicode braille characters (true) or ASCII (false)
-/// 
+///
 /// # Returns
 /// The character to display for this frame
 pub fn get_spinner_frame(tick: u64, use_unicode: bool) -> char {
@@ -27,7 +27,7 @@ pub fn get_spinner_frame(tick: u64, use_unicode: bool) -> char {
     } else {
         SPINNER_FRAMES_ASCII
     };
-    
+
     let index = (tick as usize) % frames.len();
     frames[index]
 }
@@ -50,7 +50,10 @@ mod tests {
             assert_eq!(get_spinner_frame(i as u64, true), frames[i]);
         }
         // Test wrap-around
-        assert_eq!(get_spinner_frame(0, true), get_spinner_frame(frames.len() as u64, true));
+        assert_eq!(
+            get_spinner_frame(0, true),
+            get_spinner_frame(frames.len() as u64, true)
+        );
     }
 
     #[test]

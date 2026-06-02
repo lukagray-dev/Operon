@@ -53,40 +53,40 @@ pub enum FetchStatus {
 pub struct ModelsState {
     /// Current step in the configuration flow (provider list or setup form)
     pub step: ModelsStep,
-    
+
     /// Cursor position in the provider list (0-2 for Anthropic, OpenAI, Custom)
     pub selected_provider_index: usize,
-    
+
     /// Confirmed provider selection (set when user presses Enter on provider list)
     /// None = still on provider list, Some = moved to setup form
     pub selected_provider: Option<Provider>,
-    
+
     /// API key input field (using tui-textarea for proper text editing)
     pub api_key_input: TextArea<'static>,
-    
+
     /// Whether API key is visible (false = masked with bullets, true = plaintext)
     /// Toggled with Tab key on the visibility toggle
     pub api_key_visible: bool,
-    
+
     /// Custom provider base URL input field (using tui-textarea for proper text editing)
     pub base_url_input: TextArea<'static>,
-    
+
     /// Compatibility mode for custom provider (only used for Provider::Custom)
     pub compat_mode: CompatibilityMode,
-    
+
     /// Which form field currently has focus (0 = first field, increments with Tab)
     /// Field order varies by provider:
     /// - Anthropic/OpenAI: 0 = API key
     /// - Custom: 0 = base URL, 1 = compat mode, 2 = API key
     pub focused_field: usize,
-    
+
     /// List of model names fetched from the provider
     /// Populated after successful mock fetch operation
     pub fetched_models: Vec<String>,
-    
+
     /// Current status of the fetch operation
     pub fetch_status: FetchStatus,
-    
+
     /// Cursor position in the fetched models list (for Up/Down navigation)
     pub selected_model_index: usize,
 }
@@ -97,7 +97,7 @@ impl ModelsState {
     pub fn new() -> Self {
         let mut base_url_input = TextArea::default();
         base_url_input.insert_str("http://localhost:11434"); // Default Ollama URL
-        
+
         Self {
             step: ModelsStep::ProviderList,
             selected_provider_index: 0, // Start with Anthropic selected
@@ -164,7 +164,7 @@ impl ModelsState {
             Some(Provider::Custom) => 2, // Base URL, compat mode, API key
             None => 0,
         };
-        
+
         if self.focused_field < max_field {
             self.focused_field += 1;
         } else {
@@ -218,7 +218,9 @@ impl ModelsState {
 
     /// Move cursor down in fetched models list
     pub fn move_model_down(&mut self) {
-        if !self.fetched_models.is_empty() && self.selected_model_index < self.fetched_models.len() - 1 {
+        if !self.fetched_models.is_empty()
+            && self.selected_model_index < self.fetched_models.len() - 1
+        {
             self.selected_model_index += 1;
         }
     }

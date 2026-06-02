@@ -2,10 +2,10 @@
 // Renders the "Global • Directory" tab switcher
 // Active tab is highlighted with accent color, inactive is muted
 
-use ratatui::text::{Line, Span};
-use crate::ui::theme::{COLOR_ACCENT, STYLE_MUTED};
 use crate::ui::screens::permissions::state::PermissionsSection;
+use crate::ui::theme::{COLOR_ACCENT, STYLE_MUTED};
 use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
 
 /// Build the section tabs title line for the permissions screen
 /// Returns a Line with styled spans: "Global • Directory"
@@ -15,12 +15,16 @@ use ratatui::style::{Modifier, Style};
 pub fn build_section_tabs_title(active_section: PermissionsSection) -> Line<'static> {
     let (global_style, directory_style) = match active_section {
         PermissionsSection::Global => (
-            Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(COLOR_ACCENT)
+                .add_modifier(Modifier::BOLD),
             STYLE_MUTED,
         ),
         PermissionsSection::Directory => (
             STYLE_MUTED,
-            Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(COLOR_ACCENT)
+                .add_modifier(Modifier::BOLD),
         ),
     };
 

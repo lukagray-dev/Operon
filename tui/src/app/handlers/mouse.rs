@@ -2,9 +2,9 @@
 // Handles: ProcessMouse, SetCtrlShiftHeld, CopySelection, ProcessKey
 // These actions manage mouse interactions, selection mode, and raw key event processing
 
-use anyhow::Result;
 use crate::events::action::Action;
 use crate::state::AppState;
+use anyhow::Result;
 use tokio::sync::mpsc;
 
 /// Handle mouse and keyboard event actions
@@ -92,10 +92,10 @@ pub async fn handle(
         }
         Action::ProcessKey(key_event) => {
             // Check if Ctrl+Shift is being held (for selection mode)
-            use crossterm::event::{KeyModifiers, KeyEventKind};
-            let ctrl_shift = key_event.modifiers.contains(KeyModifiers::CONTROL) 
-                          && key_event.modifiers.contains(KeyModifiers::SHIFT);
-            
+            use crossterm::event::{KeyEventKind, KeyModifiers};
+            let ctrl_shift = key_event.modifiers.contains(KeyModifiers::CONTROL)
+                && key_event.modifiers.contains(KeyModifiers::SHIFT);
+
             // Detect when Ctrl+Shift is released - just clear the held state, don't copy
             if key_event.kind == KeyEventKind::Release {
                 if state.is_ctrl_shift_held() && !ctrl_shift {
@@ -103,12 +103,12 @@ pub async fn handle(
                 }
                 return Ok(()); // Don't process release events as actions
             }
-            
+
             // Update Ctrl+Shift held state on press
             if ctrl_shift != state.is_ctrl_shift_held() {
                 state.set_ctrl_shift_held(ctrl_shift);
             }
-            
+
             // Process key event with full state context (only for press events)
             // Check if screen selector is open first
             let mapped_action = if state.is_screen_selector_open() {
@@ -136,8 +136,11 @@ pub async fn handle(
                         } else {
                             // Special handling for models screen: go back to provider list if on setup
                             use crate::ui::screens::models::state::ModelsStep;
-                            if matches!(state.active_screen(), crate::state::screen::ActiveScreen::Models)
-                                && matches!(state.models.step, ModelsStep::Setup) {
+                            if matches!(
+                                state.active_screen(),
+                                crate::state::screen::ActiveScreen::Models
+                            ) && matches!(state.models.step, ModelsStep::Setup)
+                            {
                                 state.models.back_to_provider_list();
                             } else {
                                 state.set_active_screen(crate::state::screen::ActiveScreen::Chat);
@@ -176,7 +179,9 @@ pub async fn handle(
                         } else {
                             // Forward to TextArea as a regular character
                             use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                            state.message_input_mut().input(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+                            state
+                                .message_input_mut()
+                                .input(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
                         }
                     }
                     Action::ForwardKeyToInput(key_event) => {
@@ -205,33 +210,33 @@ pub async fn handle(
                     }
                     // Models actions are handled in the outer match statement
                     // Re-send them through the channel so they get processed there
-                    action @ (Action::ModelsUp 
-                            | Action::ModelsDown 
-                            | Action::ModelsLeft
-                            | Action::ModelsRight
-                            | Action::ModelsConfirm 
-                            | Action::ModelsNextField 
-                            | Action::ModelsFetchModels 
-                            | Action::ModelsToggleCompat 
-                            | Action::ModelsForwardKeyToInput(_)) => {
+                    action @ (Action::ModelsUp
+                    | Action::ModelsDown
+                    | Action::ModelsLeft
+                    | Action::ModelsRight
+                    | Action::ModelsConfirm
+                    | Action::ModelsNextField
+                    | Action::ModelsFetchModels
+                    | Action::ModelsToggleCompat
+                    | Action::ModelsForwardKeyToInput(_)) => {
                         // Re-send to outer handler
                         let _ = tx.send(action).await;
                     }
                     // Permissions actions are handled in the outer match statement
                     // Re-send them through the channel so they get processed there
                     action @ (Action::PermSwitchSection
-                            | Action::PermSelectUp
-                            | Action::PermSelectDown
-                            | Action::PermToggleExpand
-                            | Action::PermOpenEditor
-                            | Action::PermAddDirectory
-                            | Action::PermDeleteDirectory
-                            | Action::PermCloseModal
-                            | Action::PermEditorUp
-                            | Action::PermEditorDown
-                            | Action::PermEditorConfirm
-                            | Action::PermEditorSwitchRole
-                            | Action::PermForwardKeyToInput(_)) => {
+                    | Action::PermSelectUp
+                    | Action::PermSelectDown
+                    | Action::PermToggleExpand
+                    | Action::PermOpenEditor
+                    | Action::PermAddDirectory
+                    | Action::PermDeleteDirectory
+                    | Action::PermCloseModal
+                    | Action::PermEditorUp
+                    | Action::PermEditorDown
+                    | Action::PermEditorConfirm
+                    | Action::PermEditorSwitchRole
+                    | Action::PermForwardKeyToInput(_)) => {
                         // Re-send to outer handler
                         let _ = tx.send(action).await;
                     }
@@ -243,6 +248,6 @@ pub async fn handle(
             // Catch-all for safety (should never hit due to dispatch routing)
         }
     }
-    
+
     Ok(())
 }

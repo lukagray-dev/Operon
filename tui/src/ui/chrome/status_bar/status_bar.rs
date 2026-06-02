@@ -2,15 +2,15 @@
 // Bottom bar showing model name, context usage, active screen, agent status
 // Always visible at the bottom of the terminal
 
+use crate::state::AppState;
+use crate::ui::theme::STYLE_INACTIVE_BORDER;
+use crate::ui::widgets::spinner::get_spinner_frame;
 use ratatui::{
     layout::{Alignment, Rect},
     text::{Line, Span},
     widgets::Paragraph,
     Frame,
 };
-use crate::state::AppState;
-use crate::ui::theme::STYLE_INACTIVE_BORDER;
-use crate::ui::widgets::spinner::get_spinner_frame;
 
 /// Render the status bar at the bottom of the screen
 /// Layout when idle:    [Model] • [ctx: X/Y (Z%)] • [Mouse: ON/OFF]

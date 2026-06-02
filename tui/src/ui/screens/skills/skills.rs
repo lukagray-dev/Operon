@@ -2,13 +2,13 @@
 // Skill manager with enable/disable toggles and OHub integration
 // For bootstrap: renders placeholder content
 
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_TITLE};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_TITLE};
 
 /// Render the skills management screen
 /// For bootstrap: displays placeholder content
@@ -34,7 +34,10 @@ pub fn render_skills_screen(frame: &mut Frame, area: Rect) {
         Line::from(Span::styled("- Install new skills", STYLE_MUTED)),
         Line::from(Span::styled("- Skill configuration", STYLE_MUTED)),
         Line::from(""),
-        Line::from(Span::styled("Extend Operon's capabilities with community skills.", STYLE_MUTED)),
+        Line::from(Span::styled(
+            "Extend Operon's capabilities with community skills.",
+            STYLE_MUTED,
+        )),
     ];
 
     let paragraph = Paragraph::new(lines).block(block);

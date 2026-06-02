@@ -8,8 +8,8 @@ pub mod screens;
 pub mod theme;
 pub mod widgets;
 
-use ratatui::Frame;
 use crate::state::AppState;
+use ratatui::Frame;
 
 /// Main render function
 /// This is the single entry point called from main.rs event loop

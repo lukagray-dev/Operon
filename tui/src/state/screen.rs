@@ -10,22 +10,22 @@ use std::fmt;
 pub enum ActiveScreen {
     /// Chat interface — message history + input box
     Chat,
-    
+
     /// Model provider configuration — OpenAI, Anthropic, local, custom
     Models,
-    
+
     /// Permission rules — Owner vs External access control
     Permissions,
-    
+
     /// Skills manager — enable/disable/download from OHub
     Skills,
-    
+
     /// Extensions manager — install/remove/configure extensions
     Extensions,
-    
+
     /// Channels configuration — WhatsApp, Telegram, Discord, etc.
     Channels,
-    
+
     /// Help screen — keybind reference, searchable
     Help,
 }

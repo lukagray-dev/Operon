@@ -44,9 +44,9 @@ impl PermissionMode {
     /// Get the ratatui style for this permission mode
     /// Uses theme constants for consistent coloring
     pub fn style(&self) -> ratatui::style::Style {
-        use crate::ui::theme::{COLOR_SUCCESS, COLOR_WARNING, COLOR_ERROR};
+        use crate::ui::theme::{COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING};
         use ratatui::style::Style;
-        
+
         match self {
             PermissionMode::Allow => Style::default().fg(COLOR_SUCCESS),
             PermissionMode::Ask => Style::default().fg(COLOR_WARNING),
@@ -257,38 +257,67 @@ impl ToolTableData {
                 "web",
                 "Web",
                 vec![
-                    ToolEntry::new("web_search", "web_search", PermissionMode::Allow, PermissionMode::Deny),
-                    ToolEntry::new("web_fetch", "web_fetch", PermissionMode::Allow, PermissionMode::Deny),
+                    ToolEntry::new(
+                        "web_search",
+                        "web_search",
+                        PermissionMode::Allow,
+                        PermissionMode::Deny,
+                    ),
+                    ToolEntry::new(
+                        "web_fetch",
+                        "web_fetch",
+                        PermissionMode::Allow,
+                        PermissionMode::Deny,
+                    ),
                 ],
             ),
             ToolGroup::new(
                 "sub_agents",
                 "Sub-agents",
-                vec![
-                    ToolEntry::new("invoke_sub_agent", "invoke_sub_agent", PermissionMode::Allow, PermissionMode::Deny),
-                ],
+                vec![ToolEntry::new(
+                    "invoke_sub_agent",
+                    "invoke_sub_agent",
+                    PermissionMode::Allow,
+                    PermissionMode::Deny,
+                )],
             ),
             ToolGroup::new(
                 "ask_question",
                 "Ask Question",
-                vec![
-                    ToolEntry::new("ask_user", "ask_user", PermissionMode::Allow, PermissionMode::Deny),
-                ],
+                vec![ToolEntry::new(
+                    "ask_user",
+                    "ask_user",
+                    PermissionMode::Allow,
+                    PermissionMode::Deny,
+                )],
             ),
             ToolGroup::new(
                 "task_management",
                 "Task Management",
                 vec![
-                    ToolEntry::new("create_task", "create_task", PermissionMode::Allow, PermissionMode::Ask),
-                    ToolEntry::new("update_task", "update_task", PermissionMode::Allow, PermissionMode::Ask),
+                    ToolEntry::new(
+                        "create_task",
+                        "create_task",
+                        PermissionMode::Allow,
+                        PermissionMode::Ask,
+                    ),
+                    ToolEntry::new(
+                        "update_task",
+                        "update_task",
+                        PermissionMode::Allow,
+                        PermissionMode::Ask,
+                    ),
                 ],
             ),
             ToolGroup::new(
                 "load_tools",
                 "Load Tools",
-                vec![
-                    ToolEntry::new("load_mcp_tools", "load_mcp_tools", PermissionMode::Allow, PermissionMode::Allow),
-                ],
+                vec![ToolEntry::new(
+                    "load_mcp_tools",
+                    "load_mcp_tools",
+                    PermissionMode::Allow,
+                    PermissionMode::Allow,
+                )],
             ),
         ])
     }
@@ -302,19 +331,54 @@ impl ToolTableData {
                 "file_system",
                 "File System",
                 vec![
-                    ToolEntry::new("read_file", "read_file", PermissionMode::Allow, PermissionMode::Ask),
-                    ToolEntry::new("write_file", "write_file", PermissionMode::Allow, PermissionMode::Ask),
-                    ToolEntry::new("list_dir", "list_dir", PermissionMode::Allow, PermissionMode::Ask),
-                    ToolEntry::new("create_dir", "create_dir", PermissionMode::Allow, PermissionMode::Ask),
-                    ToolEntry::new("delete_file", "delete_file", PermissionMode::Ask, PermissionMode::Deny),
+                    ToolEntry::new(
+                        "read_file",
+                        "read_file",
+                        PermissionMode::Allow,
+                        PermissionMode::Ask,
+                    ),
+                    ToolEntry::new(
+                        "write_file",
+                        "write_file",
+                        PermissionMode::Allow,
+                        PermissionMode::Ask,
+                    ),
+                    ToolEntry::new(
+                        "list_dir",
+                        "list_dir",
+                        PermissionMode::Allow,
+                        PermissionMode::Ask,
+                    ),
+                    ToolEntry::new(
+                        "create_dir",
+                        "create_dir",
+                        PermissionMode::Allow,
+                        PermissionMode::Ask,
+                    ),
+                    ToolEntry::new(
+                        "delete_file",
+                        "delete_file",
+                        PermissionMode::Ask,
+                        PermissionMode::Deny,
+                    ),
                 ],
             ),
             ToolGroup::new(
                 "shell",
                 "Shell",
                 vec![
-                    ToolEntry::new("run_command", "run_command", PermissionMode::Allow, PermissionMode::Deny),
-                    ToolEntry::new("run_script", "run_script", PermissionMode::Allow, PermissionMode::Deny),
+                    ToolEntry::new(
+                        "run_command",
+                        "run_command",
+                        PermissionMode::Allow,
+                        PermissionMode::Deny,
+                    ),
+                    ToolEntry::new(
+                        "run_script",
+                        "run_script",
+                        PermissionMode::Allow,
+                        PermissionMode::Deny,
+                    ),
                 ],
             ),
         ])
@@ -410,7 +474,7 @@ impl RuleEditorState {
     pub fn move_down(&mut self) {
         self.selected_mode = self.selected_mode.cycle();
     }
-    
+
     /// Switch between Owner and External roles
     /// Reloads the current mode for the new role
     #[allow(dead_code)] // Alternative implementation kept for API completeness
@@ -420,7 +484,7 @@ impl RuleEditorState {
             EditRole::Owner => EditRole::External,
             EditRole::External => EditRole::Owner,
         };
-        
+
         // Update selected_mode to reflect the current permission for the new role
         let group = &tools.groups[self.group_idx];
         self.selected_mode = if let Some(tool_idx) = self.tool_idx {
@@ -460,10 +524,7 @@ impl AddDirState {
     pub fn new() -> Self {
         let mut input = TextArea::default();
         input.set_placeholder_text("~/");
-        Self {
-            open: false,
-            input,
-        }
+        Self { open: false, input }
     }
 
     /// Open the modal and reset the input

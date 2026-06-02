@@ -2,10 +2,10 @@
 // Renders the full-width tool table for global tools (Web, Sub-agents, etc.)
 // Used when Global section is active
 
-use ratatui::{layout::Rect, Frame};
-use crate::ui::theme::STYLE_ACTIVE_BORDER;
 use crate::ui::screens::permissions::state::ToolTableData;
 use crate::ui::screens::permissions::tool_table::render_tool_table;
+use crate::ui::theme::STYLE_ACTIVE_BORDER;
+use ratatui::{layout::Rect, Frame};
 
 /// Render the global tools panel (full-width table)
 /// Shows all global tools with Owner and External permission columns

@@ -2,13 +2,13 @@
 // Extension manager for installing and configuring extensions
 // For bootstrap: renders placeholder content
 
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_TITLE};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_TITLE};
 
 /// Render the extensions management screen
 /// For bootstrap: displays placeholder content
@@ -33,7 +33,10 @@ pub fn render_extensions_screen(frame: &mut Frame, area: Rect) {
         Line::from(Span::styled("- Extension configuration", STYLE_MUTED)),
         Line::from(Span::styled("- Browse extension marketplace", STYLE_MUTED)),
         Line::from(""),
-        Line::from(Span::styled("Add new functionality to Operon with extensions.", STYLE_MUTED)),
+        Line::from(Span::styled(
+            "Add new functionality to Operon with extensions.",
+            STYLE_MUTED,
+        )),
     ];
 
     let paragraph = Paragraph::new(lines).block(block);

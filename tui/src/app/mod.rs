@@ -17,12 +17,12 @@ use crate::state::AppState;
 use crate::ui;
 
 // Submodules
-pub mod terminal;
 mod handlers;
+pub mod terminal;
 
 /// Main application event loop
 /// Receives actions from event handler, dispatches them to handlers, and renders UI
-/// 
+///
 /// Loop structure:
 /// 1. Draw current state to terminal
 /// 2. Wait for next action from channel
@@ -44,10 +44,11 @@ pub async fn run(
         if let Some(action) = action_rx.recv().await {
             // Get terminal height for mouse handler (needed for input area calculation)
             let terminal_height = terminal.size()?.height;
-            
+
             // Dispatch action to appropriate handler
-            let flow = handlers::dispatch(action, state, &agent, &action_tx, terminal_height).await?;
-            
+            let flow =
+                handlers::dispatch(action, state, &agent, &action_tx, terminal_height).await?;
+
             // Check if we should exit the loop
             if flow == ControlFlow::Break(()) {
                 break;

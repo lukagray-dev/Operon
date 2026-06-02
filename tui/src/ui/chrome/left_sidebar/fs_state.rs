@@ -12,11 +12,11 @@ use std::path::PathBuf;
 pub struct FileSystemState {
     /// Currently selected file/directory path
     pub selected_path: Option<PathBuf>,
-    
+
     /// List of expanded directory paths
     /// Directories in this set show their children in the tree
     pub expanded_dirs: Vec<PathBuf>,
-    
+
     /// Cursor position in the file tree (row index)
     pub cursor: usize,
 }

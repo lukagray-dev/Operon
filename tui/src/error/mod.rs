@@ -13,16 +13,16 @@ use std::io;
 pub enum TuiError {
     /// I/O error (terminal, file system, etc.)
     Io(io::Error),
-    
+
     /// Error from agent backend (operon-rs)
     Agent(anyhow::Error),
-    
+
     /// Rendering error (layout calculation, widget rendering, etc.)
     Render(String),
-    
+
     /// Configuration error (invalid config file, missing required fields, etc.)
     Config(String),
-    
+
     /// Unknown or unexpected error
     Unknown(String),
 }

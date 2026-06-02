@@ -10,8 +10,8 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
-mod app;
 mod agent;
+mod app;
 mod error;
 mod events;
 mod state;
@@ -41,7 +41,14 @@ async fn main() -> Result<()> {
 
     // Main event loop
     // Poll for actions → update state → render UI → repeat until quit
-    let result = app::run(&mut terminal, &mut app_state, &mut action_rx, agent, action_tx).await;
+    let result = app::run(
+        &mut terminal,
+        &mut app_state,
+        &mut action_rx,
+        agent,
+        action_tx,
+    )
+    .await;
 
     // Restore terminal to normal state before exiting
     app::terminal::restore(&mut terminal)?;

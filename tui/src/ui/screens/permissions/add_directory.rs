@@ -2,14 +2,14 @@
 // Modal dialog for adding a new directory to the permissions list
 // Allows user to input a directory path
 
+use crate::ui::screens::permissions::state::AddDirState;
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_NORMAL, STYLE_MUTED};
-use crate::ui::screens::permissions::state::AddDirState;
 
 /// Render the add directory modal centered over the screen
 /// Shows a text input field for the directory path
@@ -20,7 +20,7 @@ pub fn render_add_directory_modal(frame: &mut Frame, area: Rect, state: &mut Add
     // Modal height: 8 rows (fixed)
     let modal_width = (area.width / 2).max(40);
     let modal_height = 8;
-    
+
     let modal_area = Rect {
         x: (area.width.saturating_sub(modal_width)) / 2,
         y: (area.height.saturating_sub(modal_height)) / 2,
@@ -63,10 +63,10 @@ pub fn render_add_directory_modal(frame: &mut Frame, area: Rect, state: &mut Add
     let input_block = Block::default()
         .borders(Borders::ALL)
         .border_style(STYLE_ACTIVE_BORDER);
-    
+
     let input_area = chunks[1];
     frame.render_widget(input_block, input_area);
-    
+
     // Render the TextArea widget inside the input box
     let input_inner = input_area.inner(ratatui::layout::Margin {
         vertical: 1,

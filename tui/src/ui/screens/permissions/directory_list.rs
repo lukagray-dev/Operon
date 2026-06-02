@@ -2,15 +2,15 @@
 // Renders the left panel in Directory section
 // Shows list of directories with their own tool permissions
 
+use crate::ui::screens::permissions::state::DirectoryEntry;
+use crate::ui::theme::{STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
+use ratatui::style::Style;
 use ratatui::{
     layout::{Margin, Rect},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
-use crate::ui::theme::{STYLE_SELECTED, STYLE_NORMAL, STYLE_MUTED};
-use crate::ui::screens::permissions::state::DirectoryEntry;
-use ratatui::style::Style;
 
 /// Render the directory list panel (left side in Directory section)
 /// Shows all configured directories with selection highlighting
@@ -35,12 +35,12 @@ pub fn render_directory_list(
         // Calculate vertical centering
         let visible_height = area.height.saturating_sub(2) as usize;
         let padding_top = visible_height / 3;
-        
+
         // Add padding lines
         for _ in 0..padding_top {
             lines.push(Line::from(""));
         }
-        
+
         // Centered help text
         lines.push(Line::from(Span::styled(
             "No directories added.",
@@ -55,20 +55,20 @@ pub fn render_directory_list(
         for (idx, dir) in directories.iter().enumerate() {
             let is_selected = idx == selected_dir;
             let cursor = if is_selected { "> " } else { "  " };
-            
+
             // Format path as string
             let path_str = dir.path.to_string_lossy();
             let display_text = format!("{}{}", cursor, path_str);
-            
+
             let line = if is_selected {
                 Line::from(Span::styled(display_text, STYLE_NORMAL)).style(STYLE_SELECTED)
             } else {
                 Line::from(Span::styled(display_text, STYLE_NORMAL))
             };
-            
+
             lines.push(line);
         }
-        
+
         // Add help text at bottom
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled("[+] Add", STYLE_MUTED)));
@@ -109,8 +109,7 @@ pub fn render_directory_list(
             .begin_symbol(Some("↑"))
             .end_symbol(Some("↓"));
 
-        let mut scrollbar_state = ScrollbarState::new(max_scroll)
-            .position(scroll_offset);
+        let mut scrollbar_state = ScrollbarState::new(max_scroll).position(scroll_offset);
 
         frame.render_stateful_widget(
             scrollbar,

@@ -3,15 +3,15 @@
 // Shared by both Global section (full-width) and Directory section (right panel)
 // Supports expanding/collapsing groups to show individual tools
 
+use crate::ui::screens::permissions::state::ToolTableData;
+use crate::ui::theme::{COLOR_MUTED, STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
+use ratatui::style::Style;
 use ratatui::{
     layout::{Margin, Rect},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
-use crate::ui::theme::{STYLE_SELECTED, STYLE_NORMAL, STYLE_MUTED, COLOR_MUTED};
-use crate::ui::screens::permissions::state::ToolTableData;
-use ratatui::style::Style;
 
 /// Render the tool table with scrolling support
 /// Shows tool groups with Owner and External permission columns
@@ -33,7 +33,7 @@ pub fn render_tool_table(
 
     // Build the line buffer for all visible rows
     let mut lines: Vec<Line> = Vec::new();
-    
+
     // Header row
     lines.push(Line::from(vec![
         Span::styled("  Tool                       ", STYLE_NORMAL),
@@ -48,13 +48,13 @@ pub fn render_tool_table(
     for group in &tools.groups {
         // Determine if this row is selected
         let is_selected = current_row == selected_row;
-        
+
         // Group row
         let cursor = if is_selected { "> " } else { "  " };
-        
+
         // Tool name with cursor
         let tool_name = format!("{}{:<27}", cursor, group.label);
-        
+
         // Owner permission
         let owner_label = if group.is_owner_uniform() {
             group.owner.label()
@@ -66,7 +66,7 @@ pub fn render_tool_table(
         } else {
             Style::default().fg(COLOR_MUTED)
         };
-        
+
         // External permission
         let external_label = if group.is_external_uniform() {
             group.external.label()
@@ -78,21 +78,21 @@ pub fn render_tool_table(
         } else {
             Style::default().fg(COLOR_MUTED)
         };
-        
+
         // Build the line with proper column alignment
         let line_spans = vec![
             Span::styled(tool_name, STYLE_NORMAL),
             Span::styled(format!("{:<15}", owner_label), owner_style),
             Span::styled(external_label, external_style),
         ];
-        
+
         // Apply selection background to entire row
         let line = if is_selected {
             Line::from(line_spans).style(STYLE_SELECTED)
         } else {
             Line::from(line_spans)
         };
-        
+
         lines.push(line);
         current_row += 1;
 
@@ -102,33 +102,33 @@ pub fn render_tool_table(
             for (child_idx, tool) in group.tools.iter().enumerate() {
                 let is_last = child_idx == child_count - 1;
                 let is_selected = current_row == selected_row;
-                
+
                 // Tree line prefix: "  ├ " for middle children, "  └ " for last child
                 let tree_prefix = if is_last { "  └ " } else { "  ├ " };
-                
+
                 // Tool name with tree prefix and indentation
                 let tool_name = format!("{}{:<23}", tree_prefix, tool.label);
-                
+
                 // Owner and External permissions
                 let owner_label = tool.owner.label();
                 let owner_style = tool.owner.style();
                 let external_label = tool.external.label();
                 let external_style = tool.external.style();
-                
+
                 // Build the line
                 let line_spans = vec![
                     Span::styled(tool_name, STYLE_MUTED),
                     Span::styled(format!("{:<15}", owner_label), owner_style),
                     Span::styled(external_label, external_style),
                 ];
-                
+
                 // Apply selection background to entire row
                 let line = if is_selected {
                     Line::from(line_spans).style(STYLE_SELECTED)
                 } else {
                     Line::from(line_spans)
                 };
-                
+
                 lines.push(line);
                 current_row += 1;
             }
@@ -169,8 +169,7 @@ pub fn render_tool_table(
             .begin_symbol(Some("↑"))
             .end_symbol(Some("↓"));
 
-        let mut scrollbar_state = ScrollbarState::new(max_scroll)
-            .position(scroll_offset);
+        let mut scrollbar_state = ScrollbarState::new(max_scroll).position(scroll_offset);
 
         frame.render_stateful_widget(
             scrollbar,
@@ -188,14 +187,14 @@ pub fn render_tool_table(
 /// Includes groups + expanded children (header is not counted as it's not selectable)
 pub fn count_tool_table_rows(tools: &ToolTableData) -> usize {
     let mut count = 0; // Don't count header row
-    
+
     for group in &tools.groups {
         count += 1; // group row
         if group.expanded {
             count += group.tools.len(); // child rows
         }
     }
-    
+
     count
 }
 
@@ -205,14 +204,14 @@ pub fn count_tool_table_rows(tools: &ToolTableData) -> usize {
 /// Row 0 = first group, row 1 = second group or first child if first group is expanded, etc.
 pub fn get_row_indices(tools: &ToolTableData, row: usize) -> Option<(usize, Option<usize>)> {
     let mut current_row = 0; // Start counting from first group
-    
+
     for (group_idx, group) in tools.groups.iter().enumerate() {
         if current_row == row {
             // This is a group row
             return Some((group_idx, None));
         }
         current_row += 1;
-        
+
         if group.expanded {
             for tool_idx in 0..group.tools.len() {
                 if current_row == row {
@@ -223,6 +222,6 @@ pub fn get_row_indices(tools: &ToolTableData, row: usize) -> Option<(usize, Opti
             }
         }
     }
-    
+
     None
 }

@@ -6,11 +6,11 @@
 pub mod screen;
 pub mod session;
 
-use screen::ActiveScreen;
-use session::SessionContext;
 use crate::ui::chrome::right_sidebar::panel_state::RightPanelContent;
 use crate::ui::screens::models::state::ModelsState;
 use crate::ui::screens::permissions::state::PermissionsScreenState;
+use screen::ActiveScreen;
+use session::SessionContext;
 use tui_textarea::TextArea;
 
 /// AppState holds all mutable UI state for the TUI
@@ -27,64 +27,64 @@ use tui_textarea::TextArea;
 pub struct AppState {
     /// Currently active screen in the main panel
     active_screen: ActiveScreen,
-    
+
     /// Whether the left sidebar (file explorer) is visible
     left_sidebar_open: bool,
-    
+
     /// Content displayed in the right panel (None = hidden)
     right_panel: Option<RightPanelContent>,
-    
+
     /// Session context data provided by operon-rs backend
     session: SessionContext,
-    
+
     /// Tick counter incremented on each Action::Tick
     /// Used for animations like spinner rotation
     tick: u64,
-    
+
     /// Message input TextArea widget for chat
     /// This handles all text editing, cursor movement, undo/redo automatically
     message_input: TextArea<'static>,
-    
+
     /// Whether screen selector popup is open
     screen_selector_open: bool,
-    
+
     /// Selected index in screen selector
     screen_selector_index: usize,
-    
+
     /// Chat message history
     messages: Vec<ChatMessage>,
-    
+
     /// Chat scroll position (0 = top for help, 0 = bottom for chat)
     chat_scroll: u16,
 
     /// Help screen scroll position (0 = top)
     help_scroll: u16,
-    
+
     /// Input scroll position (0 = bottom/latest text)
     input_scroll: u16,
-    
+
     /// Whether the agent is currently generating a response
     /// Used to show the spinner in the status bar
     agent_thinking: bool,
-    
+
     /// Whether mouse capture is enabled
     /// When true: mouse scrolling works, terminal selection disabled
     /// When false: terminal selection works, mouse scrolling disabled
     #[allow(dead_code)]
     mouse_capture_enabled: bool,
-    
+
     /// Whether Ctrl+Shift is currently held down (for selection mode)
     ctrl_shift_held: bool,
-    
+
     /// Selection start position when Ctrl+Shift+drag
     selection_start: Option<(u16, u16)>,
-    
+
     /// Selection end position when Ctrl+Shift+drag
     selection_end: Option<(u16, u16)>,
-    
+
     /// Models screen state (provider selection, form inputs, fetched models)
     pub models: ModelsState,
-    
+
     /// Permissions screen state (tool permissions, directory list, modals)
     pub permissions: PermissionsScreenState,
 }
@@ -94,7 +94,7 @@ pub struct AppState {
 pub struct ChatMessage {
     /// Role: "User" or "Agent"
     pub role: String,
-    
+
     /// Message content
     pub content: String,
 }
@@ -189,7 +189,10 @@ impl AppState {
 
     /// Check if input is empty
     pub fn is_input_empty(&self) -> bool {
-        self.message_input.lines().iter().all(|line| line.is_empty())
+        self.message_input
+            .lines()
+            .iter()
+            .all(|line| line.is_empty())
     }
 
     /// Clear message input and reset cursor
@@ -344,17 +347,17 @@ impl AppState {
     pub fn get_selected_text(&self) -> Option<String> {
         let start = self.selection_start?;
         let end = self.selection_end?;
-        
+
         // Normalize so start is before end
         let (start, end) = if start.0 < end.0 || (start.0 == end.0 && start.1 <= end.1) {
             (start, end)
         } else {
             (end, start)
         };
-        
+
         // Build text buffer from messages
         let mut lines: Vec<String> = Vec::new();
-        
+
         // Banner
         lines.push(String::new());
         lines.push("    ____                               ".to_string());
@@ -364,7 +367,7 @@ impl AppState {
         lines.push(" \\____/ .___/\\___/_/   \\____/_/ /_/    ".to_string());
         lines.push("     /_/                               ".to_string());
         lines.push(String::new());
-        
+
         if self.messages.is_empty() {
             lines.push("Type a message and press Ctrl+Enter to send.".to_string());
             lines.push("Type / to switch screens.".to_string());
@@ -375,7 +378,7 @@ impl AppState {
                 lines.push(String::new());
             }
         }
-        
+
         // Extract selected text
         let mut result = String::new();
         for (row_idx, line) in lines.iter().enumerate() {
@@ -383,7 +386,7 @@ impl AppState {
             if row < start.0 || row > end.0 {
                 continue;
             }
-            
+
             if row == start.0 && row == end.0 {
                 // Single line
                 let s = (start.1 as usize).min(line.len());
@@ -404,8 +407,12 @@ impl AppState {
                 result.push('\n');
             }
         }
-        
-        if result.is_empty() { None } else { Some(result) }
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
     }
 
     /// Get input scroll position (deprecated - TextArea handles scrolling internally)

@@ -2,14 +2,14 @@
 // Displays a centered selection list with three provider options
 // User navigates with Up/Down and confirms with Enter
 
+use crate::state::AppState;
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_SELECTED, STYLE_NORMAL, STYLE_MUTED};
-use crate::state::AppState;
 
 /// Render the provider selection list
 /// Shows three options: Anthropic, OpenAI, Custom
@@ -25,9 +25,9 @@ pub fn render_provider_list(frame: &mut Frame, area: Rect, state: &AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),  // Top padding
-            Constraint::Min(3),     // Provider list (3 items)
-            Constraint::Length(2),  // Bottom instructions
+            Constraint::Length(1), // Top padding
+            Constraint::Min(3),    // Provider list (3 items)
+            Constraint::Length(2), // Bottom instructions
         ])
         .split(block.inner(area));
 
@@ -51,7 +51,7 @@ pub fn render_provider_list(frame: &mut Frame, area: Rect, state: &AppState) {
 
             // Add selection indicator (▶) for selected item
             let prefix = if i == selected_index { "▶ " } else { "  " };
-            
+
             let line = Line::from(vec![
                 Span::styled(prefix, style),
                 Span::styled(*name, style),
@@ -62,8 +62,7 @@ pub fn render_provider_list(frame: &mut Frame, area: Rect, state: &AppState) {
         .collect();
 
     // Create List widget with ListState for proper selection rendering
-    let list = List::new(items)
-        .highlight_style(STYLE_SELECTED);
+    let list = List::new(items).highlight_style(STYLE_SELECTED);
 
     // Create ListState to track selection
     let mut list_state = ListState::default();
@@ -73,15 +72,13 @@ pub fn render_provider_list(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_stateful_widget(list, chunks[1], &mut list_state);
 
     // Render instructions at the bottom
-    let instructions = vec![
-        Line::from(vec![
-            Span::styled("[Enter]", STYLE_NORMAL),
-            Span::styled(" Select   ", STYLE_MUTED),
-            Span::styled("[Esc]", STYLE_NORMAL),
-            Span::styled(" Back", STYLE_MUTED),
-        ])
-        .alignment(Alignment::Center),
-    ];
+    let instructions = vec![Line::from(vec![
+        Span::styled("[Enter]", STYLE_NORMAL),
+        Span::styled(" Select   ", STYLE_MUTED),
+        Span::styled("[Esc]", STYLE_NORMAL),
+        Span::styled(" Back", STYLE_MUTED),
+    ])
+    .alignment(Alignment::Center)];
 
     let instructions_widget = ratatui::widgets::Paragraph::new(instructions);
     frame.render_widget(instructions_widget, chunks[2]);

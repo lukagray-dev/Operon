@@ -4,7 +4,6 @@
 
 // Allow dead code for widgets that will be used as features are implemented
 #[allow(dead_code)]
-
 pub mod confirm_dialog;
 pub mod notification;
 pub mod spinner;

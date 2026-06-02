@@ -2,12 +2,12 @@
 // Provider configuration and model selection
 // Entry point for the models screen rendering
 
-pub mod state;
 pub mod provider_list;
 pub mod setup;
+pub mod state;
 
-use ratatui::{layout::Rect, Frame};
 use crate::state::AppState;
+use ratatui::{layout::Rect, Frame};
 use state::ModelsStep;
 
 /// Main render entry point for models screen

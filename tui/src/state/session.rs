@@ -10,17 +10,17 @@
 pub struct SessionContext {
     /// Name of the currently active model (e.g., "claude-sonnet-4.5", "gpt-4")
     pub model_name: String,
-    
+
     /// Current context window usage in tokens
     pub context_used: usize,
-    
+
     /// Maximum context window size in tokens
     pub context_max: usize,
-    
+
     /// Current agent status (e.g., "Idle", "Thinking", "Executing", "Error")
     #[allow(dead_code)]
     pub agent_status: String,
-    
+
     /// Whether the agent is currently processing a request
     #[allow(dead_code)]
     pub is_busy: bool,

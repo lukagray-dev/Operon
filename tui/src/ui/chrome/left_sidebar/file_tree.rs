@@ -2,12 +2,12 @@
 // Recursive directory tree with expand/collapse functionality
 // For bootstrap: renders a placeholder message
 
+use crate::ui::theme::{STYLE_INACTIVE_BORDER, STYLE_MUTED};
 use ratatui::{
     layout::Rect,
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_INACTIVE_BORDER, STYLE_MUTED};
 
 /// Render the file tree in the left sidebar
 /// For bootstrap: displays a placeholder message

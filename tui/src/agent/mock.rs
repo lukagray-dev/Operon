@@ -41,26 +41,37 @@ impl AgentBridge for MockAgent {
     async fn send_message(&self, msg: &str) -> Result<String> {
         // Simulate network/processing latency
         // Real agent responses take time, so we simulate that here
-        let latency_ms = 500 + (self.message_count.load(std::sync::atomic::Ordering::Relaxed) % 10) * 100;
+        let latency_ms = 500
+            + (self
+                .message_count
+                .load(std::sync::atomic::Ordering::Relaxed)
+                % 10)
+                * 100;
         tokio::time::sleep(Duration::from_millis(latency_ms as u64)).await;
 
         // Increment message counter for varied responses
-        let count = self.message_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let count = self
+            .message_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         // Generate mock response based on message content and count
-        let response = if msg.to_lowercase().contains("hello") || msg.to_lowercase().contains("hi") {
+        let response = if msg.to_lowercase().contains("hello") || msg.to_lowercase().contains("hi")
+        {
             "Hello! I'm a mock agent. The real Operon backend is not yet connected. \
-             I'm here to help you test the TUI interface.".to_string()
+             I'm here to help you test the TUI interface."
+                .to_string()
         } else if msg.to_lowercase().contains("help") {
             "Mock Agent Help:\n\
              - I respond to any message with a simulated delay\n\
              - I don't actually process your requests\n\
              - I'm useful for testing the UI without the backend\n\
-             - Press Ctrl+Q to quit".to_string()
+             - Press Ctrl+Q to quit"
+                .to_string()
         } else if count % 3 == 0 {
             "This is a mock response. The real agent would analyze your request, \
              execute tools, and provide a detailed answer. For now, I'm just \
-             demonstrating that the chat interface works correctly.".to_string()
+             demonstrating that the chat interface works correctly."
+                .to_string()
         } else if count % 3 == 1 {
             format!(
                 "Mock agent response #{}. In production, this would be a real AI agent \

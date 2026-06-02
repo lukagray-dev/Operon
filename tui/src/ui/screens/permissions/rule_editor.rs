@@ -2,14 +2,14 @@
 // Modal dialog for editing a single permission cell (tool × role)
 // Allows user to select Allow, Ask, or Deny for a specific tool and role
 
+use crate::ui::screens::permissions::state::{PermissionMode, RuleEditorState, ToolTableData};
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_NORMAL, STYLE_MUTED, STYLE_SELECTED};
-use crate::ui::screens::permissions::state::{RuleEditorState, PermissionMode, ToolTableData};
 
 /// Render the rule editor modal centered over the screen
 /// Shows radio buttons for Allow, Ask, Deny
@@ -25,7 +25,7 @@ pub fn render_rule_editor_modal(
     // Modal height: 12 rows (fixed)
     let modal_width = (area.width / 2).max(40);
     let modal_height = 12;
-    
+
     let modal_area = Rect {
         x: (area.width.saturating_sub(modal_width)) / 2,
         y: (area.height.saturating_sub(modal_height)) / 2,
@@ -95,7 +95,7 @@ pub fn render_rule_editor_modal(
                 .add_modifier(ratatui::style::Modifier::BOLD),
         ),
     };
-    
+
     let role_tabs = Paragraph::new(Line::from(vec![
         Span::styled("Role:  ", STYLE_MUTED),
         Span::styled("Owner", owner_style),
@@ -110,24 +110,24 @@ pub fn render_rule_editor_modal(
         PermissionMode::Ask,
         PermissionMode::Deny,
     ];
-    
+
     for (idx, mode) in modes.iter().enumerate() {
         let is_selected = *mode == state.selected_mode;
         let radio = if is_selected { "(*)" } else { "( )" };
         let label = mode.label();
-        
+
         let line = Line::from(vec![
             Span::styled(radio, STYLE_NORMAL),
             Span::styled(" ", STYLE_NORMAL),
             Span::styled(label, mode.style()),
         ]);
-        
+
         let paragraph = if is_selected {
             Paragraph::new(line).style(STYLE_SELECTED)
         } else {
             Paragraph::new(line)
         };
-        
+
         frame.render_widget(paragraph, chunks[4 + idx]);
     }
 

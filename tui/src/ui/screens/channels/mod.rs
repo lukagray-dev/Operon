@@ -1,13 +1,13 @@
 // Channels screen module
 // Channel configuration (WhatsApp, Telegram, Discord, etc.)
 
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_TITLE};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_TITLE};
 
 /// Render the channels configuration screen
 /// For bootstrap: displays placeholder content
@@ -33,7 +33,10 @@ pub fn render_channels_screen(frame: &mut Frame, area: Rect) {
         Line::from(Span::styled("- Gmail integration", STYLE_MUTED)),
         Line::from(Span::styled("- Custom webhook channels", STYLE_MUTED)),
         Line::from(""),
-        Line::from(Span::styled("Connect Operon to external communication channels.", STYLE_MUTED)),
+        Line::from(Span::styled(
+            "Connect Operon to external communication channels.",
+            STYLE_MUTED,
+        )),
     ];
 
     let paragraph = Paragraph::new(lines).block(block);

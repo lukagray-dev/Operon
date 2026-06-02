@@ -6,10 +6,10 @@
 pub mod action;
 pub mod key;
 
+use crate::events::action::Action;
 use crossterm::event::{self, Event, KeyEventKind};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use crate::events::action::Action;
 
 /// EventHandler manages the event polling thread
 /// Polls crossterm for keyboard/mouse events and converts them to Actions
@@ -39,16 +39,28 @@ impl EventHandler {
                             Event::Key(key_event) => {
                                 // Process both press and release events for modifier tracking
                                 // Press events are used for actions, release for Ctrl+Shift detection
-                                if key_event.kind == KeyEventKind::Press || key_event.kind == KeyEventKind::Release {
+                                if key_event.kind == KeyEventKind::Press
+                                    || key_event.kind == KeyEventKind::Release
+                                {
                                     // Send raw key event to main loop for context-aware processing
-                                    if self.action_tx.send(Action::ProcessKey(key_event)).await.is_err() {
+                                    if self
+                                        .action_tx
+                                        .send(Action::ProcessKey(key_event))
+                                        .await
+                                        .is_err()
+                                    {
                                         break;
                                     }
                                 }
                             }
                             Event::Mouse(mouse_event) => {
                                 // Send mouse events to main loop
-                                if self.action_tx.send(Action::ProcessMouse(mouse_event)).await.is_err() {
+                                if self
+                                    .action_tx
+                                    .send(Action::ProcessMouse(mouse_event))
+                                    .await
+                                    .is_err()
+                                {
                                     break;
                                 }
                             }

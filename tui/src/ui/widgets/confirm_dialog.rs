@@ -2,18 +2,17 @@
 // Modal yes/no prompt for destructive actions
 // For bootstrap: basic implementation, will be enhanced later
 
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_ERROR, STYLE_NORMAL};
 #[allow(dead_code)]
-
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_ERROR, STYLE_NORMAL};
 
 /// Render a confirmation dialog in the center of the screen
 /// Used for destructive actions like deleting files, clearing history, etc.
-/// 
+///
 /// # Arguments
 /// * `frame` - The frame to render to
 /// * `area` - The full screen area (dialog will be centered)
@@ -49,8 +48,8 @@ pub fn render_confirm_dialog(
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(3),      // Message area
-            Constraint::Length(3),   // Button area
+            Constraint::Min(3),    // Message area
+            Constraint::Length(3), // Button area
         ])
         .split(block.inner(dialog_area));
 

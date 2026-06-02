@@ -2,21 +2,17 @@
 // Handles: All Action::Models* variants
 // These actions manage the models configuration screen (provider selection, setup form, model fetching)
 
-use anyhow::Result;
 use crate::events::action::Action;
 use crate::state::AppState;
+use anyhow::Result;
 use tokio::sync::mpsc;
 
 /// Handle models screen actions
 /// Processes provider navigation, form input, model fetching, and configuration
-pub async fn handle(
-    action: Action,
-    state: &mut AppState,
-    tx: &mpsc::Sender<Action>,
-) -> Result<()> {
+pub async fn handle(action: Action, state: &mut AppState, tx: &mpsc::Sender<Action>) -> Result<()> {
     match action {
         Action::ModelsUp => {
-            use crate::ui::screens::models::state::{ModelsStep, FetchStatus, Provider};
+            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
             match state.models.step {
                 ModelsStep::ProviderList => {
                     // Navigate provider list
@@ -24,7 +20,9 @@ pub async fn handle(
                 }
                 ModelsStep::Setup => {
                     // If models are fetched, prioritize model list navigation
-                    if matches!(state.models.fetch_status, FetchStatus::Success) && !state.models.fetched_models.is_empty() {
+                    if matches!(state.models.fetch_status, FetchStatus::Success)
+                        && !state.models.fetched_models.is_empty()
+                    {
                         // Navigate model list
                         state.models.move_model_up();
                     } else {
@@ -34,11 +32,12 @@ pub async fn handle(
                                 state.models.focused_field == 0 // API key field
                             }
                             Some(Provider::Custom) => {
-                                state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
+                                state.models.focused_field == 0 || state.models.focused_field == 2
+                                // URL or API key
                             }
                             None => false,
                         };
-                        
+
                         if is_in_text_field {
                             // Forward to TextArea (though Up/Down don't do much in single-line fields)
                             use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -62,7 +61,7 @@ pub async fn handle(
             }
         }
         Action::ModelsDown => {
-            use crate::ui::screens::models::state::{ModelsStep, FetchStatus, Provider};
+            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
             match state.models.step {
                 ModelsStep::ProviderList => {
                     // Navigate provider list
@@ -70,7 +69,9 @@ pub async fn handle(
                 }
                 ModelsStep::Setup => {
                     // If models are fetched, prioritize model list navigation
-                    if matches!(state.models.fetch_status, FetchStatus::Success) && !state.models.fetched_models.is_empty() {
+                    if matches!(state.models.fetch_status, FetchStatus::Success)
+                        && !state.models.fetched_models.is_empty()
+                    {
                         // Navigate model list
                         state.models.move_model_down();
                     } else {
@@ -80,11 +81,12 @@ pub async fn handle(
                                 state.models.focused_field == 0 // API key field
                             }
                             Some(Provider::Custom) => {
-                                state.models.focused_field == 0 || state.models.focused_field == 2 // URL or API key
+                                state.models.focused_field == 0 || state.models.focused_field == 2
+                                // URL or API key
                             }
                             None => false,
                         };
-                        
+
                         if is_in_text_field {
                             // Forward to TextArea (though Up/Down don't do much in single-line fields)
                             use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -112,7 +114,8 @@ pub async fn handle(
             if matches!(state.models.step, ModelsStep::Setup) {
                 // Check if we're on compat field - if so, toggle
                 if matches!(state.models.selected_provider, Some(Provider::Custom))
-                    && state.models.focused_field == 1 {
+                    && state.models.focused_field == 1
+                {
                     state.models.toggle_compat_mode();
                 } else {
                     // Otherwise, forward to TextArea for cursor movement
@@ -139,7 +142,8 @@ pub async fn handle(
             if matches!(state.models.step, ModelsStep::Setup) {
                 // Check if we're on compat field - if so, toggle
                 if matches!(state.models.selected_provider, Some(Provider::Custom))
-                    && state.models.focused_field == 1 {
+                    && state.models.focused_field == 1
+                {
                     state.models.toggle_compat_mode();
                 } else {
                     // Otherwise, forward to TextArea for cursor movement
@@ -162,7 +166,7 @@ pub async fn handle(
             }
         }
         Action::ModelsConfirm => {
-            use crate::ui::screens::models::state::{ModelsStep, Provider, FetchStatus};
+            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
             match state.models.step {
                 ModelsStep::ProviderList => {
                     // Confirm provider selection and move to setup
@@ -181,17 +185,19 @@ pub async fn handle(
                         }
                         None => false,
                     };
-                    
-                    if is_on_api_key_field && !matches!(state.models.fetch_status, FetchStatus::Fetching) {
+
+                    if is_on_api_key_field
+                        && !matches!(state.models.fetch_status, FetchStatus::Fetching)
+                    {
                         // Trigger fetch
                         state.models.start_fetch();
-                        
+
                         // Spawn async mock fetch task
                         let provider = state.models.selected_provider;
                         let action_tx_clone = tx.clone();
                         tokio::spawn(async move {
                             tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
-                            
+
                             let models = match provider {
                                 Some(Provider::Anthropic) => vec![
                                     "claude-opus-4-5".to_string(),
@@ -212,8 +218,10 @@ pub async fn handle(
                                 ],
                                 None => vec![],
                             };
-                            
-                            let _ = action_tx_clone.send(Action::ModelsFetchComplete(models)).await;
+
+                            let _ = action_tx_clone
+                                .send(Action::ModelsFetchComplete(models))
+                                .await;
                         });
                     } else if matches!(state.models.fetch_status, FetchStatus::Success) {
                         // If models are already fetched, Enter confirms the selected model
@@ -230,19 +238,20 @@ pub async fn handle(
             }
         }
         Action::ModelsFetchModels => {
-            use crate::ui::screens::models::state::{ModelsStep, FetchStatus, Provider};
+            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
             // Only fetch if on setup screen and not already fetching
-            if matches!(state.models.step, ModelsStep::Setup) 
-                && !matches!(state.models.fetch_status, FetchStatus::Fetching) {
+            if matches!(state.models.step, ModelsStep::Setup)
+                && !matches!(state.models.fetch_status, FetchStatus::Fetching)
+            {
                 state.models.start_fetch();
-                
+
                 // Spawn async mock fetch task
                 let provider = state.models.selected_provider;
                 let action_tx_clone = tx.clone();
                 tokio::spawn(async move {
                     // Mock delay (800ms)
                     tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
-                    
+
                     // Generate mock model list based on provider
                     let models = match provider {
                         Some(Provider::Anthropic) => vec![
@@ -264,9 +273,11 @@ pub async fn handle(
                         ],
                         None => vec![],
                     };
-                    
+
                     // Send completion action
-                    let _ = action_tx_clone.send(Action::ModelsFetchComplete(models)).await;
+                    let _ = action_tx_clone
+                        .send(Action::ModelsFetchComplete(models))
+                        .await;
                 });
             }
         }
@@ -280,7 +291,8 @@ pub async fn handle(
             // Otherwise, Left/Right do nothing (they're not text input)
             if matches!(state.models.step, ModelsStep::Setup)
                 && matches!(state.models.selected_provider, Some(Provider::Custom))
-                && state.models.focused_field == 1 {
+                && state.models.focused_field == 1
+            {
                 state.models.toggle_compat_mode();
             }
         }
@@ -295,9 +307,13 @@ pub async fn handle(
                     }
                     Some(Provider::Custom) => {
                         match state.models.focused_field {
-                            0 => { let _ = state.models.base_url_input.input(key_event); } // Base URL field
+                            0 => {
+                                let _ = state.models.base_url_input.input(key_event);
+                            } // Base URL field
                             1 => {} // Compat mode field (not text input)
-                            2 => { let _ = state.models.api_key_input.input(key_event); } // API key field
+                            2 => {
+                                let _ = state.models.api_key_input.input(key_event);
+                            } // API key field
                             _ => {}
                         }
                     }
@@ -309,6 +325,6 @@ pub async fn handle(
             // Catch-all for safety (should never hit due to dispatch routing)
         }
     }
-    
+
     Ok(())
 }

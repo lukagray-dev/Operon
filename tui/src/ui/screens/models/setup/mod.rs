@@ -2,12 +2,12 @@
 // Routes to the correct provider-specific setup form based on selected provider
 
 pub mod anthropic;
-pub mod openai;
 pub mod custom;
+pub mod openai;
 
-use ratatui::{layout::Rect, Frame};
 use crate::state::AppState;
 use crate::ui::screens::models::state::Provider;
+use ratatui::{layout::Rect, Frame};
 
 /// Render the setup form for the selected provider
 /// Dispatches to provider-specific form renderer
@@ -19,8 +19,8 @@ pub fn render_setup(frame: &mut Frame, area: Rect, state: &mut AppState) {
         None => {
             // Should not happen - if we're on Setup step, a provider must be selected
             // Render empty block as fallback
-            use ratatui::widgets::{Block, Borders};
             use crate::ui::theme::STYLE_ACTIVE_BORDER;
+            use ratatui::widgets::{Block, Borders};
             let block = Block::default()
                 .borders(Borders::ALL)
                 .border_style(STYLE_ACTIVE_BORDER)

@@ -12,17 +12,17 @@ use crate::events::action::Action;
 use crate::state::AppState;
 
 // Handler modules - each handles a specific family of actions
-mod navigation;
-mod input;
 mod chat;
-mod mouse;
-mod panels;
+mod input;
 mod models;
+mod mouse;
+mod navigation;
+mod panels;
 mod permissions;
 
 /// Dispatch an action to the appropriate handler
 /// Returns ControlFlow::Break to exit the main loop, ControlFlow::Continue to keep running
-/// 
+///
 /// This function contains ONLY the top-level match statement - no logic.
 /// Every arm calls one handler module that contains the actual implementation.
 pub async fn dispatch(
@@ -37,45 +37,65 @@ pub async fn dispatch(
         Action::Quit => return Ok(ControlFlow::Break(())),
 
         // Navigation actions: screen switching, back, screen selector
-        Action::Navigate(_) | Action::Back | Action::CloseScreenSelector
-        | Action::ScreenSelectorUp | Action::ScreenSelectorDown
-        | Action::ScreenSelectorConfirm
-            => navigation::handle(action, state),
+        Action::Navigate(_)
+        | Action::Back
+        | Action::CloseScreenSelector
+        | Action::ScreenSelectorUp
+        | Action::ScreenSelectorDown
+        | Action::ScreenSelectorConfirm => navigation::handle(action, state),
 
         // Input actions: character input, key forwarding, undo/redo, message sending
-        Action::InputChar(_) | Action::ForwardKeyToInput(_)
-        | Action::InputUndo | Action::InputRedo | Action::SendMessage
-            => input::handle(action, state, agent, tx).await?,
+        Action::InputChar(_)
+        | Action::ForwardKeyToInput(_)
+        | Action::InputUndo
+        | Action::InputRedo
+        | Action::SendMessage => input::handle(action, state, agent, tx).await?,
 
         // Mouse and keyboard actions: mouse events, selection mode, raw key processing
-        Action::ProcessMouse(_) | Action::SetCtrlShiftHeld(_) | Action::CopySelection
-        | Action::ProcessKey(_)
-            => mouse::handle(action, state, tx, terminal_height).await?,
+        Action::ProcessMouse(_)
+        | Action::SetCtrlShiftHeld(_)
+        | Action::CopySelection
+        | Action::ProcessKey(_) => mouse::handle(action, state, tx, terminal_height).await?,
 
         // Panel actions: toggle terminal, sidebar, right panel
-        Action::ToggleTerminal | Action::ToggleLeftSidebar | Action::ToggleRightPanel(_)
-        | Action::CloseRightPanel | Action::OpenFile(_)
-            => panels::handle(action, state),
+        Action::ToggleTerminal
+        | Action::ToggleLeftSidebar
+        | Action::ToggleRightPanel(_)
+        | Action::CloseRightPanel
+        | Action::OpenFile(_) => panels::handle(action, state),
 
         // Chat actions: agent responses, scrolling, tick
-        Action::AgentResponse(_) | Action::ScrollChatUp(_) | Action::ScrollChatDown(_)
-        | Action::Tick
-            => chat::handle(action, state),
+        Action::AgentResponse(_)
+        | Action::ScrollChatUp(_)
+        | Action::ScrollChatDown(_)
+        | Action::Tick => chat::handle(action, state),
 
         // Models screen actions: provider selection, form input, model fetching
-        Action::ModelsUp | Action::ModelsDown | Action::ModelsLeft | Action::ModelsRight
-        | Action::ModelsConfirm | Action::ModelsNextField | Action::ModelsFetchModels
-        | Action::ModelsFetchComplete(_) | Action::ModelsToggleCompat
-        | Action::ModelsForwardKeyToInput(_)
-            => models::handle(action, state, tx).await?,
+        Action::ModelsUp
+        | Action::ModelsDown
+        | Action::ModelsLeft
+        | Action::ModelsRight
+        | Action::ModelsConfirm
+        | Action::ModelsNextField
+        | Action::ModelsFetchModels
+        | Action::ModelsFetchComplete(_)
+        | Action::ModelsToggleCompat
+        | Action::ModelsForwardKeyToInput(_) => models::handle(action, state, tx).await?,
 
         // Permissions screen actions: section switching, navigation, modals, permission editing
-        Action::PermSwitchSection | Action::PermSelectUp | Action::PermSelectDown
-        | Action::PermToggleExpand | Action::PermOpenEditor | Action::PermAddDirectory
-        | Action::PermDeleteDirectory | Action::PermCloseModal | Action::PermEditorUp
-        | Action::PermEditorDown | Action::PermEditorConfirm | Action::PermEditorSwitchRole
-        | Action::PermForwardKeyToInput(_)
-            => permissions::handle(action, state),
+        Action::PermSwitchSection
+        | Action::PermSelectUp
+        | Action::PermSelectDown
+        | Action::PermToggleExpand
+        | Action::PermOpenEditor
+        | Action::PermAddDirectory
+        | Action::PermDeleteDirectory
+        | Action::PermCloseModal
+        | Action::PermEditorUp
+        | Action::PermEditorDown
+        | Action::PermEditorConfirm
+        | Action::PermEditorSwitchRole
+        | Action::PermForwardKeyToInput(_) => permissions::handle(action, state),
 
         // Catch-all for any unhandled actions (should be rare)
         _ => {}

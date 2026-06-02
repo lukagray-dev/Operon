@@ -2,10 +2,10 @@
 // Handles: InputChar, ForwardKeyToInput, InputUndo, InputRedo, SendMessage
 // These actions manage the chat input TextArea and message sending
 
-use anyhow::Result;
+use crate::agent::AgentBridge;
 use crate::events::action::Action;
 use crate::state::AppState;
-use crate::agent::AgentBridge;
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
@@ -25,7 +25,9 @@ pub async fn handle(
             } else {
                 // Forward to TextArea as a regular character
                 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                state.message_input_mut().input(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+                state
+                    .message_input_mut()
+                    .input(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
             }
         }
         Action::ForwardKeyToInput(key_event) => {
@@ -55,10 +57,10 @@ pub async fn handle(
                 // Add user message to history
                 state.add_message("User".to_string(), message.clone());
                 state.clear_input();
-                
+
                 // Mark agent as thinking — triggers spinner in status bar
                 state.set_agent_thinking(true);
-                
+
                 // Send to agent asynchronously
                 // Clone Arc and tx for the spawned task
                 let agent_clone = Arc::clone(agent);
@@ -70,9 +72,9 @@ pub async fn handle(
                             let _ = action_tx_clone.send(Action::AgentResponse(response)).await;
                         }
                         Err(e) => {
-                            let _ = action_tx_clone.send(Action::AgentResponse(
-                                format!("Error: {}", e)
-                            )).await;
+                            let _ = action_tx_clone
+                                .send(Action::AgentResponse(format!("Error: {}", e)))
+                                .await;
                         }
                     }
                 });
@@ -82,6 +84,6 @@ pub async fn handle(
             // Catch-all for safety (should never hit due to dispatch routing)
         }
     }
-    
+
     Ok(())
 }

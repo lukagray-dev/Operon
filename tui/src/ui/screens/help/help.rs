@@ -2,14 +2,14 @@
 // Keybind reference — scrollable with mouse wheel, same mechanism as chat panel.
 // Uses ratatui's Paragraph::scroll() + Scrollbar widget (no manual scroll logic).
 
+use crate::state::AppState;
+use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL, STYLE_TITLE};
 use ratatui::{
     layout::{Margin, Rect},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
-use crate::state::AppState;
-use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_TITLE, STYLE_NORMAL, STYLE_MUTED};
 
 /// Render the help screen with keybind reference.
 /// Scrollable via mouse wheel — state.help_scroll() tracks the current offset.
@@ -45,7 +45,10 @@ pub fn render_help_screen(frame: &mut Frame, area: Rect, state: &mut AppState) {
         Line::from(Span::styled("Screen Navigation:", STYLE_TITLE)),
         Line::from(vec![
             Span::styled("  /", STYLE_NORMAL),
-            Span::styled("               - Open screen selector (from Chat)", STYLE_MUTED),
+            Span::styled(
+                "               - Open screen selector (from Chat)",
+                STYLE_MUTED,
+            ),
         ]),
         Line::from(vec![
             Span::styled("  Up / Down", STYLE_NORMAL),
@@ -197,8 +200,8 @@ pub fn render_help_screen(frame: &mut Frame, area: Rect, state: &mut AppState) {
             .begin_symbol(Some("↑"))
             .end_symbol(Some("↓"));
 
-        let mut scrollbar_state = ScrollbarState::new(max_scroll as usize)
-            .position(scroll_offset as usize);
+        let mut scrollbar_state =
+            ScrollbarState::new(max_scroll as usize).position(scroll_offset as usize);
 
         frame.render_stateful_widget(
             scrollbar,
