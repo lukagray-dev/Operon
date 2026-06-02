@@ -1,0 +1,34 @@
+// Operon brand logo component for assistant messages.
+//
+// This component displays the Operon brand logo at the start of the
+// assistant message action bar. It serves as a visual identifier that
+// the message is from the Operon AI assistant.
+
+import { Tokens } from "../../../shared/tokens.slint";
+
+// Operon brand logo for assistant message identification.
+// Displays the Operon logo in full color.
+export component OperonLogo inherits Rectangle {
+    // Fixed size for the logo
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    
+    // Center the logo
+    HorizontalLayout {
+        alignment: center;
+        
+        VerticalLayout {
+            alignment: center;
+            
+            // Operon brand logo image in full color
+            // Remove colorize to show the original SVG colors
+            Image {
+                source: @image-url("../../../../assets/brand/operon.svg");
+                width: 16px;
+                height: 16px;
+                image-fit: contain;
+            }
+        }
+    }
+}

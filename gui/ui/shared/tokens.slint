@@ -8,6 +8,10 @@ export global Tokens {
     // Font family used throughout the native shell. Changing this affects all
     // text that does not override `font-family` locally.
     in property <string> font_family: "Google Sans";
+    
+    // Serif font family for assistant messages. PT Serif provides a more
+    // readable and distinguished appearance for AI-generated content.
+    in property <string> serif_font_family: "PT Serif";
 
     // The main app canvas behind the titlebar and content. Darkening this makes
     // the entire window feel heavier and less exposed.
@@ -80,4 +84,13 @@ export global Tokens {
     in property <length> dropdown_item_padding_x: 12px;
     in property <length> dropdown_trigger_padding_x: 4px;
     in property <length> dropdown_trigger_hit_height: 22px;
+
+    // Input panel geometry. These values control the prompt input area at the
+    // bottom of the main content, including button sizes and spacing.
+    in property <length> input_panel_padding: 12px;
+    in property <length> input_panel_border_radius: 12px;
+    in property <length> input_button_size: 32px;
+    in property <length> input_button_spacing: 6px;
+    in property <length> input_text_min_height: 80px;
+    in property <length> input_toolbar_height: 32px;
 }

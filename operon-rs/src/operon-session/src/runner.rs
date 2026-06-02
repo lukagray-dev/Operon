@@ -9,6 +9,7 @@
 //   - The compaction client for context summarization
 //   - The SQLite store for turn persistence (optional)
 //   - The lifecycle state machine
+//   - The inbound command channel (SessionCommand from the UI)
 //
 // The runner does NOT own:
 //   - Wire format logic (operon-context-normalize-*)
@@ -21,11 +22,12 @@
 //   3. Collect tool definitions
 //   4. Build request body
 //   5. Send + consume SSE stream → events
-//   6. Record token usage
+//   6. Record token usage + emit TokenUsageUpdated
 //   7. Push assistant message into history
 //   8. Persist turn to SQLite
 //   9. If no tool calls → Done; break
-//  10. Dispatch tool calls sequentially → push tool result messages → loop back
+//  10. Check for Cancel command
+//  11. Dispatch tool calls sequentially → emit ToolDegraded if needed → loop back
 //
 // ── Three-directional model integration ──────────────────────────────────────
 //
@@ -43,7 +45,7 @@ use operon_context_normalize_tools::ToolContent;
 use operon_context_sanitizer::sanitize;
 use operon_context_snapshot::SnapshotBuilder;
 use operon_context_token_tracker::{SessionTokenState, TokenBudget, UsageRecord};
-use operon_events::SessionEvent;
+use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::config::{DirectoryPolicy, PolicyConfig};
 use operon_providers::Provider;
 use operon_tools::dispatcher::Dispatcher;
@@ -64,15 +66,14 @@ use crate::store::SessionStore;
 /// # Thread safety
 ///
 /// `SessionRunner` is `Send` but not `Sync` (held in a single async task).
-/// If the TUI or other components need concurrent access, wrap in `Arc<Mutex<SessionRunner>>`.
-/// `SnapshotBuilder` itself is not `Sync`, so do not share the runner across threads directly.
+/// Wrap in `Arc<Mutex<...>>` only if you need cross-task access.
 ///
 /// # Lifecycle
 ///
-/// 1. `SessionRunner::new(config, event_tx)` — create and initialize.
+/// 1. `SessionRunner::new(config, event_tx, cmd_rx)` — create and initialize.
 /// 2. `runner.run(user_message)` — enter the agent loop.
 /// 3. Events flow over `event_tx` until `SessionEvent::Done` or `SessionEvent::Error`.
-/// 4. `runner.pause()` / `runner.resume(msg)` — interrupt mid-session.
+/// 4. Send `SessionCommand::Cancel` on `cmd_tx` to stop the loop cleanly.
 pub struct SessionRunner {
     /// Unique identifier for this session (hex nanoseconds).
     session_id: String,
@@ -94,6 +95,8 @@ pub struct SessionRunner {
     http_client: Client,
     /// Outbound event channel — UI/tests receive from the other end.
     event_tx: mpsc::Sender<SessionEvent>,
+    /// Inbound command channel — UI sends Cancel/Approve/Deny into the loop.
+    cmd_rx: mpsc::Receiver<SessionCommand>,
     /// Optional SQLite store for turn persistence.
     store: Option<SessionStore>,
     /// 0-based index of the next turn to execute.
@@ -103,22 +106,29 @@ pub struct SessionRunner {
 impl SessionRunner {
     /// Create a new session runner. Does not start the loop.
     ///
-    /// Initializes all subsystems:
-    /// - Generates a unique session ID
-    /// - Injects project_dir into PolicyConfig if present (Direction 3)
-    /// - Builds the `SnapshotBuilder` for this workspace root
-    /// - Registers tool groups on the `Dispatcher`
-    /// - Opens the SQLite store if a path was provided
+    /// # Parameters
+    ///
+    /// - `config` — runtime configuration (consumed; `mut` so project_dir can be injected).
+    /// - `event_tx` — outbound channel. The caller keeps the `Receiver` end.
+    /// - `cmd_rx` — inbound command channel. The caller keeps the `Sender` end.
+    ///
+    /// # Initialization order
+    ///
+    /// 1. Inject `project_dir` into `PolicyConfig` if present (Direction 3).
+    /// 2. Generate unique session ID.
+    /// 3. Build `SnapshotBuilder` (starts filesystem watcher).
+    /// 4. Register tool groups on `Dispatcher`.
+    /// 5. Open SQLite store if configured.
+    /// 6. Emit `SessionStarted` — UI receives this immediately after construction.
     ///
     /// # Errors
     ///
-    /// Returns [`SessionError`] if:
-    /// - The project_dir path cannot be canonicalized (`Config` variant)
-    /// - The snapshot builder cannot be created (`Snapshot` variant)
-    /// - The SQLite store cannot be opened (`Store` variant)
+    /// Returns `SessionError` if project_dir cannot be canonicalized, the snapshot
+    /// builder fails, or the SQLite store cannot be opened.
     pub async fn new(
         mut config: SessionConfig,
         event_tx: mpsc::Sender<SessionEvent>,
+        cmd_rx: mpsc::Receiver<SessionCommand>,
     ) -> Result<Self, SessionError> {
         // ── Direction 3: inject project_dir into policy ───────────────────────
         // If a project directory is open (VS Code-style), temporarily add it to
@@ -131,26 +141,22 @@ impl SessionRunner {
             config.policy.directories.push(proj_policy);
 
             // validate() canonicalizes the new project_dir path.
-            // The other directories are already canonical (validated by operon-config::load()).
             config.policy.validate()
                 .map_err(|e| SessionError::Config(e.to_string()))?;
         }
 
         // Generate a unique session ID using nanosecond hex timestamp.
-        // This is the same pattern used by SnapshotBuilder internally.
         let session_id = generate_session_id();
 
         // Build the snapshot builder — this also starts the filesystem watcher.
         let snapshot_config = config.snapshot_config(&session_id);
         let snapshot_builder = SnapshotBuilder::new(snapshot_config)?;
 
-        // Initialize the dispatcher and register the "load_tools" meta-tool,
-        // which is always available regardless of tool_groups configuration.
+        // Initialize the dispatcher and register the "load_tools" meta-tool.
         let mut dispatcher = Dispatcher::new();
         dispatcher.register_load_tool();
 
         // Register tool groups based on the session configuration.
-        // Unknown group names are logged as warnings and skipped safely.
         for group in &config.tool_groups {
             match group.as_str() {
                 "fs"    => dispatcher.register_fs_tools(),
@@ -162,14 +168,12 @@ impl SessionRunner {
         }
 
         // Build the token budget from the provider config's context window size.
-        // Uses the default 90% compaction threshold.
         let token_budget = TokenBudget::with_window(config.provider_config.context_window())
             .map_err(|e| SessionError::Stream(e.to_string()))?;
 
         // Open the SQLite store if a path was provided in the configuration.
         let store = if let Some(path) = &config.store_path {
             let s = SessionStore::open(path).await?;
-            // Immediately create the session record so turns can reference it.
             s.create_session(
                 &session_id,
                 &config.workspace_root.display().to_string(),
@@ -182,6 +186,14 @@ impl SessionRunner {
             None
         };
 
+        // Emit SessionStarted — the UI now knows the session ID and can label panels.
+        // This is the first event on the channel; it fires before any turn runs.
+        let _ = event_tx
+            .send(SessionEvent::SessionStarted {
+                session_id: session_id.clone(),
+            })
+            .await;
+
         Ok(Self {
             session_id,
             config,
@@ -193,6 +205,7 @@ impl SessionRunner {
             lifecycle: LifecycleState::Idle,
             http_client: Client::new(),
             event_tx,
+            cmd_rx,
             store,
             turn_index: 0,
         })
@@ -205,16 +218,12 @@ impl SessionRunner {
     ///   2. Build snapshot + sanitize
     ///   3. Collect tool definitions
     ///   4. Build request + stream
-    ///   5. Record token usage
+    ///   5. Record token usage + emit TokenUsageUpdated
     ///   6. Push assistant message into history
     ///   7. Persist turn to SQLite
     ///   8. If no tool calls → emit Done + break
-    ///   9. Dispatch tool calls sequentially → push tool result message → loop back
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SessionError`] on any fatal failure. The lifecycle is set to
-    /// `Failed` on error so the caller knows not to retry.
+    ///   9. Check for Cancel command
+    ///  10. Dispatch tool calls sequentially + emit ToolDegraded if needed → loop back
     pub async fn run(&mut self, user_message: String) -> Result<(), SessionError> {
         // Guard: only Idle and Paused sessions may enter the loop.
         if !self.lifecycle.can_run() {
@@ -232,8 +241,15 @@ impl SessionRunner {
         // The agent loop — continues until the model returns no tool calls.
         loop {
             // ── 1. Compaction check ──────────────────────────────────────────
-            // Check if the token budget is exceeded before building the next request.
             if self.token_budget.should_compact(self.token_state.current_context_tokens) {
+                // Notify the UI that compaction is about to run so it can show a spinner.
+                let _ = self
+                    .event_tx
+                    .send(SessionEvent::CompactionStarted {
+                        tokens_before: self.token_state.current_context_tokens,
+                    })
+                    .await;
+
                 match self.run_compaction().await {
                     Ok(()) => {}
                     Err(SessionError::Compaction(
@@ -279,7 +295,6 @@ impl SessionRunner {
             )?;
 
             // ── 5. Send + consume SSE stream ─────────────────────────────────
-            // Use effective_base_url() to respect any Ollama port override.
             // Clone to String so there's no borrow of self across the await.
             let endpoint = self.config.provider_config.effective_base_url().to_string();
             let api_key  = self.config.provider_config.credentials.api_key.expose().to_string();
@@ -298,8 +313,9 @@ impl SessionRunner {
                 e
             })?;
 
-            // ── 6. Record token usage ────────────────────────────────────────
+            // ── 6. Record token usage + emit TokenUsageUpdated ───────────────
             // Update the session token state from the usage metadata in the stream.
+            // Emit a TokenUsageUpdated event so the TUI status bar stays current.
             if let Some(usage_raw) = &stream_result.usage_raw {
                 if let Some(record) = extract_usage_record(
                     usage_raw,
@@ -307,6 +323,17 @@ impl SessionRunner {
                     &format!("{:?}", self.config.provider_config.provider),
                 ) {
                     self.token_state.record_turn(&record);
+
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::TokenUsageUpdated {
+                            input_tokens:      record.input_tokens,
+                            output_tokens:     record.output_tokens,
+                            context_total:     self.token_state.current_context_tokens,
+                            cache_read_tokens:  record.cache_read_tokens,
+                            cache_write_tokens: record.cache_write_tokens,
+                        })
+                        .await;
                 }
             }
 
@@ -326,7 +353,7 @@ impl SessionRunner {
                     .await?;
             }
 
-            // Emit a TurnComplete event so the UI can update turn counters.
+            // Emit TurnComplete so the UI can update turn counters.
             let _ = self
                 .event_tx
                 .send(SessionEvent::TurnComplete {
@@ -342,13 +369,35 @@ impl SessionRunner {
                 break;
             }
 
-            // ── 10. Dispatch tool calls sequentially ─────────────────────────
+            // ── 10. Check for user cancellation ─────────────────────────────
+            // Poll the command channel without blocking. If the user sent Cancel
+            // between turns, finish cleanly now rather than dispatching more tool calls.
+            if let Ok(SessionCommand::Cancel) = self.cmd_rx.try_recv() {
+                tracing::info!("Session cancelled by user command");
+                let _ = self.event_tx.send(SessionEvent::Done).await;
+                self.lifecycle = LifecycleState::Done;
+                break;
+            }
+
+            // ── 11. Dispatch tool calls sequentially ─────────────────────────
             // Tool calls are dispatched in the order the model emitted them.
             // Do NOT parallelize — order matters for read-ledger enforcement.
             let mut tool_results: Vec<ContentBlock> = Vec::new();
 
             for call in stream_result.tool_calls {
-                let result = self.dispatcher.dispatch(call).await;
+                // dispatch() returns DispatchOutcome so we can observe degradation.
+                let outcome = self.dispatcher.dispatch(call).await;
+
+                // If this is the FIRST malformed call for this tool, emit ToolDegraded
+                // so the TUI can show a warning badge on the tool.
+                if let Some(ref name) = outcome.newly_degraded {
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::ToolDegraded { name: name.clone() })
+                        .await;
+                }
+
+                let result = outcome.result;
 
                 let content_json = match &result.content {
                     ToolContent::Text(s) => s.clone(),
@@ -420,14 +469,9 @@ impl SessionRunner {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// Run context compaction: summarize old history and rebuild the message array.
-    ///
-    /// Only constructs the `AnthropicCompactionClient` when the configured provider
-    /// is Anthropic. For other providers, compaction is not yet supported and a
-    /// warning is emitted. This is a temporary limitation until the compaction crate
-    /// supports provider-agnostic clients.
     async fn run_compaction(&mut self) -> Result<(), SessionError> {
-        let snapshot       = self.snapshot_builder.build()?;
-        let tokens_before  = self.token_state.current_context_tokens;
+        let snapshot      = self.snapshot_builder.build()?;
+        let tokens_before = self.token_state.current_context_tokens;
 
         match &self.config.provider_config.provider {
             Provider::Anthropic => {

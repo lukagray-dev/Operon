@@ -1,0 +1,34 @@
+// Warning text component displayed below the input panel.
+//
+// This component shows a disclaimer message to users about AI limitations.
+// The text is small, subtle, and centered horizontally to align with the
+// input panel above it.
+//
+// Message: "Operon uses AI models. AI can make mistakes."
+//
+// The warning serves as a reminder to users that AI-generated content should
+// be verified and may contain errors.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+// Warning text displayed below the input panel.
+// Provides a disclaimer about AI limitations.
+export component WarningText inherits Text {
+    // Warning message text
+    text: "Operon uses AI models. AI can make mistakes.";
+    
+    // Small font size for subtle appearance
+    font-size: 11px;
+    
+    // Use the standard font family
+    font-family: Tokens.font-family;
+    
+    // Muted color to make it less prominent
+    color: Tokens.text-muted;
+    
+    // Center the text horizontally
+    horizontal-alignment: center;
+    
+    // Center vertically within its container
+    vertical-alignment: center;
+}

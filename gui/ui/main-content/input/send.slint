@@ -1,0 +1,81 @@
+// Send button component for the input panel.
+//
+// This component provides the primary action button that submits the user's
+// prompt to the AI agent. It's positioned at the bottom-right corner of the
+// input panel as the final step in composing a message.
+//
+// The button has multiple states:
+// - Disabled: When there's no text to send (grayed out)
+// - Enabled: When text is present (normal state)
+// - Hover: Visual feedback when hovering
+// - Active: Visual feedback when clicking
+//
+// The button uses an arrow or send icon to indicate the submit action.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+// Send button positioned at the bottom-right of the input panel.
+// Submits the user's prompt to the AI agent for processing.
+export component SendButton inherits Rectangle {
+    // Whether the button is enabled (typically based on whether there's text to send)
+    in property <bool> enabled: true;
+    
+    // Callback fired when the user clicks the send button
+    callback clicked();
+    
+    // Fixed square dimensions for the button
+    width: 32px;
+    height: 32px;
+    
+    // Background color changes based on enabled state and hover
+    // Use accent blue when enabled to draw attention as the primary action
+    background: !root.enabled 
+        ? transparent
+        : (touch-area.has-hover 
+            ? Tokens.accent-blue-hover 
+            : Tokens.accent-blue);
+    
+    // Smooth background transitions
+    animate background { duration: 150ms; easing: ease-in-out; }
+    
+    // Rounded corners matching the design system
+    border-radius: 6px;
+    
+    // Center the icon within the button
+    HorizontalLayout {
+        alignment: center;
+        
+        VerticalLayout {
+            alignment: center;
+            
+            // Send icon (arrow or paper plane symbol)
+            // Using colorize to apply theme colors to the SVG
+            icon := Image {
+                source: @image-url("../../../assets/icons/main-content/input/send.svg");
+                width: 18px;
+                height: 18px;
+                // When disabled, use muted color; when enabled, use white for contrast
+                colorize: !root.enabled 
+                    ? Tokens.text-muted 
+                    : #ffffff;
+                image-fit: contain;
+                
+                // Smooth color transition on state change
+                animate colorize { duration: 150ms; easing: ease-in-out; }
+            }
+        }
+    }
+    
+    // Touch area for click detection covering the entire button
+    touch-area := TouchArea {
+        // Change cursor based on enabled state
+        mouse-cursor: root.enabled ? pointer : default;
+        
+        // Only respond to clicks when enabled
+        clicked => {
+            if (root.enabled) {
+                root.clicked();
+            }
+        }
+    }
+}

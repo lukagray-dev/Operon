@@ -61,6 +61,27 @@ struct ToolEntry {
     >,
 }
 
+/// The result of a single tool dispatch, including metadata about side effects.
+///
+/// Returned by `Dispatcher::dispatch()` instead of a bare `ToolResult` so the
+/// session runner can observe dispatch-level side effects — specifically, when a
+/// tool first enters degraded mode — and emit the corresponding `SessionEvent`
+/// without the dispatcher needing to know about the event bus.
+///
+/// # Why not return ToolResult directly?
+///
+/// The runner already processes the ToolResult for conversation history. Wrapping
+/// it in `DispatchOutcome` adds zero overhead and avoids a dependency cycle:
+/// `operon-tools` does not need to depend on `operon-events`.
+pub struct DispatchOutcome {
+    /// The tool result to feed back to the model and push into conversation history.
+    pub result: ToolResult,
+    /// `Some(name)` if this dispatch caused the named tool to be newly added to
+    /// the degraded set (first malformed call this session). `None` if the tool
+    /// was already degraded, or if dispatch succeeded / failed for other reasons.
+    pub newly_degraded: Option<String>,
+}
+
 /// The tool dispatcher. One instance per agent session.
 ///
 /// # Usage
@@ -75,7 +96,8 @@ struct ToolEntry {
 /// let defs: Vec<_> = dispatcher.definitions().collect();
 ///
 /// // After the model responds with a ToolCall:
-/// // let result = dispatcher.dispatch(tool_call).await;
+/// // let outcome = dispatcher.dispatch(tool_call).await;
+/// // let result  = outcome.result;
 /// ```
 pub struct Dispatcher {
     tools: HashMap<String, ToolEntry>,
@@ -353,19 +375,20 @@ impl Dispatcher {
     /// Dispatches a tool call from the model to the correct implementation.
     ///
     /// # Returns
-    /// Always returns a `ToolResult` — never propagates errors to the caller.
-    /// Errors (unknown tool, malformed args, internal failures) are converted to
+    ///
+    /// Always returns a [`DispatchOutcome`] — never propagates errors to the caller.
+    /// Errors (unknown tool, malformed args, read-ledger violations) are converted to
     /// `ToolResult { is_error: true, content: ToolContent::Text(reason) }` so the
     /// model can see what went wrong and recover.
     ///
-    /// Side effect: if args parsing fails, the tool name is added to `self.degraded`
-    /// so subsequent requests use the detailed description for that tool.
-    pub async fn dispatch(&mut self, call: ToolCall) -> ToolResult {
+    /// The `newly_degraded` field in the outcome is `Some(name)` on the FIRST malformed
+    /// call for a tool this session, allowing the runner to emit `SessionEvent::ToolDegraded`.
+    /// Subsequent malformed calls for the same tool return `newly_degraded: None`.
+    pub async fn dispatch(&mut self, call: ToolCall) -> DispatchOutcome {
         let tool_name = call.name.clone();
         let call_id = call.id.clone();
 
         // load_tools: intercepted directly because it needs access to dispatcher state.
-        // Extract the data before the borrow to avoid conflicts.
         if call.name == "load_tools" {
             let group_arg = call.arguments
                 .get("group")
@@ -383,46 +406,42 @@ impl Dispatcher {
                 operon_tools_load::execute_list_groups(call_id.clone(), groups)
             };
 
-            return result;
+            return DispatchOutcome { result, newly_degraded: None };
         }
 
         // Todo tools: routed directly because they require mutable access to todo_store.
         match call.name.as_str() {
             "todo_create" => {
-                return operon_tools_todo_create::execute(
-                    call_id.clone(),
-                    call.arguments,
-                    &mut self.todo_store,
+                let result = operon_tools_todo_create::execute(
+                    call_id.clone(), call.arguments, &mut self.todo_store,
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_create", &e.to_string()));
+                return DispatchOutcome { result, newly_degraded: None };
             }
             "todo_list" => {
-                return operon_tools_todo_list::execute(
-                    call_id.clone(),
-                    call.arguments,
-                    &self.todo_store,
+                let result = operon_tools_todo_list::execute(
+                    call_id.clone(), call.arguments, &self.todo_store,
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_list", &e.to_string()));
+                return DispatchOutcome { result, newly_degraded: None };
             }
             "todo_update" => {
-                return operon_tools_todo_update::execute(
-                    call_id.clone(),
-                    call.arguments,
-                    &mut self.todo_store,
+                let result = operon_tools_todo_update::execute(
+                    call_id.clone(), call.arguments, &mut self.todo_store,
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_update", &e.to_string()));
+                return DispatchOutcome { result, newly_degraded: None };
             }
             "todo_delete" => {
-                return operon_tools_todo_delete::execute(
-                    call_id.clone(),
-                    call.arguments,
-                    &mut self.todo_store,
+                let result = operon_tools_todo_delete::execute(
+                    call_id.clone(), call.arguments, &mut self.todo_store,
                 )
                 .await
                 .unwrap_or_else(|e| error_result(call_id.clone(), "todo_delete", &e.to_string()));
+                return DispatchOutcome { result, newly_degraded: None };
             }
             _ => {} // fall through to generic tool dispatch
         }
@@ -431,11 +450,14 @@ impl Dispatcher {
         let entry = match self.tools.get(&tool_name) {
             Some(e) => e,
             None => {
-                return error_result(
-                    call_id.clone(),
-                    &tool_name,
-                    &ToolDispatchError::UnknownTool { name: tool_name.clone() }.to_string(),
-                );
+                return DispatchOutcome {
+                    result: error_result(
+                        call_id.clone(),
+                        &tool_name,
+                        &ToolDispatchError::UnknownTool { name: tool_name.clone() }.to_string(),
+                    ),
+                    newly_degraded: None,
+                };
             }
         };
 
@@ -447,62 +469,63 @@ impl Dispatcher {
             if let Some(path_str) = call.arguments.get("path").and_then(|v| v.as_str()) {
                 let path = std::path::Path::new(path_str);
 
-                // For write: only enforce if the file already exists.
-                // Creating a new file doesn't require a prior read.
                 let requires_read = if call.name == "write" {
                     path.exists()
                 } else {
-                    // edit always requires a prior read — it modifies existing content.
                     true
                 };
 
                 if requires_read && !self.read_ledger.has_been_read(path) {
-                    return error_result(
-                        call_id.clone(),
-                        &call.name,
-                        &format!(
-                            "read-before-{name} enforcement: '{path}' has not been read in this session. \
-                             Use the read tool to read the file first, then retry.\n\
-                             Note: if context compaction occurred recently, the ledger was reset — \
-                             re-reading is required even if you read this file earlier.",
-                            name = call.name,
-                            path = path_str,
+                    return DispatchOutcome {
+                        result: error_result(
+                            call_id.clone(),
+                            &call.name,
+                            &format!(
+                                "read-before-{name} enforcement: '{path}' has not been read in this session. \
+                                 Use the read tool to read the file first, then retry.\n\
+                                 Note: if context compaction occurred recently, the ledger was reset — \
+                                 re-reading is required even if you read this file earlier.",
+                                name = call.name,
+                                path = path_str,
+                            ),
                         ),
-                    );
+                        newly_degraded: None,
+                    };
                 }
             }
-            // If path arg is missing/malformed, fall through — the tool itself will
-            // return a proper args error via the execute fn.
         }
 
         // Execute — the execute fn signals malformed args via Err(String).
         let tool_result = match (entry.execute)(call_id.clone(), call.arguments).await {
             Ok(result) => result,
             Err(reason) => {
-                // Mark degraded so the next request sends the detailed description.
+                // Track whether this is the FIRST malformed call for this tool.
+                // The runner uses newly_degraded to emit SessionEvent::ToolDegraded.
+                let was_degraded = self.degraded.contains(&tool_name);
                 self.degraded.insert(tool_name.clone());
+                let newly_degraded = if was_degraded { None } else { Some(tool_name.clone()) };
 
-                return error_result(
-                    call_id.clone(),
-                    &tool_name,
-                    &ToolDispatchError::MalformedArgs {
-                        tool: tool_name.clone(),
-                        reason,
-                    }
-                    .to_string(),
-                );
+                return DispatchOutcome {
+                    result: error_result(
+                        call_id.clone(),
+                        &tool_name,
+                        &ToolDispatchError::MalformedArgs {
+                            tool: tool_name.clone(),
+                            reason,
+                        }
+                        .to_string(),
+                    ),
+                    newly_degraded,
+                };
             }
         };
 
         // Record successful reads into the ledger.
-        // A read is successful when is_error is false. We extract the paths that
-        // were actually read from the tool result content.
-        // Only fires for the `read` tool.
         if tool_name == "read" && !tool_result.is_error {
             record_read_paths(&mut self.read_ledger, &tool_result);
         }
 
-        tool_result
+        DispatchOutcome { result: tool_result, newly_degraded: None }
     }
 
     /// Returns the set of tool names currently in degraded mode.

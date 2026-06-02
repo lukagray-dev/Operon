@@ -226,12 +226,29 @@ pub async fn send_streaming(
                                 .await;
                         }
 
-                        // Complete tool call — notify UI and accumulate for dispatch.
+                        // Complete tool call — notify UI with args then start.
                         AssemblerOutput::ToolCall(call) => {
+                            // Serialize the call arguments for the ToolCallArgsReady event.
+                            // unwrap_or_default is safe — serde_json::to_string only fails on
+                            // non-serializable types, and ToolCall.arguments is a serde_json::Value.
+                            let args_json = serde_json::to_string(&call.arguments)
+                                .unwrap_or_default();
+
+                            // Fire ToolCallArgsReady FIRST — full args are now available.
+                            // The TUI can show an expandable "Arguments" section.
+                            let _ = event_tx
+                                .send(SessionEvent::ToolCallArgsReady {
+                                    call_id: call.id.0.clone(),
+                                    name:    call.name.clone(),
+                                    args_json,
+                                })
+                                .await;
+
+                            // Then fire ToolCallStart — tells the TUI a dispatch is imminent.
                             let _ = event_tx
                                 .send(SessionEvent::ToolCallStart {
                                     call_id: call.id.0.clone(),
-                                    name: call.name.clone(),
+                                    name:    call.name.clone(),
                                 })
                                 .await;
                             result.tool_calls.push(call);

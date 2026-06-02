@@ -1,0 +1,68 @@
+// Edit button component for user messages.
+//
+// This component provides a button that allows users to edit their previously
+// sent messages. It's positioned below the message bubble alongside the Copy
+// button, providing quick access to message modification.
+//
+// The button has multiple states:
+// - Normal: Default state with subtle appearance
+// - Hover: Visual feedback when hovering
+// - Active: Visual feedback when clicking
+//
+// The button uses a pencil or edit icon to indicate the edit action.
+
+import { Tokens } from "../../../shared/tokens.slint";
+
+// Edit button for modifying previously sent messages.
+// Positioned below the user message bubble.
+export component EditButton inherits Rectangle {
+    // Callback fired when the user clicks the edit button
+    callback clicked();
+    
+    // Fixed size for icon button - matches assistant message buttons
+    width: 24px;
+    height: 24px;
+    
+    // Background color changes on hover
+    background: touch-area.has-hover 
+        ? Tokens.dropdown-surface-hover 
+        : transparent;
+    
+    // Smooth background transitions
+    animate background { duration: 150ms; easing: ease-in-out; }
+    
+    // Rounded corners for modern appearance
+    border-radius: 4px;
+    
+    // Center the icon
+    HorizontalLayout {
+        alignment: center;
+        
+        VerticalLayout {
+            alignment: center;
+            
+            // Edit icon
+            icon := Image {
+                source: @image-url("../../../../assets/icons/main-content/messages/user/edit.svg");
+                width: 14px;
+                height: 14px;
+                colorize: touch-area.has-hover 
+                    ? Tokens.text-primary 
+                    : Tokens.text-secondary;
+                image-fit: contain;
+                
+                // Smooth color transition on hover
+                animate colorize { duration: 150ms; easing: ease-in-out; }
+            }
+        }
+    }
+    
+    // Touch area for click detection
+    touch-area := TouchArea {
+        mouse-cursor: pointer;
+        
+        clicked => {
+            root.clicked();
+        }
+    }
+}

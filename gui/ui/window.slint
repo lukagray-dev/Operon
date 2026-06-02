@@ -5,9 +5,11 @@
 // dedicated titlebar component.
 
 import "../assets/fonts/google_sans/GoogleSans-Regular.ttf";
+import "../assets/fonts/pt_serif/PTSerif.ttf";
 import { Tokens } from "./shared/tokens.slint";
 import { Titlebar } from "./window/titlebar.slint";
 import { Sidebar } from "./left-sidebar/sidebar.slint";
+import { MainContent } from "./main-content/main-content.slint";
 
 export component OperonWindow inherits Window {
     // The window opens in a centered 16:9-ish landscape shape. The runtime
@@ -95,6 +97,39 @@ export component OperonWindow inherits Window {
     callback sidebar_project_conversation_clicked(int /* project-index */, int /* conversation-index */);
     callback sidebar_chat_clicked(int /* chat-index */);
     callback sidebar_width_changed(length /* new-width */);
+    
+    // Main content / input panel callbacks - wire these to Rust handlers
+    callback message_submitted(string /* message-text */);
+    callback attach_clicked();
+    callback auto_approve_toggled(bool /* enabled */);
+    callback context_clicked();
+    callback model_clicked();
+    callback reasoning_clicked();
+    callback voice_clicked();
+    callback voice_recording_started();
+    callback voice_recording_stopped();
+    
+    // User message action callbacks
+    callback user_message_edit_clicked(int /* message-index */);
+    callback user_message_copy_clicked(int /* message-index */);
+    
+    // Assistant message action callbacks
+    callback assistant_message_copy_clicked(int /* message-index */);
+    callback assistant_message_like_clicked(int /* message-index */);
+    callback assistant_message_dislike_clicked(int /* message-index */);
+    callback assistant_message_regenerate_clicked(int /* message-index */);
+    callback assistant_message_fork_clicked(int /* message-index */);
+    
+    // Main content properties - bind these from Rust
+    in-out property <string> input_text: "";
+    in-out property <string> selected_model: "Claude Sonnet 4.5";
+    in-out property <string> selected_reasoning: "Medium";
+    in-out property <bool> auto_approve_enabled: false;
+    in property <float> context_usage: 0.35;
+    in property <int> tokens_used: 35000;
+    in property <int> tokens_total: 100000;
+    in-out property <bool> is_recording: false;
+    in property <string> session_title: "New Session";
 
     // Main content layout: sidebar + content area
     HorizontalLayout {
@@ -136,7 +171,7 @@ export component OperonWindow inherits Window {
             background: Tokens.dropdown-border;
         }
         
-        // Main content area (placeholder for future content)
+        // Main content area with chat messages and input panel
         content_area := Rectangle {
             horizontal-stretch: 1;
             background: Tokens.window_background;
@@ -149,12 +184,88 @@ export component OperonWindow inherits Window {
                 }
             }
             
-            // Placeholder text for now
-            Text {
-                text: "Main Content Area";
-                color: Tokens.text-muted;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            // Main content component with input panel
+            main_content := MainContent {
+                width: parent.width;
+                height: parent.height;
+                
+                // Bind properties from root
+                input-text <=> root.input_text;
+                selected-model <=> root.selected_model;
+                selected-reasoning <=> root.selected_reasoning;
+                auto-approve-enabled <=> root.auto_approve_enabled;
+                context-usage: root.context_usage;
+                tokens-used: root.tokens_used;
+                tokens-total: root.tokens_total;
+                is-recording <=> root.is_recording;
+                session-title: root.session_title;
+                
+                // Wire callbacks to root
+                message-submitted(text) => {
+                    root.message_submitted(text);
+                }
+                
+                attach-clicked => {
+                    root.attach_clicked();
+                }
+                
+                auto-approve-toggled(enabled) => {
+                    root.auto_approve_toggled(enabled);
+                }
+                
+                context-clicked => {
+                    root.context_clicked();
+                }
+                
+                model-clicked => {
+                    root.model_clicked();
+                }
+                
+                reasoning-clicked => {
+                    root.reasoning_clicked();
+                }
+                
+                voice-clicked => {
+                    root.voice_clicked();
+                }
+                
+                voice-recording-started => {
+                    root.voice_recording_started();
+                }
+                
+                voice-recording-stopped => {
+                    root.voice_recording_stopped();
+                }
+                
+                // User message action callbacks
+                message-edit-clicked(msg-idx) => {
+                    root.user_message_edit_clicked(msg-idx);
+                }
+                
+                message-copy-clicked(msg-idx) => {
+                    root.user_message_copy_clicked(msg-idx);
+                }
+                
+                // Assistant message action callbacks
+                assistant-copy-clicked(msg-idx) => {
+                    root.assistant_message_copy_clicked(msg-idx);
+                }
+                
+                assistant-like-clicked(msg-idx) => {
+                    root.assistant_message_like_clicked(msg-idx);
+                }
+                
+                assistant-dislike-clicked(msg-idx) => {
+                    root.assistant_message_dislike_clicked(msg-idx);
+                }
+                
+                assistant-regenerate-clicked(msg-idx) => {
+                    root.assistant_message_regenerate_clicked(msg-idx);
+                }
+                
+                assistant-fork-clicked(msg-idx) => {
+                    root.assistant_message_fork_clicked(msg-idx);
+                }
             }
         }
     }

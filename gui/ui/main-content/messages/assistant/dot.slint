@@ -1,0 +1,35 @@
+// Dot separator component for assistant message action bar.
+//
+// This component displays a simple bullet point (•) separator between
+// action items in the assistant message footer. It provides visual
+// separation without being too prominent.
+
+import { Tokens } from "../../../shared/tokens.slint";
+
+// Dot separator for visual separation between action items.
+// Uses SVG icon for clean, minimal appearance.
+export component DotSeparator inherits Rectangle {
+    // Fixed small width for the dot
+    width: 20px;
+    height: 24px;
+    background: transparent;
+    
+    // Center the dot icon
+    HorizontalLayout {
+        alignment: center;
+        
+        VerticalLayout {
+            alignment: center;
+            
+            // Dot icon from SVG asset
+            Image {
+                source: @image-url("../../../../assets/icons/main-content/messages/assistant/dot.svg");
+                width: 4px;
+                height: 4px;
+                // Use muted color for subtle, minimal appearance
+                colorize: Tokens.text-muted;
+                image-fit: contain;
+            }
+        }
+    }
+}
