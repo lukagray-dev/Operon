@@ -20,6 +20,10 @@ operon-context-normalize-tools    = { workspace = true }
 operon-context-normalize-messages = { workspace = true }
 operon-context-normalize-stream   = { workspace = true }
 
+# ── Providers + Policy ───────────────────────────────────────────────────────
+operon-providers = { workspace = true }
+operon-policy    = { workspace = true }
+
 # ── Tool dispatcher ───────────────────────────────────────────────────────────
 operon-tools = { workspace = true }
 

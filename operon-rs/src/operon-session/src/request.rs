@@ -14,17 +14,13 @@
 // For now Anthropic is fully implemented; OpenAI-family uses a structural
 // approximation that works for most providers.
 //
-// IMPORTANT: There are two distinct `Provider` enums in this workspace:
-//   - `operon_context_normalize_tools::Provider` — used by the session config and tools
-//   - `operon_context_normalize_messages::Provider` — required by `denormalize_messages`
-// They have the same variants. We convert between them via `to_messages_provider()`.
+// NOTE: Both operon_context_normalize_tools and operon_context_normalize_messages
+// re-export `Provider` from `operon_providers`. They are the same type — no
+// conversion function is needed. We import directly from operon_providers here.
 
-use operon_context_normalize_messages::{
-    ConversationMessage,
-    denormalize_messages,
-    Provider as MessagesProvider,
-};
-use operon_context_normalize_tools::{Provider, ToolDefinition, denormalize_definition};
+use operon_context_normalize_messages::{ConversationMessage, denormalize_messages};
+use operon_context_normalize_tools::{ToolDefinition, denormalize_definition};
+use operon_providers::Provider;
 use serde_json::{json, Value};
 
 use crate::error::SessionError;
@@ -54,16 +50,15 @@ pub fn build_request(
     stream: bool,
 ) -> Result<Value, SessionError> {
     // ── Step 1: Denormalize messages into provider wire format ────────────────
-    // denormalize_messages returns { "messages": [...], "system": <value|null> }
-    // NOTE: denormalize_messages takes operon_context_normalize_messages::Provider,
-    // but our session uses operon_context_normalize_tools::Provider. Convert here.
-    let messages_provider = to_messages_provider(provider);
-    let wire = denormalize_messages(messages, &messages_provider)
+    // denormalize_messages returns { "messages": [...], "system": <value|null> }.
+    // Both normalize-messages and normalize-tools re-export operon_providers::Provider,
+    // so `provider` is accepted directly by both denormalize functions.
+    let wire = denormalize_messages(messages, provider)
         .map_err(|e| SessionError::Normalize(e.to_string()))?;
 
     // Extract the two relevant fields from the wire envelope.
     let messages_arr = wire["messages"].clone();
-    let system_val = wire["system"].clone();
+    let system_val   = wire["system"].clone();
 
     // ── Step 2: Denormalize tool definitions ──────────────────────────────────
     // Each ToolDefinition is converted independently. The provider enum selects
@@ -82,10 +77,10 @@ pub fn build_request(
         // from the messages array. We only include it if non-null.
         Provider::Anthropic => {
             let mut b = json!({
-                "model": model_id,
+                "model":      model_id,
                 "max_tokens": max_tokens,
-                "messages": messages_arr,
-                "stream": stream,
+                "messages":   messages_arr,
+                "stream":     stream,
             });
             // Inject the system field only when the sanitizer actually produced one.
             if !system_val.is_null() {
@@ -105,10 +100,10 @@ pub fn build_request(
         // with their own denormalization shapes.
         _ => {
             let mut b = json!({
-                "model": model_id,
+                "model":      model_id,
                 "max_tokens": max_tokens,
-                "messages": messages_arr,
-                "stream": stream,
+                "messages":   messages_arr,
+                "stream":     stream,
             });
             if !wire_tools.is_empty() {
                 b["tools"] = Value::Array(wire_tools);
@@ -124,11 +119,16 @@ pub fn build_request(
 // provider_endpoint
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Return the HTTPS endpoint URL for a given provider.
+/// Return the default HTTPS endpoint URL for a given provider.
 ///
-/// These are the canonical streaming-capable endpoints. For Gemini the URL
-/// is the base path — the runner is responsible for appending the model name
-/// and `:streamGenerateContent` suffix if Gemini streaming is ever implemented.
+/// These are the canonical streaming-capable endpoints matching the defaults
+/// in `operon_providers::ProviderCapabilities::default_base_url`.
+///
+/// # Note on custom base URLs
+///
+/// The runner uses `ProviderConfig::effective_base_url()` instead of this function
+/// so that Ollama's custom port (or any other override) is respected.
+/// This function is kept as a pure static lookup for reference and testing.
 pub fn provider_endpoint(provider: &Provider) -> &'static str {
     match provider {
         Provider::Anthropic  => "https://api.anthropic.com/v1/messages",
@@ -145,31 +145,6 @@ pub fn provider_endpoint(provider: &Provider) -> &'static str {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Provider conversion
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Convert `operon_context_normalize_tools::Provider` to
-/// `operon_context_normalize_messages::Provider`.
-///
-/// Both enums have identical variants. They are separate types in separate crates
-/// to avoid a dependency cycle: tools does not depend on messages, and messages
-/// does not depend on tools. The session crate bridges them here.
-fn to_messages_provider(provider: &Provider) -> MessagesProvider {
-    match provider {
-        Provider::Anthropic  => MessagesProvider::Anthropic,
-        Provider::OpenAI     => MessagesProvider::OpenAI,
-        Provider::Gemini     => MessagesProvider::Gemini,
-        Provider::Ollama     => MessagesProvider::Ollama,
-        Provider::DeepSeek   => MessagesProvider::DeepSeek,
-        Provider::OpenRouter => MessagesProvider::OpenRouter,
-        Provider::Groq       => MessagesProvider::Groq,
-        Provider::Mistral    => MessagesProvider::Mistral,
-        Provider::XAI        => MessagesProvider::XAI,
-        Provider::Cohere     => MessagesProvider::Cohere,
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -177,7 +152,8 @@ fn to_messages_provider(provider: &Provider) -> MessagesProvider {
 mod tests {
     use super::*;
     use operon_context_normalize_messages::{ContentBlock, ConversationMessage};
-    use operon_context_normalize_tools::{Provider, ToolDefinition};
+    use operon_context_normalize_tools::ToolDefinition;
+    use operon_providers::Provider;
     use serde_json::json;
 
     /// Helper: build a simple user+assistant conversation for request tests.
@@ -191,9 +167,9 @@ mod tests {
     /// Helper: build a single no-arg tool definition for testing.
     fn simple_tool() -> ToolDefinition {
         ToolDefinition {
-            name: "ping".to_string(),
+            name:        "ping".to_string(),
             description: "Returns pong.".to_string(),
-            parameters: json!({
+            parameters:  json!({
                 "type": "object",
                 "properties": {},
                 "required": []
@@ -215,9 +191,9 @@ mod tests {
         )
         .expect("build_request should succeed");
 
-        assert_eq!(body["model"], "claude-sonnet-4-20250514");
+        assert_eq!(body["model"],      "claude-sonnet-4-20250514");
         assert_eq!(body["max_tokens"], 1024);
-        assert_eq!(body["stream"], true);
+        assert_eq!(body["stream"],     true);
         assert!(body["messages"].is_array());
     }
 
@@ -245,9 +221,9 @@ mod tests {
     #[test]
     fn anthropic_body_includes_tools_when_provided() {
         // When tool definitions are supplied, they should appear in the body.
-        let msgs = simple_messages();
+        let msgs  = simple_messages();
         let tools = vec![simple_tool()];
-        let body = build_request(
+        let body  = build_request(
             &Provider::Anthropic,
             "claude-sonnet-4-20250514",
             1024,

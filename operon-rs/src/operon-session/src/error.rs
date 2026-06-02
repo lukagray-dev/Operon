@@ -55,4 +55,12 @@ pub enum SessionError {
     /// `Idle` runner.
     #[error("Session is not in a runnable state: {state:?}")]
     InvalidState { state: String },
+
+    /// Configuration-level error during session startup.
+    ///
+    /// Occurs when the project directory (Direction 3) cannot be canonicalized
+    /// by `PolicyConfig::validate()`, e.g. the directory does not exist yet,
+    /// or the provider config is inconsistent.
+    #[error("Session configuration error: {0}")]
+    Config(String),
 }

@@ -4751,6 +4751,8 @@ dependencies = [
  "operon-context-snapshot",
  "operon-context-token-tracker",
  "operon-events",
+ "operon-policy",
+ "operon-providers",
  "operon-tools",
  "reqwest",
  "serde",

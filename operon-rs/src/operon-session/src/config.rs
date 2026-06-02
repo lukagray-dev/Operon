@@ -1,18 +1,47 @@
 // config.rs — Session configuration for operon-session.
 //
-// TODO: Migrate to operon-config when that crate exists.
-// For now this is a self-contained stub holding all runtime parameters needed
-// to spin up a SessionRunner.
+// `SessionConfig` is the single struct that carries everything `SessionRunner::new()`
+// needs to initialize the full agent loop. It is constructed by the frontend
+// (TUI or GUI) by assembling values from `operon_config::AppConfig`.
 //
-// Design note: SnapshotConfig and CompactionConfig are derived *from* this
-// struct rather than composed inside it, to keep a clean separation between
-// the session-level concept and its subsystem sub-configurations.
+// ── Three-directional directory model ────────────────────────────────────────
+//
+// Operon uses three kinds of directories:
+//
+//   Direction 1 — Default workspace: ~/.operon/workspace/
+//     Always accessible to the agent. Injected into the policy by operon-config.
+//     Used as the snapshot root in NORMAL mode (no project open).
+//     AGENTS.md, tree, and git block come from this directory.
+//
+//   Direction 2 — Allowed directories: listed in config.toml [[directories]]
+//     Loaded once at startup via operon_config::load(). The agent can use
+//     filesystem and shell tools inside these paths according to PolicyConfig.
+//
+//   Direction 3 — Project directory: opened VS Code-style by the user
+//     Passed via `project_dir: Some(path)`. NOT in config.toml.
+//     Injected into PolicyConfig at session startup with owner-full-access.
+//     The snapshot root switches to the project dir (PROJECT mode).
+//     When the session ends, the project dir is no longer in the allowed list.
+//
+// ── Snapshot root selection ───────────────────────────────────────────────────
+//
+//   workspace_root is the snapshot root — the single directory from which:
+//     - AGENTS.md is read
+//     - The directory tree block is rendered
+//     - Git status is read
+//
+//   NORMAL mode  → workspace_root = ~/.operon/workspace/ (from paths.workspace_dir)
+//   PROJECT mode → workspace_root = project_dir.clone()
+//
+//   The caller (TUI/GUI) sets workspace_root before constructing SessionConfig.
+//   SessionRunner::new() just uses it as-is.
 
 use std::path::PathBuf;
 
 use operon_context_compaction::CompactionConfig;
 use operon_context_snapshot::{Role, SnapshotConfig};
-use operon_context_normalize_tools::Provider;
+use operon_policy::config::PolicyConfig;
+use operon_providers::ProviderConfig;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionConfig
@@ -20,65 +49,130 @@ use operon_context_normalize_tools::Provider;
 
 /// All runtime parameters required to create and run a `SessionRunner`.
 ///
-/// Construct once at startup and pass into [`crate::runner::SessionRunner::new`].
-/// This type is not `Clone` by default because `PathBuf` is cheap to clone and
-/// the struct is typically moved into the runner anyway.
+/// Construct once at startup from `operon_config::AppConfig` and pass into
+/// [`crate::runner::SessionRunner::new`]. This struct is consumed (moved) by
+/// the runner — it is not shared across tasks.
+///
+/// # Construction pattern (caller side)
+///
+/// ```ignore
+/// use operon_config::load;
+/// use operon_session::SessionConfig;
+///
+/// let app = load()?;
+/// let config = SessionConfig {
+///     provider_config: app.provider,
+///     policy:          app.policy,
+///     project_dir:     None,                          // or Some(PathBuf::from("/my/project"))
+///     workspace_root:  app.paths.workspace_dir.clone(), // or project_dir.clone()
+///     role:            Role::Owner,
+///     tool_groups:     vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
+///     compaction:      CompactionConfig::default(),
+///     store_path:      Some(app.paths.session_db("my-session-id")),
+/// };
+/// ```
 pub struct SessionConfig {
-    /// LLM provider to use for this session (selects wire format + endpoint).
-    pub provider: Provider,
+    // ── Provider + model ──────────────────────────────────────────────────────
 
-    /// API key for the provider. Passed verbatim in request headers.
-    /// Keep this out of logs — use `tracing` redaction or avoid logging the config.
-    pub api_key: String,
+    /// Fully assembled provider configuration: which provider, model, and API key.
+    ///
+    /// Contains `provider` (enum), `credentials` (API key + optional org_id),
+    /// `model` (model_id, context_window, max_tokens), and an optional base URL
+    /// override (useful for Ollama running on a non-default port).
+    ///
+    /// Source: `operon_config::AppConfig.provider`
+    pub provider_config: ProviderConfig,
 
-    /// Model identifier string sent in the request body, e.g.
-    /// `"claude-sonnet-4-20250514"` for Anthropic or `"gpt-4o"` for OpenAI.
-    pub model_id: String,
+    // ── Permission policy ─────────────────────────────────────────────────────
 
-    /// Context window size for the model in tokens.
-    /// Used by `TokenBudget` to compute the compaction threshold limit.
-    /// Common values: 200_000 (Claude), 128_000 (GPT-4o).
-    pub context_window: usize,
+    /// Resolved tool permission policy for this session.
+    ///
+    /// Carries global tool permissions (web, subagent, ask, todo, load_tools)
+    /// and per-directory permissions (filesystem + shell) for all allowed directories
+    /// (Direction 1 + 2). The runner injects Direction 3 (project_dir) at startup
+    /// if `project_dir` is `Some`.
+    ///
+    /// All directory paths in this config must already be canonical (ensured by
+    /// `operon_config::load()` which calls `PolicyConfig::validate()`).
+    ///
+    /// Source: `operon_config::AppConfig.policy`
+    pub policy: PolicyConfig,
 
-    /// `max_tokens` to request per turn (i.e. the maximum output token budget).
-    /// Typical values: 4096–16384. Must be <= the model's output token limit.
-    pub max_tokens: usize,
+    // ── Directory model ───────────────────────────────────────────────────────
 
-    /// Tool groups to register on the `Dispatcher` at startup.
-    /// Valid group names: `"fs"`, `"shell"`, `"web"`, `"todo"`.
-    /// Unknown names are logged as warnings and skipped.
-    pub tool_groups: Vec<String>,
+    /// Optional project directory opened VS Code-style (Direction 3).
+    ///
+    /// `None`  → NORMAL mode: snapshot root = `workspace_root` (~/.operon/workspace/).
+    /// `Some(path)` → PROJECT mode: snapshot root = `workspace_root` = `path`.
+    ///
+    /// When `Some`, the runner injects this path into `policy.directories` at startup
+    /// with `DirectoryPolicy::owner_full_access()`. This temporary entry is not
+    /// written back to config.toml — it exists only for this session's lifetime.
+    pub project_dir: Option<PathBuf>,
 
-    /// Compaction configuration — threshold percentage and preserved turn count.
-    pub compaction: CompactionConfig,
-
-    /// Workspace root directory passed to `SnapshotBuilder`.
-    /// The builder will watch this directory for filesystem changes.
+    /// The snapshot root directory — the single directory from which AGENTS.md,
+    /// the directory tree block, and git status are read.
+    ///
+    /// NORMAL mode:  set to `app.paths.workspace_dir` (~/.operon/workspace/).
+    /// PROJECT mode: set to `project_dir.clone()` (same as the project directory).
+    ///
+    /// The `SnapshotBuilder` watches this directory for filesystem changes
+    /// (to invalidate cached tree + AGENTS.md).
     pub workspace_root: PathBuf,
 
-    /// Agent role used by the snapshot and sanitizer (Owner or External).
+    // ── Agent identity ────────────────────────────────────────────────────────
+
+    /// Agent role for this session — determines which policy column is consulted.
+    ///
+    /// `Role::Owner` for local (terminal, TUI, GUI) sessions.
+    /// `Role::External` for remote (WhatsApp, Telegram, public channels) sessions.
+    ///
+    /// This is set at the channel level, not the user level. A message arriving
+    /// over a public channel is External even if the sender is the system owner.
     pub role: Role,
 
-    /// Path to the SQLite persistence database file.
-    /// If `None`, persistence is disabled and turns are only kept in memory.
-    /// The file is created if it does not already exist.
+    // ── Tool groups ───────────────────────────────────────────────────────────
+
+    /// Names of tool groups to register on the `Dispatcher` at startup.
+    ///
+    /// Valid values: `"fs"`, `"shell"`, `"web"`, `"todo"`.
+    /// Unknown names are logged as warnings and skipped.
+    /// This list is also passed to `SnapshotBuilder` so the system prompt
+    /// includes an accurate tool availability block.
+    pub tool_groups: Vec<String>,
+
+    // ── Context compaction ────────────────────────────────────────────────────
+
+    /// Compaction settings — threshold percentage and preserved turn count.
+    ///
+    /// `CompactionConfig::default()` gives a sensible 90% threshold with 2 preserved turns.
+    pub compaction: CompactionConfig,
+
+    // ── Session persistence ───────────────────────────────────────────────────
+
+    /// Path to the SQLite database file for turn persistence.
+    ///
+    /// `None` → persistence disabled (turns are in-memory only).
+    /// `Some(path)` → the file is created if it does not already exist.
+    ///
+    /// Use `app.paths.session_db(session_id)` to compute the standard path
+    /// under `~/.operon/sessions/`.
     pub store_path: Option<PathBuf>,
 }
 
 impl SessionConfig {
     /// Derive a [`SnapshotConfig`] for this session.
     ///
-    /// Called once in `SessionRunner::new` after the session ID is generated.
-    /// The config borrows from `self` so the root path and tool_groups lists
-    /// are cloned cheaply rather than moved.
+    /// Called once in `SessionRunner::new()` after the session ID is generated.
+    /// The `workspace_root` and `tool_groups` are cloned (both are cheap).
     pub fn snapshot_config(&self, session_id: &str) -> SnapshotConfig {
         SnapshotConfig {
-            root: self.workspace_root.clone(),
-            role: self.role,
-            session_id: session_id.to_string(),
+            root:        self.workspace_root.clone(),
+            role:        self.role,
+            session_id:  session_id.to_string(),
             // One-level tree traversal gives the agent enough context without
             // flooding the system prompt with deeply nested paths.
-            tree_depth: 1,
+            tree_depth:  1,
             tool_groups: self.tool_groups.clone(),
         }
     }

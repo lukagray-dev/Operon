@@ -26,30 +26,33 @@
 //   8. Persist turn to SQLite
 //   9. If no tool calls → Done; break
 //  10. Dispatch tool calls sequentially → push tool result messages → loop back
+//
+// ── Three-directional model integration ──────────────────────────────────────
+//
+// At startup (new()), if config.project_dir is Some, the runner injects it into
+// the PolicyConfig with owner-full-access permissions. This is Direction 3 — a
+// project directory opened VS Code-style that is temporarily allowed for this
+// session but not persisted to config.toml.
 
 use reqwest::Client;
 use tokio::sync::mpsc;
 
-use operon_context_compaction::{
-    compact, AnthropicCompactionClient,
-};
-use operon_context_normalize_messages::{
-    ConversationMessage, ContentBlock, MessageRole,
-};
-use operon_context_normalize_tools::{
-    Provider, ToolContent,
-};
+use operon_context_compaction::{compact, AnthropicCompactionClient};
+use operon_context_normalize_messages::{ConversationMessage, ContentBlock, MessageRole};
+use operon_context_normalize_tools::ToolContent;
 use operon_context_sanitizer::sanitize;
 use operon_context_snapshot::SnapshotBuilder;
 use operon_context_token_tracker::{SessionTokenState, TokenBudget, UsageRecord};
-use operon_tools::dispatcher::Dispatcher;
 use operon_events::SessionEvent;
+use operon_policy::config::{DirectoryPolicy, PolicyConfig};
+use operon_providers::Provider;
+use operon_tools::dispatcher::Dispatcher;
 
 use crate::config::SessionConfig;
 use crate::error::SessionError;
 use crate::http::{send_streaming, StreamResult};
 use crate::lifecycle::LifecycleState;
-use crate::request::{build_request, provider_endpoint};
+use crate::request::build_request;
 use crate::store::SessionStore;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,7 +76,7 @@ use crate::store::SessionStore;
 pub struct SessionRunner {
     /// Unique identifier for this session (hex nanoseconds).
     session_id: String,
-    /// Runtime configuration (provider, model, tool groups, etc.).
+    /// Runtime configuration (provider, model, tool groups, policy, etc.).
     config: SessionConfig,
     /// The full conversation history including all turns in this session.
     messages: Vec<ConversationMessage>,
@@ -102,18 +105,37 @@ impl SessionRunner {
     ///
     /// Initializes all subsystems:
     /// - Generates a unique session ID
+    /// - Injects project_dir into PolicyConfig if present (Direction 3)
     /// - Builds the `SnapshotBuilder` for this workspace root
     /// - Registers tool groups on the `Dispatcher`
     /// - Opens the SQLite store if a path was provided
     ///
     /// # Errors
     ///
-    /// Returns [`SessionError`] if the snapshot builder cannot be created
-    /// (e.g. workspace root does not exist) or if the SQLite store cannot be opened.
+    /// Returns [`SessionError`] if:
+    /// - The project_dir path cannot be canonicalized (`Config` variant)
+    /// - The snapshot builder cannot be created (`Snapshot` variant)
+    /// - The SQLite store cannot be opened (`Store` variant)
     pub async fn new(
-        config: SessionConfig,
+        mut config: SessionConfig,
         event_tx: mpsc::Sender<SessionEvent>,
     ) -> Result<Self, SessionError> {
+        // ── Direction 3: inject project_dir into policy ───────────────────────
+        // If a project directory is open (VS Code-style), temporarily add it to
+        // the policy with owner-full-access. This entry lives only for this session
+        // and is never written to config.toml.
+        if let Some(ref proj_dir) = config.project_dir {
+            // Owner gets full access — they opened this project directory.
+            // External gets zero access — project dirs are owner-only.
+            let proj_policy = DirectoryPolicy::owner_full_access(proj_dir.clone());
+            config.policy.directories.push(proj_policy);
+
+            // validate() canonicalizes the new project_dir path.
+            // The other directories are already canonical (validated by operon-config::load()).
+            config.policy.validate()
+                .map_err(|e| SessionError::Config(e.to_string()))?;
+        }
+
         // Generate a unique session ID using nanosecond hex timestamp.
         // This is the same pattern used by SnapshotBuilder internally.
         let session_id = generate_session_id();
@@ -139,9 +161,9 @@ impl SessionRunner {
             }
         }
 
-        // Build the token budget from the configured context window size.
+        // Build the token budget from the provider config's context window size.
         // Uses the default 90% compaction threshold.
-        let token_budget = TokenBudget::with_window(config.context_window)
+        let token_budget = TokenBudget::with_window(config.provider_config.context_window())
             .map_err(|e| SessionError::Stream(e.to_string()))?;
 
         // Open the SQLite store if a path was provided in the configuration.
@@ -151,8 +173,8 @@ impl SessionRunner {
             s.create_session(
                 &session_id,
                 &config.workspace_root.display().to_string(),
-                &config.model_id,
-                &format!("{:?}", config.provider),
+                config.provider_config.model_id(),
+                &format!("{:?}", config.provider_config.provider),
             )
             .await?;
             Some(s)
@@ -211,23 +233,17 @@ impl SessionRunner {
         loop {
             // ── 1. Compaction check ──────────────────────────────────────────
             // Check if the token budget is exceeded before building the next request.
-            // The guard in should_compact() ensures we only run compaction when needed.
             if self.token_budget.should_compact(self.token_state.current_context_tokens) {
-                // Non-fatal: ThresholdNotReached is impossible here (we just checked),
-                // but InsufficientHistory is possible on very short conversations.
                 match self.run_compaction().await {
                     Ok(()) => {}
                     Err(SessionError::Compaction(
                         operon_context_compaction::CompactionError::ThresholdNotReached,
                     )) => {
-                        // Shouldn't happen — we checked should_compact() above.
-                        // Treat as a warning and continue.
                         tracing::warn!("Compaction triggered but threshold not reached — skipping");
                     }
                     Err(SessionError::Compaction(
                         operon_context_compaction::CompactionError::InsufficientHistory,
                     )) => {
-                        // Not enough history to compact — this is not fatal.
                         let _ = self.event_tx
                             .send(SessionEvent::Warning {
                                 message: "Context compaction skipped: insufficient history".to_string(),
@@ -235,7 +251,6 @@ impl SessionRunner {
                             .await;
                     }
                     Err(e) => {
-                        // Fatal compaction error — propagate upward.
                         self.lifecycle = LifecycleState::Failed;
                         return Err(e);
                     }
@@ -243,8 +258,6 @@ impl SessionRunner {
             }
 
             // ── 2. Build snapshot + sanitize ─────────────────────────────────
-            // The snapshot provides a fresh system prompt block for this turn.
-            // Sanitize cleans the message array (orphans, role alternation, etc.)
             let snapshot = self.snapshot_builder.build()?;
             let clean_messages = sanitize(
                 self.messages.clone(),
@@ -253,27 +266,29 @@ impl SessionRunner {
             )?;
 
             // ── 3. Collect tool definitions ──────────────────────────────────
-            // The dispatcher returns short or detailed definitions per tool
-            // depending on whether that tool has been degraded this session.
             let tool_defs: Vec<_> = self.dispatcher.definitions().cloned().collect();
 
             // ── 4. Build request body ────────────────────────────────────────
             let body = build_request(
-                &self.config.provider,
-                &self.config.model_id,
-                self.config.max_tokens,
+                &self.config.provider_config.provider,
+                self.config.provider_config.model_id(),
+                self.config.provider_config.max_tokens(),
                 &clean_messages,
                 &tool_defs,
                 true, // streaming = true
             )?;
 
             // ── 5. Send + consume SSE stream ─────────────────────────────────
-            let endpoint = provider_endpoint(&self.config.provider);
+            // Use effective_base_url() to respect any Ollama port override.
+            // Clone to String so there's no borrow of self across the await.
+            let endpoint = self.config.provider_config.effective_base_url().to_string();
+            let api_key  = self.config.provider_config.credentials.api_key.expose().to_string();
+
             let stream_result = send_streaming(
                 &self.http_client,
-                &self.config.provider,
-                endpoint,
-                &self.config.api_key,
+                &self.config.provider_config.provider,
+                &endpoint,
+                &api_key,
                 body,
                 &self.event_tx,
             )
@@ -285,9 +300,12 @@ impl SessionRunner {
 
             // ── 6. Record token usage ────────────────────────────────────────
             // Update the session token state from the usage metadata in the stream.
-            // This gives us exact counts for the next compaction check.
             if let Some(usage_raw) = &stream_result.usage_raw {
-                if let Some(record) = extract_usage_record(usage_raw, &self.config) {
+                if let Some(record) = extract_usage_record(
+                    usage_raw,
+                    self.config.provider_config.model_id(),
+                    &format!("{:?}", self.config.provider_config.provider),
+                ) {
                     self.token_state.record_turn(&record);
                 }
             }
@@ -318,8 +336,6 @@ impl SessionRunner {
             self.turn_index += 1;
 
             // ── 9. No tool calls → loop is done ─────────────────────────────
-            // The model returned EndTurn (or equivalent) with no tool calls.
-            // The agent loop exits naturally.
             if stream_result.tool_calls.is_empty() {
                 let _ = self.event_tx.send(SessionEvent::Done).await;
                 self.lifecycle = LifecycleState::Done;
@@ -332,50 +348,40 @@ impl SessionRunner {
             let mut tool_results: Vec<ContentBlock> = Vec::new();
 
             for call in stream_result.tool_calls {
-                // Dispatch returns a ToolResult even on error — never panics.
                 let result = self.dispatcher.dispatch(call).await;
 
-                // Serialize the content for the event channel.
                 let content_json = match &result.content {
                     ToolContent::Text(s) => s.clone(),
                     ToolContent::Json(v) => v.to_string(),
                 };
 
-                // Emit a ToolCallResult event so the UI can show the tool output.
                 let _ = self
                     .event_tx
                     .send(SessionEvent::ToolCallResult {
-                        call_id: result.call_id.0.clone(),
-                        name: result.name.clone(),
-                        is_error: result.is_error,
+                        call_id:      result.call_id.0.clone(),
+                        name:         result.name.clone(),
+                        is_error:     result.is_error,
                         content_json: content_json.clone(),
                     })
                     .await;
 
-                // Accumulate the result as a ContentBlock for the tool role message.
                 tool_results.push(ContentBlock::ToolResult(result));
             }
 
             // Push all tool results as a single Tool-role message.
-            // Providers that use a dedicated "tool" role (Anthropic) expect this grouping.
             self.messages.push(ConversationMessage {
-                role: MessageRole::Tool,
-                content: tool_results,
+                role:        MessageRole::Tool,
+                content:     tool_results,
                 stop_reason: None,
             });
 
-            // Loop back to step 1 — the model will now see the tool results
-            // and either issue more tool calls or return EndTurn.
+            // Loop back to step 1.
         }
 
         Ok(())
     }
 
     /// Pause the session (only valid while `Running`).
-    ///
-    /// This is a logical pause — it does not cancel any in-flight HTTP request.
-    /// Call from a separate task; the runner will check `can_pause()` at the
-    /// next appropriate point. For a hard interrupt, drop the runner or kill the task.
     pub fn pause(&mut self) -> Result<(), SessionError> {
         if !self.lifecycle.can_pause() {
             return Err(SessionError::InvalidState {
@@ -387,9 +393,6 @@ impl SessionRunner {
     }
 
     /// Resume a paused session with a new user message.
-    ///
-    /// Equivalent to calling `run(user_message)` — the lifecycle guard in `run()`
-    /// accepts `Paused` as a valid pre-run state.
     pub async fn resume(&mut self, user_message: String) -> Result<(), SessionError> {
         self.run(user_message).await
     }
@@ -404,6 +407,14 @@ impl SessionRunner {
         &self.lifecycle
     }
 
+    /// Returns a reference to the resolved PolicyConfig for this session.
+    ///
+    /// Includes the injected project_dir entry (if any). Useful for the TUI
+    /// to display which directories are currently accessible.
+    pub fn policy(&self) -> &PolicyConfig {
+        &self.config.policy
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Private helpers
     // ─────────────────────────────────────────────────────────────────────────
@@ -414,27 +425,18 @@ impl SessionRunner {
     /// is Anthropic. For other providers, compaction is not yet supported and a
     /// warning is emitted. This is a temporary limitation until the compaction crate
     /// supports provider-agnostic clients.
-    ///
-    /// # Errors
-    ///
-    /// Propagates `CompactionError` variants (ThresholdNotReached, InsufficientHistory,
-    /// ClientError, Serialization).
     async fn run_compaction(&mut self) -> Result<(), SessionError> {
-        // Build a fresh snapshot for the compacted system prompt.
-        let snapshot = self.snapshot_builder.build()?;
-        let tokens_before = self.token_state.current_context_tokens;
+        let snapshot       = self.snapshot_builder.build()?;
+        let tokens_before  = self.token_state.current_context_tokens;
 
-        match &self.config.provider {
+        match &self.config.provider_config.provider {
             Provider::Anthropic => {
-                // Construct the Anthropic HTTP client using the session's API key and model.
-                // Clone the http_client so the compaction call shares the same connection pool.
                 let compaction_client = AnthropicCompactionClient {
-                    api_key: self.config.api_key.clone(),
-                    model_id: self.config.model_id.clone(),
-                    http: self.http_client.clone(),
+                    api_key:  self.config.provider_config.credentials.api_key.expose().to_string(),
+                    model_id: self.config.provider_config.model_id().to_string(),
+                    http:     self.http_client.clone(),
                 };
 
-                // Run the compaction pipeline — summarizes old history and rebuilds messages.
                 let result = compact(
                     self.messages.clone(),
                     &snapshot,
@@ -444,14 +446,10 @@ impl SessionRunner {
                 )
                 .await?;
 
-                // Replace conversation history with the compacted version.
                 self.messages = result.messages;
-                // Reset token state — the next API call will give us fresh exact counts.
                 self.token_state.reset();
-                // Clear the read ledger — the model's mental model of file contents is stale.
                 self.dispatcher.notify_compaction();
 
-                // Notify the UI that compaction occurred.
                 let _ = self
                     .event_tx
                     .send(SessionEvent::CompactionOccurred {
@@ -461,8 +459,6 @@ impl SessionRunner {
                     .await;
             }
             other => {
-                // Compaction is not yet implemented for non-Anthropic providers.
-                // Emit a warning and skip — the session continues without compacting.
                 tracing::warn!(
                     "Context compaction not supported for provider {:?} — skipping",
                     other
@@ -472,7 +468,7 @@ impl SessionRunner {
                     .send(SessionEvent::Warning {
                         message: format!(
                             "Compaction not supported for provider {:?}",
-                            self.config.provider
+                            self.config.provider_config.provider
                         ),
                     })
                     .await;
@@ -488,29 +484,19 @@ impl SessionRunner {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Build a `ConversationMessage` from a fully assembled `StreamResult`.
-///
-/// Produces an assistant message containing:
-///   - A `Text` block if the model emitted any text.
-///   - `ToolCall` blocks for each tool call the model requested.
-///
-/// The `with_stop` builder attaches the stop reason if one was emitted.
 fn build_assistant_message(result: &StreamResult) -> ConversationMessage {
     let mut blocks: Vec<ContentBlock> = Vec::new();
 
-    // Include text only if the model actually generated some.
     if !result.text.is_empty() {
         blocks.push(ContentBlock::Text(result.text.clone()));
     }
 
-    // Append one ToolCall block per tool call, in emission order.
     for call in &result.tool_calls {
         blocks.push(ContentBlock::ToolCall(call.clone()));
     }
 
-    // Build the base assistant message.
     let mut msg = ConversationMessage::assistant(blocks);
 
-    // Attach the stop reason if the stream emitted one.
     if let Some(stop) = &result.stop_reason {
         msg = msg.with_stop(stop.clone());
     }
@@ -524,12 +510,12 @@ fn build_assistant_message(result: &StreamResult) -> ConversationMessage {
 ///   - Anthropic: `{ "input_tokens": N, "output_tokens": N, "cache_read_input_tokens": N, ... }`
 ///   - OpenAI:    `{ "prompt_tokens": N, "completion_tokens": N }`
 ///
-/// Returns `None` if the required fields are absent or cannot be parsed as u64.
+/// Returns `None` if the required fields are absent.
 fn extract_usage_record(
     raw: &serde_json::Value,
-    config: &SessionConfig,
+    model_id: &str,
+    provider_name: &str,
 ) -> Option<UsageRecord> {
-    // Try Anthropic field names first, then fall back to OpenAI names.
     let input = raw
         .get("input_tokens")
         .or_else(|| raw.get("prompt_tokens"))
@@ -540,7 +526,6 @@ fn extract_usage_record(
         .or_else(|| raw.get("completion_tokens"))
         .and_then(|v| v.as_u64())? as usize;
 
-    // Anthropic prompt cache fields — optional, only present when caching is active.
     let cache_read = raw
         .get("cache_read_input_tokens")
         .and_then(|v| v.as_u64())
@@ -552,19 +537,16 @@ fn extract_usage_record(
         .map(|n| n as usize);
 
     Some(UsageRecord {
-        input_tokens: input,
-        output_tokens: output,
-        cache_read_tokens: cache_read,
+        input_tokens:       input,
+        output_tokens:      output,
+        cache_read_tokens:  cache_read,
         cache_write_tokens: cache_write,
-        model: config.model_id.clone(),
-        provider: format!("{:?}", config.provider),
+        model:              model_id.to_string(),
+        provider:           provider_name.to_string(),
     })
 }
 
 /// Generate a unique session ID using the current nanosecond timestamp in hex.
-///
-/// This is the same scheme used by `SnapshotBuilder::generate_session_id` so
-/// session IDs from both sources have a consistent format.
 fn generate_session_id() -> String {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()

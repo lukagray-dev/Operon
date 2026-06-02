@@ -25,8 +25,9 @@ use tokio::sync::mpsc;
 use operon_context_normalize_messages::StopReason;
 use operon_context_normalize_stream::{parse_line, new_assembler, AssemblerOutput};
 use operon_context_normalize_stream::types::StreamEvent;
-use operon_context_normalize_tools::{Provider, ToolCall};
+use operon_context_normalize_tools::ToolCall;
 use operon_events::SessionEvent;
+use operon_providers::Provider;
 
 use crate::error::SessionError;
 
