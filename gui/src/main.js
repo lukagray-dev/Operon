@@ -16,6 +16,9 @@
 // Load titlebar component (initializes itself on load)
 import './js/titlebar/titlebar.js';
 
+// Load left sidebar component (initializes itself on load)
+import './js/left-sidebar/left-sidebar.js';
+
 /**
  * Main application class
  * 

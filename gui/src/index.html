@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="./css/shared/tokens.css">
     <!-- Titlebar styles -->
     <link rel="stylesheet" href="./css/titlebar/titlebar.css">
+    <!-- Left sidebar styles -->
+    <link rel="stylesheet" href="./css/left-sidebar/left-sidebar.css">
 </head>
 <body>
     <!-- Custom Titlebar -->
@@ -269,7 +271,136 @@
 
     <!-- Main Application Content -->
     <div id="app">
-        <!-- Application content will be rendered here -->
+        <!-- Left Sidebar -->
+        <aside class="left-sidebar">
+            <!-- Top Actions Section -->
+            <div class="left-sidebar__top">
+                <!-- New Chat Button -->
+                <button 
+                    id="sidebar-new-chat" 
+                    class="left-sidebar__action-btn"
+                    aria-label="Create new chat"
+                    title="New chat"
+                >
+                    <img 
+                        src="./assets/icons/sidebar/new-chat.svg" 
+                        alt="New chat" 
+                        class="left-sidebar__action-icon"
+                    />
+                    <span class="left-sidebar__action-text">New chat</span>
+                </button>
+
+                <!-- Search Button -->
+                <button 
+                    id="sidebar-search" 
+                    class="left-sidebar__action-btn"
+                    aria-label="Search chats"
+                    title="Search"
+                >
+                    <img 
+                        src="./assets/icons/sidebar/search.svg" 
+                        alt="Search" 
+                        class="left-sidebar__action-icon"
+                    />
+                    <span class="left-sidebar__action-text">Search</span>
+                </button>
+
+                <!-- Plugins Button -->
+                <button 
+                    id="sidebar-plugins" 
+                    class="left-sidebar__action-btn"
+                    aria-label="Manage plugins"
+                    title="Plugins"
+                >
+                    <img 
+                        src="./assets/icons/sidebar/plugins.svg" 
+                        alt="Plugins" 
+                        class="left-sidebar__action-icon"
+                    />
+                    <span class="left-sidebar__action-text">Plugins</span>
+                </button>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="left-sidebar__content">
+                <!-- Projects Section -->
+                <div class="left-sidebar__section">
+                    <div class="left-sidebar__section-header">
+                        <button 
+                            class="left-sidebar__section-toggle"
+                            aria-label="Toggle projects section"
+                            data-section="projects"
+                        >
+                            <img 
+                                src="./assets/icons/sidebar/projects.svg" 
+                                alt="Projects" 
+                                class="left-sidebar__section-icon"
+                            />
+                            <span class="left-sidebar__section-title">Projects</span>
+                            <img 
+                                src="./assets/icons/sidebar/chevron-down.svg" 
+                                alt="Toggle" 
+                                class="left-sidebar__section-chevron"
+                            />
+                        </button>
+                    </div>
+                    <div class="left-sidebar__section-content" data-section-content="projects">
+                        <!-- Projects will be dynamically rendered here -->
+                    </div>
+                </div>
+
+                <!-- Chats Section -->
+                <div class="left-sidebar__section">
+                    <div class="left-sidebar__section-header">
+                        <button 
+                            class="left-sidebar__section-toggle"
+                            aria-label="Toggle chats section"
+                            data-section="chats"
+                        >
+                            <img 
+                                src="./assets/icons/sidebar/chats.svg" 
+                                alt="Chats" 
+                                class="left-sidebar__section-icon"
+                            />
+                            <span class="left-sidebar__section-title">Chats</span>
+                            <img 
+                                src="./assets/icons/sidebar/chevron-down.svg" 
+                                alt="Toggle" 
+                                class="left-sidebar__section-chevron"
+                            />
+                        </button>
+                    </div>
+                    <div class="left-sidebar__section-content" data-section-content="chats">
+                        <!-- Chats will be dynamically rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Section (Settings) -->
+            <div class="left-sidebar__bottom">
+                <button 
+                    id="sidebar-settings" 
+                    class="left-sidebar__action-btn"
+                    aria-label="Open settings"
+                    title="Settings"
+                >
+                    <img 
+                        src="./assets/icons/sidebar/settings.svg" 
+                        alt="Settings" 
+                        class="left-sidebar__action-icon"
+                    />
+                    <span class="left-sidebar__action-text">Settings</span>
+                </button>
+            </div>
+
+            <!-- Resize Handle -->
+            <div class="left-sidebar__resize-handle" aria-label="Resize sidebar"></div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Main content will be rendered here -->
+        </main>
     </div>
 
     <!-- JavaScript modules -->

@@ -19,7 +19,7 @@
 
 :root {
     /* Titlebar colors */
-    --color-titlebar-bg: #191919;              /* Titlebar background color */
+    --color-titlebar-bg: #0e0e0e;              /* Titlebar background color */
     --color-titlebar-items: #9e9e9e;           /* Nav buttons, menu items, dropdown texts, action buttons */
     --color-titlebar-item-hover: #ffffff;      /* Hover state for all titlebar items */
     --color-window-close-hover: #ff0000;       /* Close button hover background */

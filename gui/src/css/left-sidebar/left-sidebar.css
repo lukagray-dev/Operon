@@ -1,0 +1,600 @@
+/**
+ * Left Sidebar Component Styles
+ * 
+ * This file contains all styles for the left sidebar component including:
+ * - Main sidebar container with resizing functionality
+ * - Top action buttons (New chat, Search, Plugins)
+ * - Collapsible sections (Projects, Chats)
+ * - Project groups with nested chats
+ * - Standalone chat items
+ * - Bottom settings button
+ * - Resize handle
+ * 
+ * The sidebar uses the same dark theme as the titlebar for visual consistency.
+ */
+
+/* ============================================================================
+   LEFT SIDEBAR COLOR TOKENS
+   ============================================================================ */
+
+:root {
+    /* Sidebar colors - matching titlebar color scheme */
+    --color-sidebar-bg: #0e0e0e;                   /* Sidebar background color (same as titlebar) */
+    --color-sidebar-items: #9e9e9e;                /* Default text and icon color for sidebar items */
+    --color-sidebar-item-hover: #ffffff;           /* Hover state color for all sidebar items */
+    --color-sidebar-item-active: #ffffff;          /* Active/selected item color */
+    --color-sidebar-item-active-bg: rgba(255, 255, 255, 0.08);  /* Active item background */
+    --color-sidebar-section-header: #6e6e6e;       /* Muted color for section headers (Projects, Chats) */
+    --color-sidebar-separator: #333333;            /* Separator line color */
+    --color-sidebar-resize-handle: #333333;        /* Resize handle color */
+    --color-sidebar-resize-handle-hover: #4a4a4a;  /* Resize handle hover color */
+    
+    /* Sidebar layout dimensions */
+    --sidebar-width: 240px;                        /* Default width of the sidebar */
+    --sidebar-min-width: 180px;                    /* Minimum width when resizing */
+    --sidebar-max-width: 400px;                    /* Maximum width when resizing */
+    --sidebar-icon-size: 16px;                     /* Width and height of sidebar icons */
+    --sidebar-resize-handle-width: 4px;            /* Width of the resize handle */
+    
+    /* Sidebar spacing */
+    --sidebar-padding-vertical: 4px;               /* Vertical padding for sections */
+    --sidebar-padding-horizontal: 8px;            /* Horizontal padding for items */
+    --sidebar-item-gap: 2px;                       /* Gap between sidebar items */
+    --sidebar-section-gap: 1px;                   /* Gap between major sections */
+    --sidebar-nested-indent: 24px;                 /* Indentation for nested items (chats under projects) */
+    
+    /* Sidebar border radius */
+    --sidebar-radius-sm: 4px;                      /* Small border radius for items */
+    
+    /* Sidebar animations */
+    --sidebar-transition-fast: 100ms;              /* Fast transition for hover states */
+    --sidebar-transition-normal: 200ms;            /* Normal transition for section toggles */
+    --sidebar-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --sidebar-ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    
+    /* Sidebar typography */
+    --sidebar-font-size-base: 13px;                /* Base font size for sidebar items */
+    --sidebar-font-size-sm: 12px;                  /* Small font size for nested items */
+    --sidebar-font-weight-regular: 400;            /* Regular font weight */
+    --sidebar-font-weight-medium: 500;             /* Medium font weight for section headers */
+    
+    /* Sidebar z-index */
+    --sidebar-z-index: 900;                        /* Z-index for sidebar (below titlebar dropdowns) */
+}
+
+/* ============================================================================
+   APP CONTAINER LAYOUT
+   ============================================================================ */
+
+/**
+ * Main app container
+ * - Flexbox layout for sidebar and main content
+ * - Accounts for titlebar height
+ */
+#app {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    padding-top: var(--titlebar-height);
+    overflow: hidden;
+}
+
+/* ============================================================================
+   MAIN SIDEBAR CONTAINER
+   ============================================================================ */
+
+/**
+ * Left sidebar container
+ * - Fixed width (resizable)
+ * - Dark background matching titlebar
+ * - Flexbox layout for vertical arrangement
+ * - Prevents window dragging (Tauri specific)
+ */
+.left-sidebar {
+    position: relative;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-min-width);
+    max-width: var(--sidebar-max-width);
+    height: calc(100vh - var(--titlebar-height));
+    background-color: var(--color-sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    user-select: none;
+    /* Prevent window dragging on sidebar */
+    -webkit-app-region: no-drag;
+    z-index: var(--sidebar-z-index);
+}
+
+/* ============================================================================
+   TOP ACTION BUTTONS SECTION
+   ============================================================================ */
+
+/**
+ * Top section container for action buttons
+ * - Contains New chat, Search, and Plugins buttons
+ * - Vertical arrangement with consistent spacing
+ */
+.left-sidebar__top {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sidebar-item-gap);
+    padding: var(--sidebar-padding-vertical) 0;
+    border-bottom: 1px solid var(--color-sidebar-separator);
+    border-left: var(--sidebar-padding-horizontal) solid transparent;
+    border-right: var(--sidebar-padding-horizontal) solid transparent;
+    flex-shrink: 0;
+}
+
+/**
+ * Action button base styles
+ * - Horizontal layout with icon and text
+ * - Full width with left alignment
+ * - Hover and active states for feedback
+ * - Aligned with section headers (Projects, Chats)
+ */
+.left-sidebar__action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 0;
+    margin: 0 var(--sidebar-padding-horizontal);
+    color: var(--color-sidebar-items);
+    font-size: var(--sidebar-font-size-base);
+    font-weight: var(--sidebar-font-weight-regular);
+    border-radius: var(--sidebar-radius-sm);
+    transition: color var(--sidebar-transition-fast) var(--sidebar-ease-in-out),
+                background-color var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    text-align: left;
+}
+
+.left-sidebar__action-btn:hover {
+    color: var(--color-sidebar-item-hover);
+}
+
+.left-sidebar__action-btn:active,
+.left-sidebar__action-btn.active {
+    color: var(--color-sidebar-item-active);
+}
+
+/**
+ * Action button icons
+ * - Fixed size for consistency
+ * - Color filter to apply token colors
+ */
+.left-sidebar__action-icon {
+    width: var(--sidebar-icon-size);
+    height: var(--sidebar-icon-size);
+    flex-shrink: 0;
+    pointer-events: none;
+    /* Apply gray color to SVG icons */
+    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+}
+
+.left-sidebar__action-btn:hover .left-sidebar__action-icon {
+    /* White color on hover */
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+.left-sidebar__action-btn:active .left-sidebar__action-icon,
+.left-sidebar__action-btn.active .left-sidebar__action-icon {
+    /* White color when active */
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+/**
+ * Action button text
+ * - Allows text to wrap if needed
+ */
+.left-sidebar__action-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================================================
+   SCROLLABLE CONTENT AREA
+   ============================================================================ */
+
+/**
+ * Main content area (scrollable)
+ * - Contains Projects and Chats sections
+ * - Custom scrollbar styling for dark theme
+ */
+.left-sidebar__content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--sidebar-padding-vertical) 0;
+}
+
+/**
+ * Custom scrollbar styling
+ * - Thin, minimalist scrollbar matching dark theme
+ */
+.left-sidebar__content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.left-sidebar__content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.left-sidebar__content::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.left-sidebar__content::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================================================
+   SECTION COMPONENTS (Projects, Chats)
+   ============================================================================ */
+
+/**
+ * Section container
+ * - Spacing between sections
+ */
+.left-sidebar__section {
+    margin-bottom: var(--sidebar-section-gap);
+}
+
+/**
+ * Section header container
+ */
+.left-sidebar__section-header {
+    padding: 0 var(--sidebar-padding-horizontal);
+}
+
+/**
+ * Section toggle button
+ * - Contains icon, title, and chevron (on right)
+ * - Full width with left alignment
+ * - Collapses/expands section content
+ */
+.left-sidebar__section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 0;
+    color: var(--color-sidebar-section-header);
+    font-size: var(--sidebar-font-size-base);
+    font-weight: var(--sidebar-font-weight-medium);
+    transition: color var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    text-align: left;
+}
+
+.left-sidebar__section-toggle:hover {
+    color: var(--color-sidebar-item-hover);
+}
+
+/**
+ * Section chevron icon
+ * - Positioned on the right side
+ * - Rotates to indicate expanded/collapsed state
+ * - Fixed size for consistency
+ */
+.left-sidebar__section-chevron {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    margin-left: auto;
+    pointer-events: none;
+    /* Apply muted gray color to SVG */
+    filter: invert(43%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    transition: transform var(--sidebar-transition-normal) var(--sidebar-ease-out);
+}
+
+.left-sidebar__section-toggle:hover .left-sidebar__section-chevron {
+    /* White color on hover */
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+/**
+ * Rotate chevron when section is collapsed
+ */
+.left-sidebar__section-toggle.collapsed .left-sidebar__section-chevron {
+    transform: rotate(-90deg);
+}
+
+/**
+ * Section icon
+ * - Fixed size for consistency
+ */
+.left-sidebar__section-icon {
+    width: var(--sidebar-icon-size);
+    height: var(--sidebar-icon-size);
+    flex-shrink: 0;
+    pointer-events: none;
+    /* Apply muted gray color to SVG */
+    filter: invert(43%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+}
+
+.left-sidebar__section-toggle:hover .left-sidebar__section-icon {
+    /* White color on hover */
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+/**
+ * Section title text
+ */
+.left-sidebar__section-title {
+    flex: 1;
+}
+
+/**
+ * Section content container
+ * - Contains list of items (projects or chats)
+ * - Smooth height animation for collapse/expand
+ */
+.left-sidebar__section-content {
+    overflow: hidden;
+    max-height: 1000px;
+    transition: max-height var(--sidebar-transition-normal) var(--sidebar-ease-out),
+                opacity var(--sidebar-transition-normal) var(--sidebar-ease-out);
+    opacity: 1;
+}
+
+/**
+ * Collapsed state - hide content
+ */
+.left-sidebar__section-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* ============================================================================
+   PROJECT ITEMS
+   ============================================================================ */
+
+/**
+ * Project group container
+ * - Contains project header and nested chats
+ */
+.left-sidebar__project {
+    margin-bottom: 8px;
+}
+
+/**
+ * Project header/toggle button
+ * - Similar to section toggle but for individual projects
+ * - Contains folder icon, project name, and chevron (on right)
+ */
+.left-sidebar__project-header {
+    padding: 0 var(--sidebar-padding-horizontal);
+}
+
+.left-sidebar__project-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    color: var(--color-sidebar-items);
+    font-size: var(--sidebar-font-size-base);
+    font-weight: var(--sidebar-font-weight-regular);
+    border-radius: var(--sidebar-radius-sm);
+    transition: color var(--sidebar-transition-fast) var(--sidebar-ease-in-out),
+                background-color var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    text-align: left;
+}
+
+.left-sidebar__project-toggle:hover {
+    color: var(--color-sidebar-item-hover);
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+/**
+ * Project folder icon
+ * - Slightly smaller than standard icon size for better visual balance
+ */
+.left-sidebar__project-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    pointer-events: none;
+    /* Apply gray color to SVG */
+    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+}
+
+.left-sidebar__project-toggle:hover .left-sidebar__project-icon {
+    /* White color on hover */
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+/**
+ * Project chevron - indicates expanded/collapsed state
+ * - Positioned on the right side
+ */
+.left-sidebar__project-chevron {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    margin-left: auto;
+    pointer-events: none;
+    /* Apply gray color to SVG */
+    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    transition: transform var(--sidebar-transition-normal) var(--sidebar-ease-out);
+}
+
+.left-sidebar__project-toggle:hover .left-sidebar__project-chevron {
+    /* White color on hover */
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+/**
+ * Rotate chevron when project is collapsed
+ */
+.left-sidebar__project-toggle.collapsed .left-sidebar__project-chevron {
+    transform: rotate(-90deg);
+}
+
+/**
+ * Project name text
+ */
+.left-sidebar__project-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/**
+ * Project chats container
+ * - Contains list of chats under this project
+ * - Indented to show hierarchy
+ */
+.left-sidebar__project-chats {
+    overflow: hidden;
+    max-height: 1000px;
+    padding-left: var(--sidebar-nested-indent);
+    transition: max-height var(--sidebar-transition-normal) var(--sidebar-ease-out),
+                opacity var(--sidebar-transition-normal) var(--sidebar-ease-out);
+    opacity: 1;
+}
+
+/**
+ * Collapsed state - hide project chats
+ */
+.left-sidebar__project-chats.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* ============================================================================
+   CHAT ITEMS
+   ============================================================================ */
+
+/**
+ * Chat item button
+ * - Can be standalone or nested under a project
+ * - Full width with left alignment
+ * - Hover and active states
+ */
+.left-sidebar__chat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    margin: 2px var(--sidebar-padding-horizontal);
+    color: var(--color-sidebar-items);
+    font-size: var(--sidebar-font-size-sm);
+    font-weight: var(--sidebar-font-weight-regular);
+    border-radius: var(--sidebar-radius-sm);
+    transition: color var(--sidebar-transition-fast) var(--sidebar-ease-in-out),
+                background-color var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    text-align: left;
+}
+
+.left-sidebar__chat-item:hover {
+    color: var(--color-sidebar-item-hover);
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.left-sidebar__chat-item:active,
+.left-sidebar__chat-item.active {
+    color: var(--color-sidebar-item-active);
+    background-color: var(--color-sidebar-item-active-bg);
+}
+
+/**
+ * Chat item text
+ * - Single line with ellipsis overflow
+ */
+.left-sidebar__chat-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================================================
+   BOTTOM SECTION (Settings)
+   ============================================================================ */
+
+/**
+ * Bottom section container
+ * - Fixed to bottom of sidebar
+ * - Contains settings button
+ */
+.left-sidebar__bottom {
+    display: flex;
+    flex-direction: column;
+    padding: var(--sidebar-padding-vertical) 0;
+    border-top: 1px solid var(--color-sidebar-separator);
+    border-left: var(--sidebar-padding-horizontal) solid transparent;
+    border-right: var(--sidebar-padding-horizontal) solid transparent;
+    flex-shrink: 0;
+}
+
+/* ============================================================================
+   RESIZE HANDLE
+   ============================================================================ */
+
+/**
+ * Resize handle
+ * - Vertical bar on right edge of sidebar
+ * - Drag to resize sidebar width
+ * - Visual feedback on hover
+ */
+.left-sidebar__resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: var(--sidebar-resize-handle-width);
+    height: 100%;
+    background-color: transparent;
+    cursor: col-resize;
+    transition: background-color var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    z-index: 10;
+}
+
+.left-sidebar__resize-handle:hover {
+    background-color: var(--color-sidebar-resize-handle-hover);
+}
+
+/**
+ * Active state when dragging
+ */
+.left-sidebar__resize-handle.resizing {
+    background-color: var(--color-sidebar-resize-handle-hover);
+}
+
+/* ============================================================================
+   MAIN CONTENT AREA
+   ============================================================================ */
+
+/**
+ * Main content container
+ * - Takes remaining space after sidebar
+ * - Background color from global tokens
+ */
+.main-content {
+    flex: 1;
+    overflow: auto;
+    background-color: var(--color-main-content-bg);
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+/**
+ * For narrow viewports, reduce sidebar width
+ */
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 200px;
+        --sidebar-min-width: 160px;
+    }
+    
+    .left-sidebar__action-text {
+        font-size: var(--sidebar-font-size-sm);
+    }
+}
