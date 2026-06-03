@@ -13,8 +13,8 @@
 
 'use strict';
 
-// Import the titlebar controller
-import TitlebarController from './js/titlebar/titlebar.js';
+// Load titlebar component (initializes itself on load)
+import './js/titlebar/titlebar.js';
 
 /**
  * Main application class

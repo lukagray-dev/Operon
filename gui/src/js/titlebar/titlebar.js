@@ -13,7 +13,13 @@
 
 'use strict';
 
-import { URLS } from '../shared/tokens.js';
+// External URLs used in the application
+const URLS = {
+    DOCUMENTATION: 'https://github.com/lukagray-dev/Operon/tree/main/docs',
+    REPORT_BUG: 'https://github.com/lukagray-dev/Operon/issues',
+    REPOSITORY: 'https://github.com/lukagray-dev/Operon',
+    CREATOR_INSTAGRAM: 'https://www.instagram.com/lukagray.official/',
+};
 
 /**
  * TitlebarController class

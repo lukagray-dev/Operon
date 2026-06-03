@@ -14,6 +14,54 @@
  */
 
 /* ============================================================================
+   TITLEBAR COLOR TOKENS
+   ============================================================================ */
+
+:root {
+    /* Titlebar colors */
+    --color-titlebar-bg: #191919;              /* Titlebar background color */
+    --color-titlebar-items: #9e9e9e;           /* Nav buttons, menu items, dropdown texts, action buttons */
+    --color-titlebar-item-hover: #ffffff;      /* Hover state for all titlebar items */
+    --color-window-close-hover: #ff0000;       /* Close button hover background */
+    --color-main-content-bg: #000000;          /* Main content area background */
+    
+    /* Titlebar dropdown colors */
+    --color-dropdown-bg: #191919;              /* Dropdown background color */
+    --color-dropdown-border: #333333;          /* Dropdown border color */
+    --color-dropdown-separator: #333333;       /* Dropdown separator line color */
+    
+    /* Titlebar layout dimensions */
+    --titlebar-height: 32px;                   /* Height of the entire titlebar */
+    --titlebar-logo-size: 18px;                /* Width and height of the brand logo */
+    --titlebar-icon-size: 14px;                /* Width and height of all icons (nav, window controls) */
+    --titlebar-button-width: 40px;             /* Width of window control buttons (minimize, maximize, close) */
+    
+    /* Titlebar spacing */
+    --titlebar-spacing-menu: 8px;              /* Spacing between menu items (Files, View, Window, Help) */
+    --titlebar-spacing-action: 2px;            /* Spacing for action buttons (nav buttons, window controls) */
+    
+    /* Titlebar layout - border radius */
+    --titlebar-radius-sm: 4px;                 /* Small border radius for buttons */
+    --titlebar-radius-md: 6px;                 /* Medium border radius for dropdowns */
+    
+    /* Titlebar animations */
+    --titlebar-transition-fast: 100ms;         /* Fast transition for hover states */
+    --titlebar-transition-normal: 100ms;       /* Normal transition for dropdown animations */
+    --titlebar-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --titlebar-ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    
+    /* Titlebar typography */
+    --titlebar-font-size-sm: 12px;             /* Small font size for menu items and dropdowns */
+    --titlebar-font-weight-regular: 400;       /* Regular font weight */
+    
+    /* Titlebar z-index */
+    --titlebar-z-index: 1000;                  /* Z-index for titlebar dropdowns */
+    
+    /* Titlebar shadow */
+    --titlebar-shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* ============================================================================
    TITLEBAR CONTAINER
    ============================================================================ */
 
@@ -37,7 +85,7 @@
     user-select: none;
     /* Enable dragging on the titlebar background */
     -webkit-app-region: drag;
-    z-index: var(--z-index-dropdown);
+    z-index: var(--titlebar-z-index);
 }
 
 /* ============================================================================
@@ -74,7 +122,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 var(--spacing-sm);
+    padding: 0 var(--titlebar-spacing-menu);
     height: var(--titlebar-height);
     flex-shrink: 0;
 }
@@ -117,17 +165,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-sm);
-    color: var(--color-titlebar-icon);
-    transition: color var(--transition-fast) var(--ease-in-out);
+    border-radius: var(--titlebar-radius-sm);
+    transition: color var(--titlebar-transition-fast) var(--titlebar-ease-in-out);
 }
 
 .titlebar__nav-btn:hover {
-    color: var(--color-titlebar-icon-hover);
+    color: var(--color-titlebar-item-hover);
 }
 
 .titlebar__nav-btn:active {
-    color: var(--color-titlebar-icon-hover);
+    color: var(--color-titlebar-item-hover);
 }
 
 /**
@@ -137,8 +184,8 @@
     width: 14px;
     height: 14px;
     pointer-events: none;
-    /* Apply gray color filter to black SVGs loaded via img tag */
-    filter: invert(71%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    /* Apply color to black SVGs loaded via img tag */
+    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
 }
 
 .titlebar__nav-btn:hover .titlebar__nav-icon {
@@ -163,32 +210,30 @@
 }
 
 /**
- * Individual menu item button
- * - Padding for comfortable click targets
- * - Hover state highlights text only
+ * Menu item height adjusted for slimmer titlebar
  */
 .titlebar__menu-item {
     position: relative;
-    padding: 0 var(--spacing-sm);
-    height: 28px;
+    padding: 0 var(--titlebar-spacing-menu);
+    height: 24px;
     display: flex;
     align-items: center;
-    color: var(--color-titlebar-text);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-regular);
-    border-radius: var(--radius-sm);
-    transition: color var(--transition-fast) var(--ease-in-out);
+    color: var(--color-titlebar-items);
+    font-size: var(--titlebar-font-size-sm);
+    font-weight: var(--titlebar-font-weight-regular);
+    border-radius: var(--titlebar-radius-sm);
+    transition: color var(--titlebar-transition-fast) var(--titlebar-ease-in-out);
 }
 
 .titlebar__menu-item:hover {
-    color: var(--color-text-primary);
+    color: var(--color-titlebar-item-hover);
 }
 
 /**
  * Active state when dropdown is open
  */
 .titlebar__menu-item.active {
-    color: var(--color-text-primary);
+    color: var(--color-titlebar-item-hover);
 }
 
 /* ============================================================================
@@ -206,18 +251,18 @@
     top: calc(100% + 2px);
     left: 0;
     min-width: 180px;
-    background-color: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-dropdown);
+    background-color: var(--color-dropdown-bg);
+    border: 1px solid var(--color-dropdown-border);
+    border-radius: var(--titlebar-radius-md);
+    box-shadow: var(--titlebar-shadow-dropdown);
     opacity: 0;
     visibility: hidden;
     transform: translateY(-8px);
-    transition: opacity var(--transition-normal) var(--ease-out),
-                transform var(--transition-normal) var(--ease-out),
-                visibility var(--transition-normal);
-    padding: var(--spacing-xs) 0;
-    z-index: var(--z-index-dropdown);
+    transition: opacity var(--titlebar-transition-normal) var(--titlebar-ease-out),
+                transform var(--titlebar-transition-normal) var(--titlebar-ease-out),
+                visibility var(--titlebar-transition-normal);
+    padding: var(--titlebar-spacing-action) 0;
+    z-index: var(--titlebar-z-index);
 }
 
 /**
@@ -243,20 +288,20 @@
  * - Hover state highlights text only
  */
 .titlebar__dropdown-item {
-    padding: var(--spacing-sm) var(--spacing-lg);
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
+    padding: var(--titlebar-spacing-action) var(--titlebar-spacing-menu);
+    color: var(--color-titlebar-items);
+    font-size: var(--titlebar-font-size-sm);
     text-align: left;
-    transition: color var(--transition-fast) var(--ease-in-out);
+    transition: color var(--titlebar-transition-fast) var(--titlebar-ease-in-out);
     white-space: nowrap;
 }
 
 .titlebar__dropdown-item:hover {
-    color: var(--color-text-primary);
+    color: var(--color-titlebar-item-hover);
 }
 
 .titlebar__dropdown-item:active {
-    color: var(--color-text-primary);
+    color: var(--color-titlebar-item-hover);
 }
 
 /**
@@ -265,8 +310,8 @@
  */
 .titlebar__dropdown-separator {
     height: 1px;
-    background-color: var(--color-border-secondary);
-    margin: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--color-dropdown-separator);
+    margin: var(--titlebar-spacing-action) var(--titlebar-spacing-action);
 }
 
 /* ============================================================================
@@ -289,6 +334,7 @@
  * - Fixed width for consistency
  * - Full height of titlebar
  * - Hover states for feedback
+ * - Minimalist design matching modern window managers
  */
 .titlebar__control-btn {
     width: var(--titlebar-button-width);
@@ -296,31 +342,27 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-titlebar-icon);
-    transition: background-color var(--transition-fast) var(--ease-in-out),
-                color var(--transition-fast) var(--ease-in-out);
+    transition: background-color var(--titlebar-transition-fast) var(--titlebar-ease-in-out);
 }
 
 .titlebar__control-btn:hover {
-    background-color: var(--color-titlebar-hover-bg);
-    color: var(--color-titlebar-icon-hover);
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 .titlebar__control-btn:active {
-    background-color: var(--color-titlebar-active-bg);
+    background-color: rgba(255, 255, 255, 0.12);
 }
 
 /**
  * Special styling for close button
- * - Red background on hover (Windows style)
+ * - Red background on hover (Windows/macOS style)
  */
 .titlebar__control-btn--close:hover {
-    background-color: var(--color-window-close-hover);
-    color: var(--color-text-primary);
+    background-color: #e81123;
 }
 
 .titlebar__control-btn--close:active {
-    background-color: var(--color-window-close-active);
+    background-color: #c50f1f;
 }
 
 /**
@@ -377,10 +419,11 @@ body.is-maximized .titlebar__control-icon--unmaximize {
  */
 @media (max-width: 768px) {
     .titlebar__menu-item {
-        padding: 0 var(--spacing-sm);
+        padding: 0 var(--titlebar-spacing-menu);
     }
     
     .titlebar__dropdown {
         min-width: 160px;
     }
 }
+
