@@ -1,0 +1,146 @@
+/**
+ * extensions.css
+ *
+ * Styles for the Extensions settings page (Browse / Downloaded / Installed tabs).
+ * Very similar structure to skills.css but supports 3 tabs and extra footnote.
+ */
+
+/* ── Panel container ─────────────────────────────────────────────────────────── */
+
+.settings-extensions__panel {
+  margin-top: 4px;
+}
+
+/* ── Section wrapper ────────────────────────────────────────────────────────── */
+
+.settings-extensions__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────────── */
+
+.settings-extensions__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-extensions__toolbar-title {
+  flex: 1;
+  font-size: 13px;
+  color: #888;
+}
+
+/* Search field */
+.settings-extensions__search {
+  position: relative;
+  flex: 1;
+}
+
+.settings-extensions__search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #555;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.settings-extensions__search-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.settings-extensions__search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 34px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  color: #d0d0d0;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 140ms ease;
+}
+
+.settings-extensions__search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+/* ── Extension List ──────────────────────────────────────────────────────────── */
+
+.settings-extensions__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Extension Item Card ─────────────────────────────────────────────────────── */
+
+.settings-extensions__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  transition: border-color 140ms ease;
+}
+
+.settings-extensions__item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.settings-extensions__item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-extensions__item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #d8d8d8;
+  flex-wrap: wrap;
+}
+
+.settings-extensions__item-meta {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: #555;
+}
+
+.settings-extensions__item-summary {
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: #888;
+  line-height: 1.5;
+}
+
+/* Additional footnote line (e.g. "Downloaded 2025-01-10", "Auth: ...") */
+.settings-extensions__item-footnote {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #444;
+}
+
+/* Action buttons on the right */
+.settings-extensions__item-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 2px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

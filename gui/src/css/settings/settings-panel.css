@@ -1,0 +1,621 @@
+/**
+ * settings-panel.css
+ *
+ * Styles for the Settings popup dialog.
+ * The panel covers 70% of the viewport (width and height),
+ * is centered on screen, and can only be dismissed via the
+ * explicit close (X) button — not by clicking the backdrop.
+ *
+ * Layout:
+ *  [settings-overlay]             <- full-screen fixed backdrop (blocks backdrop click)
+ *    [settings-dialog]            <- 70vw × 70vh centered card
+ *      [settings-dialog__header]  <- title + close button
+ *      [settings-dialog__body]    <- left sidebar + main content side-by-side
+ *        [settings-dialog__sidebar]
+ *        [settings-dialog__main]
+ */
+
+/* ── Overlay ───────────────────────────────────────────────────────────────── */
+
+/* Full-screen dimmed backdrop. Pointer-events set to none on the backdrop
+   itself so clicks pass nowhere — the dialog stops all propagation anyway. */
+.settings-overlay {
+  /* Fixed positioning so it covers the entire viewport */
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+
+  /* Centered layout for the dialog card */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Semi-transparent black backdrop */
+  background-color: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+
+  /* Start hidden; JS adds .is-open to reveal */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+/* When JS adds .is-open, overlay becomes interactive and visible */
+.settings-overlay.is-open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ── Dialog Card ───────────────────────────────────────────────────────────── */
+
+.settings-dialog {
+  /* 70% of viewport in both dimensions */
+  width: 70vw;
+  height: 70vh;
+  min-width: 720px;
+  min-height: 480px;
+  max-width: 1200px;
+  max-height: 900px;
+
+  /* Dark card appearance */
+  background-color: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+
+  /* Flex column: header on top, body fills the rest */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  /* Entrance animation — slight scale from smaller */
+  transform: scale(0.96) translateY(8px);
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Animate in when overlay is open */
+.settings-overlay.is-open .settings-dialog {
+  transform: scale(1) translateY(0);
+}
+
+/* ── Dialog Header ─────────────────────────────────────────────────────────── */
+
+.settings-dialog__header {
+  /* Fixed-height header row with title + close button */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  flex-shrink: 0;
+
+  /* Divider below header */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.settings-dialog__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8e8e8;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+/* Close button — top-right X icon */
+.settings-dialog__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #888;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.settings-dialog__close:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e8e8e8;
+}
+
+.settings-dialog__close svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+/* ── Dialog Body ───────────────────────────────────────────────────────────── */
+
+.settings-dialog__body {
+  /* Fill all remaining height below header */
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Sidebar (left nav) — styles live in left-sidebar.css ─────────────────── */
+
+.settings-dialog__sidebar {
+  /* Fixed sidebar width */
+  width: 200px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #000000; /* Absolute black per spec */
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Main Content Area ─────────────────────────────────────────────────────── */
+
+.settings-dialog__main {
+  /* Fill the remaining width */
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+  background-color: #111111;
+}
+
+/* ── Shared Setting Row ────────────────────────────────────────────────────── */
+
+/* A generic two-column row used across all settings pages:
+   left side = label + description; right side = control widget */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.settings-row:last-of-type {
+  border-bottom: none;
+}
+
+.settings-row__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-row__label {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #d8d8d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-row__description {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.settings-row__control {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Page Title + Description ─────────────────────────────────────────────── */
+
+.settings-page__title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #e8e8e8;
+}
+
+.settings-page__description {
+  margin: 0 0 24px;
+  font-size: 13px;
+  color: #666;
+}
+
+/* ── Section (sub-group within a page) ────────────────────────────────────── */
+
+.settings-section {
+  margin-bottom: 28px;
+}
+
+.settings-section__header {
+  margin-bottom: 14px;
+}
+
+.settings-section__title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settings-section__description {
+  margin: 0;
+  font-size: 12px;
+  color: #555;
+}
+
+/* ── Toggle Switch ─────────────────────────────────────────────────────────── */
+
+/* Container wrapping the checkbox input + slider span */
+.setting-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  width: 40px;
+  height: 22px;
+}
+
+/* Hide the native checkbox */
+.setting-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The visible pill track */
+.setting-toggle__slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  background-color: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 160ms ease;
+}
+
+/* Thumb inside the pill */
+.setting-toggle__slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #555;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+/* Checked state */
+.setting-toggle input:checked + .setting-toggle__slider {
+  background-color: var(--accent-primary, #4f8ef7);
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+.setting-toggle input:checked + .setting-toggle__slider::after {
+  transform: translateX(18px);
+  background-color: #fff;
+}
+
+/* ── Settings-Row Toggle (alias used inside connector setup) ──────────────── */
+
+.settings-row__toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  width: 40px;
+  height: 22px;
+}
+
+.settings-row__toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-row__toggle-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  background-color: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 160ms ease;
+}
+
+.settings-row__toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #555;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.settings-row__toggle input:checked + .settings-row__toggle-slider {
+  background-color: var(--accent-primary, #4f8ef7);
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+.settings-row__toggle input:checked + .settings-row__toggle-slider::after {
+  transform: translateX(18px);
+  background-color: #fff;
+}
+
+/* ── Select Dropdown ───────────────────────────────────────────────────────── */
+
+.setting-select {
+  height: 32px;
+  padding: 0 28px 0 10px;
+  background-color: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  color: #d0d0d0;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 140ms ease;
+}
+
+.setting-select:focus {
+  outline: none;
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+/* ── Text Input (shared across models, channels, etc.) ─────────────────────── */
+
+.settings-input {
+  height: 32px;
+  padding: 0 10px;
+  background-color: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  color: #d0d0d0;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 140ms ease;
+  min-width: 200px;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+/* models/channels use .settings-models__input for inputs */
+.settings-models__input {
+  height: 32px;
+  padding: 0 10px;
+  background-color: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  color: #d0d0d0;
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 140ms ease;
+}
+
+.settings-models__input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+/* ── Inline Status (loading / empty states) ────────────────────────────────── */
+
+.settings-inline-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0;
+  color: #555;
+  font-size: 13px;
+}
+
+/* ── Spinner ───────────────────────────────────────────────────────────────── */
+
+/* A small CSS-only spinner used inline for async operations */
+.model-selector__spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Tabs (shared between pages that have tab bars) ───────────────────────── */
+
+.settings-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 0;
+}
+
+.settings-tabs__item {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #666;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.settings-tabs__item:hover {
+  color: #bbb;
+}
+
+.settings-tabs__item.is-active {
+  color: #e8e8e8;
+  border-bottom-color: var(--accent-primary, #4f8ef7);
+}
+
+/* ── Badge ─────────────────────────────────────────────────────────────────── */
+
+.settings-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: #2a2a2a;
+  color: #777;
+  white-space: nowrap;
+}
+
+.settings-badge--success {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.settings-badge--info {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Primary — accent-colored */
+.btn--primary {
+  background-color: var(--accent-primary, #4f8ef7);
+  color: #fff;
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+.btn--primary:not(:disabled):hover {
+  background-color: var(--accent-primary-hover, #3a7ae0);
+  border-color: var(--accent-primary-hover, #3a7ae0);
+}
+
+/* Secondary — subtle outlined */
+.btn--secondary {
+  background-color: #1c1c1c;
+  color: #d0d0d0;
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.btn--secondary:not(:disabled):hover {
+  background-color: #242424;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Ghost — no background */
+.btn--ghost {
+  background-color: transparent;
+  color: #888;
+  border-color: transparent;
+}
+
+.btn--ghost:not(:disabled):hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #d0d0d0;
+}
+
+/* Danger — red for destructive actions */
+.btn--danger {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.btn--danger:not(:disabled):hover {
+  background-color: rgba(239, 68, 68, 0.22);
+}
+
+/* Small size modifier */
+.btn--sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* ── Models Topbar (back button + title) ──────────────────────────────────── */
+
+.settings-models__topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.settings-models__topbar-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #bbb;
+}
+
+/* ── Title separator (used in dynamic titles like "Models | Provider") ──────── */
+
+.settings-title-separator {
+  color: #444;
+  margin: 0 6px;
+}
+
+/* ── Status messages ───────────────────────────────────────────────────────── */
+
+.settings-channels__status,
+.settings-skills__status,
+.settings-extensions__status,
+.settings-permissions__status {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #888;
+}

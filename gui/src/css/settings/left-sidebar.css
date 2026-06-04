@@ -1,0 +1,117 @@
+/**
+ * left-sidebar.css
+ *
+ * Styles for the left navigation sidebar inside the settings panel.
+ * Background is absolute black (#000000) per the spec.
+ *
+ * Structure:
+ *   .settings-nav              <- full-height scrollable nav container
+ *     .settings-nav__section   <- optional label above a group of items
+ *     .settings-nav__item      <- individual category button
+ *       .settings-nav__item-icon   <- 18x18 SVG icon
+ *       .settings-nav__item-label  <- category name text
+ */
+
+/* ── Nav Container ─────────────────────────────────────────────────────────── */
+
+.settings-nav {
+  /* Fill the sidebar column */
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 2px;
+
+  /* Absolute black background */
+  background-color: #000000;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Section Label ─────────────────────────────────────────────────────────── */
+
+/* Optional uppercase group label above a cluster of nav items */
+.settings-nav__section {
+  padding: 10px 8px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3a3a3a;
+  user-select: none;
+}
+
+/* Small spacer before a section label when it's not the first */
+.settings-nav__section + .settings-nav__section {
+  margin-top: 12px;
+}
+
+/* ── Nav Item ──────────────────────────────────────────────────────────────── */
+
+/* Each category is a full-width button inside the sidebar */
+.settings-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #555;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 450;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background-color 130ms ease, color 130ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.settings-nav__item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #bbb;
+}
+
+/* Active (currently selected) category */
+.settings-nav__item.is-active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e8e8e8;
+}
+
+/* ── Icon ──────────────────────────────────────────────────────────────────── */
+
+.settings-nav__item-icon {
+  /* Fixed-size wrapper so icons don't collapse */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.settings-nav__item-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* ── Label ─────────────────────────────────────────────────────────────────── */
+
+.settings-nav__item-label {
+  /* Truncate long labels gracefully */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* ── Divider between nav item groups ───────────────────────────────────────── */
+
+.settings-nav__divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.05);
+  margin: 8px 0;
+}

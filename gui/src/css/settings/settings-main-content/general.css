@@ -1,0 +1,84 @@
+/**
+ * general.css
+ *
+ * Styles for the General settings page.
+ * Most layout is handled by the shared .settings-row from settings-panel.css.
+ * This file covers the "About" section that appears at the bottom of General.
+ */
+
+/* ── About Section ─────────────────────────────────────────────────────────── */
+
+/* Compact info card showing app logo, version, and external links */
+.settings-about {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 32px;
+  padding: 16px 20px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+/* Logo wrapper — contains an inline SVG or img */
+.settings-about__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  background-color: #1a1a1a;
+  border-radius: 10px;
+}
+
+.settings-about__logo svg,
+.settings-about__logo img {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+/* Name + version text column */
+.settings-about__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-about__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.settings-about__version {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #555;
+}
+
+/* External links row (GitHub, Docs, Report Issue) */
+.settings-about__links {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.settings-about__links a {
+  font-size: 12px;
+  color: #668ccc;
+  text-decoration: none;
+  padding: 0 8px;
+  transition: color 140ms ease;
+}
+
+.settings-about__links a:hover {
+  color: #88aaee;
+}
+
+/* The "|" separator between links */
+.settings-about__divider {
+  font-size: 12px;
+  color: #333;
+}

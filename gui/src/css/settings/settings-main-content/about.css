@@ -1,0 +1,121 @@
+/**
+ * about.css
+ *
+ * Styles for the About settings page.
+ * Covers the prominent app info card at the top, system info grid,
+ * and external links section.
+ */
+
+/* ── About Hero Card ────────────────────────────────────────────────────────── */
+
+/* Large branding block at the top of the About page */
+.settings-about-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 20px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+/* Large app logo */
+.settings-about-hero__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background-color: #1a1a1a;
+  border-radius: 16px;
+}
+
+.settings-about-hero__logo svg,
+.settings-about-hero__logo img {
+  width: 44px;
+  height: 44px;
+  display: block;
+}
+
+.settings-about-hero__name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e8e8e8;
+  letter-spacing: -0.01em;
+}
+
+.settings-about-hero__version {
+  font-size: 13px;
+  color: #555;
+}
+
+/* ── Info Grid ──────────────────────────────────────────────────────────────── */
+
+/* Two-column grid for key/value pairs like Platform, Build, Runtime, etc. */
+.settings-about-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 1px;
+  margin-bottom: 24px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.settings-about-grid__row {
+  display: contents;
+}
+
+.settings-about-grid__key,
+.settings-about-grid__value {
+  padding: 9px 14px;
+  background-color: #0d0d0d;
+  font-size: 12.5px;
+}
+
+.settings-about-grid__key {
+  color: #555;
+  font-weight: 500;
+}
+
+.settings-about-grid__value {
+  color: #c0c0c0;
+  font-family: 'Consolas', monospace;
+}
+
+/* ── External Links Row ─────────────────────────────────────────────────────── */
+
+.settings-about-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.settings-about-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: #aaa;
+  text-decoration: none;
+  transition: background-color 130ms ease, color 130ms ease;
+}
+
+.settings-about-links a:hover {
+  background-color: #242424;
+  color: #e0e0e0;
+}
+
+.settings-about-links a svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}

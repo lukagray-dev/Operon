@@ -1,0 +1,145 @@
+/**
+ * channels.css
+ *
+ * Styles for the Channels (connectors) settings page.
+ * Covers: connector rows, setup views, WhatsApp QR section.
+ */
+
+/* ── Channels View Container ────────────────────────────────────────────────── */
+
+.settings-channels__view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Connector Row (list view) ──────────────────────────────────────────────── */
+
+.settings-channels__connector-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+}
+
+/* Left info section — icon, name, badges */
+.settings-channels__connector-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+/* Connector logo icon */
+.settings-channels__connector-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background-color: #1a1a1a;
+  border-radius: 6px;
+  flex-shrink: 0;
+  color: #bbb;
+}
+
+.settings-channels__connector-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-channels__connector-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #d8d8d8;
+}
+
+/* Right action buttons cluster */
+.settings-channels__connector-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Setup View ─────────────────────────────────────────────────────────────── */
+
+.settings-channels__view--setup {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Two-column grid for IMAP/SMTP pairs on email connector */
+.settings-channels__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+
+/* ── WhatsApp Login Section ──────────────────────────────────────────────────── */
+
+.settings-channels__whatsapp-login {
+  margin-top: 20px;
+  padding: 16px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+}
+
+.settings-channels__whatsapp-login-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.settings-channels__whatsapp-login-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #bbb;
+}
+
+.settings-channels__whatsapp-login-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-channels__whatsapp-login-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Session store path display — muted monospace text */
+.settings-channels__whatsapp-login-path {
+  font-size: 11.5px;
+  color: #555;
+  font-family: 'Consolas', monospace;
+  margin-bottom: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* QR code display area */
+.settings-channels__whatsapp-qr {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  line-height: 1.1;
+  color: #c0c0c0;
+  background-color: #000;
+  padding: 10px;
+  border-radius: 6px;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 0;
+}

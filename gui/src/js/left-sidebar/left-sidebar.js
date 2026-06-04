@@ -1,3 +1,6 @@
+// Import the settings panel so we can open it when the user clicks Settings
+import { openSettings } from '../settings/settings-panel.js';
+
 /**
  * Left Sidebar Component
  * 
@@ -250,9 +253,8 @@ class LeftSidebarController {
      * - Manage account settings
      */
     handleSettings() {
-        // TODO: Implement settings dialog
-        console.log('Opening settings...');
-        alert('Settings functionality will be implemented here');
+        // Open the settings popup dialog — only the X button closes it
+        openSettings();
     }
 
     /* ========================================================================

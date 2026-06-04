@@ -1,0 +1,141 @@
+/**
+ * skills.css
+ *
+ * Styles for the Skills settings page (Browse + Installed tabs).
+ * Covers: search toolbar, skill cards, install/uninstall actions.
+ */
+
+/* ── Tabs are shared (.settings-tabs / .settings-tabs__item) ─────────────────
+   Defined in settings-panel.css — no duplication needed here.           ─── */
+
+/* ── Panel container inside tab body ────────────────────────────────────────── */
+
+.settings-skills__panel {
+  margin-top: 4px;
+}
+
+/* ── Section Wrapper ────────────────────────────────────────────────────────── */
+
+.settings-skills__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Toolbar (search bar or installed header row) ───────────────────────────── */
+
+.settings-skills__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-skills__toolbar-title {
+  flex: 1;
+  font-size: 13px;
+  color: #888;
+}
+
+/* Search field wrapper (icon + input) */
+.settings-skills__search {
+  position: relative;
+  flex: 1;
+}
+
+.settings-skills__search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #555;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.settings-skills__search-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Input inside the search wrapper — 32px high, icon indent */
+.settings-skills__search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 34px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  color: #d0d0d0;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 140ms ease;
+}
+
+.settings-skills__search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #4f8ef7);
+}
+
+/* ── Skill List ─────────────────────────────────────────────────────────────── */
+
+.settings-skills__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Skill Item Card ─────────────────────────────────────────────────────────── */
+
+.settings-skills__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  transition: border-color 140ms ease;
+}
+
+.settings-skills__item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Main text content */
+.settings-skills__item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-skills__item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #d8d8d8;
+  flex-wrap: wrap;
+}
+
+.settings-skills__item-meta {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: #555;
+}
+
+.settings-skills__item-summary {
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: #888;
+  line-height: 1.5;
+}
+
+/* Action buttons column on the right */
+.settings-skills__item-actions {
+  display: flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+  padding-top: 2px;
+}

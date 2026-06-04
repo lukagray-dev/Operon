@@ -34,6 +34,9 @@ import './js/main-content/sessiontitle.js';
 // Load empty state component (initializes itself on load)
 import './js/main-content/emptystate.js';
 
+// Initialize the settings panel (builds the overlay DOM node once on startup)
+import { initSettingsPanel } from './js/settings/settings-panel.js';
+
 /**
  * Main application class
  * 
@@ -63,6 +66,10 @@ class OperonApp {
      */
     async init() {
         try {
+            // Build the settings dialog overlay and inject it into <body>.
+            // Must run before the user can click the sidebar Settings button.
+            initSettingsPanel();
+
             // Initialize event listeners for main content
             this.initializeEventListeners();
             

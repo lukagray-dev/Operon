@@ -1,0 +1,333 @@
+/**
+ * appearance.css
+ *
+ * Styles for the Appearance settings page.
+ * Covers: theme cards, accent swatches, typography sliders,
+ *         segmented width control, and accessibility toggles.
+ */
+
+/* ── Theme Preview Cards ────────────────────────────────────────────────────── */
+
+/* Horizontal row of theme preview cards (System / Dark / Light) */
+.appearance-theme-cards {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Individual theme card — acts as a radio button via button role */
+.appearance-theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  width: 130px;
+  background-color: #0d0d0d;
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.appearance-theme-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Selected state — accent border */
+.appearance-theme-card.is-selected {
+  border-color: var(--accent-primary, #4f8ef7);
+  box-shadow: 0 0 0 2px rgba(79, 142, 247, 0.18);
+}
+
+/* Miniature UI preview inside the card */
+.appearance-theme-card__preview {
+  width: 100%;
+  height: 72px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  gap: 0;
+}
+
+/* Dark preview palette */
+.appearance-theme-card__preview--dark {
+  background-color: #111;
+}
+
+.appearance-theme-card__preview--dark .appearance-theme-card__sidebar-preview {
+  background-color: #000;
+}
+
+.appearance-theme-card__preview--dark .appearance-theme-card__line {
+  background-color: #2a2a2a;
+}
+
+/* Light preview palette */
+.appearance-theme-card__preview--light {
+  background-color: #f0f0f0;
+}
+
+.appearance-theme-card__preview--light .appearance-theme-card__sidebar-preview {
+  background-color: #e0e0e0;
+}
+
+.appearance-theme-card__preview--light .appearance-theme-card__line {
+  background-color: #ccc;
+}
+
+/* System preview — split dark/light diagonally */
+.appearance-theme-card__preview--system {
+  background: linear-gradient(135deg, #111 50%, #f0f0f0 50%);
+}
+
+.appearance-theme-card__preview--system .appearance-theme-card__sidebar-preview {
+  background: linear-gradient(180deg, #000 50%, #e0e0e0 50%);
+}
+
+.appearance-theme-card__preview--system .appearance-theme-card__line {
+  background: linear-gradient(90deg, #2a2a2a 50%, #ccc 50%);
+}
+
+/* Mini sidebar strip on the left of the preview */
+.appearance-theme-card__sidebar-preview {
+  width: 28px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+/* Mini content area on the right */
+.appearance-theme-card__content-preview {
+  flex: 1;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Fake text lines in the content area */
+.appearance-theme-card__line {
+  height: 6px;
+  border-radius: 3px;
+  width: 100%;
+}
+
+.appearance-theme-card__line--short {
+  width: 55%;
+}
+
+.appearance-theme-card__line--medium {
+  width: 80%;
+}
+
+/* Card label + description */
+.appearance-theme-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.appearance-theme-card__label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #d0d0d0;
+}
+
+.appearance-theme-card__desc {
+  font-size: 11px;
+  color: #555;
+}
+
+/* ── Accent Color Swatches ──────────────────────────────────────────────────── */
+
+.appearance-accent-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Circular color swatch button */
+.appearance-accent-swatch {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background-color: var(--swatch-color, #888);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.appearance-accent-swatch:hover {
+  transform: scale(1.15);
+}
+
+/* Selected swatch ring */
+.appearance-accent-swatch.is-selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--swatch-color, #888);
+}
+
+/* Checkmark icon inside selected swatch */
+.appearance-accent-swatch__check {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.appearance-accent-swatch.is-selected .appearance-accent-swatch__check {
+  opacity: 1;
+}
+
+.appearance-accent-swatch__check svg {
+  width: 12px;
+  height: 12px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+/* Custom color picker label wrapping a hidden <input type="color"> */
+.appearance-accent-custom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.appearance-accent-custom__input {
+  /* Most browsers render this as a small colored square */
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.appearance-accent-custom__label {
+  font-size: 10px;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* ── Slider Rows ────────────────────────────────────────────────────────────── */
+
+/* Row layout for font-size sliders and font-family dropdowns */
+.appearance-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.appearance-slider-row:last-child {
+  border-bottom: none;
+}
+
+.appearance-slider-row__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.appearance-slider-row__label {
+  font-size: 13px;
+  color: #c0c0c0;
+  white-space: nowrap;
+}
+
+/* Current numeric value display beside the slider track */
+.appearance-slider-row__value {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #668;
+  min-width: 36px;
+}
+
+/* Range slider track */
+.appearance-range {
+  flex: 1;
+  max-width: 200px;
+  height: 4px;
+  appearance: none;
+  background-color: #2a2a2a;
+  border-radius: 2px;
+  cursor: pointer;
+  accent-color: var(--accent-primary, #4f8ef7);
+}
+
+/* ── Segmented Control (chat width) ─────────────────────────────────────────── */
+
+.appearance-segmented {
+  display: inline-flex;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.appearance-segmented__btn {
+  padding: 5px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: #666;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 130ms ease, color 130ms ease;
+}
+
+.appearance-segmented__btn:hover {
+  color: #bbb;
+}
+
+.appearance-segmented__btn.is-active {
+  background-color: #2c2c2c;
+  color: #e0e0e0;
+}
+
+/* ── Accessibility Toggle Rows ──────────────────────────────────────────────── */
+
+/* Same pattern as appearance-slider-row but for toggles */
+.appearance-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.appearance-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.appearance-toggle-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.appearance-toggle-row__label {
+  font-size: 13px;
+  color: #c0c0c0;
+}
+
+.appearance-toggle-row__desc {
+  font-size: 12px;
+  color: #555;
+}
