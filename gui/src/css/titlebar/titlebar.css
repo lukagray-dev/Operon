@@ -117,6 +117,9 @@
 /**
  * Brand logo container
  * - Centers the logo vertically and horizontally
+ * - Clickable to toggle sidebar
+ * - Shows sidebar icon on hover
+ * - Maintains fixed size to prevent layout shift
  */
 .titlebar__logo {
     display: flex;
@@ -125,17 +128,67 @@
     padding: 0 var(--titlebar-spacing-menu);
     height: var(--titlebar-height);
     flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    /* Fixed width to prevent layout shift */
+    width: calc(var(--titlebar-logo-size) + (var(--titlebar-spacing-menu) * 2));
+    /* Disable window dragging on logo */
+    -webkit-app-region: no-drag;
 }
 
 /**
  * Logo SVG styling
  * - Fixed size for consistency
- * - Slightly reduced opacity for visual hierarchy
+ * - All icons absolutely positioned to overlap perfectly
  */
 .titlebar__logo-icon {
     width: var(--titlebar-logo-size);
     height: var(--titlebar-logo-size);
     opacity: 0.9;
+    transition: opacity 150ms ease-in-out;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/**
+ * Default state - show brand logo only
+ */
+.titlebar__logo-icon--brand {
+    display: block;
+}
+
+.titlebar__logo-icon--sidebar-open,
+.titlebar__logo-icon--sidebar-closed {
+    display: none;
+    /* Apply gray color filter to match other titlebar icons */
+    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+}
+
+/**
+ * Hover state - show sidebar icon (open or closed based on sidebar state)
+ */
+.titlebar__logo:hover .titlebar__logo-icon--brand {
+    display: none;
+}
+
+/* When sidebar is open, show open icon on hover */
+.titlebar__logo:hover .titlebar__logo-icon--sidebar-open {
+    display: block;
+}
+
+.titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
+    display: none;
+}
+
+/* When sidebar is closed, show closed icon on hover */
+body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-open {
+    display: none;
+}
+
+body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
+    display: block;
 }
 
 /* ============================================================================

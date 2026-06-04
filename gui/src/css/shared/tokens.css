@@ -20,6 +20,17 @@
     font-display: swap;
 }
 
+/**
+ * PT Serif - Font for assistant messages
+ */
+@font-face {
+    font-family: 'PT Serif';
+    src: url('../../assets/fonts/pt_serif/PTSerif.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* ============================================================================
    GLOBAL RESETS AND BASE STYLES
    ============================================================================ */
@@ -43,22 +54,26 @@
 
 /**
  * HTML element styles
+ * - Prevent overscroll/rubber-band effect for native feel
  */
 html {
     font-family: 'Google Sans';
     font-size: 13px;
     color: #ffffff;
     overflow-x: hidden;
+    overscroll-behavior: none;
 }
 
 /**
  * Body element styles
+ * - Prevent overscroll/rubber-band effect for native feel
  */
 body {
     background-color: var(--color-main-content-bg);
     overflow: hidden;
     width: 100vw;
     height: 100vh;
+    overscroll-behavior: none;
 }
 
 /**

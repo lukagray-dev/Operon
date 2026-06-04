@@ -1,0 +1,166 @@
+/**
+ * Empty State Component Styles
+ * 
+ * This file contains styles for the empty state displayed in the main content
+ * area when no session or messages are present.
+ * 
+ * The empty state shows the Operon logo and a tagline centrally aligned.
+ */
+
+/* ============================================================================
+   EMPTY STATE TOKENS
+   ============================================================================ */
+
+:root {
+    /* Empty state colors */
+    --color-empty-state-text: #6e6e6e;             /* Tagline text color (muted) */
+    
+    /* Empty state spacing */
+    --empty-state-logo-size: 64px;                 /* Logo size */
+    --empty-state-logo-margin-bottom: 24px;        /* Space below logo */
+    --empty-state-container-max-width: 400px;      /* Container max width */
+    
+    /* Empty state typography */
+    --empty-state-font-size: 16px;                 /* Tagline font size */
+    --empty-state-font-weight: 400;                /* Regular font weight */
+    --empty-state-line-height: 24px;               /* Line height */
+}
+
+/* ============================================================================
+   EMPTY STATE CONTAINER
+   ============================================================================ */
+
+/**
+ * Empty state wrapper
+ * - Fills the main content area
+ * - Flex layout for centering
+ * - Hidden by default, shown when no messages
+ */
+.main-content__empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    overflow: hidden;
+    padding: 40px;
+    background-color: var(--color-main-content-bg);
+}
+
+/**
+ * Empty state inner container
+ * - Centered content container
+ * - Max width to constrain content width
+ */
+.empty-state__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: var(--empty-state-container-max-width);
+    text-align: center;
+}
+
+/**
+ * Logo container
+ * - Wraps the logo image
+ * - Provides spacing below
+ */
+.empty-state__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--empty-state-logo-margin-bottom);
+}
+
+/**
+ * Logo image
+ * - Fixed size
+ * - Centered
+ */
+.empty-state__logo-icon {
+    width: var(--empty-state-logo-size);
+    height: var(--empty-state-logo-size);
+    object-fit: contain;
+    opacity: 0.9;
+}
+
+/**
+ * Tagline text
+ * - Muted color
+ * - Clean typography
+ */
+.empty-state__tagline {
+    margin: 0;
+    padding: 0;
+    color: var(--color-empty-state-text);
+    font-size: var(--empty-state-font-size);
+    font-weight: var(--empty-state-font-weight);
+    line-height: var(--empty-state-line-height);
+    font-family: var(--font-family-primary);
+}
+
+/* ============================================================================
+   EMPTY STATE VISIBILITY
+   ============================================================================ */
+
+/**
+ * Hide empty state by default
+ * - Shown when there are no messages
+ * - Hidden when messages are present
+ */
+.main-content__empty-state.hidden {
+    display: none;
+}
+
+/**
+ * Show session title when not in empty state
+ */
+.main-content__session-title.hidden {
+    display: none;
+}
+
+/**
+ * Show messages when not in empty state
+ */
+.main-content__messages.hidden {
+    display: none;
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+/**
+ * Adjust spacing for different screen sizes
+ */
+@media (max-width: 1024px) {
+    :root {
+        --empty-state-logo-size: 56px;
+        --empty-state-logo-margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --empty-state-font-size: 15px;
+        --empty-state-logo-size: 48px;
+        --empty-state-logo-margin-bottom: 18px;
+    }
+    
+    .main-content__empty-state {
+        padding: 32px 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        --empty-state-font-size: 14px;
+        --empty-state-logo-size: 40px;
+        --empty-state-logo-margin-bottom: 16px;
+        --empty-state-container-max-width: 300px;
+    }
+    
+    .main-content__empty-state {
+        padding: 24px 16px;
+    }
+}

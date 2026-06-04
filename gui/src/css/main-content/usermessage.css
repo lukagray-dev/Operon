@@ -1,0 +1,266 @@
+/**
+ * User Message Component Styles
+ * 
+ * This file contains all styles for user messages including:
+ * - Message bubble (right-aligned, titlebar color)
+ * - Message content with truncation (10 lines visible)
+ * - Show more/less button for long messages
+ * - Action buttons (Edit, Copy)
+ * - Responsive width constraints (max 75% of input panel width)
+ * 
+ * User messages appear on the right side of the chat messages area.
+ */
+
+/* ============================================================================
+   USER MESSAGE COLOR TOKENS
+   ============================================================================ */
+
+:root {
+    /* User message colors - matching titlebar */
+    --color-user-message-bg: #191919;              /* User message bubble background (same as titlebar) */
+    --color-user-message-text: #ffffff;            /* Message text color */
+    --color-user-message-action: #9e9e9e;          /* Action button default color */
+    --color-user-message-action-hover: #ffffff;    /* Action button hover color */
+    --color-user-message-show-more: #1976d2;       /* Show more/less button color */
+    --color-user-message-show-more-hover: #1565c0; /* Show more/less button hover color */
+    
+    /* User message layout dimensions */
+    --user-message-max-width: 75%;                 /* Maximum width (75% of input panel) */
+    --user-message-padding: 12px 20px;             /* Padding inside message bubble (increased right padding) */
+    --user-message-border-radius: 4px;             /* Subtle border radius for bubble */
+    --user-message-line-height: 20px;              /* Line height for message text */
+    --user-message-max-lines: 10;                  /* Maximum visible lines before truncation */
+    --user-message-max-height: 200px;              /* Max height (10 lines * 20px) */
+    
+    /* User message spacing */
+    --user-message-margin-top: 16px;               /* Top margin (spacing from titlebar) */
+    --user-message-margin-bottom: 16px;            /* Space between messages */
+    --user-message-actions-gap: 1px;               /* Gap between action buttons */
+    --user-message-icon-size: 16px;                /* Size of action icons */
+    
+    /* User message animations */
+    --user-message-transition-fast: 150ms;         /* Fast transition for buttons */
+    --user-message-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* User message typography */
+    --user-message-font-size: 13px;                /* Base font size */
+    --user-message-font-weight: 400;               /* Regular font weight */
+}
+
+/* ============================================================================
+   USER MESSAGE CONTAINER
+   ============================================================================ */
+
+/**
+ * User message wrapper
+ * - Contains the entire user message (bubble + actions)
+ * - Right-aligned in the messages area
+ * - Matches assistant message container horizontal positioning exactly
+ */
+.user-message {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-top: var(--user-message-margin-top);
+    margin-bottom: var(--user-message-margin-bottom);
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1000px; /* Match assistant message max-width */
+    width: 100%;
+    padding-left: 40px; /* Match assistant message horizontal margins */
+    padding-right: 40px; /* Match assistant message horizontal margins */
+}
+
+/* First message needs extra top spacing */
+.user-message:first-child {
+    margin-top: 24px;
+}
+
+/**
+ * Message bubble
+ * - Dark background with rounded corners
+ * - Contains the message text
+ * - Width is automatic based on content
+ * - Max width is 75% of input panel's max width (650px)
+ */
+.user-message__bubble {
+    width: fit-content;
+    max-width: calc(650px * 0.75); /* 75% of input panel max-width */
+    background-color: var(--color-user-message-bg);
+    border-radius: var(--user-message-border-radius);
+    padding: var(--user-message-padding);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/**
+ * Message content wrapper
+ * - Contains the actual message text
+ * - Handles truncation for long messages
+ */
+.user-message__content {
+    color: var(--color-user-message-text);
+    font-size: var(--user-message-font-size);
+    font-weight: var(--user-message-font-weight);
+    line-height: var(--user-message-line-height);
+    white-space: pre-wrap; /* Preserve line breaks */
+}
+
+/**
+ * Truncated state - limit to 10 lines
+ */
+.user-message__content.truncated {
+    max-height: var(--user-message-max-height);
+    overflow: hidden;
+    position: relative;
+}
+
+/**
+ * Expanded state - show all content
+ */
+.user-message__content.expanded {
+    max-height: none;
+}
+
+/* ============================================================================
+   SHOW MORE/LESS BUTTON
+   ============================================================================ */
+
+/**
+ * Show more/less button
+ * - Appears at bottom left of bubble for long messages
+ * - Blue color to indicate interactivity
+ */
+.user-message__show-more {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--color-user-message-show-more);
+    font-size: var(--user-message-font-size);
+    font-weight: var(--user-message-font-weight);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: color var(--user-message-transition-fast) var(--user-message-ease-in-out);
+}
+
+.user-message__show-more:hover {
+    color: var(--color-user-message-show-more-hover);
+    text-decoration: underline;
+}
+
+/**
+ * Hide show more button when not needed
+ */
+.user-message__show-more.hidden {
+    display: none;
+}
+
+/* ============================================================================
+   ACTION BUTTONS
+   ============================================================================ */
+
+/**
+ * Actions container
+ * - Contains Edit and Copy buttons
+ * - Positioned below the bubble
+ * - Right-aligned
+ * - Hidden by default, visible on message hover
+ */
+.user-message__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--user-message-actions-gap);
+    margin-top: 8px;
+    opacity: 0;
+    transition: opacity var(--user-message-transition-fast) var(--user-message-ease-in-out);
+}
+
+/**
+ * Show actions when hovering over the message
+ */
+.user-message:hover .user-message__actions {
+    opacity: 1;
+}
+
+/**
+ * Individual action button
+ * - Icon + text layout
+ * - Hover state with color change
+ */
+.user-message__action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--color-user-message-action);
+    font-size: var(--user-message-font-size);
+    font-weight: var(--user-message-font-weight);
+    cursor: pointer;
+    transition: color var(--user-message-transition-fast) var(--user-message-ease-in-out),
+                background-color var(--user-message-transition-fast) var(--user-message-ease-in-out);
+}
+
+.user-message__action-btn:hover {
+    color: var(--color-user-message-action-hover);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/**
+ * Action button icon
+ * - Fixed size for consistency
+ * - Color filter for SVG icons
+ */
+.user-message__action-icon {
+    width: var(--user-message-icon-size);
+    height: var(--user-message-icon-size);
+    flex-shrink: 0;
+    pointer-events: none;
+    /* Apply gray color to SVG icons */
+    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    transition: filter var(--user-message-transition-fast) var(--user-message-ease-in-out);
+}
+
+.user-message__action-btn:hover .user-message__action-icon {
+    /* White color on hover */
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+/**
+ * Adjust padding for different screen sizes
+ */
+@media (max-width: 1024px) {
+    .user-message {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    .user-message {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    
+    .user-message__bubble {
+        max-width: calc(650px * 0.85); /* Slightly wider on small screens */
+    }
+}
+
+@media (max-width: 480px) {
+    .user-message {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    
+    .user-message__bubble {
+        max-width: calc(100vw - 24px);
+    }
+}

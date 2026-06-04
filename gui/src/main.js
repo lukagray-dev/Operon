@@ -19,6 +19,21 @@ import './js/titlebar/titlebar.js';
 // Load left sidebar component (initializes itself on load)
 import './js/left-sidebar/left-sidebar.js';
 
+// Load input panel component (initializes itself on load)
+import './js/main-content/inputpanel.js';
+
+// Load user message component (initializes itself on load)
+import './js/main-content/usermessage.js';
+
+// Load assistant message component (initializes itself on load)
+import './js/main-content/assistantmessage.js';
+
+// Load session title component (initializes itself on load)
+import './js/main-content/sessiontitle.js';
+
+// Load empty state component (initializes itself on load)
+import './js/main-content/emptystate.js';
+
 /**
  * Main application class
  * 

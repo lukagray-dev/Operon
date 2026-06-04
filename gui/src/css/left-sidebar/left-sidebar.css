@@ -30,7 +30,7 @@
     --color-sidebar-resize-handle-hover: #4a4a4a;  /* Resize handle hover color */
     
     /* Sidebar layout dimensions */
-    --sidebar-width: 240px;                        /* Default width of the sidebar */
+    --sidebar-width: 280px;                        /* Default width of the sidebar (increased) */
     --sidebar-min-width: 180px;                    /* Minimum width when resizing */
     --sidebar-max-width: 400px;                    /* Maximum width when resizing */
     --sidebar-icon-size: 16px;                     /* Width and height of sidebar icons */
@@ -89,6 +89,7 @@
  * - Dark background matching titlebar
  * - Flexbox layout for vertical arrangement
  * - Prevents window dragging (Tauri specific)
+ * - Animates width when toggled
  */
 .left-sidebar {
     position: relative;
@@ -104,6 +105,33 @@
     /* Prevent window dragging on sidebar */
     -webkit-app-region: no-drag;
     z-index: var(--sidebar-z-index);
+    transition: width 200ms ease-in-out, min-width 200ms ease-in-out;
+    overflow: hidden;
+}
+
+/**
+ * Sidebar closed state
+ * - Collapses to minimal width
+ * - Hides content
+ */
+body.sidebar-closed .left-sidebar {
+    width: 0;
+    min-width: 0;
+}
+
+/**
+ * Hide sidebar content when closed
+ */
+body.sidebar-closed .left-sidebar > * {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/**
+ * Adjust input panel position when sidebar is closed
+ */
+body.sidebar-closed .input-panel {
+    left: 0;
 }
 
 /* ============================================================================
@@ -202,12 +230,14 @@
  * Main content area (scrollable)
  * - Contains Projects and Chats sections
  * - Custom scrollbar styling for dark theme
+ * - Prevent overscroll/rubber-band effect
  */
 .left-sidebar__content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     padding: var(--sidebar-padding-vertical) 0;
+    overscroll-behavior: contain;
 }
 
 /**

@@ -1,0 +1,84 @@
+/**
+ * Session Title Component Styles
+ * 
+ * This file contains styles for the session title displayed at the top
+ * left corner of the main content area, adjacent to the left sidebar.
+ * 
+ * The title is just floating text with transparent background.
+ * Conversations scroll behind it.
+ */
+
+/* ============================================================================
+   SESSION TITLE - MINIMAL FLOATING TEXT
+   ============================================================================ */
+
+/**
+ * Session title wrapper
+ * - Absolutely positioned at top left
+ * - No background, no padding
+ * - Just a positioning container
+ */
+.main-content__session-title {
+    position: absolute;
+    top: 16px;
+    left: 24px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/**
+ * Session title text
+ * - Inline text element
+ * - Minimal styling
+ * - Allows text selection
+ */
+.session-title__text {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    font-family: var(--font-family-primary);
+    pointer-events: auto;
+}
+
+/**
+ * Hide session title when needed
+ */
+.main-content__session-title.hidden {
+    display: none;
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+@media (max-width: 1024px) {
+    .main-content__session-title {
+        left: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content__session-title {
+        top: 12px;
+        left: 16px;
+    }
+    
+    .session-title__text {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content__session-title {
+        top: 10px;
+        left: 12px;
+    }
+    
+    .session-title__text {
+        font-size: 12px;
+    }
+}

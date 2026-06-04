@@ -117,12 +117,16 @@ class TitlebarController {
      * Initialize all event listeners
      * 
      * Sets up listeners for:
+     * - Logo click (sidebar toggle)
      * - Navigation buttons (back/forward)
      * - Menu items (Files, View, Window, Help)
      * - Window control buttons (minimize, maximize, close)
      * - Outside clicks to close dropdowns
      */
     initEventListeners() {
+        // Logo click to toggle sidebar
+        this.setupLogoToggleListener();
+        
         // Navigation buttons
         this.setupNavigationListeners();
         
@@ -134,6 +138,50 @@ class TitlebarController {
         
         // Close dropdowns when clicking outside
         this.setupOutsideClickListener();
+    }
+
+    /**
+     * Setup logo click listener for sidebar toggle
+     * 
+     * Clicking the logo toggles the sidebar open/closed.
+     * On hover, shows sidebar icon instead of brand logo.
+     */
+    setupLogoToggleListener() {
+        const logoToggle = document.getElementById('titlebar-logo-toggle');
+        
+        if (logoToggle) {
+            logoToggle.addEventListener('click', () => {
+                this.toggleSidebar();
+            });
+        }
+    }
+
+    /**
+     * Toggle sidebar open/closed
+     * 
+     * Adds/removes 'sidebar-closed' class from body element.
+     * The sidebar controller will handle the actual animation.
+     */
+    toggleSidebar() {
+        const body = document.body;
+        const sidebar = document.querySelector('.left-sidebar');
+        
+        if (!sidebar) {
+            console.warn('Sidebar not found');
+            return;
+        }
+        
+        // Toggle the body class
+        body.classList.toggle('sidebar-closed');
+        
+        // Log state for debugging
+        const isClosed = body.classList.contains('sidebar-closed');
+        console.log(`Sidebar ${isClosed ? 'closed' : 'opened'}`);
+        
+        // Dispatch custom event for other components to listen to
+        window.dispatchEvent(new CustomEvent('sidebar-toggle', {
+            detail: { closed: isClosed }
+        }));
     }
 
     /**

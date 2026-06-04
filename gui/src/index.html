@@ -10,6 +10,16 @@
     <link rel="stylesheet" href="./css/titlebar/titlebar.css">
     <!-- Left sidebar styles -->
     <link rel="stylesheet" href="./css/left-sidebar/left-sidebar.css">
+    <!-- Input panel styles -->
+    <link rel="stylesheet" href="./css/main-content/inputpanel.css">
+    <!-- User message styles -->
+    <link rel="stylesheet" href="./css/main-content/usermessage.css">
+    <!-- Assistant message styles -->
+    <link rel="stylesheet" href="./css/main-content/assistantmessage.css">
+    <!-- Session title styles -->
+    <link rel="stylesheet" href="./css/main-content/sessiontitle.css">
+    <!-- Empty state styles -->
+    <link rel="stylesheet" href="./css/main-content/emptystate.css">
 </head>
 <body>
     <!-- Custom Titlebar -->
@@ -17,11 +27,21 @@
         <!-- LEFT SECTION: Logo, Navigation, Menu -->
         <div class="titlebar__left">
             <!-- Brand Logo -->
-            <div class="titlebar__logo">
+            <div class="titlebar__logo" id="titlebar-logo-toggle" title="Toggle sidebar">
                 <img 
                     src="./assets/brand/operon.svg" 
                     alt="Operon Logo" 
-                    class="titlebar__logo-icon"
+                    class="titlebar__logo-icon titlebar__logo-icon--brand"
+                />
+                <img 
+                    src="./assets/icons/action/sidebar-open.svg" 
+                    alt="Toggle sidebar" 
+                    class="titlebar__logo-icon titlebar__logo-icon--sidebar-open"
+                />
+                <img 
+                    src="./assets/icons/action/sidebar-closed.svg" 
+                    alt="Toggle sidebar" 
+                    class="titlebar__logo-icon titlebar__logo-icon--sidebar-closed"
                 />
             </div>
 
@@ -399,7 +419,162 @@
 
         <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Main content will be rendered here -->
+            <!-- Empty State (shown when no session) -->
+            <div class="main-content__empty-state" id="main-empty-state">
+                <div class="empty-state__container">
+                    <div class="empty-state__logo">
+                        <img 
+                            src="./assets/brand/operon.svg" 
+                            alt="Operon" 
+                            class="empty-state__logo-icon"
+                        />
+                    </div>
+                    <p class="empty-state__tagline">Agent that is built for everyone,<br>— not just for developers.</p>
+                </div>
+            </div>
+
+            <!-- Session Title -->
+            <div class="main-content__session-title">
+                <h1 id="session-title" class="session-title__text">New Chat</h1>
+            </div>
+
+            <!-- Chat messages area -->
+            <div class="main-content__messages">
+                <!-- Messages will be rendered here -->
+            </div>
+
+            <!-- Input Panel (Floating) -->
+            <div class="input-panel">
+                <div class="input-panel__container">
+                    <!-- Text Input Area (Top) -->
+                    <div class="input-panel__input-wrapper">
+                        <textarea 
+                            id="input-textarea" 
+                            class="input-panel__textarea"
+                            placeholder="Message Operon..."
+                            rows="1"
+                            aria-label="Message input"
+                        ></textarea>
+                    </div>
+
+                    <!-- Action Buttons Row (Bottom) -->
+                    <div class="input-panel__actions-row">
+                        <!-- Left Action Buttons -->
+                        <div class="input-panel__left-actions">
+                            <button 
+                                id="input-attach" 
+                                class="input-panel__action-btn"
+                                aria-label="Attach file"
+                                title="Attach file"
+                            >
+                                <img 
+                                    src="./assets/icons/main-content/input/attach.svg" 
+                                    alt="Attach" 
+                                    class="input-panel__action-icon"
+                                />
+                            </button>
+
+                            <button 
+                                id="input-auto-approve" 
+                                class="input-panel__action-btn input-panel__action-btn--toggle"
+                                aria-label="Toggle auto-approve"
+                                title="Auto-approve"
+                                data-state="disabled"
+                            >
+                                <img 
+                                    src="./assets/icons/main-content/input/auto-approve-disable.svg" 
+                                    alt="Auto-approve" 
+                                    class="input-panel__action-icon input-panel__action-icon--auto-approve-disabled"
+                                />
+                                <img 
+                                    src="./assets/icons/main-content/input/auto-approve-enable.svg" 
+                                    alt="Auto-approve enabled" 
+                                    class="input-panel__action-icon input-panel__action-icon--auto-approve-enabled"
+                                />
+                            </button>
+                        </div>
+
+                        <!-- Right Action Buttons -->
+                        <div class="input-panel__right-actions">
+                            <button 
+                                id="input-context" 
+                                class="input-panel__action-btn"
+                                aria-label="Add context"
+                                title="Context"
+                            >
+                                <img 
+                                    src="./assets/icons/main-content/input/context.svg" 
+                                    alt="Context" 
+                                    class="input-panel__action-icon"
+                                />
+                            </button>
+
+                            <button 
+                                id="input-model" 
+                                class="input-panel__action-btn input-panel__action-btn--dropdown"
+                                aria-label="Select model"
+                                title="Model"
+                            >
+                                <img 
+                                    src="./assets/icons/main-content/input/model.svg" 
+                                    alt="Model" 
+                                    class="input-panel__action-icon"
+                                />
+                                <span class="input-panel__action-label">Medium</span>
+                                <img 
+                                    src="./assets/icons/main-content/input/chevron-down.svg" 
+                                    alt="Select" 
+                                    class="input-panel__action-chevron"
+                                />
+                            </button>
+
+                            <button 
+                                id="input-reasoning" 
+                                class="input-panel__action-btn"
+                                aria-label="Enable reasoning"
+                                title="Reasoning"
+                            >
+                                <img 
+                                    src="./assets/icons/main-content/input/reasoning.svg" 
+                                    alt="Reasoning" 
+                                    class="input-panel__action-icon"
+                                />
+                            </button>
+
+                            <button 
+                                id="input-voice" 
+                                class="input-panel__action-btn"
+                                aria-label="Voice input"
+                                title="Voice"
+                            >
+                                <img 
+                                    src="./assets/icons/main-content/input/voice.svg" 
+                                    alt="Voice" 
+                                    class="input-panel__action-icon"
+                                />
+                            </button>
+
+                            <button 
+                                id="input-send" 
+                                class="input-panel__action-btn input-panel__action-btn--send"
+                                aria-label="Send message"
+                                title="Send"
+                            >
+                                <img 
+                                    src="./assets/icons/main-content/input/send.svg" 
+                                    alt="Send" 
+                                    class="input-panel__action-icon"
+                                />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Disclaimer Text -->
+                <p class="input-panel__disclaimer">
+                    Operon uses AI models. AI can make mistakes.
+                </p>
+            </div>
         </main>
     </div>
 
