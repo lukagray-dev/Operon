@@ -44,6 +44,7 @@ use std::sync::Arc;
 use reqwest::Client;
 use tokio::sync::mpsc;
 
+use operon_config::{DirectoryPolicy, PolicyConfig};
 use operon_context_compaction::{compact, AnthropicCompactionClient};
 use operon_context_normalize_messages::{ContentBlock, ConversationMessage, MessageRole};
 use operon_context_normalize_tools::{ToolCall, ToolContent, ToolResult};
@@ -51,7 +52,6 @@ use operon_context_sanitizer::sanitize;
 use operon_context_snapshot::{Role, SnapshotBuilder};
 use operon_context_token_tracker::{SessionTokenState, TokenBudget, UsageRecord};
 use operon_events::{SessionCommand, SessionEvent};
-use operon_policy::config::{DirectoryPolicy, PolicyConfig};
 use operon_policy::{CallerRole, PolicyDecision, PolicyResolver};
 use operon_providers::Provider;
 use operon_tools::{dispatcher::Dispatcher, ToolProgressEmitter};

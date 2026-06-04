@@ -33,12 +33,13 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use operon_policy::config::{DirectoryPolicy, GlobalPolicy, PolicyConfig};
-use operon_policy::types::{DirTool, FsTool, GlobalTool, PermissionMode};
 use operon_providers::{ApiCredentials, ModelConfig, Provider, ProviderConfig};
 
 use crate::error::ConfigError;
 use crate::paths::OperonPaths;
+use crate::policy::{
+    DirTool, DirectoryPolicy, FsTool, GlobalPolicy, GlobalTool, PermissionMode, PolicyConfig,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TOML schema structs — pub(crate), not part of the public API

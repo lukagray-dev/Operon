@@ -7,20 +7,10 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-# Serialization — PolicyConfig must be storable to/from TOML by operon-config later.
-serde       = { workspace = true }
-serde_json  = { workspace = true }
-
-# Error handling.
-thiserror = { workspace = true }
-
-# Tracing for policy-level warn/debug events (e.g. unknown tool name in policy check).
+operon-config = { workspace = true }
+operon-context-normalize-tools = { workspace = true }
 tracing = { workspace = true }
 
-# Normalize-tools gives us the ToolCall type that the resolver inspects.
-# We do NOT import operon-tools — policy has no knowledge of tool implementations.
-operon-context-normalize-tools = { workspace = true }
-
 [dev-dependencies]
-# tempfile is needed in tests for creating real directories to validate PathGuard.
+serde_json = { workspace = true }
 tempfile = { workspace = true }

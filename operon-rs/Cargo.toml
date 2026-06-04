@@ -8,9 +8,20 @@ license.workspace    = true
 repository.workspace = true
 
 [dependencies]
-operon-context.workspace = true
+operon-config     = { workspace = true }
+operon-context    = { workspace = true }
+operon-events     = { workspace = true }
+operon-policy     = { workspace = true }
+operon-providers  = { workspace = true }
+operon-session    = { workspace = true }
+operon-tools      = { workspace = true }
+operon-tools-core = { workspace = true }
 
+serde.workspace   = true
 thiserror.workspace = true
-serde.workspace     = true
-tokio.workspace     = true
-tracing.workspace   = true
+tokio.workspace   = true
+tracing.workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tempfile = { workspace = true }

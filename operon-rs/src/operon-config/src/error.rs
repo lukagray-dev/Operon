@@ -4,7 +4,7 @@
 // Each variant tells the caller exactly what went wrong and where, without
 // requiring them to downcast from a generic anyhow::Error.
 //
-// The `#[from]` derive on IoError and PolicyValidation means callers can use `?`
+// The `#[from]` derive on Io and PolicyValidation means callers can use `?`
 // when those foreign errors appear — the conversions are generated automatically.
 
 use thiserror::Error;
@@ -59,10 +59,10 @@ pub enum ConfigError {
     // ── Policy validation ─────────────────────────────────────────────────────
     /// A directory path listed in `[[directories]]` could not be canonicalized.
     ///
-    /// This wraps `operon_policy::PolicyError` which carries the path and the OS
-    /// error in its own message.
+    /// This wraps `crate::policy::PolicyError`, which carries the path and the
+    /// OS error in its own message.
     #[error("policy validation failed: {0}")]
-    PolicyValidation(#[from] operon_policy::PolicyError),
+    PolicyValidation(#[from] crate::policy::PolicyError),
 
     // ── Internal consistency ──────────────────────────────────────────────────
     /// A logic error that should not occur in correct code — indicates a bug.

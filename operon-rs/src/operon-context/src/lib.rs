@@ -45,14 +45,21 @@ pub use operon_context_token_tracker::{
     TokenTrackerError, UsageRecord,
 };
 
-pub use operon_context_normalize::{
-    ContentBlock, ConversationMessage, MessageRole, Provider, ReasoningBlock, StopReason,
-    StreamEvent, ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
+pub use operon_context_normalize::messages::{
+    ContentBlock, ConversationMessage, DocumentBlock, DocumentSource, ImageBlock, ImageSource,
+    MessageRole, StopReason,
+};
+pub use operon_context_normalize::reasoning::{ReasoningBlock, ReasoningSignature};
+pub use operon_context_normalize::stream::{AssemblerOutput, StreamEvent};
+pub use operon_context_normalize::tools::{
+    Provider, ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
 };
 
 pub mod prelude {
     pub use crate::{
         compact, sanitize, CompactionClient, CompactionConfig, ContentBlock, ConversationMessage,
-        MessageRole, Role, SessionSnapshot, SnapshotBuilder, SnapshotConfig,
+        DocumentBlock, DocumentSource, ImageBlock, ImageSource, MessageRole, ReasoningBlock,
+        ReasoningSignature, Role, SessionSnapshot, SnapshotBuilder, SnapshotConfig, StreamEvent,
+        ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
     };
 }

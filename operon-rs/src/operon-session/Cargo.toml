@@ -1,6 +1,6 @@
 [package]
 name        = "operon-session"
-description = "Operon agent loop — HTTP provider calls, SSE stream, tool dispatch, compaction, persistence"
+description = "Operon agent loop - HTTP provider calls, SSE stream, tool dispatch, compaction, persistence"
 version.workspace    = true
 edition.workspace    = true
 authors.workspace    = true
@@ -8,29 +8,19 @@ license.workspace    = true
 repository.workspace = true
 
 [dependencies]
-# ── Context pipeline ──────────────────────────────────────────────────────────
-# http-client feature enables AnthropicCompactionClient for run_compaction().
+operon-config                = { workspace = true }
 operon-context-compaction    = { workspace = true, features = ["http-client"] }
+operon-context-normalize-messages = { workspace = true }
+operon-context-normalize-stream   = { workspace = true }
+operon-context-normalize-tools    = { workspace = true }
 operon-context-sanitizer     = { workspace = true }
 operon-context-snapshot      = { workspace = true }
 operon-context-token-tracker = { workspace = true }
+operon-events                = { workspace = true }
+operon-policy                = { workspace = true }
+operon-providers             = { workspace = true }
+operon-tools                 = { workspace = true }
 
-# ── Normalize pipeline ────────────────────────────────────────────────────────
-operon-context-normalize-tools    = { workspace = true }
-operon-context-normalize-messages = { workspace = true }
-operon-context-normalize-stream   = { workspace = true }
-
-# ── Providers + Policy ───────────────────────────────────────────────────────
-operon-providers = { workspace = true }
-operon-policy    = { workspace = true }
-
-# ── Tool dispatcher ───────────────────────────────────────────────────────────
-operon-tools = { workspace = true }
-
-# ── Event bus ─────────────────────────────────────────────────────────────────
-operon-events = { workspace = true }
-
-# ── Infrastructure ────────────────────────────────────────────────────────────
 tokio      = { workspace = true }
 reqwest    = { workspace = true, features = ["json", "stream"] }
 futures    = { workspace = true }
@@ -40,7 +30,6 @@ tracing    = { workspace = true }
 thiserror  = { workspace = true }
 async-trait = { workspace = true }
 
-# SQLite session persistence — workspace-declared.
 sqlx = { workspace = true }
 
 [dev-dependencies]

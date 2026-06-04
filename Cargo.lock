@@ -3577,7 +3577,6 @@ name = "operon-config"
 version = "0.1.0"
 dependencies = [
  "dirs 6.0.0",
- "operon-policy",
  "operon-providers",
  "serde",
  "serde_json",
@@ -3720,6 +3719,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "operon-rs",
  "serde",
  "serde_json",
  "tauri",
@@ -3732,11 +3732,10 @@ dependencies = [
 name = "operon-policy"
 version = "0.1.0"
 dependencies = [
+ "operon-config",
  "operon-context-normalize-tools",
- "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
  "tracing",
 ]
 
@@ -3753,8 +3752,17 @@ dependencies = [
 name = "operon-rs"
 version = "0.1.0"
 dependencies = [
+ "operon-config",
  "operon-context",
+ "operon-events",
+ "operon-policy",
+ "operon-providers",
+ "operon-session",
+ "operon-tools",
+ "operon-tools-core",
  "serde",
+ "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -3766,6 +3774,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "operon-config",
  "operon-context-compaction",
  "operon-context-normalize-messages",
  "operon-context-normalize-stream",

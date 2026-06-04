@@ -71,6 +71,7 @@
 pub mod error;
 mod loader;
 pub mod paths;
+pub mod policy;
 pub mod schema;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -96,3 +97,9 @@ pub use paths::OperonPaths;
 /// - [`AppConfig::policy`]   — `PolicyConfig` for the resolver
 /// - [`AppConfig::paths`]    — filesystem paths for snapshot + persistence
 pub use schema::AppConfig;
+
+/// Policy data model and validation types used by the config loader and policy resolver.
+pub use policy::{
+    CallerRole, DirTool, DirectoryPolicy, FsTool, GlobalPolicy, GlobalTool, PermissionMode,
+    PolicyConfig, PolicyError,
+};

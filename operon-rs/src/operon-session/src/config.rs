@@ -38,9 +38,9 @@
 
 use std::path::PathBuf;
 
+use operon_config::PolicyConfig;
 use operon_context_compaction::CompactionConfig;
 use operon_context_snapshot::{Role, SnapshotConfig};
-use operon_policy::config::PolicyConfig;
 use operon_providers::ProviderConfig;
 
 // ─────────────────────────────────────────────────────────────────────────────

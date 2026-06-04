@@ -18,7 +18,6 @@ repository.workspace = true
 
 [dependencies]
 operon-providers.workspace = true
-operon-policy.workspace    = true
 
 serde.workspace     = true
 serde_json.workspace = true

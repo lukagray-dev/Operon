@@ -11,13 +11,14 @@ repository.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# ── Workspace shared deps ─────────────────────────────────────────────────────
 tokio.workspace       = true
 async-trait.workspace = true
 anyhow.workspace      = true
 serde.workspace       = true
 serde_json.workspace  = true
-# ── GUI-only deps (not shared — Tauri/web-view specific) ──────────────────────
+
+# Backend facade - single dependency for the GUI
+operon-rs = { path = "../../operon-rs" }
 
 # Tauri framework for building desktop apps with web frontend
 tauri = { version = "2", features = [] }

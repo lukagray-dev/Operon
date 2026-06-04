@@ -25,7 +25,7 @@ fn main() {
                     window.open_devtools();
                 }
             }
-            
+
             Ok(())
         })
         // Run the application

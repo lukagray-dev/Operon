@@ -24,10 +24,9 @@
 
 use std::fs;
 
-use operon_policy::config::{DirectoryPolicy, PolicyConfig};
-
 use crate::error::ConfigError;
 use crate::paths::OperonPaths;
+use crate::policy::{DirectoryPolicy, PolicyConfig};
 use crate::schema::{
     build_directory_policy, build_global_policy, build_provider_config, AppConfig, AppConfigToml,
 };
