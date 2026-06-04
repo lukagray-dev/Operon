@@ -1,146 +1,393 @@
 /**
- * extensions.css
- *
- * Styles for the Extensions settings page (Browse / Downloaded / Installed tabs).
- * Very similar structure to skills.css but supports 3 tabs and extra footnote.
+ * Extensions Settings Page Styles
+ * 
+ * This file contains all styles for the Extensions settings page including:
+ * - Tab navigation (Browse / Downloaded / Installed)
+ * - Search toolbar with input field
+ * - Extension card list with expandable items
+ * - Extension metadata (author, version, size, status)
+ * - Download/Install/Uninstall action buttons
+ * - Authentication status indicators
+ * - Status badges and loading states
+ * 
+ * Extensions are plugins that extend Operon's functionality.
+ * They can be browsed, downloaded, installed, and managed from this page.
  */
 
-/* ── Panel container ─────────────────────────────────────────────────────────── */
+/* ============================================================================
+   EXTENSIONS PAGE TOKENS (ORGANIZATION & VARIABLES)
+   ============================================================================ */
 
-.settings-extensions__panel {
-  margin-top: 4px;
+:root {
+    /* ============================================================================
+       COLOR TOKENS
+       ============================================================================ */
+    /* Search toolbar colors */
+    --color-extensions-search-bg: #1a1a1a;         /* Search input background */
+    --color-extensions-search-border: rgba(255, 255, 255, 0.10);  /* Input border */
+    --color-extensions-search-icon: #555;          /* Search icon color */
+
+    /* Filter for search icon SVG image */
+    --filter-extensions-search-icon: invert(33%);  /* Color filter to convert black search icon to muted gray (#555) */
+    --color-extensions-search-text: #d0d0d0;       /* Input text color */
+    --color-extensions-toolbar-title: #888;        /* Toolbar title */
+    
+    /* Extension card colors */
+    --color-extensions-card-bg: #0d0d0d;           /* Card background */
+    --color-extensions-card-border: rgba(255, 255, 255, 0.07);  /* Card border */
+    --color-extensions-card-border-hover: rgba(255, 255, 255, 0.12);  /* Hover border */
+    
+    /* Extension text colors */
+    --color-extensions-title: #d8d8d8;             /* Extension title */
+    --color-extensions-meta: #555;                 /* Metadata (author, version) */
+    --color-extensions-summary: #888;              /* Extension description */
+    --color-extensions-footnote: #444;             /* Additional info (download date, auth) */
+    
+    /* Status message colors */
+    --color-extensions-status-bg: #1a1a1a;         /* Status message background */
+    --color-extensions-status-border: rgba(255, 255, 255, 0.06);  /* Status border */
+    --color-extensions-status-text: #888;          /* Status text */
+
+    /* ============================================================================
+       DIMENSIONS & SPACING
+       ============================================================================ */
+    --extensions-border-width-standard: 1px;       /* Standard border thickness */
+    --extensions-panel-margin-top: 4px;            /* Space above panel tabs body content */
+    --extensions-section-gap: 12px;                /* Gap between section items (toolbar, list) */
+    --extensions-toolbar-gap: 8px;                 /* Gap inside the toolbar row */
+    --extensions-search-icon-left: 10px;           /* Left offset of search input icon */
+    --extensions-search-icon-size: 14px;           /* Size of search input icon SVG */
+    --extensions-search-height: 32px;              /* Sizing height of search input box */
+    --extensions-search-padding: 0 10px 0 34px;    /* Padding inside search text input */
+    --extensions-list-gap: 6px;                    /* Spacing between extension items in list */
+    --extensions-item-gap: 14px;                   /* Gap inside the individual extension card */
+    --extensions-item-padding: 12px 14px;          /* Padding inside individual extension card */
+    --extensions-item-title-gap: 8px;              /* Gap inside title elements row */
+    --extensions-item-meta-margin-top: 3px;        /* Gap above metadata text row */
+    --extensions-item-summary-margin-top: 5px;     /* Margin above summary text block */
+    --extensions-item-footnote-margin-top: 4px;    /* Margin above footnote text block */
+    --extensions-item-actions-gap: 6px;            /* Gap between action buttons */
+    --extensions-item-actions-padding-top: 2px;    /* Top padding of action buttons container */
+    --extensions-status-margin-top: 12px;          /* Space above status messages box */
+    --extensions-status-padding: 8px 12px;         /* Padding inside status box */
+
+    /* ============================================================================
+       TYPOGRAPHY
+       ============================================================================ */
+    --extensions-toolbar-font-size: 13px;          /* Font size of section title in toolbar */
+    --extensions-search-font-size: 13px;           /* Font size inside search input field */
+    --extensions-item-title-font-size: 13.5px;     /* Font size of extension title */
+    --extensions-item-title-font-weight: 500;      /* Font weight of extension title */
+    --extensions-item-meta-font-size: 11.5px;      /* Font size of card metadata */
+    --extensions-item-summary-font-size: 12.5px;   /* Font size of extension summary */
+    --extensions-item-summary-line-height: 1.5;    /* Line height of summary text */
+    --extensions-item-footnote-font-size: 11.5px;  /* Font size of footnote metadata */
+    --extensions-status-font-size: 12px;           /* Font size inside status messages box */
+
+    /* ============================================================================
+       BORDERS & RADII
+       ============================================================================ */
+    --extensions-search-radius: 6px;               /* Border radius of search text box */
+    --extensions-item-radius: 8px;                 /* Border radius of extension card component */
+    --extensions-status-radius: 6px;               /* Border radius of status message box */
+
+    /* ============================================================================
+       TRANSITIONS
+       ============================================================================ */
+    --extensions-search-transition: border-color 140ms ease; /* Transition for search input focus */
+    --extensions-item-transition: border-color 140ms ease; /* Transition for card hover border border-color */
 }
 
-/* ── Section wrapper ────────────────────────────────────────────────────────── */
+/* ============================================================================
+   TABS
+   ============================================================================ */
 
+/**
+ * Tabs are shared (.settings-tabs / .settings-tabs__item)
+ * Defined in settings-panel.css — no duplication needed here.
+ */
+
+/* ============================================================================
+   PANEL CONTAINER
+   ============================================================================ */
+
+/**
+ * Extensions panel container
+ * - Contains tab body content
+ * - Minimal top margin below tabs
+ */
+.settings-extensions__panel {
+  /* Push tab content container down slightly below tabs bar */
+  margin-top: var(--extensions-panel-margin-top);
+}
+
+/* ============================================================================
+   SECTION WRAPPER
+   ============================================================================ */
+
+/**
+ * Section container
+ * - Wraps toolbar and extension list
+ * - Vertical flex column layout with consistent spacing
+ */
 .settings-extensions__section {
+  /* Lay out search toolbar and list view vertically */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  /* Uniform vertical spacing */
+  gap: var(--extensions-section-gap);
 }
 
-/* ── Toolbar ────────────────────────────────────────────────────────────────── */
+/* ============================================================================
+   TOOLBAR (SEARCH BAR)
+   ============================================================================ */
 
+/**
+ * Toolbar container
+ * - Contains search input or section title
+ * - Horizontal layout with flexible spacing
+ */
 .settings-extensions__toolbar {
+  /* Side-by-side elements arrangement */
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--extensions-toolbar-gap);
 }
 
+/**
+ * Toolbar title
+ * - Used in Downloaded/Installed tabs instead of search
+ * - Flexible width to fill available space
+ */
 .settings-extensions__toolbar-title {
+  /* Stretch to utilize available horizontal area */
   flex: 1;
-  font-size: 13px;
-  color: #888;
+  font-size: var(--extensions-toolbar-font-size);
+  color: var(--color-extensions-toolbar-title);
 }
 
-/* Search field */
+/**
+ * Search field wrapper
+ * - Contains search icon and input
+ * - Full width in Browse tab
+ * - Relative positioning for icon placement
+ */
 .settings-extensions__search {
+  /* Establishes relative coordinate context for absolute child icon placement */
   position: relative;
+  /* Grow to fill remaining toolbar row spacing */
   flex: 1;
 }
 
+/**
+ * Search icon
+ * - Positioned inside left side of input
+ * - Non-interactive decoration
+ */
 .settings-extensions__search-icon {
+  /* Anchor to left side of wrapper */
   position: absolute;
-  left: 10px;
+  left: var(--extensions-search-icon-left);
+  /* Center icon vertically inside input field */
   top: 50%;
   transform: translateY(-50%);
-  color: #555;
+  color: var(--color-extensions-search-icon);
+  /* Prevent clicks hitting the icon instead of the text box input */
   pointer-events: none;
   display: flex;
   align-items: center;
 }
 
-.settings-extensions__search-icon svg {
-  width: 14px;
-  height: 14px;
+/* Specific dimensions for SVG paths inside search icon */
+.settings-extensions__search-icon svg,
+.settings-extensions__search-icon img {
+  width: var(--extensions-search-icon-size);
+  height: var(--extensions-search-icon-size);
 }
 
+.settings-extensions__search-icon img {
+  filter: var(--filter-extensions-search-icon);
+}
+
+/**
+ * Search input field
+ * - Full width with left padding for icon
+ * - Focus state with accent color border
+ */
 .settings-extensions__search-input {
+  /* Expand to fill relative parent width container */
   width: 100%;
-  height: 32px;
-  padding: 0 10px 0 34px;
-  background-color: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 6px;
-  color: #d0d0d0;
-  font-size: 13px;
+  /* Standard height coordinate */
+  height: var(--extensions-search-height);
+  /* Specific padding: extra left padding to leave blank space for search icon */
+  padding: var(--extensions-search-padding);
+  background-color: var(--color-extensions-search-bg);
+  border: var(--extensions-border-width-standard) solid var(--color-extensions-search-border);
+  border-radius: var(--extensions-search-radius);
+  color: var(--color-extensions-search-text);
+  font-size: var(--extensions-search-font-size);
   font-family: inherit;
-  transition: border-color 140ms ease;
+  /* Animate focus border highlight transition */
+  transition: var(--extensions-search-transition);
 }
 
+/* Focus color change behavior */
 .settings-extensions__search-input:focus {
+  /* Disable default styling outline ring */
   outline: none;
+  /* Switch border to primary accent color */
   border-color: var(--accent-primary, #4f8ef7);
 }
 
-/* ── Extension List ──────────────────────────────────────────────────────────── */
+/* ============================================================================
+   EXTENSION LIST
+   ============================================================================ */
 
+/**
+ * Extension list container
+ * - Vertical flex column of extension cards
+ * - Consistent spacing between cards
+ */
 .settings-extensions__list {
+  /* Stack extension cards vertically */
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--extensions-list-gap);
 }
 
-/* ── Extension Item Card ─────────────────────────────────────────────────────── */
+/* ============================================================================
+   EXTENSION ITEM CARD
+   ============================================================================ */
 
+/**
+ * Individual extension card
+ * - Displays extension info and action buttons
+ * - Horizontal layout: content | actions
+ * - Hover effect for visual feedback
+ */
 .settings-extensions__item {
+  /* Align main info column and action buttons row horizontally */
   display: flex;
+  /* Align elements to the top of card layout */
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 12px 14px;
-  background-color: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 8px;
-  transition: border-color 140ms ease;
+  gap: var(--extensions-item-gap);
+  padding: var(--extensions-item-padding);
+  background-color: var(--color-extensions-card-bg);
+  border: var(--extensions-border-width-standard) solid var(--color-extensions-card-border);
+  border-radius: var(--extensions-item-radius);
+  /* Animate border color change when user hovers */
+  transition: var(--extensions-item-transition);
 }
 
+/* Card hover interaction */
 .settings-extensions__item:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-extensions-card-border-hover);
 }
 
+/**
+ * Main extension content (left side)
+ * - Contains title, metadata, summary, and footnote
+ * - Flexible width to fill available space
+ */
 .settings-extensions__item-main {
+  /* Take up all the left-hand space */
   flex: 1;
+  /* Prevent text wrapping issues */
   min-width: 0;
 }
 
+/**
+ * Extension title row
+ * - Contains extension name and optional badges
+ * - Horizontal layout with wrapping support
+ */
 .settings-extensions__item-title {
+  /* Title and badges horizontally */
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #d8d8d8;
+  gap: var(--extensions-item-title-gap);
+  font-size: var(--extensions-item-title-font-size);
+  font-weight: var(--extensions-item-title-font-weight);
+  color: var(--color-extensions-title);
+  /* Allow badges to wrap to next line if title is extremely long */
   flex-wrap: wrap;
 }
 
+/**
+ * Extension metadata
+ * - Displays author, version, size, etc.
+ * - Small, muted text below title
+ */
 .settings-extensions__item-meta {
-  margin-top: 3px;
-  font-size: 11.5px;
-  color: #555;
+  /* Add breathing gap below title above */
+  margin-top: var(--extensions-item-meta-margin-top);
+  font-size: var(--extensions-item-meta-font-size);
+  color: var(--color-extensions-meta);
 }
 
+/**
+ * Extension summary/description
+ * - Short description of what the extension does
+ * - Multi-line with good line height for readability
+ */
 .settings-extensions__item-summary {
-  margin-top: 5px;
-  font-size: 12.5px;
-  color: #888;
-  line-height: 1.5;
+  /* Separate summary block from metadata above */
+  margin-top: var(--extensions-item-summary-margin-top);
+  font-size: var(--extensions-item-summary-font-size);
+  color: var(--color-extensions-summary);
+  /* Increased line height for clear reading comfort */
+  line-height: var(--extensions-item-summary-line-height);
 }
 
-/* Additional footnote line (e.g. "Downloaded 2025-01-10", "Auth: ...") */
+/**
+ * Extension footnote
+ * - Additional info like download date or auth status
+ * - Very small, extra muted text
+ */
 .settings-extensions__item-footnote {
-  margin-top: 4px;
-  font-size: 11.5px;
-  color: #444;
+  /* Margin space above footnote description */
+  margin-top: var(--extensions-item-footnote-margin-top);
+  font-size: var(--extensions-item-footnote-font-size);
+  color: var(--color-extensions-footnote);
 }
 
-/* Action buttons on the right */
+/**
+ * Extension action buttons (right side)
+ * - Contains Download, Install, Uninstall, Auth, Delete buttons
+ * - Wraps to multiple rows if needed
+ * - Right-aligned at top of card
+ */
 .settings-extensions__item-actions {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  /* Horizontal and vertical spacing between individual action button capsules */
+  gap: var(--extensions-item-actions-gap);
   flex-shrink: 0;
-  padding-top: 2px;
+  /* Align actions neatly with title text */
+  padding-top: var(--extensions-item-actions-padding-top);
+  /* Wrap buttons onto new line if card width gets very narrow */
   flex-wrap: wrap;
+  /* Push trailing elements to the right side edge */
   justify-content: flex-end;
 }
+
+/* ============================================================================
+   STATUS MESSAGES
+   ============================================================================ */
+
+/**
+ * Status message box
+ * - Displays feedback messages for extension operations
+ * - Muted styling to not distract from main content
+ */
+.settings-extensions__status {
+  margin-top: var(--extensions-status-margin-top);
+  padding: var(--extensions-status-padding);
+  background-color: var(--color-extensions-status-bg);
+  border: var(--extensions-border-width-standard) solid var(--color-extensions-status-border);
+  border-radius: var(--extensions-status-radius);
+  font-size: var(--extensions-status-font-size);
+  color: var(--color-extensions-status-text);
+}
+

@@ -1,9 +1,30 @@
 /**
  * Global CSS Tokens
  * 
- * Minimal base styles for the Operon GUI application.
- * Component-specific tokens are in their respective CSS files (e.g., titlebar.css)
+ * Hello friend! This file contains the absolute foundation styles and global resets
+ * for the entire Operon GUI application.
+ * 
+ * It sets up:
+ * - Custom font face declarations (Google Sans and PT Serif)
+ * - General element resets (removing default padding and margins)
+ * - Base tokens for core variables (like primary font and body size)
+ * 
+ * Component-specific tokens are located in their respective files to keep things modular.
  */
+
+/* ============================================================================
+   GLOBAL BASE TOKENS
+   ============================================================================ */
+
+:root {
+    /* Global Brand Font Families */
+    --font-family-primary: 'Google Sans', sans-serif; /* Clean sans-serif for UI */
+    --font-family-assistant: 'PT Serif', serif;      /* High-readability serif for AI assistant messages */
+    
+    /* Global Base Typography & Color */
+    --font-size-base: 13px;                          /* Default body font size */
+    --color-text-base: #ffffff;                      /* Standard white text color */
+}
 
 /* ============================================================================
    FONT FACE DECLARATIONS
@@ -57,9 +78,9 @@
  * - Prevent overscroll/rubber-band effect for native feel
  */
 html {
-    font-family: 'Google Sans';
-    font-size: 13px;
-    color: #ffffff;
+    font-family: var(--font-family-primary);
+    font-size: var(--font-size-base);
+    color: var(--color-text-base);
     overflow-x: hidden;
     overscroll-behavior: none;
 }
@@ -122,3 +143,4 @@ select {
     font-size: inherit;
     color: inherit;
 }
+

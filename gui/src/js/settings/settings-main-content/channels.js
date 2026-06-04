@@ -30,10 +30,10 @@ import {
 // ── Connector Icon Paths ──────────────────────────────────────────────────────
 
 const CONNECTOR_ICON_PATHS = {
-  telegram:  '../assets/icons/connector-telegram.svg',
-  discord:   '../assets/icons/connector-discord.svg',
-  whatsapp:  '../assets/icons/connector-whatsapp.svg',
-  email:     '../assets/icons/connector-email.svg',
+  telegram:  './assets/icons/settings/connector-telegram.svg',
+  discord:   './assets/icons/settings/connector-discord.svg',
+  whatsapp:  './assets/icons/settings/connector-whatsapp.svg',
+  email:     './assets/icons/settings/connector-email.svg',
 };
 
 // ── WhatsApp polling interval ─────────────────────────────────────────────────

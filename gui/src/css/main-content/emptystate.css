@@ -1,56 +1,49 @@
 /**
  * Empty State Component Styles
  * 
- * This file contains styles for the empty state displayed in the main content
- * area when no session or messages are present.
+ * Hello friend! This file styles the "empty state" panel shown in the center
+ * of the main chat area before any session is loaded or messages are sent.
  * 
- * The empty state shows the Operon logo and a tagline centrally aligned.
+ * It centers the brand logo (.empty-state__logo) and a tagline (.empty-state__tagline)
+ * in the middle of the viewport using flex centering.
+ * 
+ * All spacing and configuration tokens are declared in the :root selector below!
  */
 
 /* ============================================================================
-   EMPTY STATE TOKENS
+   EMPTY STATE DESIGN TOKENS
    ============================================================================ */
 
 :root {
     /* Empty state colors */
-    --color-empty-state-text: #6e6e6e;             /* Tagline text color (muted) */
+    --color-empty-state-text: #6e6e6e;             /* Tagline text color (muted gray) */
     
     /* Empty state spacing */
-    --empty-state-logo-size: 64px;                 /* Logo size */
-    --empty-state-logo-margin-bottom: 24px;        /* Space below logo */
-    --empty-state-container-max-width: 400px;      /* Container max width */
+    --empty-state-padding: 40px;                   /* Padding around the main wrapper */
+    --empty-state-logo-size: 64px;                 /* Size of the central brand logo */
+    --empty-state-logo-margin-bottom: 24px;        /* Spacing below logo, above tagline */
+    --empty-state-container-max-width: 400px;      /* Restrains the tagline width for readability */
     
     /* Empty state typography */
-    --empty-state-font-size: 16px;                 /* Tagline font size */
-    --empty-state-font-weight: 400;                /* Regular font weight */
-    --empty-state-line-height: 24px;               /* Line height */
+    --empty-state-font-size: 16px;                 /* Font size of tagline */
+    --empty-state-font-weight: 400;                /* Normal font weight */
+    --empty-state-line-height: 24px;               /* Line spacing for tagline */
 }
 
 /* ============================================================================
    EMPTY STATE CONTAINER
    ============================================================================ */
 
-/**
- * Empty state wrapper
- * - Fills the main content area
- * - Flex layout for centering
- * - Hidden by default, shown when no messages
- */
 .main-content__empty-state {
     display: flex;
     align-items: center;
     justify-content: center;
     flex: 1;
     overflow: hidden;
-    padding: 40px;
+    padding: var(--empty-state-padding);
     background-color: var(--color-main-content-bg);
 }
 
-/**
- * Empty state inner container
- * - Centered content container
- * - Max width to constrain content width
- */
 .empty-state__container {
     display: flex;
     flex-direction: column;
@@ -60,11 +53,6 @@
     text-align: center;
 }
 
-/**
- * Logo container
- * - Wraps the logo image
- * - Provides spacing below
- */
 .empty-state__logo {
     display: flex;
     align-items: center;
@@ -72,11 +60,6 @@
     margin-bottom: var(--empty-state-logo-margin-bottom);
 }
 
-/**
- * Logo image
- * - Fixed size
- * - Centered
- */
 .empty-state__logo-icon {
     width: var(--empty-state-logo-size);
     height: var(--empty-state-logo-size);
@@ -84,11 +67,6 @@
     opacity: 0.9;
 }
 
-/**
- * Tagline text
- * - Muted color
- * - Clean typography
- */
 .empty-state__tagline {
     margin: 0;
     padding: 0;
@@ -103,25 +81,14 @@
    EMPTY STATE VISIBILITY
    ============================================================================ */
 
-/**
- * Hide empty state by default
- * - Shown when there are no messages
- * - Hidden when messages are present
- */
 .main-content__empty-state.hidden {
     display: none;
 }
 
-/**
- * Show session title when not in empty state
- */
 .main-content__session-title.hidden {
     display: none;
 }
 
-/**
- * Show messages when not in empty state
- */
 .main-content__messages.hidden {
     display: none;
 }
@@ -130,9 +97,6 @@
    RESPONSIVE ADJUSTMENTS
    ============================================================================ */
 
-/**
- * Adjust spacing for different screen sizes
- */
 @media (max-width: 1024px) {
     :root {
         --empty-state-logo-size: 56px;
@@ -145,10 +109,7 @@
         --empty-state-font-size: 15px;
         --empty-state-logo-size: 48px;
         --empty-state-logo-margin-bottom: 18px;
-    }
-    
-    .main-content__empty-state {
-        padding: 32px 24px;
+        --empty-state-padding: 32px 24px;
     }
 }
 
@@ -158,9 +119,7 @@
         --empty-state-logo-size: 40px;
         --empty-state-logo-margin-bottom: 16px;
         --empty-state-container-max-width: 300px;
-    }
-    
-    .main-content__empty-state {
-        padding: 24px 16px;
+        --empty-state-padding: 24px 16px;
     }
 }
+

@@ -52,22 +52,17 @@ let isOpen = false;
 
 // ── Category Definitions ─────────────────────────────────────────────────────
 
-/**
- * Defines the ordered list of navigation categories shown in the left sidebar.
- * Each entry maps a key to a display label and icon filename (relative to
- * Operon/gui/src/assets/icons/settings/).
- *
- * @type {Array<{key: string, label: string, icon: string}>}
- */
+// Each category key is mapped to its label and corresponding SVG filename located
+// in the correct settings icons directory (gui/src/assets/icons/settings/).
 const CATEGORIES = [
-  { key: 'general',     label: 'General',     icon: 'settings-2.svg' },
-  { key: 'appearance',  label: 'Appearance',  icon: 'palette.svg'    },
-  { key: 'models',      label: 'Models',      icon: 'brain.svg'      },
-  { key: 'channels',    label: 'Channels',    icon: 'plug.svg'       },
-  { key: 'permissions', label: 'Permissions', icon: 'shield.svg'     },
-  { key: 'skills',      label: 'Skills',      icon: 'puzzle.svg'     },
-  { key: 'extensions',  label: 'Extensions',  icon: 'cog.svg'        },
-  { key: 'about',       label: 'About',       icon: 'circle-user.svg'},
+  { key: 'general',     label: 'General',     icon: 'category-general.svg' },
+  { key: 'appearance',  label: 'Appearance',  icon: 'category-appearance.svg'    },
+  { key: 'models',      label: 'Models',      icon: 'category-models.svg'      },
+  { key: 'channels',    label: 'Channels',    icon: 'category-channels.svg'       },
+  { key: 'permissions', label: 'Permissions', icon: 'category-permissions.svg'     },
+  { key: 'skills',      label: 'Skills',      icon: 'category-skills.svg'     },
+  { key: 'extensions',  label: 'Extensions',  icon: 'category-extensions.svg'        },
+  { key: 'about',       label: 'About',       icon: 'category-about.svg'},
 ];
 
 // ── DOM References ───────────────────────────────────────────────────────────
@@ -161,11 +156,12 @@ function buildDialogHtml() {
 
 /**
  * Returns an img tag pointing to the close (X) icon file.
- * Icon located at: Operon/gui/src/assets/icons/settings/x.svg
+ * The correct filename is close.svg and we load it relative to the index.html file
+ * using './assets/icons/settings/close.svg'.
  * @returns {string}
  */
 function buildCloseIconSvg() {
-  return `<img src="../assets/icons/settings/x.svg" alt="Close" width="16" height="16" draggable="false">`;
+  return `<img src="./assets/icons/settings/close.svg" alt="Close" width="16" height="16" draggable="false">`;
 }
 
 // ── Open / Close ─────────────────────────────────────────────────────────────

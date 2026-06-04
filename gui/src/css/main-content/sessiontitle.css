@@ -1,52 +1,62 @@
 /**
  * Session Title Component Styles
  * 
- * This file contains styles for the session title displayed at the top
- * left corner of the main content area, adjacent to the left sidebar.
+ * Hello friend! This file styles the minimal floating Session Title displayed
+ * at the top left of the main content canvas area, adjacent to the sidebar.
  * 
- * The title is just floating text with transparent background.
- * Conversations scroll behind it.
+ * It has:
+ * - A transparent positioning wrapper (.main-content__session-title)
+ * - Minimal text formatting for the title (.session-title__text)
+ * 
+ * All design variables (positioning offsets, typography size, and color)
+ * are declared in the :root selector below!
  */
+
+/* ============================================================================
+   SESSION TITLE DESIGN TOKENS
+   ============================================================================ */
+
+:root {
+    /* Session title colors */
+    --color-session-title-text: #ffffff;            /* Pure white text color */
+    
+    /* Session title dimensions & positioning */
+    --session-title-top: 16px;                      /* Vertical distance from the top edge */
+    --session-title-left: 24px;                     /* Horizontal distance from the sidebar edge */
+    
+    /* Session title typography */
+    --session-title-font-size: 14px;                /* Base font size */
+    --session-title-font-weight: 400;               /* Regular weight */
+    --session-title-line-height: 20px;              /* Line height for text wrapping */
+    
+    /* Session title z-index */
+    --session-title-z-index: 10;                    /* Places title above content, below dialog overlays */
+}
 
 /* ============================================================================
    SESSION TITLE - MINIMAL FLOATING TEXT
    ============================================================================ */
 
-/**
- * Session title wrapper
- * - Absolutely positioned at top left
- * - No background, no padding
- * - Just a positioning container
- */
 .main-content__session-title {
     position: absolute;
-    top: 16px;
-    left: 24px;
-    z-index: 10;
+    top: var(--session-title-top);
+    left: var(--session-title-left);
+    z-index: var(--session-title-z-index);
     pointer-events: none;
 }
 
-/**
- * Session title text
- * - Inline text element
- * - Minimal styling
- * - Allows text selection
- */
 .session-title__text {
     display: inline;
     margin: 0;
     padding: 0;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;
+    color: var(--color-session-title-text);
+    font-size: var(--session-title-font-size);
+    font-weight: var(--session-title-font-weight);
+    line-height: var(--session-title-line-height);
     font-family: var(--font-family-primary);
     pointer-events: auto;
 }
 
-/**
- * Hide session title when needed
- */
 .main-content__session-title.hidden {
     display: none;
 }
@@ -56,29 +66,24 @@
    ============================================================================ */
 
 @media (max-width: 1024px) {
-    .main-content__session-title {
-        left: 20px;
+    :root {
+        --session-title-left: 20px;
     }
 }
 
 @media (max-width: 768px) {
-    .main-content__session-title {
-        top: 12px;
-        left: 16px;
-    }
-    
-    .session-title__text {
-        font-size: 13px;
+    :root {
+        --session-title-top: 12px;
+        --session-title-left: 16px;
+        --session-title-font-size: 13px;
     }
 }
 
 @media (max-width: 480px) {
-    .main-content__session-title {
-        top: 10px;
-        left: 12px;
-    }
-    
-    .session-title__text {
-        font-size: 12px;
+    :root {
+        --session-title-top: 10px;
+        --session-title-left: 12px;
+        --session-title-font-size: 12px;
     }
 }
+

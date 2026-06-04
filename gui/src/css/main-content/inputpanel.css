@@ -1,19 +1,19 @@
 /**
  * Input Panel Component Styles
  * 
- * This file contains all styles for the main content input panel including:
- * - Floating input panel container
- * - Auto-expanding textarea (1-10 lines)
- * - Left action buttons (Attach, Auto-approve)
- * - Right action buttons (Context, Model, Reasoning, Voice, Send)
- * - Focus states with white border and outer glow
- * - Responsive horizontal resizing
+ * Hello friend! Welcome to the styles for the Input Panel component.
+ * This is the floating input panel that sits at the bottom center of the screen
+ * where users type messages and toggle assistant configurations:
+ * - A message window scroll padding area (.main-content__messages)
+ * - The input container itself (.input-panel__container) with a white glow on focus
+ * - An auto-expanding text box (.input-panel__textarea)
+ * - Various button toggles (Attach file, Auto-approve, Model selector, reasoning, Send)
  * 
- * The input panel floats at the bottom center of the main content area.
+ * Everything is fully customized via CSS custom properties in :root!
  */
 
 /* ============================================================================
-   INPUT PANEL COLOR TOKENS
+   INPUT PANEL DESIGN TOKENS
    ============================================================================ */
 
 :root {
@@ -27,20 +27,44 @@
     --color-input-panel-icon: #9e9e9e;            /* Icon default color */
     --color-input-panel-icon-hover: #ffffff;      /* Icon hover color */
     --color-input-panel-scrollbar: rgba(255, 255, 255, 0.2);  /* Textarea scrollbar */
+    --color-input-panel-disclaimer: #6e6e6e;      /* Color of disclaimer text */
+    --color-auto-approve-enabled-bg: rgba(255, 193, 7, 0.15); /* Soft yellow highlight background */
+    --color-auto-approve-enabled-hover-bg: rgba(255, 193, 7, 0.25);
+    --color-send-active-bg: #0003a6;              /* Dark blue background for active Send button */
+    --color-send-active-hover-bg: #0004ff;        /* Bright blue background on hover */
     
     /* Input panel layout dimensions */
     --input-panel-max-width: 650px;               /* Maximum width of input panel */
+    --input-panel-left: 240px;                    /* Distance from left window edge (aligns with sidebar width) */
+    --input-panel-margin: 0 40px;                 /* Horizontal margins around input panel container */
     --input-panel-padding-horizontal: 14px;       /* Horizontal padding inside container */
     --input-panel-padding-vertical: 8px;          /* Vertical padding inside container */
-    --input-panel-bottom-offset: 8px;            /* Distance from bottom (8px text + 8px gap below + 16px margin) */
+    --input-panel-bottom-offset: 8px;            /* Distance from bottom */
     --input-panel-border-width: 0.5px;            /* Thinner border width */
     --input-panel-border-radius: 8px;             /* Subtle rounded corners */
     
+    /* Scrollbar constraints */
+    --messages-padding-bottom: 180px;             /* Spacing below messages to clear floating panel */
+    --messages-scrollbar-width: 8px;              /* Scrollbar width for messages list */
+    --messages-scrollbar-radius: 4px;             /* Rounding for messages scrollbar */
+    --input-panel-textarea-scrollbar-width: 6px;   /* Scrollbar width for textarea */
+    --input-panel-textarea-scrollbar-radius: 3px;  /* Rounding for textarea scrollbar */
+
     /* Input panel spacing */
-    --input-panel-gap: 8px;                       /* Gap between action buttons */
+    --input-panel-gap: 8px;                       /* Gap between action buttons row items */
+    --input-panel-btn-group-gap: 2px;             /* Gap inside button groups (left/right action groups) */
     --input-panel-icon-size: 18px;                /* Size of action icons */
     --input-panel-textarea-line-height: 20px;     /* Line height for textarea */
     --input-panel-textarea-max-height: 200px;     /* Max height (10 lines * 20px) */
+    --input-panel-disclaimer-margin-top: 8px;
+    --input-panel-disclaimer-font-size: 11px;
+    --input-panel-action-btn-gap: 4px;
+    --input-panel-action-btn-padding: 5px;
+    --input-panel-dropdown-radius: 10px;
+    --input-panel-dropdown-padding: 5px 8px;
+    --input-panel-dropdown-gap: 4px;
+    --input-panel-action-label-font-size: 12px;
+    --input-panel-action-chevron-size: 10px;
     
     /* Input panel animations */
     --input-panel-transition-fast: 150ms;         /* Fast transition for focus states */
@@ -53,17 +77,25 @@
     
     /* Input panel z-index */
     --input-panel-z-index: 50;                    /* Z-index for floating panel */
+
+    /* Focused Box Shadows */
+    --input-panel-focused-shadow: 
+        0 0 0 1px var(--color-input-panel-border-focus),
+        0 0 8px 2px var(--color-input-panel-glow),
+        0 0 16px 4px rgba(255, 255, 255, 0.08),
+        0 0 24px 6px rgba(255, 255, 255, 0.04);
+
+    /* Color filters for icon SVGs */
+    --filter-input-panel-muted: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    --filter-input-panel-hover: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    --filter-auto-approve-enabled: invert(78%) sepia(58%) saturate(429%) hue-rotate(359deg) brightness(103%) contrast(101%);
+    --filter-auto-approve-enabled-hover: invert(88%) sepia(58%) saturate(629%) hue-rotate(359deg) brightness(103%) contrast(101%);
 }
 
 /* ============================================================================
    MAIN CONTENT CONTAINER
    ============================================================================ */
 
-/**
- * Main content area
- * - Contains messages area and floating input panel
- * - Relative positioning for input panel
- */
 .main-content {
     position: relative;
     flex: 1;
@@ -73,25 +105,15 @@
     flex-direction: column;
 }
 
-/**
- * Messages area
- * - Contains all chat messages
- * - Scrollable content
- * - Padding bottom to prevent overlap with input panel
- * - Prevent overscroll/rubber-band effect
- */
 .main-content__messages {
     flex: 1;
     overflow-y: auto;
-    padding-bottom: 180px; /* Space for floating input panel */
+    padding-bottom: var(--messages-padding-bottom);
     overscroll-behavior: contain;
 }
 
-/**
- * Custom scrollbar for messages area
- */
 .main-content__messages::-webkit-scrollbar {
-    width: 8px;
+    width: var(--messages-scrollbar-width);
 }
 
 .main-content__messages::-webkit-scrollbar-track {
@@ -100,7 +122,7 @@
 
 .main-content__messages::-webkit-scrollbar-thumb {
     background-color: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    border-radius: var(--messages-scrollbar-radius);
 }
 
 .main-content__messages::-webkit-scrollbar-thumb:hover {
@@ -111,35 +133,20 @@
    INPUT PANEL CONTAINER (FLOATING)
    ============================================================================ */
 
-/**
- * Input panel wrapper
- * - Floats at bottom center of main content
- * - Fixed positioning relative to viewport
- * - Centered horizontally between sidebar and right edge
- * - Dynamically resizes with window width
- */
 .input-panel {
     position: fixed;
     bottom: var(--input-panel-bottom-offset);
-    left: 240px; /* Match sidebar default width */
+    left: var(--input-panel-left);
     right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: var(--input-panel-z-index);
-    /* Prevent window dragging on input panel */
     -webkit-app-region: no-drag;
-    pointer-events: none; /* Allow clicking through the wrapper */
+    pointer-events: none;
 }
 
-/**
- * Input panel container
- * - Dark background with rounded corners
- * - Vertical flex layout (textarea on top, buttons on bottom)
- * - Border and glow appear on focus
- * - Centered within available space with max-width
- */
 .input-panel__container {
     display: flex;
     flex-direction: column;
@@ -150,55 +157,31 @@
     border: var(--input-panel-border-width) solid var(--color-input-panel-border);
     border-radius: var(--input-panel-border-radius);
     padding: var(--input-panel-padding-vertical) var(--input-panel-padding-horizontal);
-    margin: 0 40px; /* Horizontal margins */
+    margin: var(--input-panel-margin);
     transition: border-color var(--input-panel-transition-fast) var(--input-panel-ease-in-out),
                 box-shadow var(--input-panel-transition-fast) var(--input-panel-ease-in-out);
-    pointer-events: auto; /* Re-enable clicking on the container */
+    pointer-events: auto;
 }
 
-/**
- * Disclaimer text below input panel
- * - Small, muted text
- * - Centered alignment
- * - No background (transparent)
- */
 .input-panel__disclaimer {
-    margin-top: 8px;
+    margin-top: var(--input-panel-disclaimer-margin-top);
     text-align: center;
-    font-size: 11px;
-    color: #6e6e6e;
-    font-weight: 400;
+    font-size: var(--input-panel-disclaimer-font-size);
+    color: var(--color-input-panel-disclaimer);
+    font-weight: var(--input-panel-font-weight);
     opacity: 0.8;
-    pointer-events: auto; /* Allow text selection */
+    pointer-events: auto;
 }
 
-/**
- * Focus state - white border and smooth outer glow
- * Applied when textarea is focused
- * Glow originates from the white border with smooth gradient
- */
 .input-panel__container.focused {
     border-color: var(--color-input-panel-border-focus);
-    box-shadow: 
-        0 0 0 1px var(--color-input-panel-border-focus),
-        0 0 8px 2px var(--color-input-panel-glow),
-        0 0 16px 4px rgba(255, 255, 255, 0.08),
-        0 0 24px 6px rgba(255, 255, 255, 0.04);
+    box-shadow: var(--input-panel-focused-shadow);
 }
-
-/* ============================================================================
-   DISCLAIMER TEXT
-   ============================================================================ */
 
 /* ============================================================================
    ACTION BUTTONS ROW
    ============================================================================ */
 
-/**
- * Actions row container
- * - Contains left and right action button groups
- * - Horizontal layout with space between
- */
 .input-panel__actions-row {
     display: flex;
     align-items: center;
@@ -210,14 +193,10 @@
    LEFT ACTION BUTTONS
    ============================================================================ */
 
-/**
- * Left actions container
- * - Contains Attach and Auto-approve buttons
- */
 .input-panel__left-actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--input-panel-btn-group-gap);
     flex-shrink: 0;
 }
 
@@ -225,24 +204,12 @@
    TEXT INPUT AREA
    ============================================================================ */
 
-/**
- * Input wrapper
- * - Full width container for textarea
- * - Textarea appears above the action buttons
- */
 .input-panel__input-wrapper {
     width: 100%;
     display: flex;
     align-items: center;
 }
 
-/**
- * Textarea element
- * - Auto-expanding from 1 to 10 lines
- * - Transparent background
- * - No border or outline
- * - Custom scrollbar for content beyond 10 lines
- */
 .input-panel__textarea {
     width: 100%;
     min-height: var(--input-panel-textarea-line-height);
@@ -256,23 +223,16 @@
     font-weight: var(--input-panel-font-weight);
     line-height: var(--input-panel-textarea-line-height);
     overflow-y: auto;
-    /* Remove default scrollbar on some browsers */
     scrollbar-width: thin;
     scrollbar-color: var(--color-input-panel-scrollbar) transparent;
 }
 
-/**
- * Placeholder text styling
- */
 .input-panel__textarea::placeholder {
     color: var(--color-input-panel-placeholder);
 }
 
-/**
- * Custom scrollbar for textarea (WebKit browsers)
- */
 .input-panel__textarea::-webkit-scrollbar {
-    width: 6px;
+    width: var(--input-panel-textarea-scrollbar-width);
 }
 
 .input-panel__textarea::-webkit-scrollbar-track {
@@ -281,7 +241,7 @@
 
 .input-panel__textarea::-webkit-scrollbar-thumb {
     background-color: var(--color-input-panel-scrollbar);
-    border-radius: 3px;
+    border-radius: var(--input-panel-textarea-scrollbar-radius);
 }
 
 .input-panel__textarea::-webkit-scrollbar-thumb:hover {
@@ -292,14 +252,10 @@
    RIGHT ACTION BUTTONS
    ============================================================================ */
 
-/**
- * Right actions container
- * - Contains Context, Model, Reasoning, Voice, and Send buttons
- */
 .input-panel__right-actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--input-panel-btn-group-gap);
     flex-shrink: 0;
 }
 
@@ -307,18 +263,12 @@
    ACTION BUTTONS (SHARED STYLES)
    ============================================================================ */
 
-/**
- * Base action button styles
- * - Circular or rounded appearance
- * - Icon-based buttons
- * - Hover state with color change
- */
 .input-panel__action-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 5px;
+    gap: var(--input-panel-action-btn-gap);
+    padding: var(--input-panel-action-btn-padding);
     background: transparent;
     border-radius: 50%;
     transition: background-color var(--input-panel-transition-fast) var(--input-panel-ease-in-out);
@@ -329,48 +279,32 @@
     background-color: rgba(255, 255, 255, 0.08);
 }
 
-/**
- * Action button icons
- * - Fixed size for consistency
- * - Color filter for SVG icons
- */
 .input-panel__action-icon {
     width: var(--input-panel-icon-size);
     height: var(--input-panel-icon-size);
     flex-shrink: 0;
     pointer-events: none;
-    /* Apply gray color to SVG icons */
-    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-input-panel-muted);
     transition: filter var(--input-panel-transition-fast) var(--input-panel-ease-in-out);
 }
 
 .input-panel__action-btn:hover .input-panel__action-icon {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-input-panel-hover);
 }
 
 /* ============================================================================
    DROPDOWN BUTTON (MODEL SELECTOR)
    ============================================================================ */
 
-/**
- * Dropdown button styles (for Model selector)
- * - Contains icon, label, and chevron
- * - More horizontal padding for text
- * - Rounded rectangle instead of circle
- */
 .input-panel__action-btn--dropdown {
-    border-radius: 10px;
-    padding: 5px 8px;
-    gap: 4px;
+    border-radius: var(--input-panel-dropdown-radius);
+    padding: var(--input-panel-dropdown-padding);
+    gap: var(--input-panel-dropdown-gap);
 }
 
-/**
- * Action button label (Model name)
- */
 .input-panel__action-label {
     color: var(--color-input-panel-icon);
-    font-size: 12px;
+    font-size: var(--input-panel-action-label-font-size);
     font-weight: var(--input-panel-font-weight);
     white-space: nowrap;
     transition: color var(--input-panel-transition-fast) var(--input-panel-ease-in-out);
@@ -380,34 +314,23 @@
     color: var(--color-input-panel-icon-hover);
 }
 
-/**
- * Chevron icon in dropdown button
- */
 .input-panel__action-chevron {
-    width: 10px;
-    height: 10px;
+    width: var(--input-panel-action-chevron-size);
+    height: var(--input-panel-action-chevron-size);
     flex-shrink: 0;
     pointer-events: none;
-    /* Apply gray color to SVG */
-    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-input-panel-muted);
     transition: filter var(--input-panel-transition-fast) var(--input-panel-ease-in-out);
 }
 
 .input-panel__action-btn--dropdown:hover .input-panel__action-chevron {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-input-panel-hover);
 }
 
 /* ============================================================================
    TOGGLE BUTTON (AUTO-APPROVE)
    ============================================================================ */
 
-/**
- * Auto-approve toggle button
- * - Shows different icon based on state
- * - Toggles between enabled/disabled
- * - Yellow overlay when enabled
- */
 .input-panel__action-btn--toggle[data-state="disabled"] .input-panel__action-icon--auto-approve-disabled {
     display: block;
 }
@@ -424,37 +347,26 @@
     display: block;
 }
 
-/**
- * Yellow overlay when auto-approve is enabled
- * - Strong yellow tint to indicate active state
- */
 .input-panel__action-btn--toggle[data-state="enabled"] {
-    background-color: rgba(255, 193, 7, 0.15);
+    background-color: var(--color-auto-approve-enabled-bg);
 }
 
 .input-panel__action-btn--toggle[data-state="enabled"]:hover {
-    background-color: rgba(255, 193, 7, 0.25);
+    background-color: var(--color-auto-approve-enabled-hover-bg);
 }
 
 .input-panel__action-btn--toggle[data-state="enabled"] .input-panel__action-icon--auto-approve-enabled {
-    /* Apply yellow color filter to the enabled icon */
-    filter: invert(78%) sepia(58%) saturate(429%) hue-rotate(359deg) brightness(103%) contrast(101%);
+    filter: var(--filter-auto-approve-enabled);
 }
 
 .input-panel__action-btn--toggle[data-state="enabled"]:hover .input-panel__action-icon--auto-approve-enabled {
-    /* Brighter yellow on hover */
-    filter: invert(88%) sepia(58%) saturate(629%) hue-rotate(359deg) brightness(103%) contrast(101%);
+    filter: var(--filter-auto-approve-enabled-hover);
 }
 
 /* ============================================================================
    SEND BUTTON
    ============================================================================ */
 
-/**
- * Send button
- * - Default state: gray icon, no background
- * - Active state (when text is present): blue background, white icon
- */
 .input-panel__action-btn--send {
     /* Default state - no background */
 }
@@ -463,77 +375,49 @@
     background-color: rgba(255, 255, 255, 0.08);
 }
 
-/**
- * Active state - when message is ready to send
- * - Hard blue background overlay
- * - Hard white icon
- */
 .input-panel__action-btn--send.active {
-    background-color: #0003a6;
+    background-color: var(--color-send-active-bg);
 }
 
 .input-panel__action-btn--send.active:hover {
-    background-color: #0004ff;
+    background-color: var(--color-send-active-hover-bg);
 }
 
 .input-panel__action-btn--send.active .input-panel__action-icon {
-    /* Hard white color */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-input-panel-hover);
 }
 
 /* ============================================================================
    RESPONSIVE ADJUSTMENTS
    ============================================================================ */
 
-/**
- * Adjust input panel positioning for different screen sizes
- */
 @media (max-width: 1024px) {
-    .input-panel {
-        left: 240px;
-        margin: 0 24px;
+    :root {
+        --input-panel-left: 240px;
+        --input-panel-margin: 0 24px;
     }
 }
 
-/**
- * For narrow viewports, reduce padding and gaps
- */
 @media (max-width: 768px) {
     :root {
         --input-panel-padding-horizontal: 12px;
         --input-panel-padding-vertical: 10px;
         --input-panel-gap: 8px;
         --input-panel-bottom-offset: 16px;
-    }
-    
-    .input-panel {
-        left: 240px;
-        margin: 0 16px;
-    }
-    
-    .input-panel__left-actions,
-    .input-panel__right-actions {
-        gap: 6px;
-    }
-    
-    /* Hide some buttons on very small screens if needed */
-    .input-panel__action-btn:not(.input-panel__action-btn--send):not(#input-attach) {
-        /* Can optionally hide non-essential buttons */
+        --input-panel-left: 240px;
+        --input-panel-margin: 0 16px;
+        --input-panel-btn-group-gap: 6px;
     }
 }
 
-/**
- * For very narrow viewports (mobile), stack or hide some elements
- */
 @media (max-width: 480px) {
-    .input-panel {
-        left: 12px;
-        right: 0;
-        margin: 0 12px;
+    :root {
+        --input-panel-left: 12px;
+        --input-panel-margin: 0 12px;
     }
     
-    /* Hide text in model selector dropdown on mobile */
     .input-panel__action-label {
         display: none;
     }
 }
+

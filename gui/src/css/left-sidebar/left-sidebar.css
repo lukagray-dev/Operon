@@ -1,65 +1,87 @@
 /**
  * Left Sidebar Component Styles
  * 
- * This file contains all styles for the left sidebar component including:
- * - Main sidebar container with resizing functionality
- * - Top action buttons (New chat, Search, Plugins)
- * - Collapsible sections (Projects, Chats)
- * - Project groups with nested chats
- * - Standalone chat items
- * - Bottom settings button
- * - Resize handle
+ * Hello friend! Welcome to the styles for the Left Sidebar component.
+ * This component handles the sidebar navigation on the left of our app. It includes:
+ * - A resizable main container (.left-sidebar)
+ * - Top actions like starting a New Chat or searching (.left-sidebar__top)
+ * - Collapsible sections like Projects and Chats (.left-sidebar__section)
+ * - Project items that can be expanded or collapsed to show nested chats (.left-sidebar__project)
+ * - Individual chat items (.left-sidebar__chat-item)
+ * - A handle on the right edge you can drag to resize the sidebar (.left-sidebar__resize-handle)
  * 
- * The sidebar uses the same dark theme as the titlebar for visual consistency.
+ * All configuration options, from colors to dimensions, are defined as CSS variables
+ * in the :root selector below. This makes our design system clean and easy to maintain!
  */
 
 /* ============================================================================
-   LEFT SIDEBAR COLOR TOKENS
+   LEFT SIDEBAR COLOR AND DESIGN TOKENS
    ============================================================================ */
 
 :root {
-    /* Sidebar colors - matching titlebar color scheme */
-    --color-sidebar-bg: #0e0e0e;                   /* Sidebar background color (same as titlebar) */
+    /* Sidebar colors - matches the dark titlebar color scheme */
+    --color-sidebar-bg: #0e0e0e;                   /* Sidebar background color (dark gray/black) */
     --color-sidebar-items: #9e9e9e;                /* Default text and icon color for sidebar items */
-    --color-sidebar-item-hover: #ffffff;           /* Hover state color for all sidebar items */
-    --color-sidebar-item-active: #ffffff;          /* Active/selected item color */
-    --color-sidebar-item-active-bg: rgba(255, 255, 255, 0.08);  /* Active item background */
-    --color-sidebar-section-header: #6e6e6e;       /* Muted color for section headers (Projects, Chats) */
-    --color-sidebar-separator: #333333;            /* Separator line color */
-    --color-sidebar-resize-handle: #333333;        /* Resize handle color */
-    --color-sidebar-resize-handle-hover: #4a4a4a;  /* Resize handle hover color */
+    --color-sidebar-item-hover: #ffffff;           /* Color when you hover over sidebar items */
+    --color-sidebar-item-active: #ffffff;          /* Color of the active/selected sidebar item */
+    --color-sidebar-item-active-bg: rgba(255, 255, 255, 0.08);  /* Background color for the active item */
+    --color-sidebar-section-header: #6e6e6e;       /* Text color for section titles like "Projects" or "Chats" */
+    --color-sidebar-separator: #333333;            /* Color of the lines dividing sections */
+    --color-sidebar-resize-handle: #333333;        /* Base color of the resize handle line */
+    --color-sidebar-resize-handle-hover: #4a4a4a;  /* Color of the resize handle when hovered or dragged */
     
     /* Sidebar layout dimensions */
-    --sidebar-width: 280px;                        /* Default width of the sidebar (increased) */
-    --sidebar-min-width: 180px;                    /* Minimum width when resizing */
-    --sidebar-max-width: 400px;                    /* Maximum width when resizing */
-    --sidebar-icon-size: 16px;                     /* Width and height of sidebar icons */
-    --sidebar-resize-handle-width: 4px;            /* Width of the resize handle */
+    --sidebar-width: 280px;                        /* Default starting width of the sidebar */
+    --sidebar-min-width: 180px;                    /* Smallest width you can resize the sidebar to */
+    --sidebar-max-width: 400px;                    /* Largest width you can resize the sidebar to */
+    --sidebar-icon-size: 16px;                     /* Width and height of icons in the sidebar */
+    --sidebar-resize-handle-width: 4px;            /* Width of the clickable resize area on the right edge */
+    --sidebar-scrollbar-width: 6px;                /* Width of the custom scrollbar in the chats list */
+    --sidebar-chevron-size: 12px;                  /* Size of the arrow icons indicating collapsible areas */
+    --sidebar-project-icon-size: 14px;             /* Size of folder icons for projects */
+    --sidebar-project-chevron-size: 12px;          /* Size of the project collapse/expand chevron */
     
-    /* Sidebar spacing */
-    --sidebar-padding-vertical: 4px;               /* Vertical padding for sections */
-    --sidebar-padding-horizontal: 8px;            /* Horizontal padding for items */
-    --sidebar-item-gap: 2px;                       /* Gap between sidebar items */
-    --sidebar-section-gap: 1px;                   /* Gap between major sections */
-    --sidebar-nested-indent: 24px;                 /* Indentation for nested items (chats under projects) */
+    /* Sidebar spacing (margins, padding, and gaps) */
+    --sidebar-padding-vertical: 4px;               /* Spacing at the top/bottom of list sections */
+    --sidebar-padding-horizontal: 8px;            /* Spacing on the left/right edges of sidebar items */
+    --sidebar-item-gap: 2px;                       /* Vertical spacing between individual list items */
+    --sidebar-section-gap: 1px;                   /* Gap between major modules */
+    --sidebar-nested-indent: 24px;                 /* How far nested chats under projects are indented */
+    --sidebar-action-gap: 10px;                    /* Gap between icon and text in top action buttons */
+    --sidebar-action-padding-vertical: 8px;        /* Vertical padding for top action buttons */
+    --sidebar-section-toggle-gap: 8px;             /* Gap in the collapsible section toggle buttons */
+    --sidebar-section-toggle-padding-vertical: 6px;/* Vertical padding for section header toggles */
+    --sidebar-project-margin-bottom: 8px;          /* Bottom margin separating projects */
+    --sidebar-project-toggle-gap: 8px;             /* Gap inside the project row toggles */
+    --sidebar-project-toggle-padding: 6px 8px;     /* Padding inside the project toggles */
+    --sidebar-chat-item-gap: 8px;                  /* Gap inside chat list items */
+    --sidebar-chat-item-padding: 6px 8px;          /* Padding inside chat list items */
+    --sidebar-chat-item-margin-vertical: 2px;      /* Vertical spacing between chat list items */
     
     /* Sidebar border radius */
-    --sidebar-radius-sm: 4px;                      /* Small border radius for items */
+    --sidebar-radius-sm: 4px;                      /* Subtle rounding on buttons and lists */
+    --sidebar-scrollbar-radius: 3px;               /* Rounding on scrollbar thumb */
     
-    /* Sidebar animations */
-    --sidebar-transition-fast: 100ms;              /* Fast transition for hover states */
-    --sidebar-transition-normal: 200ms;            /* Normal transition for section toggles */
-    --sidebar-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --sidebar-ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    /* Sidebar animations and easing curves */
+    --sidebar-transition-fast: 100ms;              /* Speed of hover effects (transitions) */
+    --sidebar-transition-normal: 200ms;            /* Speed of section expand/collapse animations */
+    --sidebar-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* Standard smooth transition easing */
+    --sidebar-ease-out: cubic-bezier(0.0, 0, 0.2, 1);    /* Decelerated easing for animations opening up */
     
-    /* Sidebar typography */
-    --sidebar-font-size-base: 13px;                /* Base font size for sidebar items */
-    --sidebar-font-size-sm: 12px;                  /* Small font size for nested items */
-    --sidebar-font-weight-regular: 400;            /* Regular font weight */
-    --sidebar-font-weight-medium: 500;             /* Medium font weight for section headers */
+    /* Sidebar typography (fonts) */
+    --sidebar-font-size-base: 13px;                /* Main font size for primary sidebar items */
+    --sidebar-font-size-sm: 12px;                  /* Font size for sub-items and nested chats */
+    --sidebar-font-weight-regular: 400;            /* Default text thickness */
+    --sidebar-font-weight-medium: 500;             /* Bolder text thickness for headers */
     
-    /* Sidebar z-index */
-    --sidebar-z-index: 900;                        /* Z-index for sidebar (below titlebar dropdowns) */
+    /* Sidebar z-index (stacking order) */
+    --sidebar-z-index: 900;                        /* Positions sidebar above main content, below titlebar */
+    
+    /* Color filter tokens for SVG icons - allows us to recolor black/dark SVGs dynamically */
+    --filter-sidebar-muted: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    --filter-sidebar-hover: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    --filter-sidebar-active: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    --filter-sidebar-section-header: invert(43%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
 }
 
 /* ============================================================================
@@ -67,9 +89,9 @@
    ============================================================================ */
 
 /**
- * Main app container
- * - Flexbox layout for sidebar and main content
- * - Accounts for titlebar height
+ * #app is the main wrapper of our application.
+ * It uses flexbox to arrange the sidebar on the left and the main chat area on the right.
+ * It accounts for the titlebar height at the top to prevent overlapping.
  */
 #app {
     display: flex;
@@ -84,12 +106,9 @@
    ============================================================================ */
 
 /**
- * Left sidebar container
- * - Fixed width (resizable)
- * - Dark background matching titlebar
- * - Flexbox layout for vertical arrangement
- * - Prevents window dragging (Tauri specific)
- * - Animates width when toggled
+ * .left-sidebar is the parent container on the left side of the window.
+ * - Width is set using a variable, and bounds are protected with min-width and max-width.
+ * - Tauri's 'no-drag' property is applied to allow clicking/dragging elements inside without moving the window.
  */
 .left-sidebar {
     position: relative;
@@ -102,7 +121,6 @@
     flex-direction: column;
     flex-shrink: 0;
     user-select: none;
-    /* Prevent window dragging on sidebar */
     -webkit-app-region: no-drag;
     z-index: var(--sidebar-z-index);
     transition: width 200ms ease-in-out, min-width 200ms ease-in-out;
@@ -110,9 +128,8 @@
 }
 
 /**
- * Sidebar closed state
- * - Collapses to minimal width
- * - Hides content
+ * When the user closes the sidebar (controlled by a body class in JS),
+ * we collapse its width to 0.
  */
 body.sidebar-closed .left-sidebar {
     width: 0;
@@ -120,7 +137,7 @@ body.sidebar-closed .left-sidebar {
 }
 
 /**
- * Hide sidebar content when closed
+ * Hide all child items immediately when the sidebar is collapsed.
  */
 body.sidebar-closed .left-sidebar > * {
     opacity: 0;
@@ -128,7 +145,7 @@ body.sidebar-closed .left-sidebar > * {
 }
 
 /**
- * Adjust input panel position when sidebar is closed
+ * Shift the floating input panel to the left edge when the sidebar is closed.
  */
 body.sidebar-closed .input-panel {
     left: 0;
@@ -139,9 +156,8 @@ body.sidebar-closed .input-panel {
    ============================================================================ */
 
 /**
- * Top section container for action buttons
- * - Contains New chat, Search, and Plugins buttons
- * - Vertical arrangement with consistent spacing
+ * .left-sidebar__top houses action buttons like 'New Chat' at the top of the sidebar.
+ * It has a subtle bottom border dividing it from the lists.
  */
 .left-sidebar__top {
     display: flex;
@@ -155,18 +171,15 @@ body.sidebar-closed .input-panel {
 }
 
 /**
- * Action button base styles
- * - Horizontal layout with icon and text
- * - Full width with left alignment
- * - Hover and active states for feedback
- * - Aligned with section headers (Projects, Chats)
+ * Actions inside the sidebar top area.
+ * Full width, centered text, with smooth color transitions on hover.
  */
 .left-sidebar__action-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sidebar-action-gap);
     width: 100%;
-    padding: 8px 0;
+    padding: var(--sidebar-action-padding-vertical) 0;
     margin: 0 var(--sidebar-padding-horizontal);
     color: var(--color-sidebar-items);
     font-size: var(--sidebar-font-size-base);
@@ -187,34 +200,25 @@ body.sidebar-closed .input-panel {
 }
 
 /**
- * Action button icons
- * - Fixed size for consistency
- * - Color filter to apply token colors
+ * Action button icons. We use filters to transition color smoothly.
  */
 .left-sidebar__action-icon {
     width: var(--sidebar-icon-size);
     height: var(--sidebar-icon-size);
     flex-shrink: 0;
     pointer-events: none;
-    /* Apply gray color to SVG icons */
-    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-sidebar-muted);
 }
 
 .left-sidebar__action-btn:hover .left-sidebar__action-icon {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-sidebar-hover);
 }
 
 .left-sidebar__action-btn:active .left-sidebar__action-icon,
 .left-sidebar__action-btn.active .left-sidebar__action-icon {
-    /* White color when active */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-sidebar-active);
 }
 
-/**
- * Action button text
- * - Allows text to wrap if needed
- */
 .left-sidebar__action-text {
     flex: 1;
     white-space: nowrap;
@@ -227,10 +231,7 @@ body.sidebar-closed .input-panel {
    ============================================================================ */
 
 /**
- * Main content area (scrollable)
- * - Contains Projects and Chats sections
- * - Custom scrollbar styling for dark theme
- * - Prevent overscroll/rubber-band effect
+ * The middle section of the sidebar which holds scrollable lists of projects and chats.
  */
 .left-sidebar__content {
     flex: 1;
@@ -241,11 +242,10 @@ body.sidebar-closed .input-panel {
 }
 
 /**
- * Custom scrollbar styling
- * - Thin, minimalist scrollbar matching dark theme
+ * Thin scrollbar for a clean, minimalist UI.
  */
 .left-sidebar__content::-webkit-scrollbar {
-    width: 6px;
+    width: var(--sidebar-scrollbar-width);
 }
 
 .left-sidebar__content::-webkit-scrollbar-track {
@@ -254,7 +254,7 @@ body.sidebar-closed .input-panel {
 
 .left-sidebar__content::-webkit-scrollbar-thumb {
     background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: var(--sidebar-scrollbar-radius);
 }
 
 .left-sidebar__content::-webkit-scrollbar-thumb:hover {
@@ -265,33 +265,23 @@ body.sidebar-closed .input-panel {
    SECTION COMPONENTS (Projects, Chats)
    ============================================================================ */
 
-/**
- * Section container
- * - Spacing between sections
- */
 .left-sidebar__section {
     margin-bottom: var(--sidebar-section-gap);
 }
 
-/**
- * Section header container
- */
 .left-sidebar__section-header {
     padding: 0 var(--sidebar-padding-horizontal);
 }
 
 /**
- * Section toggle button
- * - Contains icon, title, and chevron (on right)
- * - Full width with left alignment
- * - Collapses/expands section content
+ * Toggle button for collapsible lists (e.g. collapse all Projects).
  */
 .left-sidebar__section-toggle {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sidebar-section-toggle-gap);
     width: 100%;
-    padding: 6px 0;
+    padding: var(--sidebar-section-toggle-padding-vertical) 0;
     color: var(--color-sidebar-section-header);
     font-size: var(--sidebar-font-size-base);
     font-weight: var(--sidebar-font-weight-medium);
@@ -304,63 +294,45 @@ body.sidebar-closed .input-panel {
 }
 
 /**
- * Section chevron icon
- * - Positioned on the right side
- * - Rotates to indicate expanded/collapsed state
- * - Fixed size for consistency
+ * Chevron icon indicating section expansion/collapse.
  */
 .left-sidebar__section-chevron {
-    width: 12px;
-    height: 12px;
+    width: var(--sidebar-chevron-size);
+    height: var(--sidebar-chevron-size);
     flex-shrink: 0;
     margin-left: auto;
     pointer-events: none;
-    /* Apply muted gray color to SVG */
-    filter: invert(43%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-sidebar-section-header);
     transition: transform var(--sidebar-transition-normal) var(--sidebar-ease-out);
 }
 
 .left-sidebar__section-toggle:hover .left-sidebar__section-chevron {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-sidebar-hover);
 }
 
-/**
- * Rotate chevron when section is collapsed
- */
 .left-sidebar__section-toggle.collapsed .left-sidebar__section-chevron {
     transform: rotate(-90deg);
 }
 
-/**
- * Section icon
- * - Fixed size for consistency
- */
 .left-sidebar__section-icon {
     width: var(--sidebar-icon-size);
     height: var(--sidebar-icon-size);
     flex-shrink: 0;
     pointer-events: none;
-    /* Apply muted gray color to SVG */
-    filter: invert(43%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-sidebar-section-header);
 }
 
 .left-sidebar__section-toggle:hover .left-sidebar__section-icon {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-sidebar-hover);
 }
 
-/**
- * Section title text
- */
 .left-sidebar__section-title {
     flex: 1;
 }
 
 /**
- * Section content container
- * - Contains list of items (projects or chats)
- * - Smooth height animation for collapse/expand
+ * Container that actually holds the section items.
+ * Uses max-height for CSS transitions when collapsing/expanding.
  */
 .left-sidebar__section-content {
     overflow: hidden;
@@ -370,9 +342,6 @@ body.sidebar-closed .input-panel {
     opacity: 1;
 }
 
-/**
- * Collapsed state - hide content
- */
 .left-sidebar__section-content.collapsed {
     max-height: 0;
     opacity: 0;
@@ -382,29 +351,23 @@ body.sidebar-closed .input-panel {
    PROJECT ITEMS
    ============================================================================ */
 
-/**
- * Project group container
- * - Contains project header and nested chats
- */
 .left-sidebar__project {
-    margin-bottom: 8px;
+    margin-bottom: var(--sidebar-project-margin-bottom);
 }
 
-/**
- * Project header/toggle button
- * - Similar to section toggle but for individual projects
- * - Contains folder icon, project name, and chevron (on right)
- */
 .left-sidebar__project-header {
     padding: 0 var(--sidebar-padding-horizontal);
 }
 
+/**
+ * Clicking the project header expands/collapses the nested chats within it.
+ */
 .left-sidebar__project-toggle {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sidebar-project-toggle-gap);
     width: 100%;
-    padding: 6px 8px;
+    padding: var(--sidebar-project-toggle-padding);
     color: var(--color-sidebar-items);
     font-size: var(--sidebar-font-size-base);
     font-weight: var(--sidebar-font-weight-regular);
@@ -419,54 +382,36 @@ body.sidebar-closed .input-panel {
     background-color: rgba(255, 255, 255, 0.04);
 }
 
-/**
- * Project folder icon
- * - Slightly smaller than standard icon size for better visual balance
- */
 .left-sidebar__project-icon {
-    width: 14px;
-    height: 14px;
+    width: var(--sidebar-project-icon-size);
+    height: var(--sidebar-project-icon-size);
     flex-shrink: 0;
     pointer-events: none;
-    /* Apply gray color to SVG */
-    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-sidebar-muted);
 }
 
 .left-sidebar__project-toggle:hover .left-sidebar__project-icon {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-sidebar-hover);
 }
 
-/**
- * Project chevron - indicates expanded/collapsed state
- * - Positioned on the right side
- */
 .left-sidebar__project-chevron {
-    width: 12px;
-    height: 12px;
+    width: var(--sidebar-project-chevron-size);
+    height: var(--sidebar-project-chevron-size);
     flex-shrink: 0;
     margin-left: auto;
     pointer-events: none;
-    /* Apply gray color to SVG */
-    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-sidebar-muted);
     transition: transform var(--sidebar-transition-normal) var(--sidebar-ease-out);
 }
 
 .left-sidebar__project-toggle:hover .left-sidebar__project-chevron {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-sidebar-hover);
 }
 
-/**
- * Rotate chevron when project is collapsed
- */
 .left-sidebar__project-toggle.collapsed .left-sidebar__project-chevron {
     transform: rotate(-90deg);
 }
 
-/**
- * Project name text
- */
 .left-sidebar__project-name {
     flex: 1;
     white-space: nowrap;
@@ -475,9 +420,8 @@ body.sidebar-closed .input-panel {
 }
 
 /**
- * Project chats container
- * - Contains list of chats under this project
- * - Indented to show hierarchy
+ * Nested chat list belonging to a project group.
+ * Placed in an indented block.
  */
 .left-sidebar__project-chats {
     overflow: hidden;
@@ -488,9 +432,6 @@ body.sidebar-closed .input-panel {
     opacity: 1;
 }
 
-/**
- * Collapsed state - hide project chats
- */
 .left-sidebar__project-chats.collapsed {
     max-height: 0;
     opacity: 0;
@@ -501,18 +442,15 @@ body.sidebar-closed .input-panel {
    ============================================================================ */
 
 /**
- * Chat item button
- * - Can be standalone or nested under a project
- * - Full width with left alignment
- * - Hover and active states
+ * Standard chat thread list items inside the sidebar.
  */
 .left-sidebar__chat-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sidebar-chat-item-gap);
     width: 100%;
-    padding: 6px 8px;
-    margin: 2px var(--sidebar-padding-horizontal);
+    padding: var(--sidebar-chat-item-padding);
+    margin: var(--sidebar-chat-item-margin-vertical) var(--sidebar-padding-horizontal);
     color: var(--color-sidebar-items);
     font-size: var(--sidebar-font-size-sm);
     font-weight: var(--sidebar-font-weight-regular);
@@ -533,10 +471,6 @@ body.sidebar-closed .input-panel {
     background-color: var(--color-sidebar-item-active-bg);
 }
 
-/**
- * Chat item text
- * - Single line with ellipsis overflow
- */
 .left-sidebar__chat-text {
     flex: 1;
     white-space: nowrap;
@@ -548,11 +482,6 @@ body.sidebar-closed .input-panel {
    BOTTOM SECTION (Settings)
    ============================================================================ */
 
-/**
- * Bottom section container
- * - Fixed to bottom of sidebar
- * - Contains settings button
- */
 .left-sidebar__bottom {
     display: flex;
     flex-direction: column;
@@ -568,10 +497,8 @@ body.sidebar-closed .input-panel {
    ============================================================================ */
 
 /**
- * Resize handle
- * - Vertical bar on right edge of sidebar
- * - Drag to resize sidebar width
- * - Visual feedback on hover
+ * An invisible resize bar positioned along the right boundary of the sidebar.
+ * Hovering or clicking reveals a subtle line indicating it can be dragged.
  */
 .left-sidebar__resize-handle {
     position: absolute;
@@ -589,9 +516,6 @@ body.sidebar-closed .input-panel {
     background-color: var(--color-sidebar-resize-handle-hover);
 }
 
-/**
- * Active state when dragging
- */
 .left-sidebar__resize-handle.resizing {
     background-color: var(--color-sidebar-resize-handle-hover);
 }
@@ -600,11 +524,6 @@ body.sidebar-closed .input-panel {
    MAIN CONTENT AREA
    ============================================================================ */
 
-/**
- * Main content container
- * - Takes remaining space after sidebar
- * - Background color from global tokens
- */
 .main-content {
     flex: 1;
     overflow: auto;
@@ -616,7 +535,7 @@ body.sidebar-closed .input-panel {
    ============================================================================ */
 
 /**
- * For narrow viewports, reduce sidebar width
+ * Adjust values dynamically when the viewport width drops below 768px.
  */
 @media (max-width: 768px) {
     :root {
@@ -628,3 +547,4 @@ body.sidebar-closed .input-panel {
         font-size: var(--sidebar-font-size-sm);
     }
 }
+

@@ -22,10 +22,10 @@
 
 /**
  * Relative URL path to the settings icon folder.
- * Adjust this if the HTML is served from a different root.
+ * This is relative to the index.html served root (gui/src/index.html).
  * @type {string}
  */
-const ICON_BASE = '../assets/icons/settings/';
+const ICON_BASE = './assets/icons/settings/';
 
 // ── Builder ───────────────────────────────────────────────────────────────────
 

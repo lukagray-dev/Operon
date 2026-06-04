@@ -49,7 +49,7 @@ function buildAboutPageContent() {
       <!-- ── Hero Card ─────────────────────────────────────────────────── -->
       <div class="settings-about-hero">
         <div class="settings-about-hero__logo">
-          <img src="../assets/icons/settings/logo.svg" width="44" height="44" alt="">
+          <img src="./assets/icons/settings/about-operon.svg" width="44" height="44" alt="">
         </div>
         <div class="settings-about-hero__name">Operon</div>
         <div class="settings-about-hero__version" id="about-version-line">
@@ -65,13 +65,13 @@ function buildAboutPageContent() {
       <!-- ── External Links ─────────────────────────────────────────────── -->
       <div class="settings-about-links">
         <a href="https://github.com/operon-ai/operon" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/icons/settings/github.svg" width="14" height="14" alt=""> GitHub
+          <img src="./assets/icons/settings/github.svg" width="14" height="14" alt=""> GitHub
         </a>
         <a href="https://docs.operon.ai" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/icons/settings/docs.svg" width="14" height="14" alt=""> Documentation
+          <img src="./assets/icons/settings/about-documentation.svg" width="14" height="14" alt=""> Documentation
         </a>
         <a href="https://github.com/operon-ai/operon/issues" target="_blank" rel="noopener noreferrer">
-          <img src="../assets/icons/settings/bug.svg" width="14" height="14" alt=""> Report Issue
+          <img src="./assets/icons/settings/about-report-issue.svg" width="14" height="14" alt=""> Report Issue
         </a>
       </div>
     </div>
@@ -147,16 +147,17 @@ function buildInfoGrid(info) {
 
 /**
  * Returns an <img> tag for an icon from the settings icons directory.
+ * Path is resolved relative to index.html using './assets/icons/settings/'.
  * @param {string} name - Icon name without extension
  * @param {number} size - Icon size in pixels
  * @returns {string} HTML img tag
  */
 function icon(name, size = 14) {
-  return `<img src="../assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
+  return `<img src="./assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
 }
 
 function buildLogoSvg() {
-  return icon('logo', 44);
+  return icon('about-operon', 44);
 }
 
 function githubIcon() {
@@ -164,11 +165,11 @@ function githubIcon() {
 }
 
 function docsIcon() {
-  return icon('docs', 14);
+  return icon('about-documentation', 14);
 }
 
 function bugIcon() {
-  return icon('bug', 14);
+  return icon('about-report-issue', 14);
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────

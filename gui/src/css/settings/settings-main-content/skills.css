@@ -1,141 +1,369 @@
 /**
- * skills.css
- *
- * Styles for the Skills settings page (Browse + Installed tabs).
- * Covers: search toolbar, skill cards, install/uninstall actions.
+ * Skills Settings Page Styles
+ * 
+ * This file contains all styles for the Skills settings page including:
+ * - Tab navigation (Browse / Installed)
+ * - Search toolbar with input field
+ * - Skill card list with expandable items
+ * - Skill metadata (author, version, summary)
+ * - Install/Uninstall action buttons
+ * - Status badges and loading states
+ * 
+ * Skills are reusable agent capabilities that can be discovered,
+ * installed, and managed from this page.
  */
 
-/* ── Tabs are shared (.settings-tabs / .settings-tabs__item) ─────────────────
-   Defined in settings-panel.css — no duplication needed here.           ─── */
+/* ============================================================================
+   SKILLS PAGE TOKENS (ORGANIZATION & VARIABLES)
+   ============================================================================ */
 
-/* ── Panel container inside tab body ────────────────────────────────────────── */
+:root {
+    /* ============================================================================
+       COLOR TOKENS
+       ============================================================================ */
+    /* Search toolbar colors */
+    --color-skills-search-bg: #1a1a1a;             /* Search input background */
+    --color-skills-search-border: rgba(255, 255, 255, 0.10);  /* Input border */
+    --color-skills-search-icon: #555;              /* Search icon color */
 
-.settings-skills__panel {
-  margin-top: 4px;
+    /* Filter for search icon SVG image */
+    --filter-skills-search-icon: invert(33%);      /* Color filter to convert black search icon to muted gray (#555) */
+    --color-skills-search-text: #d0d0d0;           /* Input text color */
+    --color-skills-toolbar-title: #888;            /* Toolbar title */
+    
+    /* Skill card colors */
+    --color-skills-card-bg: #0d0d0d;               /* Card background */
+    --color-skills-card-border: rgba(255, 255, 255, 0.07);  /* Card border */
+    --color-skills-card-border-hover: rgba(255, 255, 255, 0.12);  /* Hover border */
+    
+    /* Skill text colors */
+    --color-skills-title: #d8d8d8;                 /* Skill title */
+    --color-skills-meta: #555;                     /* Metadata (author, version) */
+    --color-skills-summary: #888;                  /* Skill description */
+    
+    /* Status message colors */
+    --color-skills-status-bg: #1a1a1a;             /* Status message background */
+    --color-skills-status-border: rgba(255, 255, 255, 0.06);  /* Status border */
+    --color-skills-status-text: #888;              /* Status text */
+
+    /* ============================================================================
+       DIMENSIONS & SPACING
+       ============================================================================ */
+    --skills-border-width-standard: 1px;           /* Standard border thickness */
+    --skills-panel-margin-top: 4px;                /* Space above panel tabs body content */
+    --skills-section-gap: 12px;                    /* Gap between section items (toolbar, list) */
+    --skills-toolbar-gap: 8px;                     /* Gap inside the toolbar row */
+    --skills-search-icon-left: 10px;               /* Left offset of search input icon */
+    --skills-search-icon-size: 14px;               /* Size of search input icon SVG */
+    --skills-search-height: 32px;                  /* Sizing height of search input box */
+    --skills-search-padding: 0 10px 0 34px;        /* Padding inside search text input */
+    --skills-list-gap: 6px;                        /* Spacing between skill items in list */
+    --skills-item-gap: 14px;                       /* Gap inside the individual skill card */
+    --skills-item-padding: 12px 14px;              /* Padding inside individual skill card */
+    --skills-item-title-gap: 8px;                  /* Gap inside title elements row */
+    --skills-item-meta-margin-top: 3px;            /* Gap above metadata text row */
+    --skills-item-summary-margin-top: 5px;          /* Margin above summary text block */
+    --skills-item-actions-padding-top: 2px;        /* Top padding of action buttons container */
+    --skills-status-margin-top: 12px;              /* Space above status messages box */
+    --skills-status-padding: 8px 12px;             /* Padding inside status box */
+
+    /* ============================================================================
+       TYPOGRAPHY
+       ============================================================================ */
+    --skills-toolbar-font-size: 13px;              /* Font size of section title in toolbar */
+    --skills-search-font-size: 13px;               /* Font size inside search input field */
+    --skills-item-title-font-size: 13.5px;         /* Font size of skill title */
+    --skills-item-title-font-weight: 500;          /* Font weight of skill title */
+    --skills-item-meta-font-size: 11.5px;          /* Font size of card metadata */
+    --skills-item-summary-font-size: 12.5px;       /* Font size of skill summary */
+    --skills-item-summary-line-height: 1.5;        /* Line height of summary text */
+    --skills-status-font-size: 12px;               /* Font size inside status messages box */
+
+    /* ============================================================================
+       BORDERS & RADII
+       ============================================================================ */
+    --skills-search-radius: 6px;                   /* Border radius of search text box */
+    --skills-item-radius: 8px;                     /* Border radius of skill card component */
+    --skills-status-radius: 6px;                   /* Border radius of status message box */
+
+    /* ============================================================================
+       TRANSITIONS
+       ============================================================================ */
+    --skills-search-transition: border-color 140ms ease; /* Transition for search input focus */
+    --skills-item-transition: border-color 140ms ease; /* Transition for card hover border border-color */
 }
 
-/* ── Section Wrapper ────────────────────────────────────────────────────────── */
+/* ============================================================================
+   TABS
+   ============================================================================ */
 
+/**
+ * Tabs are shared (.settings-tabs / .settings-tabs__item)
+ * Defined in settings-panel.css — no duplication needed here.
+ */
+
+/* ============================================================================
+   PANEL CONTAINER
+   ============================================================================ */
+
+/**
+ * Skills panel container
+ * - Contains tab body content
+ * - Minimal top margin below tabs
+ */
+.settings-skills__panel {
+  /* Push tab content container down slightly below tabs bar */
+  margin-top: var(--skills-panel-margin-top);
+}
+
+/* ============================================================================
+   SECTION WRAPPER
+   ============================================================================ */
+
+/**
+ * Section container
+ * - Wraps toolbar and skill list
+ * - Vertical flex column layout with consistent spacing
+ */
 .settings-skills__section {
+  /* Lay out search toolbar and list view vertically */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  /* Uniform vertical space spacing */
+  gap: var(--skills-section-gap);
 }
 
-/* ── Toolbar (search bar or installed header row) ───────────────────────────── */
+/* ============================================================================
+   TOOLBAR (SEARCH BAR)
+   ============================================================================ */
 
+/**
+ * Toolbar container
+ * - Contains search input or section title
+ * - Horizontal layout with flexible spacing
+ */
 .settings-skills__toolbar {
+  /* Side-by-side elements arrangement */
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--skills-toolbar-gap);
 }
 
+/**
+ * Toolbar title
+ * - Used in Installed tab instead of search
+ * - Flexible width to fill available space
+ */
 .settings-skills__toolbar-title {
+  /* Stretch to utilize available horizontal area */
   flex: 1;
-  font-size: 13px;
-  color: #888;
+  font-size: var(--skills-toolbar-font-size);
+  color: var(--color-skills-toolbar-title);
 }
 
-/* Search field wrapper (icon + input) */
+/**
+ * Search field wrapper
+ * - Contains search icon and input
+ * - Full width in Browse tab
+ * - Relative positioning for icon placement
+ */
 .settings-skills__search {
+  /* Establishes relative coordinate context for absolute child icon placement */
   position: relative;
+  /* Grow to fill remaining toolbar row spacing */
   flex: 1;
 }
 
+/**
+ * Search icon
+ * - Positioned inside left side of input
+ * - Non-interactive decoration
+ */
 .settings-skills__search-icon {
+  /* Anchor to left side of wrapper */
   position: absolute;
-  left: 10px;
+  left: var(--skills-search-icon-left);
+  /* Center icon vertically inside input field */
   top: 50%;
   transform: translateY(-50%);
-  color: #555;
+  color: var(--color-skills-search-icon);
+  /* Prevent clicks hitting the icon instead of the text box input */
   pointer-events: none;
   display: flex;
   align-items: center;
 }
 
-.settings-skills__search-icon svg {
-  width: 14px;
-  height: 14px;
+/* Specific dimensions for SVG paths inside search icon */
+.settings-skills__search-icon svg,
+.settings-skills__search-icon img {
+  width: var(--skills-search-icon-size);
+  height: var(--skills-search-icon-size);
 }
 
-/* Input inside the search wrapper — 32px high, icon indent */
+.settings-skills__search-icon img {
+  filter: var(--filter-skills-search-icon);
+}
+
+/**
+ * Search input field
+ * - Full width with left padding for icon
+ * - Focus state with accent color border
+ */
 .settings-skills__search-input {
+  /* Expand to fill relative parent width container */
   width: 100%;
-  height: 32px;
-  padding: 0 10px 0 34px;
-  background-color: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 6px;
-  color: #d0d0d0;
-  font-size: 13px;
+  /* Standard height coordinate */
+  height: var(--skills-search-height);
+  /* Specific padding: extra left padding to leave blank space for search icon */
+  padding: var(--skills-search-padding);
+  background-color: var(--color-skills-search-bg);
+  border: var(--skills-border-width-standard) solid var(--color-skills-search-border);
+  border-radius: var(--skills-search-radius);
+  color: var(--color-skills-search-text);
+  font-size: var(--skills-search-font-size);
   font-family: inherit;
-  transition: border-color 140ms ease;
+  /* Animate focus border highlight transition */
+  transition: var(--skills-search-transition);
 }
 
+/* Focus color change behavior */
 .settings-skills__search-input:focus {
+  /* Disable default styling outline ring */
   outline: none;
+  /* Switch border to primary accent color */
   border-color: var(--accent-primary, #4f8ef7);
 }
 
-/* ── Skill List ─────────────────────────────────────────────────────────────── */
+/* ============================================================================
+   SKILL LIST
+   ============================================================================ */
 
+/**
+ * Skill list container
+ * - Vertical flex column of skill cards
+ * - Consistent spacing between cards
+ */
 .settings-skills__list {
+  /* Stack skill cards vertically */
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--skills-list-gap);
 }
 
-/* ── Skill Item Card ─────────────────────────────────────────────────────────── */
+/* ============================================================================
+   SKILL ITEM CARD
+   ============================================================================ */
 
+/**
+ * Individual skill card
+ * - Displays skill info and action buttons
+ * - Horizontal layout: content | actions
+ * - Hover effect for visual feedback
+ */
 .settings-skills__item {
+  /* Align main info column and action buttons row horizontally */
   display: flex;
+  /* Align elements to the top of card layout */
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 12px 14px;
-  background-color: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 8px;
-  transition: border-color 140ms ease;
+  gap: var(--skills-item-gap);
+  padding: var(--skills-item-padding);
+  background-color: var(--color-skills-card-bg);
+  border: var(--skills-border-width-standard) solid var(--color-skills-card-border);
+  border-radius: var(--skills-item-radius);
+  /* Animate border color change when user hovers */
+  transition: var(--skills-item-transition);
 }
 
+/* Card hover interaction */
 .settings-skills__item:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-skills-card-border-hover);
 }
 
-/* Main text content */
+/**
+ * Main skill content (left side)
+ * - Contains title, metadata, and summary
+ * - Flexible width to fill available space
+ */
 .settings-skills__item-main {
+  /* Take up all the left-hand space */
   flex: 1;
+  /* Prevent text wrapping issues */
   min-width: 0;
 }
 
+/**
+ * Skill title row
+ * - Contains skill name and optional badges
+ * - Horizontal layout with wrapping support
+ */
 .settings-skills__item-title {
+  /* Title and badges horizontally */
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #d8d8d8;
+  gap: var(--skills-item-title-gap);
+  font-size: var(--skills-item-title-font-size);
+  font-weight: var(--skills-item-title-font-weight);
+  color: var(--color-skills-title);
+  /* Allow badges to wrap to next line if title is extremely long */
   flex-wrap: wrap;
 }
 
+/**
+ * Skill metadata
+ * - Displays author, version, download count, etc.
+ * - Small, muted text below title
+ */
 .settings-skills__item-meta {
-  margin-top: 3px;
-  font-size: 11.5px;
-  color: #555;
+  /* Add breathing gap below title above */
+  margin-top: var(--skills-item-meta-margin-top);
+  font-size: var(--skills-item-meta-font-size);
+  color: var(--color-skills-meta);
 }
 
+/**
+ * Skill summary/description
+ * - Short description of what the skill does
+ * - Multi-line with good line height for readability
+ */
 .settings-skills__item-summary {
-  margin-top: 5px;
-  font-size: 12.5px;
-  color: #888;
-  line-height: 1.5;
+  /* Separate summary block from metadata above */
+  margin-top: var(--skills-item-summary-margin-top);
+  font-size: var(--skills-item-summary-font-size);
+  color: var(--color-skills-summary);
+  /* Increased line height for clear reading comfort */
+  line-height: var(--skills-item-summary-line-height);
 }
 
-/* Action buttons column on the right */
+/**
+ * Skill action buttons (right side)
+ * - Contains Install, Uninstall, Configure buttons
+ * - Vertical alignment at top of card
+ */
 .settings-skills__item-actions {
   display: flex;
   align-items: flex-start;
   flex-shrink: 0;
-  padding-top: 2px;
+  /* Fine-tune action buttons vertical alignment alignment */
+  padding-top: var(--skills-item-actions-padding-top);
 }
+
+/* ============================================================================
+   STATUS MESSAGES
+   ============================================================================ */
+
+/**
+ * Status message box
+ * - Displays feedback messages for skill operations
+ * - Muted styling to not distract from main content
+ */
+.settings-skills__status {
+  margin-top: var(--skills-status-margin-top);
+  padding: var(--skills-status-padding);
+  background-color: var(--color-skills-status-bg);
+  border: var(--skills-border-width-standard) solid var(--color-skills-status-border);
+  border-radius: var(--skills-status-radius);
+  font-size: var(--skills-status-font-size);
+  color: var(--color-skills-status-text);
+}
+

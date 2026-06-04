@@ -38,19 +38,19 @@ import {
  * @type {Object<string, string>}
  */
 const PROVIDER_ICON_PATHS = {
-  openai:     '../assets/icons/provider-openai.svg',
-  anthropic:  '../assets/icons/provider-anthropic.svg',
-  google:     '../assets/icons/provider-google.svg',
-  groq:       '../assets/icons/provider-groq.svg',
-  openrouter: '../assets/icons/provider-openrouter.svg',
-  deepseek:   '../assets/icons/provider-deepseek.svg',
-  moonshot:   '../assets/icons/provider-moonshot.svg',
-  mistral:    '../assets/icons/provider-mistral.svg',
-  huggingface:'../assets/icons/provider-huggingface.svg',
-  ollama:     '../assets/icons/provider-ollama.svg',
-  qwen:       '../assets/icons/provider-qwen.svg',
-  nvidia:     '../assets/icons/provider-nvidia.svg',
-  custom:     '../assets/icons/provider-custom.svg',
+  openai:     './assets/icons/settings/provider-openai.svg',
+  anthropic:  './assets/icons/settings/provider-anthropic.svg',
+  google:     './assets/icons/settings/provider-google.svg',
+  groq:       './assets/icons/settings/provider-groq.svg',
+  openrouter: './assets/icons/settings/provider-openrouter.svg',
+  deepseek:   './assets/icons/settings/provider-deepseek.svg',
+  moonshot:   './assets/icons/settings/provider-moonshot.svg',
+  mistral:    './assets/icons/settings/provider-mistral.svg',
+  huggingface:'./assets/icons/settings/provider-huggingface.svg',
+  ollama:     './assets/icons/settings/provider-ollama.svg',
+  qwen:       './assets/icons/settings/provider-qwen.svg',
+  nvidia:     './assets/icons/settings/provider-nvidia.svg',
+  custom:     './assets/icons/settings/provider-custom.svg',
 };
 
 // ── Transient Module State ────────────────────────────────────────────────────

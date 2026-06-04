@@ -35,7 +35,7 @@ import {
  * @returns {string} HTML img tag
  */
 function icon(name, size = 14) {
-  return `<img src="../assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
+  return `<img src="./assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
 }
 
 // ── Transient Module State ────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ function renderExtensionsDownloadedTab() {
         <button class="btn btn--ghost btn--sm" type="button"
                 data-extensions-refresh-tab="downloaded"
                 ${loading ? 'disabled' : ''}>
-          ${icon('rotate', 14)} Refresh
+          ${icon('refresh', 14)} Refresh
         </button>
       </div>
       ${content}
@@ -336,7 +336,7 @@ function renderExtensionsInstalledTab() {
         <button class="btn btn--ghost btn--sm" type="button"
                 data-extensions-refresh-tab="installed"
                 ${loading ? 'disabled' : ''}>
-          ${icon('rotate', 14)} Refresh
+          ${icon('refresh', 14)} Refresh
         </button>
       </div>
       ${content}

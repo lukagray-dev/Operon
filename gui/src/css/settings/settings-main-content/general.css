@@ -1,84 +1,231 @@
 /**
- * general.css
- *
- * Styles for the General settings page.
- * Most layout is handled by the shared .settings-row from settings-panel.css.
- * This file covers the "About" section that appears at the bottom of General.
+ * General Settings Page Styles
+ * 
+ * This file contains all styles for the General settings page including:
+ * - Basic application settings (auto-launch, telemetry, etc.)
+ * - Language and region preferences
+ * - Update settings
+ * - About section at bottom showing app info
+ * - Title separator for dynamic page titles
+ * 
+ * Most layout is handled by shared .settings-row from settings-panel.css.
+ * This file focuses on the About section and other general-specific styles.
  */
 
-/* ── About Section ─────────────────────────────────────────────────────────── */
+/* ============================================================================
+   GENERAL PAGE TOKENS (ORGANIZATION & VARIABLES)
+   ============================================================================ */
 
-/* Compact info card showing app logo, version, and external links */
-.settings-about {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 32px;
-  padding: 16px 20px;
-  background-color: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
+:root {
+    /* ============================================================================
+       COLOR TOKENS
+       ============================================================================ */
+    /* About section colors */
+    --color-general-about-bg: #0d0d0d;             /* About card background */
+    --color-general-about-border: rgba(255, 255, 255, 0.06);  /* Card border */
+    --color-general-logo-bg: #1a1a1a;              /* Logo container background */
+    --color-general-name: #e0e0e0;                 /* App name text */
+    --color-general-version: #555;                 /* Version number text */
+    --color-general-link: #668ccc;                 /* External link color */
+    --color-general-link-hover: #88aaee;           /* Link hover color */
+    --color-general-divider: #333;                 /* Divider between links */
+    
+    /* Title separator colors */
+    --color-general-separator: #444;               /* Separator (|) in dynamic titles */
+
+    /* ============================================================================
+       DIMENSIONS & SPACING
+       ============================================================================ */
+    --general-about-gap: 16px;                     /* Gap between elements in about section */
+    --general-about-margin-top: 32px;              /* Space above the about container */
+    --general-about-padding: 16px 20px;            /* Padding inside the about container */
+    --general-logo-container-size: 48px;           /* Width/Height of the logo wrapper box */
+    --general-logo-size: 32px;                     /* Size of the app logo icon itself */
+    --general-version-margin-top: 2px;             /* Space between app name and version label */
+    --general-links-gap: 0;                        /* Gap between list elements in links bar */
+    --general-link-padding: 0 8px;                 /* Horizontal space around links */
+    --general-title-separator-margin: 0 6px;       /* Horizontal space around title separators */
+
+    /* ============================================================================
+       TYPOGRAPHY
+       ============================================================================ */
+    --general-name-font-size: 14px;                /* Font size of the app name label */
+    --general-name-font-weight: 600;               /* Font weight of the app name label */
+    --general-version-font-size: 12px;             /* Font size of the version text */
+    --general-links-font-size: 12px;               /* Font size of the action/external links */
+    --general-divider-font-size: 12px;             /* Font size of the link divider symbols */
+
+    /* ============================================================================
+       BORDERS & RADII
+       ============================================================================ */
+    --general-border-width-standard: 1px;          /* Standard border width */
+    --general-about-radius: 8px;                   /* Border radius of the about card wrapper */
+    --general-logo-container-radius: 10px;         /* Border radius of the logo box */
+
+    /* ============================================================================
+       TRANSITIONS
+       ============================================================================ */
+    --general-link-transition: color 140ms ease;   /* Transition timing for link hover transitions */
 }
 
-/* Logo wrapper — contains an inline SVG or img */
+/* ============================================================================
+   ABOUT SECTION
+   ============================================================================ */
+
+/**
+ * About section card
+ * - Compact info card at bottom of General page
+ * - Shows app logo, name, version, and external links
+ * - Horizontal layout with logo on left, info in middle, links on right
+ */
+.settings-about {
+  /* Line up children (logo, text info, links) horizontally */
+  display: flex;
+  align-items: center;
+  /* Apply spacing gap between elements */
+  gap: var(--general-about-gap);
+  /* Separate the about card from the above options on the page */
+  margin-top: var(--general-about-margin-top);
+  /* Add padding inside the card for internal spacing */
+  padding: var(--general-about-padding);
+  /* Define background color using the general page color tokens */
+  background-color: var(--color-general-about-bg);
+  /* Thin border surrounding the about card component */
+  border: var(--general-border-width-standard) solid var(--color-general-about-border);
+  /* Round the outer corners of the card container */
+  border-radius: var(--general-about-radius);
+}
+
+/**
+ * Logo wrapper
+ * - Square container with rounded corners
+ * - Contains app logo (SVG or img)
+ */
 .settings-about__logo {
+  /* Vertically and horizontally center the logo image/SVG */
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  /* Use token size for the container box */
+  width: var(--general-logo-container-size);
+  height: var(--general-logo-container-size);
+  /* Prevent the container from scaling or shrinking smaller than designated size */
   flex-shrink: 0;
-  background-color: #1a1a1a;
-  border-radius: 10px;
+  /* Styled background color for the logo container */
+  background-color: var(--color-general-logo-bg);
+  /* Round the corners of the container slightly more than the main card */
+  border-radius: var(--general-logo-container-radius);
+  /* Color for inline SVG logo */
+  color: var(--color-general-name);
 }
 
+/* Ensure children SVGs or images inside the logo container are scaled appropriately */
 .settings-about__logo svg,
 .settings-about__logo img {
-  width: 32px;
-  height: 32px;
+  width: var(--general-logo-size);
+  height: var(--general-logo-size);
+  /* Display as a block to avoid inline font baseline spacing anomalies */
   display: block;
 }
 
-/* Name + version text column */
+/* Color filter for the black logo icon if loaded as an img tag */
+.settings-about__logo img {
+  filter: none; /* No filter, keep brand colors */
+}
+
+/**
+ * Name and version text column
+ * - Middle section containing app name and version
+ * - Flexible width to fill available space
+ */
 .settings-about__info {
+  /* Take up all the remaining middle space between logo and links */
   flex: 1;
+  /* Prevent text wrapping issues from stretching the layout */
   min-width: 0;
 }
 
+/**
+ * App name
+ * - Bold, prominent text for application name
+ */
 .settings-about__name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e0e0e0;
+  font-size: var(--general-name-font-size);
+  font-weight: var(--general-name-font-weight);
+  color: var(--color-general-name);
 }
 
+/**
+ * Version number
+ * - Small, muted text below app name
+ * - Format: "Version X.Y.Z"
+ */
 .settings-about__version {
-  margin-top: 2px;
-  font-size: 12px;
-  color: #555;
+  /* Margins to separate slightly from the name above */
+  margin-top: var(--general-version-margin-top);
+  font-size: var(--general-version-font-size);
+  color: var(--color-general-version);
 }
 
-/* External links row (GitHub, Docs, Report Issue) */
+/**
+ * External links row
+ * - Contains GitHub, Docs, Report Issue links
+ * - Right side of about card
+ * - Horizontal layout with dividers between links
+ */
 .settings-about__links {
+  /* Align links horizontally in a straight line */
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: var(--general-links-gap);
+  /* Prevent the links section from shrinking or squishing */
   flex-shrink: 0;
 }
 
+/**
+ * Individual external link
+ * - Blue color matching link conventions
+ * - Horizontal padding for clickable area
+ */
 .settings-about__links a {
-  font-size: 12px;
-  color: #668ccc;
+  font-size: var(--general-links-font-size);
+  color: var(--color-general-link);
+  /* Remove default link underline decoration */
   text-decoration: none;
-  padding: 0 8px;
-  transition: color 140ms ease;
+  /* Horizontal padding increases clickable target area without altering layout height */
+  padding: var(--general-link-padding);
+  /* Smooth color transition on hover */
+  transition: var(--general-link-transition);
 }
 
+/* Hover feedback color for links */
 .settings-about__links a:hover {
-  color: #88aaee;
+  color: var(--color-general-link-hover);
 }
 
-/* The "|" separator between links */
+/**
+ * Divider between links
+ * - Vertical bar (|) separator
+ * - Very muted color to not distract
+ */
 .settings-about__divider {
-  font-size: 12px;
-  color: #333;
+  font-size: var(--general-divider-font-size);
+  color: var(--color-general-divider);
 }
+
+/* ============================================================================
+   TITLE SEPARATOR
+   ============================================================================ */
+
+/**
+ * Title separator
+ * - Used in dynamic page titles like "Models | Provider Name"
+ * - Vertical bar (|) between segments
+ * - Muted color for visual hierarchy
+ */
+.settings-title-separator {
+  color: var(--color-general-separator);
+  /* Spacing on the left and right sides of the separator character */
+  margin: var(--general-title-separator-margin);
+}
+

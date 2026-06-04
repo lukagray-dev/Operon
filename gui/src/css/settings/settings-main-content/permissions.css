@@ -1,258 +1,597 @@
 /**
- * permissions.css
- *
- * Styles for the Permissions settings page.
- * Covers: allowed directories list, permission rows (group/tool),
- *         permission mode toggle buttons, scope selector tabs.
+ * Permissions Settings Page Styles
+ * 
+ * This file contains all styles for the Permissions settings page including:
+ * - Allowed directories list with add/remove functionality
+ * - Permission scope selector (Owner vs External)
+ * - Permission rows for tool groups and individual tools
+ * - Three-state permission toggles (Allow / Ask / Restrict)
+ * - Expand/collapse functionality for permission groups
+ * - Configuration view for detailed permission management
+ * 
+ * The Permissions page allows users to control what the agent can access
+ * and which operations require user approval.
  */
 
-/* ── Directories List ───────────────────────────────────────────────────────── */
+/* ============================================================================
+   PERMISSIONS PAGE TOKENS (ORGANIZATION & VARIABLES)
+   ============================================================================ */
 
-.settings-permissions__directory-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  background-color: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 7px;
-  margin-bottom: 6px;
+:root {
+    /* ============================================================================
+       COLOR TOKENS
+       ============================================================================ */
+    /* Directory row colors */
+    --color-permissions-dir-bg: #0d0d0d;           /* Directory row background */
+    --color-permissions-dir-border: rgba(255, 255, 255, 0.06);  /* Row border */
+    --color-permissions-dir-icon: #555;            /* Folder icon color */
+    --color-permissions-dir-path: #bbb;            /* Directory path text */
+    
+    /* Toolbar colors */
+    --color-permissions-toolbar-bg: #1a1a1a;       /* Scope selector background */
+    --color-permissions-toolbar-border: rgba(255, 255, 255, 0.08);  /* Toolbar border */
+    --color-permissions-scope-btn: #555;           /* Inactive scope button */
+    --color-permissions-scope-btn-hover: #bbb;     /* Scope button hover text color */
+    --color-permissions-scope-btn-active: #e0e0e0;  /* Active scope button */
+    --color-permissions-scope-btn-active-bg: #2c2c2c;  /* Active button background */
+    --color-permissions-summary: #555;             /* Summary text */
+    
+    /* Permission row colors */
+    --color-permissions-row-bg: #0d0d0d;           /* Tool row background */
+    --color-permissions-row-border: rgba(255, 255, 255, 0.05);  /* Row border */
+    --color-permissions-group-bg: #111;            /* Group row background */
+    --color-permissions-group-border: rgba(255, 255, 255, 0.07);  /* Group border */
+    --color-permissions-tool-bg: #0a0a0a;          /* Nested tool row background */
+    --color-permissions-header-text: #444;         /* Section header label text color */
+    --color-permissions-expand-btn: #444;          /* Group expand button color */
+    
+    /* Permission text colors */
+    --color-permissions-title: #c8c8c8;            /* Permission title */
+    --color-permissions-title-group: #c8c8c8;      /* Group title */
+    --color-permissions-subtitle: #444;            /* Permission subtitle */
+    --color-permissions-icon: #555;                /* Permission icon */
+    --color-permissions-mode: #555;                /* Mode label text */
+    
+    /* Permission toggle colors */
+    --color-permissions-toggle-bg: #1a1a1a;        /* Toggle container background */
+    --color-permissions-toggle-border: rgba(255, 255, 255, 0.08);  /* Toggle border */
+    --color-permissions-toggle-btn: #555;          /* Inactive button */
+    --color-permissions-toggle-btn-hover: #aaa;    /* Hover button text */
+    --color-permissions-toggle-btn-hover-bg: rgba(255, 255, 255, 0.06); /* Hover button bg */
+    --color-permissions-toggle-btn-active: #e0e0e0;  /* Active button */
+    --color-permissions-toggle-btn-active-bg: #2a2a2a;  /* Active button background */
+    
+    /* Status message colors */
+    --color-permissions-status-bg: #1a1a1a;        /* Status message background */
+    --color-permissions-status-border: rgba(255, 255, 255, 0.06);  /* Status border */
+    --color-permissions-status-text: #888;         /* Status text */
+
+    /* Icon color filters */
+    --filter-permissions-dir-icon: invert(33%);    /* Color filter to convert folder icon to muted gray (#555) */
+    --filter-permissions-icon: invert(33%);        /* Color filter to convert permission icons to muted gray (#555) */
+    --filter-permissions-toggle-btn: invert(33%);  /* Matches #555555 muted gray icon */
+    --filter-permissions-toggle-btn-hover: invert(70%); /* Matches #aaaaaa hover icon color */
+    --filter-permissions-toggle-btn-active: invert(88%); /* Matches #e0e0e0 active icon color */
+
+    /* ============================================================================
+       DIMENSIONS & SPACING
+       ============================================================================ */
+    --permissions-border-width-standard: 1px;      /* Standard border thickness */
+    --permissions-dir-row-gap: 12px;               /* Gap inside allowed directory row */
+    --permissions-dir-row-padding: 10px 14px;      /* Padding inside directory row */
+    --permissions-dir-row-margin-bottom: 6px;      /* Margin between directory rows */
+    --permissions-dir-info-gap: 8px;               /* Gap between directory icon and text path */
+    --permissions-dir-icon-size: 16px;             /* Width/Height of the folder icon */
+    --permissions-dir-actions-gap: 4px;            /* Gap between buttons in directory action bar */
+    --permissions-toolbar-gap: 12px;               /* Gap between items in toolbar */
+    --permissions-toolbar-margin-bottom: 14px;     /* Space below the toolbar */
+    --permissions-scope-padding: 2px;              /* Padding inside the scope selector */
+    --permissions-scope-gap: 2px;                  /* Gap between selector buttons */
+    --permissions-scope-btn-padding: 4px 12px;     /* Padding inside scope buttons */
+    --permissions-header-padding: 6px 0 8px;       /* Padding for permissions section header */
+    --permissions-rows-list-gap: 4px;              /* Gap between permission rows */
+    --permissions-row-gap: 12px;                   /* Gap inside permission row elements */
+    --permissions-row-padding: 8px 12px;           /* Padding inside permission row */
+    --permissions-row-tool-indent: 20px;           /* Indent margin for nested tool rows */
+    --permissions-title-gap: 6px;                  /* Gap between permission icon and title text */
+    --permissions-subtitle-margin-top: 2px;        /* Margin above description subtitle */
+    --permissions-controls-gap: 8px;               /* Gap between control buttons in row */
+    --permissions-mode-min-width: 40px;            /* Minimum width of permission state mode label */
+    --permissions-expand-btn-padding: 0 6px;       /* Horizontal padding of expand group chevron button */
+    --permissions-expand-btn-height: 24px;         /* Height of expand group button */
+    --permissions-toggle-padding: 2px;             /* Padding inside toggle container button group */
+    --permissions-toggle-gap: 1px;                 /* Gap between toggle segment buttons */
+    --permissions-toggle-btn-width: 28px;          /* Width of permission toggle state icon button */
+    --permissions-toggle-btn-height: 24px;         /* Height of permission toggle state icon button */
+    --permissions-toggle-svg-size: 14px;           /* Sizing of SVGs inside permission toggle buttons */
+    --permissions-status-margin-top: 12px;         /* Margin above status response message box */
+    --permissions-status-padding: 8px 12px;        /* Padding inside status message box */
+
+    /* ============================================================================
+       TYPOGRAPHY
+       ============================================================================ */
+    --permissions-dir-path-font-size: 12.5px;      /* Font size of directory path text */
+    --permissions-scope-btn-font-size: 12.5px;     /* Font size of scope toggle button text */
+    --permissions-summary-font-size: 12px;         /* Font size of summary status labels */
+    --permissions-header-font-size: 11px;          /* Font size of permission rows section title */
+    --permissions-header-letter-spacing: 0.07em;   /* Character tracking of section title */
+    --permissions-title-font-size: 13px;           /* Font size of permission tool title */
+    --permissions-title-group-font-size: 13.5px;   /* Font size of permission group title */
+    --permissions-subtitle-font-size: 11px;        /* Font size of tool description subtitle */
+    --permissions-mode-font-size: 11px;            /* Font size of the current permission state mode text */
+    --permissions-status-font-size: 12px;          /* Font size of status confirmation text box */
+
+    /* ============================================================================
+       BORDERS & RADII
+       ============================================================================ */
+    --permissions-dir-row-radius: 7px;             /* Border radius of directory rows */
+    --permissions-scope-radius: 6px;               /* Border radius of scope container */
+    --permissions-scope-btn-radius: 4px;           /* Border radius of individual scope buttons */
+    --permissions-row-radius: 6px;                 /* Border radius of permission rows */
+    --permissions-toggle-radius: 5px;              /* Border radius of toggle container */
+    --permissions-toggle-btn-radius: 3px;          /* Border radius of individual toggle buttons */
+    --permissions-status-radius: 6px;              /* Border radius of status message wrapper */
+
+    /* ============================================================================
+       TRANSITIONS
+       ============================================================================ */
+    --permissions-transition-scope: background-color 130ms ease, color 130ms ease; /* Transition for scope switcher */
+    --permissions-transition-toggle: background-color 120ms ease, color 120ms ease; /* Transition for toggle state buttons */
 }
 
-.settings-permissions__directory-info {
+/* ============================================================================
+   DIRECTORIES LIST
+   ============================================================================ */
+
+/**
+ * Directory row component
+ * - Displays an allowed directory path with remove button
+ * - Horizontal layout with icon, path, and action buttons
+ */
+.settings-permissions__directory-row {
+  /* Line up elements side-by-side */
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* Push directory information to the left and action buttons to the right */
+  justify-content: space-between;
+  /* Space out the items in the row */
+  gap: var(--permissions-dir-row-gap);
+  /* Side and vertical breathing room within the card container */
+  padding: var(--permissions-dir-row-padding);
+  /* Custom background and border colors using tokens */
+  background-color: var(--color-permissions-dir-bg);
+  border: var(--permissions-border-width-standard) solid var(--color-permissions-dir-border);
+  /* Slightly rounded corners */
+  border-radius: var(--permissions-dir-row-radius);
+  /* Space out stack of multiple directory rows */
+  margin-bottom: var(--permissions-dir-row-margin-bottom);
+}
+
+/**
+ * Directory info section (left side)
+ * - Contains folder icon and directory path
+ * - Flexible width to accommodate long paths
+ */
+.settings-permissions__directory-info {
+  /* Arrange folder icon and text horizontally */
+  display: flex;
+  align-items: center;
+  /* Tiny gap between folder icon and path string */
+  gap: var(--permissions-dir-info-gap);
+  /* Occupy all remaining horizontal width in row */
   flex: 1;
+  /* Secure overflow from breaking flexible boundaries */
   min-width: 0;
 }
 
+/**
+ * Folder icon container
+ * - Fixed size folder icon
+ * - Muted color to not distract from path
+ */
 .settings-permissions__directory-icon {
-  color: #555;
+  color: var(--color-permissions-dir-icon);
+  /* Prevent folder icon from shrinking */
   flex-shrink: 0;
+  /* Align centering for vertical middle align */
   display: flex;
   align-items: center;
 }
 
-.settings-permissions__directory-icon svg {
-  width: 16px;
-  height: 16px;
+/* Set specific width and height on folder SVGs */
+.settings-permissions__directory-icon svg,
+.settings-permissions__directory-icon img {
+  width: var(--permissions-dir-icon-size);
+  height: var(--permissions-dir-icon-size);
 }
 
-/* Directory path text — truncate with ellipsis for long paths */
+.settings-permissions__directory-icon img {
+  filter: var(--filter-permissions-dir-icon);
+}
+
+/**
+ * Directory path text
+ * - Monospace font for path clarity
+ * - Truncates with ellipsis for long paths
+ */
 .settings-permissions__directory-path {
-  font-size: 12.5px;
+  font-size: var(--permissions-dir-path-font-size);
+  /* Monospace fonts ensure high legibility of slashes and paths */
   font-family: 'Consolas', monospace;
-  color: #bbb;
+  color: var(--color-permissions-dir-path);
+  /* Cut off path text and show ellipsis if it is too wide */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
 }
 
+/**
+ * Directory action buttons (right side)
+ * - Contains remove button and other actions
+ * - Horizontal layout with minimal spacing
+ */
 .settings-permissions__directory-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--permissions-dir-actions-gap);
+  /* Action button width should not be compressed */
   flex-shrink: 0;
 }
 
-/* ── Toolbar (scope selector + summary label) ───────────────────────────────── */
+/* ============================================================================
+   TOOLBAR (SCOPE SELECTOR)
+   ============================================================================ */
 
+/**
+ * Toolbar container
+ * - Contains scope selector and summary label
+ * - Horizontal layout with space between
+ */
 .settings-permissions__toolbar {
+  /* Align scope button segment on left, summary text on right */
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: var(--permissions-toolbar-gap);
+  /* Spacing before list below */
+  margin-bottom: var(--permissions-toolbar-margin-bottom);
 }
 
-/* Owner / External scope button group */
+/**
+ * Scope selector button group
+ * - Toggle between Owner and External scopes
+ * - Segmented control style
+ */
 .settings-permissions__scope {
+  /* Inline flex allows it to sit neatly in normal line flow */
   display: inline-flex;
-  background-color: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  padding: 2px;
-  gap: 2px;
+  background-color: var(--color-permissions-toolbar-bg);
+  border: var(--permissions-border-width-standard) solid var(--color-permissions-toolbar-border);
+  /* Rounded container frame */
+  border-radius: var(--permissions-scope-radius);
+  /* Tight padding inside outer container frame */
+  padding: var(--permissions-scope-padding);
+  /* Very small separator gap between buttons */
+  gap: var(--permissions-scope-gap);
 }
 
+/**
+ * Individual scope button
+ * - Switches between Owner and External permission scopes
+ * - Active state highlights selected scope
+ */
 .settings-permissions__scope-btn {
-  padding: 4px 12px;
+  /* Padding for clickable area footprint */
+  padding: var(--permissions-scope-btn-padding);
   background: transparent;
   border: none;
-  border-radius: 4px;
-  color: #555;
-  font-size: 12.5px;
+  /* Slightly rounded inner segment buttons */
+  border-radius: var(--permissions-scope-btn-radius);
+  color: var(--color-permissions-scope-btn);
+  font-size: var(--permissions-scope-btn-font-size);
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 130ms ease, color 130ms ease;
+  /* Smooth color animations when toggled */
+  transition: var(--permissions-transition-scope);
 }
 
+/* Hover styling for scope toggles */
 .settings-permissions__scope-btn:hover {
-  color: #bbb;
+  color: var(--color-permissions-scope-btn-hover);
 }
 
+/* Selected active segment button styling */
 .settings-permissions__scope-btn.is-active {
-  background-color: #2c2c2c;
-  color: #e0e0e0;
+  background-color: var(--color-permissions-scope-btn-active-bg);
+  color: var(--color-permissions-scope-btn-active);
 }
 
-/* Summary label on the right */
+/**
+ * Summary label
+ * - Displays count or status of permissions
+ * - Right-aligned on toolbar
+ */
 .settings-permissions__summary {
-  font-size: 12px;
-  color: #555;
+  font-size: var(--permissions-summary-font-size);
+  color: var(--color-permissions-summary);
 }
 
-/* ── Configure View ─────────────────────────────────────────────────────────── */
+/* ============================================================================
+   CONFIGURE VIEW
+   ============================================================================ */
 
+/**
+ * Configure view container
+ * - Main container for permission configuration interface
+ * - Vertical flex column layout
+ */
 .settings-permissions__view--configure {
   display: flex;
   flex-direction: column;
 }
 
-/* ── Permission Rows ────────────────────────────────────────────────────────── */
+/* ============================================================================
+   PERMISSION ROWS
+   ============================================================================ */
 
-/* Container for the scrollable list of permission rows */
+/**
+ * Permission rows container
+ * - Holds the list of permission groups and tools
+ * - Vertical flex column layout
+ */
 .settings-permissions__rows {
   display: flex;
   flex-direction: column;
 }
 
+/**
+ * Permission rows header
+ * - Small uppercase label above permission list
+ * - Provides context for the rows below
+ */
 .settings-permissions__rows-header {
-  font-size: 11px;
+  font-size: var(--permissions-header-font-size);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: #444;
-  padding: 6px 0 8px;
+  letter-spacing: var(--permissions-header-letter-spacing);
+  color: var(--color-permissions-header-text);
+  /* Top and bottom padding for heading spacing */
+  padding: var(--permissions-header-padding);
 }
 
+/**
+ * Permission rows list
+ * - Vertical flex column of permission rows
+ * - Consistent spacing between rows
+ */
 .settings-permissions__rows-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--permissions-rows-list-gap);
 }
 
-/* Individual permission row — flex row: meta | controls */
+/**
+ * Individual permission row
+ * - Represents a tool group or individual tool
+ * - Horizontal layout: metadata | controls
+ * - Contains toggle, mode label, and expand button
+ */
 .settings-permissions__permission-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background-color: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  gap: var(--permissions-row-gap);
+  padding: var(--permissions-row-padding);
+  border-radius: var(--permissions-row-radius);
+  background-color: var(--color-permissions-row-bg);
+  border: var(--permissions-border-width-standard) solid var(--color-permissions-row-border);
 }
 
-/* Group rows are slightly larger and bolder */
+/**
+ * Group row variant
+ * - Slightly darker background and stronger border
+ * - Represents a tool group (e.g., "File System", "Web")
+ */
 .settings-permissions__permission-row--group {
-  background-color: #111;
-  border-color: rgba(255, 255, 255, 0.07);
+  background-color: var(--color-permissions-group-bg);
+  border-color: var(--color-permissions-group-border);
 }
 
-/* Tool rows are indented to visually nest under their group */
+/**
+ * Tool row variant
+ * - Indented to visually nest under group
+ * - Represents individual tool (e.g., "read_file", "write_file")
+ */
 .settings-permissions__permission-row--tool {
-  margin-left: 20px;
-  background-color: #0a0a0a;
+  /* Push to the right to nested indent position */
+  margin-left: var(--permissions-row-tool-indent);
+  background-color: var(--color-permissions-tool-bg);
 }
 
-/* Left side: title + subtitle */
+/**
+ * Permission metadata section (left side)
+ * - Contains title, icon, and subtitle
+ * - Flexible width to fill available space
+ */
 .settings-permissions__permission-meta {
   flex: 1;
   min-width: 0;
 }
 
+/**
+ * Permission title
+ * - Displays permission name with optional icon
+ * - Horizontal layout with icon and text
+ */
 .settings-permissions__permission-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #c8c8c8;
+  gap: var(--permissions-title-gap);
+  font-size: var(--permissions-title-font-size);
+  color: var(--color-permissions-title);
 }
 
+/**
+ * Group title variant
+ * - Slightly larger and bolder for emphasis
+ */
 .settings-permissions__permission-title--group {
   font-weight: 500;
-  font-size: 13.5px;
+  font-size: var(--permissions-title-group-font-size);
 }
 
+/**
+ * Permission icon
+ * - Small icon beside permission name
+ * - Muted color for subtlety
+ */
 .settings-permissions__permission-icon {
   display: flex;
   align-items: center;
-  color: #555;
+  color: var(--color-permissions-icon);
   flex-shrink: 0;
 }
 
+.settings-permissions__permission-icon img {
+  filter: var(--filter-permissions-icon);
+}
+
+/**
+ * Permission subtitle
+ * - Additional info like tool name or description
+ * - Monospace font for technical identifiers
+ */
 .settings-permissions__permission-subtitle {
-  margin-top: 2px;
-  font-size: 11px;
-  color: #444;
+  margin-top: var(--permissions-subtitle-margin-top);
+  font-size: var(--permissions-subtitle-font-size);
+  color: var(--color-permissions-subtitle);
   font-family: 'Consolas', monospace;
 }
 
-/* Right side: toggle + mode label + spinner */
+/**
+ * Permission controls section (right side)
+ * - Contains toggle, mode label, and action buttons
+ * - Horizontal layout with consistent spacing
+ */
 .settings-permissions__permission-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--permissions-controls-gap);
   flex-shrink: 0;
 }
 
-/* Current mode label */
+/**
+ * Current mode label
+ * - Displays current permission state (Allow/Ask/Restrict)
+ * - Right-aligned, monospace for consistency
+ */
 .settings-permissions__permission-mode {
-  font-size: 11px;
-  color: #555;
-  min-width: 40px;
+  font-size: var(--permissions-mode-font-size);
+  color: var(--color-permissions-mode);
+  min-width: var(--permissions-mode-min-width);
   text-align: right;
 }
 
-/* Expand/collapse button for groups */
+/**
+ * Expand/collapse button for groups
+ * - Shows/hides nested tools under a group
+ * - Chevron icon rotates to indicate state
+ */
 .settings-permissions__expand-btn {
-  padding: 0 6px;
-  height: 24px;
-  color: #444;
+  padding: var(--permissions-expand-btn-padding);
+  height: var(--permissions-expand-btn-height);
+  color: var(--color-permissions-expand-btn);
 }
 
-/* ── Permission Mode Toggle ──────────────────────────────────────────────────── */
+/* ============================================================================
+   PERMISSION MODE TOGGLE
+   ============================================================================ */
 
-/* Three-button toggle: Allow | Ask | Restrict */
+/**
+ * Three-button permission toggle
+ * - Allows switching between Allow, Ask, and Restrict
+ * - Segmented control style with icon buttons
+ */
 .permission-toggle {
   display: inline-flex;
-  background-color: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 5px;
-  padding: 2px;
-  gap: 1px;
+  background-color: var(--color-permissions-toggle-bg);
+  border: var(--permissions-border-width-standard) solid var(--color-permissions-toggle-border);
+  border-radius: var(--permissions-toggle-radius);
+  padding: var(--permissions-toggle-padding);
+  gap: var(--permissions-toggle-gap);
 }
 
+/**
+ * Individual toggle button
+ * - Represents one permission state (Allow / Ask / Restrict)
+ * - Icon-only button with hover and active states
+ */
 .permission-toggle__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 24px;
+  width: var(--permissions-toggle-btn-width);
+  height: var(--permissions-toggle-btn-height);
   background: transparent;
   border: none;
-  border-radius: 3px;
+  border-radius: var(--permissions-toggle-btn-radius);
   cursor: pointer;
-  color: #555;
-  transition: background-color 120ms ease, color 120ms ease;
+  color: var(--color-permissions-toggle-btn);
+  /* Smooth transitions on hover and status change */
+  transition: var(--permissions-transition-toggle);
 }
 
+/* Hover style for segmented toggle buttons */
 .permission-toggle__btn:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-  color: #aaa;
+  background-color: var(--color-permissions-toggle-btn-hover-bg);
+  color: var(--color-permissions-toggle-btn-hover);
 }
 
+/* Active selected state for toggle button segments */
 .permission-toggle__btn.is-active {
-  background-color: #2a2a2a;
-  color: #e0e0e0;
+  background-color: var(--color-permissions-toggle-btn-active-bg);
+  color: var(--color-permissions-toggle-btn-active);
 }
 
-.permission-toggle__btn svg {
-  width: 14px;
-  height: 14px;
+/* Inside SVGs and images dimensions */
+.permission-toggle__btn svg,
+.permission-toggle__btn img {
+  width: var(--permissions-toggle-svg-size);
+  height: var(--permissions-toggle-svg-size);
   pointer-events: none;
 }
+
+/* Color filters for permission status toggle image icons */
+.permission-toggle__btn img {
+  filter: var(--filter-permissions-toggle-btn);
+  transition: var(--permissions-transition-toggle);
+}
+
+.permission-toggle__btn:hover img {
+  filter: var(--filter-permissions-toggle-btn-hover);
+}
+
+.permission-toggle__btn.is-active img {
+  filter: var(--filter-permissions-toggle-btn-active);
+}
+
+/* ============================================================================
+   STATUS MESSAGES
+   ============================================================================ */
+
+/**
+ * Status message box
+ * - Displays feedback messages for permission operations
+ * - Muted styling to not distract from main content
+ */
+.settings-permissions__status {
+  margin-top: var(--permissions-status-margin-top);
+  padding: var(--permissions-status-padding);
+  background-color: var(--color-permissions-status-bg);
+  border: var(--permissions-border-width-standard) solid var(--color-permissions-status-border);
+  border-radius: var(--permissions-status-radius);
+  font-size: var(--permissions-status-font-size);
+  color: var(--color-permissions-status-text);
+}
+

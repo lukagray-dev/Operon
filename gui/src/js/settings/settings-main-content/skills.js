@@ -33,7 +33,7 @@ import {
  * @returns {string} HTML img tag
  */
 function icon(name, size = 14) {
-  return `<img src="../assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
+  return `<img src="./assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
 }
 
 // ── Transient Module State ────────────────────────────────────────────────────
@@ -234,7 +234,7 @@ function renderSkillsInstalledTab() {
                 type="button"
                 data-skills-refresh-installed
                 ${loading ? 'disabled' : ''}>
-          ${icon('rotate', 14)} Refresh
+          ${icon('refresh', 14)} Refresh
         </button>
       </div>
       ${content}

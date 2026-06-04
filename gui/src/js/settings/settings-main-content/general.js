@@ -20,7 +20,7 @@
  */
 
 import { showSuccess, showError } from '../../shared/toast.js';
-import { buildSettingRow, buildAboutSection, escapeHtml } from '../settings-panel.js';
+import { buildSettingRow, escapeHtml } from '../settings-panel.js';
 
 // ── Local Settings State (Placeholder UI) ────────────────────────────────────
 
@@ -129,9 +129,6 @@ function buildGeneralPage(settings) {
            Reset
          </button>`
       )}
-
-      <!-- ── About Section ─────────────────────────────────────────────── -->
-      ${buildAboutSection()}
     </div>
   `;
 }

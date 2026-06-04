@@ -19,9 +19,7 @@
  * applyAppearanceSettings() is called at app startup from settings-panel.js
  * to restore the user's saved preferences before the first render.
  */
-
 import { showSuccess } from '../../shared/toast.js';
-import { buildAboutSection } from '../settings-panel.js';
 
 // ── Local Settings State (Placeholder UI) ────────────────────────────────────
 
@@ -290,8 +288,6 @@ function buildAppearancePage(settings) {
           </label>
         </div>
       </div>
-
-      ${buildAboutSection()}
     </div>
   `;
 }

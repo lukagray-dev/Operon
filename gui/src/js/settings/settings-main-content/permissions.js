@@ -57,7 +57,7 @@ const permissionsState = {
  * @returns {string} HTML img tag
  */
 function permissionIcon(name, size = 16) {
-  return `<img src="../assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
+  return `<img src="./assets/icons/settings/${name}.svg" width="${size}" height="${size}" alt="" draggable="false">`;
 }
 
 // ── State Reset ───────────────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ function renderAllowedDirectoriesList() {
     return `
       <div class="settings-permissions__directory-row">
         <div class="settings-permissions__directory-info">
-          <span class="settings-permissions__directory-icon">${permissionIcon('folder', 16)}</span>
+          <span class="settings-permissions__directory-icon">${permissionIcon('permission-directory', 16)}</span>
           <span class="settings-permissions__directory-path">${escapeHtml(directory)}</span>
           ${isWorkspace ? '<span class="settings-badge settings-badge--success">Workspace</span>' : ''}
         </div>
@@ -194,14 +194,14 @@ function renderAllowedDirectoriesList() {
                   type="button"
                   data-permissions-configure-directory="${escapeAttribute(directory)}"
                   title="Configure permissions">
-            ${permissionIcon('settings', 14)}
+            ${permissionIcon('configure-directory-permissions', 14)}
           </button>
           ${!isWorkspace ? `
             <button class="btn btn--ghost btn--sm"
                     type="button"
                     data-permissions-remove-directory="${escapeAttribute(directory)}"
                     title="Remove directory">
-              ${permissionIcon('delete', 14)}
+              ${permissionIcon('permission-directory-remove', 14)}
             </button>
           ` : ''}
         </div>
@@ -255,7 +255,7 @@ function renderToolsPermissionsConfigureView() {
   const topbar = `
     <div class="settings-models__topbar">
       <button class="btn btn--ghost btn--sm" type="button" data-permissions-back>
-        ${permissionIcon('chevronDown', 14)} Back
+        ${permissionIcon('chevron-down', 14)} Back
       </button>
     </div>
   `;
@@ -366,7 +366,7 @@ function renderGroupedPermissionRows() {
 
 function buildPermissionModeToggle(row) {
   const values = ['allow', 'ask', 'restrict'];
-  const icons  = { allow: 'checkmark', ask: 'hand', restrict: 'cross' };
+  const icons  = { allow: 'permission-allow', ask: 'permission-ask', restrict: 'permission-restrict' };
   const titles = { allow: 'Allow', ask: 'Ask', restrict: 'Restrict' };
   const activeMode = row.mode === 'custom' ? '' : row.mode;
   const rowKind    = row.kind === 'group' ? 'group' : 'tool';
@@ -415,7 +415,7 @@ function renderPermissionGroupHeader(group, hasTools, isExpanded) {
                   type="button"
                   data-permissions-toggle-group="${escapeAttribute(group.key)}"
                   title="${isExpanded ? 'Collapse' : 'Expand'} tools">
-            ${isExpanded ? permissionIcon('chevronUp', 14) : permissionIcon('chevronDown', 14)}
+            ${isExpanded ? permissionIcon('chevron-up', 14) : permissionIcon('chevron-down', 14)}
           </button>
         ` : ''}
       </div>

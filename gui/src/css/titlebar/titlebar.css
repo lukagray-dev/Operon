@@ -1,64 +1,81 @@
 /**
  * Titlebar Component Styles
  * 
- * This file contains all styles for the custom titlebar component including:
- * - Main titlebar container
- * - Brand logo section
- * - Navigation controls (back/forward)
- * - Menu bar (Files, View, Window, Help)
- * - Window controls (minimize, maximize, close)
- * - Dropdown menus with hover/active states
+ * Hello friend! This file styles the custom window titlebar for our app.
+ * Since this is a Tauri desktop application, we hide the default OS titlebar
+ * and build our own custom titlebar to achieve a seamless, dark-themed look.
  * 
- * The titlebar uses the drag region functionality from Tauri to enable
- * window dragging from specific areas.
+ * It includes:
+ * - A drag handle so the window can be moved (.titlebar)
+ * - Navigation back/forward controls (.titlebar__navigation)
+ * - File menus like Files, View, etc. (.titlebar__menu)
+ * - Dropdown menus appearing under those items (.titlebar__dropdown)
+ * - Minimize, maximize, and close buttons on the far right (.titlebar__window-controls)
+ * 
+ * All design choices are configured using variables in the :root selector below!
  */
 
 /* ============================================================================
-   TITLEBAR COLOR TOKENS
+   TITLEBAR COLOR AND DESIGN TOKENS
    ============================================================================ */
 
 :root {
     /* Titlebar colors */
     --color-titlebar-bg: #0e0e0e;              /* Titlebar background color */
-    --color-titlebar-items: #9e9e9e;           /* Nav buttons, menu items, dropdown texts, action buttons */
-    --color-titlebar-item-hover: #ffffff;      /* Hover state for all titlebar items */
-    --color-window-close-hover: #ff0000;       /* Close button hover background */
-    --color-main-content-bg: #000000;          /* Main content area background */
+    --color-titlebar-items: #9e9e9e;           /* Color of nav buttons, menu items, action buttons */
+    --color-titlebar-item-hover: #ffffff;      /* Color when hovering over titlebar elements */
+    --color-window-close-hover: #e81123;       /* Red hover color for window close button (Windows standard) */
+    --color-window-close-active: #c50f1f;      /* Darker red active click color for close button */
+    --color-main-content-bg: #000000;          /* Default canvas background */
     
     /* Titlebar dropdown colors */
     --color-dropdown-bg: #191919;              /* Dropdown background color */
-    --color-dropdown-border: #333333;          /* Dropdown border color */
-    --color-dropdown-separator: #333333;       /* Dropdown separator line color */
+    --color-dropdown-border: #333333;          /* Dropdown border outline color */
+    --color-dropdown-separator: #333333;       /* Divider line inside dropdown lists */
     
     /* Titlebar layout dimensions */
-    --titlebar-height: 32px;                   /* Height of the entire titlebar */
-    --titlebar-logo-size: 18px;                /* Width and height of the brand logo */
-    --titlebar-icon-size: 14px;                /* Width and height of all icons (nav, window controls) */
-    --titlebar-button-width: 40px;             /* Width of window control buttons (minimize, maximize, close) */
+    --titlebar-height: 32px;                   /* Height of the entire titlebar strip */
+    --titlebar-logo-size: 18px;                /* Size of our brand logo */
+    --titlebar-logo-opacity: 0.9;              /* Opacity of the brand logo */
+    --titlebar-logo-hover-opacity: 1.0;        /* Opacity of the brand logo on hover */
+    --titlebar-icon-size: 14px;                /* Size of standard utility icons (nav, window controls) */
+    --titlebar-nav-btn-size: 28px;             /* Size of the square navigation button containers */
+    --titlebar-menu-item-height: 24px;         /* Height of the clickable menu items */
+    --titlebar-dropdown-min-width: 180px;      /* Default width of dropdown menu cards */
+    --titlebar-dropdown-offset-top: 2px;       /* Distance between dropdown card and menu item */
+    --titlebar-dropdown-slide-offset: -8px;    /* Start position for dropdown reveal slide animation */
+    --titlebar-separator-height: 1px;          /* Height of the dropdown menu divider line */
+    --titlebar-button-width: 40px;             /* Width of window control buttons (min/max/close) */
     
-    /* Titlebar spacing */
-    --titlebar-spacing-menu: 8px;              /* Spacing between menu items (Files, View, Window, Help) */
-    --titlebar-spacing-action: 2px;            /* Spacing for action buttons (nav buttons, window controls) */
+    /* Titlebar spacing (margins and padding) */
+    --titlebar-spacing-menu: 8px;              /* Spacing between menu items */
+    --titlebar-spacing-action: 2px;            /* Spacing for action buttons */
     
     /* Titlebar layout - border radius */
-    --titlebar-radius-sm: 4px;                 /* Small border radius for buttons */
-    --titlebar-radius-md: 6px;                 /* Medium border radius for dropdowns */
+    --titlebar-radius-sm: 4px;                 /* Rounding for small buttons and hover backgrounds */
+    --titlebar-radius-md: 6px;                 /* Rounding for dropdown cards */
     
-    /* Titlebar animations */
-    --titlebar-transition-fast: 100ms;         /* Fast transition for hover states */
-    --titlebar-transition-normal: 100ms;       /* Normal transition for dropdown animations */
-    --titlebar-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --titlebar-ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    /* Titlebar animations and transitions */
+    --titlebar-transition-fast: 100ms;         /* Speed of simple hover fades */
+    --titlebar-transition-normal: 100ms;       /* Speed of dropdown popup reveal */
+    --titlebar-logo-transition: opacity 150ms ease-in-out; /* Easing specific to the brand logo */
+    --titlebar-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* Standard smooth timing curve */
+    --titlebar-ease-out: cubic-bezier(0.0, 0, 0.2, 1);    /* Easing that starts fast and slows down */
     
     /* Titlebar typography */
-    --titlebar-font-size-sm: 12px;             /* Small font size for menu items and dropdowns */
-    --titlebar-font-weight-regular: 400;       /* Regular font weight */
+    --titlebar-font-size-sm: 12px;             /* Font size for text menus and dropdown items */
+    --titlebar-font-weight-regular: 400;       /* Normal weight for text */
     
-    /* Titlebar z-index */
-    --titlebar-z-index: 1000;                  /* Z-index for titlebar dropdowns */
+    /* Titlebar z-index (stacking priority) */
+    --titlebar-z-index: 1000;                  /* High z-index to guarantee dropdowns show above other components */
     
-    /* Titlebar shadow */
-    --titlebar-shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.25);
+    /* Titlebar shadows */
+    --titlebar-shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.25); /* Depth shadow for dropdowns */
+    
+    /* Color filter tokens for dynamic SVG coloring */
+    --filter-titlebar-muted: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    --filter-titlebar-hover: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    --filter-titlebar-window-control-muted: invert(71%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
 }
 
 /* ============================================================================
@@ -66,11 +83,8 @@
    ============================================================================ */
 
 /**
- * Main titlebar container
- * - Fixed to top of window
- * - Full width with dark gray background
- * - Flex layout for horizontal arrangement
- * - Uses Tauri's drag region for window movement
+ * .titlebar is the master wrapper fixed to the top of the window.
+ * - Tauri uses -webkit-app-region: drag to let the user drag the window using this area.
  */
 .titlebar {
     position: fixed;
@@ -83,7 +97,6 @@
     align-items: center;
     justify-content: space-between;
     user-select: none;
-    /* Enable dragging on the titlebar background */
     -webkit-app-region: drag;
     z-index: var(--titlebar-z-index);
 }
@@ -92,9 +105,6 @@
    TITLEBAR SECTIONS
    ============================================================================ */
 
-/**
- * Left section - contains logo, navigation, and menu
- */
 .titlebar__left {
     display: flex;
     align-items: center;
@@ -102,9 +112,6 @@
     flex: 1;
 }
 
-/**
- * Right section - contains window controls
- */
 .titlebar__right {
     display: flex;
     align-items: center;
@@ -115,11 +122,9 @@
    ============================================================================ */
 
 /**
- * Brand logo container
- * - Centers the logo vertically and horizontally
- * - Clickable to toggle sidebar
- * - Shows sidebar icon on hover
- * - Maintains fixed size to prevent layout shift
+ * .titlebar__logo contains our application's branding logo.
+ * - Clicking it toggles the left sidebar!
+ * - Uses no-drag because it is interactive.
  */
 .titlebar__logo {
     display: flex;
@@ -130,31 +135,21 @@
     flex-shrink: 0;
     position: relative;
     cursor: pointer;
-    /* Fixed width to prevent layout shift */
     width: calc(var(--titlebar-logo-size) + (var(--titlebar-spacing-menu) * 2));
-    /* Disable window dragging on logo */
     -webkit-app-region: no-drag;
 }
 
-/**
- * Logo SVG styling
- * - Fixed size for consistency
- * - All icons absolutely positioned to overlap perfectly
- */
 .titlebar__logo-icon {
     width: var(--titlebar-logo-size);
     height: var(--titlebar-logo-size);
-    opacity: 0.9;
-    transition: opacity 150ms ease-in-out;
+    opacity: var(--titlebar-logo-opacity);
+    transition: var(--titlebar-logo-transition);
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
 }
 
-/**
- * Default state - show brand logo only
- */
 .titlebar__logo-icon--brand {
     display: block;
 }
@@ -162,18 +157,13 @@
 .titlebar__logo-icon--sidebar-open,
 .titlebar__logo-icon--sidebar-closed {
     display: none;
-    /* Apply gray color filter to match other titlebar icons */
-    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-titlebar-muted);
 }
 
-/**
- * Hover state - show sidebar icon (open or closed based on sidebar state)
- */
 .titlebar__logo:hover .titlebar__logo-icon--brand {
     display: none;
 }
 
-/* When sidebar is open, show open icon on hover */
 .titlebar__logo:hover .titlebar__logo-icon--sidebar-open {
     display: block;
 }
@@ -182,7 +172,6 @@
     display: none;
 }
 
-/* When sidebar is closed, show closed icon on hover */
 body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-open {
     display: none;
 }
@@ -195,26 +184,17 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
    NAVIGATION CONTROLS
    ============================================================================ */
 
-/**
- * Navigation container for back/forward buttons
- */
 .titlebar__navigation {
     display: flex;
     align-items: center;
     gap: 0;
     margin-right: 0;
-    /* Disable drag on interactive elements */
     -webkit-app-region: no-drag;
 }
 
-/**
- * Individual navigation button (back/forward)
- * - Square shape for consistency
- * - Hover state for text highlight only
- */
 .titlebar__nav-btn {
-    width: 28px;
-    height: 28px;
+    width: var(--titlebar-nav-btn-size);
+    height: var(--titlebar-nav-btn-size);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -230,45 +210,32 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
     color: var(--color-titlebar-item-hover);
 }
 
-/**
- * Navigation button icons
- */
 .titlebar__nav-icon {
-    width: 14px;
-    height: 14px;
+    width: var(--titlebar-icon-size);
+    height: var(--titlebar-icon-size);
     pointer-events: none;
-    /* Apply color to black SVGs loaded via img tag */
-    filter: invert(62%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-titlebar-muted);
 }
 
 .titlebar__nav-btn:hover .titlebar__nav-icon {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-titlebar-hover);
 }
 
 /* ============================================================================
    MENU BAR
    ============================================================================ */
 
-/**
- * Menu bar container
- * - Horizontal layout for menu items
- */
 .titlebar__menu {
     display: flex;
     align-items: center;
     gap: 0;
-    /* Disable drag on menu items */
     -webkit-app-region: no-drag;
 }
 
-/**
- * Menu item height adjusted for slimmer titlebar
- */
 .titlebar__menu-item {
     position: relative;
     padding: 0 var(--titlebar-spacing-menu);
-    height: 24px;
+    height: var(--titlebar-menu-item-height);
     display: flex;
     align-items: center;
     color: var(--color-titlebar-items);
@@ -282,9 +249,6 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
     color: var(--color-titlebar-item-hover);
 }
 
-/**
- * Active state when dropdown is open
- */
 .titlebar__menu-item.active {
     color: var(--color-titlebar-item-hover);
 }
@@ -294,23 +258,20 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
    ============================================================================ */
 
 /**
- * Dropdown container
- * - Positioned absolutely relative to menu item
- * - Hidden by default
- * - Elevated with shadow
+ * Dropdowns are menu containers that toggle open smoothly when menu item is clicked.
  */
 .titlebar__dropdown {
     position: absolute;
-    top: calc(100% + 2px);
+    top: calc(100% + var(--titlebar-dropdown-offset-top));
     left: 0;
-    min-width: 180px;
+    min-width: var(--titlebar-dropdown-min-width);
     background-color: var(--color-dropdown-bg);
     border: 1px solid var(--color-dropdown-border);
     border-radius: var(--titlebar-radius-md);
     box-shadow: var(--titlebar-shadow-dropdown);
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-8px);
+    transform: translateY(var(--titlebar-dropdown-slide-offset));
     transition: opacity var(--titlebar-transition-normal) var(--titlebar-ease-out),
                 transform var(--titlebar-transition-normal) var(--titlebar-ease-out),
                 visibility var(--titlebar-transition-normal);
@@ -318,28 +279,17 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
     z-index: var(--titlebar-z-index);
 }
 
-/**
- * Show dropdown when parent menu item is active
- */
 .titlebar__menu-item.active .titlebar__dropdown {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
 }
 
-/**
- * Dropdown item list
- */
 .titlebar__dropdown-list {
     display: flex;
     flex-direction: column;
 }
 
-/**
- * Individual dropdown menu item
- * - Full width with padding
- * - Hover state highlights text only
- */
 .titlebar__dropdown-item {
     padding: var(--titlebar-spacing-action) var(--titlebar-spacing-menu);
     color: var(--color-titlebar-items);
@@ -357,12 +307,8 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
     color: var(--color-titlebar-item-hover);
 }
 
-/**
- * Dropdown separator line
- * - Visual divider between menu sections
- */
 .titlebar__dropdown-separator {
-    height: 1px;
+    height: var(--titlebar-separator-height);
     background-color: var(--color-dropdown-separator);
     margin: var(--titlebar-spacing-action) var(--titlebar-spacing-action);
 }
@@ -371,24 +317,13 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
    WINDOW CONTROLS
    ============================================================================ */
 
-/**
- * Window controls container (minimize, maximize, close)
- */
 .titlebar__window-controls {
     display: flex;
     align-items: center;
     height: var(--titlebar-height);
-    /* Disable drag on window control buttons */
     -webkit-app-region: no-drag;
 }
 
-/**
- * Individual window control button
- * - Fixed width for consistency
- * - Full height of titlebar
- * - Hover states for feedback
- * - Minimalist design matching modern window managers
- */
 .titlebar__control-btn {
     width: var(--titlebar-button-width);
     height: var(--titlebar-height);
@@ -406,44 +341,29 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
     background-color: rgba(255, 255, 255, 0.12);
 }
 
-/**
- * Special styling for close button
- * - Red background on hover (Windows/macOS style)
- */
 .titlebar__control-btn--close:hover {
-    background-color: #e81123;
+    background-color: var(--color-window-close-hover);
 }
 
 .titlebar__control-btn--close:active {
-    background-color: #c50f1f;
+    background-color: var(--color-window-close-active);
 }
 
-/**
- * Window control button icons
- */
 .titlebar__control-icon {
     width: var(--titlebar-icon-size);
     height: var(--titlebar-icon-size);
     pointer-events: none;
-    /* Apply gray color filter to SVGs loaded via img tag */
-    /* This filter converts black to a gray color (#b3b3b3) */
-    filter: invert(71%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(96%) contrast(88%);
+    filter: var(--filter-titlebar-window-control-muted);
 }
 
 .titlebar__control-btn:hover .titlebar__control-icon {
-    /* White color on hover */
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-titlebar-hover);
 }
 
-/* Close button icon keeps white color on hover */
 .titlebar__control-btn--close:hover .titlebar__control-icon {
-    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+    filter: var(--filter-titlebar-hover);
 }
 
-/**
- * Maximize/Unmaximize icon toggle
- * - Only one icon visible at a time based on window state
- */
 .titlebar__control-icon--maximize {
     display: block;
 }
@@ -452,9 +372,6 @@ body.sidebar-closed .titlebar__logo:hover .titlebar__logo-icon--sidebar-closed {
     display: none;
 }
 
-/**
- * When window is maximized, swap the icons
- */
 body.is-maximized .titlebar__control-icon--maximize {
     display: none;
 }
@@ -467,16 +384,14 @@ body.is-maximized .titlebar__control-icon--unmaximize {
    RESPONSIVE ADJUSTMENTS
    ============================================================================ */
 
-/**
- * For narrow viewports, reduce spacing and sizing
- */
 @media (max-width: 768px) {
+    :root {
+        --titlebar-dropdown-min-width: 160px;
+    }
+    
     .titlebar__menu-item {
         padding: 0 var(--titlebar-spacing-menu);
     }
-    
-    .titlebar__dropdown {
-        min-width: 160px;
-    }
 }
+
 
