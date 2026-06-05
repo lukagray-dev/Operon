@@ -16,7 +16,7 @@
  * Transient UI state is held in permissionsState (local, not in the store).
  */
 
-import { showError } from '../../shared/toast.js';
+import { showError, showSuccess } from '../../shared/toast.js';
 import {
   activeCategory,
   renderInlineStatus,
@@ -24,11 +24,7 @@ import {
   escapeAttribute,
   normalizeErrorMessage,
 } from '../settings-panel.js';
-import {
-  PLACEHOLDER_ALLOWED_DIRECTORIES,
-  PLACEHOLDER_GLOBAL_PERMISSIONS,
-  PLACEHOLDER_DIRECTORY_PERMISSIONS,
-} from './placeholders.js';
+import * as IPC from '../../shared/ipc.js';
 
 // ── Transient Module State ────────────────────────────────────────────────────
 
@@ -104,9 +100,7 @@ async function refreshAllowedDirectories(modal, preserveSelection = true) {
   renderPermissionsStage(modal);
 
   try {
-    // PLACEHOLDER: Load allowed directories with delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const payload   = PLACEHOLDER_ALLOWED_DIRECTORIES;
+    const payload   = await IPC.getAllowedDirectories();
     const normalized = normalizeAllowedDirectoriesPayload(payload);
     permissionsState.workspaceDirectory = normalized.workspaceDirectory;
     permissionsState.directories = normalized.directories;
@@ -136,15 +130,11 @@ async function loadPermissionRows(modal) {
   renderPermissionsStage(modal);
 
   try {
-    // PLACEHOLDER: Load permission rows with delay
-    await new Promise(resolve => setTimeout(resolve, 300));
     let rows = [];
     if (permissionsState.activeTab === 'global') {
-      rows = PLACEHOLDER_GLOBAL_PERMISSIONS[permissionsState.scope] || [];
+      rows = await IPC.getPermissionRows(permissionsState.scope);
     } else if (permissionsState.configureDirectory) {
-      const dirKey = permissionsState.configureDirectory;
-      const dirData = PLACEHOLDER_DIRECTORY_PERMISSIONS[dirKey] || {};
-      rows = dirData[permissionsState.scope] || [];
+      rows = await IPC.getPermissionRows(permissionsState.scope, permissionsState.configureDirectory);
     }
 
     permissionsState.rows = Array.isArray(rows) ? rows.map(normalizePermissionRow) : [];
@@ -365,9 +355,9 @@ function renderGroupedPermissionRows() {
 }
 
 function buildPermissionModeToggle(row) {
-  const values = ['allow', 'ask', 'restrict'];
-  const icons  = { allow: 'permission-allow', ask: 'permission-ask', restrict: 'permission-restrict' };
-  const titles = { allow: 'Allow', ask: 'Ask', restrict: 'Restrict' };
+  const values = ['allow', 'ask', 'deny'];
+  const icons  = { allow: 'permission-allow', ask: 'permission-ask', deny: 'permission-deny' };
+  const titles = { allow: 'Allow', ask: 'Ask', deny: 'Deny' };
   const activeMode = row.mode === 'custom' ? '' : row.mode;
   const rowKind    = row.kind === 'group' ? 'group' : 'tool';
 
@@ -376,7 +366,6 @@ function buildPermissionModeToggle(row) {
       ${values.map(value => `
         <button class="permission-toggle__btn ${value === activeMode ? 'is-active' : ''}"
                 data-permissions-set-mode
-                data-permission="${value === 'restrict' ? 'deny' : value}"
                 data-permissions-mode="${value}"
                 data-permissions-row-kind="${rowKind}"
                 data-permissions-permission-key="${escapeAttribute(row.key)}"
@@ -557,14 +546,14 @@ async function handleAddAllowedDirectory(modal) {
   renderPermissionsStage(modal);
 
   try {
-    // PLACEHOLDER: Simulate adding directory with delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    if (!permissionsState.directories.includes(directory)) {
-      permissionsState.directories.push(directory);
-    }
+    const payload = await IPC.addAllowedDirectory(directory);
+    const normalized = normalizeAllowedDirectoriesPayload(payload);
+    permissionsState.workspaceDirectory = normalized.workspaceDirectory;
+    permissionsState.directories = normalized.directories;
     permissionsState.selectedDirectory = directory;
     permissionsState.status = `Added allowed directory: ${directory}`;
     input.value = '';
+    showSuccess(`Added directory: ${directory}`);
     await loadPermissionRows(modal);
   } catch (error) {
     showError(normalizeErrorMessage(error, 'Failed to add allowed directory.'));
@@ -580,16 +569,18 @@ async function handleRemoveAllowedDirectory(modal, directory) {
   renderPermissionsStage(modal);
 
   try {
-    // PLACEHOLDER: Simulate removing directory with delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    permissionsState.directories = permissionsState.directories.filter(d => d !== directory);
+    const payload = await IPC.removeAllowedDirectory(directory);
+    const normalized = normalizeAllowedDirectoriesPayload(payload);
+    permissionsState.workspaceDirectory = normalized.workspaceDirectory;
+    permissionsState.directories = normalized.directories;
 
     if (!permissionsState.directories.includes(permissionsState.selectedDirectory)) {
       permissionsState.selectedDirectory =
-        permissionsState.workspaceDirectory || permissionsState.directories[0] || '';
+        normalized.workspaceDirectory || permissionsState.directories[0] || '';
     }
 
     permissionsState.status = `Removed allowed directory: ${directory}`;
+    showSuccess(`Removed directory: ${directory}`);
     await loadPermissionRows(modal);
   } catch (error) {
     showError(normalizeErrorMessage(error, 'Failed to remove allowed directory.'));
@@ -616,16 +607,21 @@ async function applyPermissionModeUpdate(modal, rowKind, permissionKey, targetMo
   renderPermissionsStage(modal);
 
   try {
-    // PLACEHOLDER: Simulate saving permission mode with delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // Update the row in local state
-    const updatedRow = { ...row, mode: target, isExplicit: modeToSave !== null };
-    permissionsState.rows = permissionsState.rows.map(r =>
-      r.kind === rowKind && r.key === permissionKey ? updatedRow : r
+    const isGlobal = permissionsState.activeTab === 'global';
+    const directory = isGlobal ? null : permissionsState.configureDirectory;
+
+    await IPC.updatePermissionMode(
+      permissionsState.scope,
+      directory,
+      permissionKey,
+      modeToSave
     );
     
+    // Refresh rows from backend to ensure consistent state and reflect any cascade/inheritance correctly
+    await loadPermissionRows(modal);
+    
     permissionsState.status = `${row.label} updated`;
+    showSuccess(`Updated ${row.label} to ${target}`);
   } catch (error) {
     showError(normalizeErrorMessage(error, 'Failed to update permission mode.'));
   } finally {
@@ -664,7 +660,7 @@ function normalizePermissionRow(row) {
 
 function normalizePermissionMode(value) {
   const normalized = String(value || '').trim().toLowerCase();
-  if (['allow', 'ask', 'restrict', 'custom'].includes(normalized)) return normalized;
+  if (['allow', 'ask', 'deny', 'custom'].includes(normalized)) return normalized;
   return '';
 }
 

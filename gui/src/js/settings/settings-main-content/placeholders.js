@@ -328,7 +328,7 @@ export const PLACEHOLDER_GLOBAL_PERMISSION_ROWS = [
     kind: 'tool',
     key: 'delete_file',
     label: 'Delete File',
-    mode: 'restrict',
+    mode: 'deny',
     baseMode: 'allow',
     isExplicit: true,
     groupKey: 'filesystem',
@@ -576,7 +576,7 @@ export const PLACEHOLDER_GLOBAL_PERMISSIONS = {
   owner: PLACEHOLDER_GLOBAL_PERMISSION_ROWS,
   external: PLACEHOLDER_GLOBAL_PERMISSION_ROWS.map(row => ({
     ...row,
-    mode: 'restrict',
+    mode: 'deny',
     isExplicit: false,
   })),
 };
@@ -591,7 +591,7 @@ export const PLACEHOLDER_DIRECTORY_PERMISSIONS = {
     owner: PLACEHOLDER_DIRECTORY_PERMISSION_ROWS,
     external: PLACEHOLDER_DIRECTORY_PERMISSION_ROWS.map(row => ({
       ...row,
-      mode: 'restrict',
+      mode: 'deny',
       isExplicit: false,
     })),
   },

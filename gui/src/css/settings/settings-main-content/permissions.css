@@ -5,7 +5,7 @@
  * - Allowed directories list with add/remove functionality
  * - Permission scope selector (Owner vs External)
  * - Permission rows for tool groups and individual tools
- * - Three-state permission toggles (Allow / Ask / Restrict)
+ * - Three-state permission toggles (Allow / Ask / Deny)
  * - Expand/collapse functionality for permission groups
  * - Configuration view for detailed permission management
  * 
@@ -483,7 +483,7 @@
 
 /**
  * Current mode label
- * - Displays current permission state (Allow/Ask/Restrict)
+ * - Displays current permission state (Allow/Ask/Deny)
  * - Right-aligned, monospace for consistency
  */
 .settings-permissions__permission-mode {
@@ -510,7 +510,7 @@
 
 /**
  * Three-button permission toggle
- * - Allows switching between Allow, Ask, and Restrict
+ * - Allows switching between Allow, Ask, and Deny
  * - Segmented control style with icon buttons
  */
 .permission-toggle {
@@ -524,7 +524,7 @@
 
 /**
  * Individual toggle button
- * - Represents one permission state (Allow / Ask / Restrict)
+ * - Represents one permission state (Allow / Ask / Deny)
  * - Icon-only button with hover and active states
  */
 .permission-toggle__btn {

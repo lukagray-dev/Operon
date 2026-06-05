@@ -151,3 +151,63 @@ export async function saveProviderSetup(request) {
 export async function getActiveProvider() {
     return await invoke('get_active_provider');
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PERMISSION COMMANDS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get list of allowed directories and the default workspace
+ * @returns {Promise<Object>} - { workspaceDirectory: string, directories: string[] }
+ */
+export async function getAllowedDirectories() {
+    return await invoke('get_allowed_directories');
+}
+
+/**
+ * Add a new allowed directory
+ * @param {string} directory - Directory path to add
+ * @returns {Promise<Object>} - Updated allowed directories response
+ */
+export async function addAllowedDirectory(directory) {
+    return await invoke('add_allowed_directory', { directory: normalizeString(directory) });
+}
+
+/**
+ * Remove an allowed directory
+ * @param {string} directory - Directory path to remove
+ * @returns {Promise<Object>} - Updated allowed directories response
+ */
+export async function removeAllowedDirectory(directory) {
+    return await invoke('remove_allowed_directory', { directory: normalizeString(directory) });
+}
+
+/**
+ * Get permission rows for a given scope and directory
+ * @param {string} scope - 'owner' or 'external'
+ * @param {string|null} [directory=null] - Optional directory path for directory-scoped permissions
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getPermissionRows(scope, directory = null) {
+    return await invoke('get_permission_rows', {
+        scope: normalizeString(scope),
+        directory: directory ? normalizeString(directory) : null,
+    });
+}
+
+/**
+ * Update the permission mode of a key
+ * @param {string} scope - 'owner' or 'external'
+ * @param {string|null} directory - Optional directory path
+ * @param {string} key - Permission key (tool or group name)
+ * @param {string|null} mode - Permission mode ('allow', 'ask', 'deny') or null to inherit/reset
+ * @returns {Promise<void>}
+ */
+export async function updatePermissionMode(scope, directory, key, mode) {
+    return await invoke('update_permission_mode', {
+        scope: normalizeString(scope),
+        directory: directory ? normalizeString(directory) : null,
+        key: normalizeString(key),
+        mode: mode ? normalizeString(mode) : null,
+    });
+}

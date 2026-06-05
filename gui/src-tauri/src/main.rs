@@ -37,6 +37,11 @@ fn main() {
             commands::model_commands::discover_models,
             commands::model_commands::save_provider_setup,
             commands::model_commands::get_active_provider,
+            commands::permission_commands::get_allowed_directories,
+            commands::permission_commands::add_allowed_directory,
+            commands::permission_commands::remove_allowed_directory,
+            commands::permission_commands::get_permission_rows,
+            commands::permission_commands::update_permission_mode,
         ])
         // Setup window and app configuration
         .setup(|app| {
