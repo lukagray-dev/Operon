@@ -74,6 +74,9 @@ class InputPanelController {
             // Setup sidebar resize observer
             this.observeSidebarResize();
             
+            // Load active model on startup from cache
+            this.loadActiveModel();
+            
             console.log('Input panel initialized successfully');
         } catch (error) {
             console.error('Failed to initialize input panel:', error);
@@ -387,15 +390,6 @@ class InputPanelController {
         // Remove existing dropdown if any
         this.closeModelDropdown();
         
-        // Get available models (discovered or fallback)
-        const availableModels = providerSetup.fallbackModels || [];
-        const currentModel = providerSetup.selectedModel || availableModels[0] || '';
-        
-        if (availableModels.length === 0) {
-            alert('No models available for this provider. Please configure models in Settings.');
-            return;
-        }
-        
         // Create dropdown HTML
         const dropdown = document.createElement('div');
         dropdown.className = 'model-selector__dropdown';
@@ -404,20 +398,7 @@ class InputPanelController {
                 <span class="model-selector__title">${this.escapeHtml(providerSetup.label)}</span>
                 <span class="model-selector__subtitle">Select Model</span>
             </div>
-            <div class="model-selector__list">
-                ${availableModels.map(modelId => `
-                    <button 
-                        class="model-selector__item ${modelId === currentModel ? 'is-active' : ''}"
-                        data-model-id="${this.escapeHtml(modelId)}"
-                    >
-                        <span class="model-selector__item-name">${this.escapeHtml(modelId)}</span>
-                        ${modelId === currentModel ? '<span class="model-selector__item-check">✓</span>' : ''}
-                    </button>
-                `).join('')}
-            </div>
-            <div class="model-selector__footer">
-                <span class="model-selector__context">Context: ${this.formatContextWindow(providerSetup.selectedModel)}</span>
-            </div>
+            <div class="model-selector__content-area"></div>
         `;
         
         // Position dropdown
@@ -428,23 +409,98 @@ class InputPanelController {
         
         // Add to body
         document.body.appendChild(dropdown);
+        this._activeDropdown = dropdown;
         
-        // Bind events
-        dropdown.querySelectorAll('.model-selector__item').forEach(item => {
-            item.addEventListener('click', async () => {
-                const modelId = item.getAttribute('data-model-id');
-                await this.selectModel(providerSetup.providerId, modelId);
-                this.closeModelDropdown();
-            });
-        });
+        const contentArea = dropdown.querySelector('.model-selector__content-area');
+        
+        // Check if API key is missing
+        const isApiKeyMissing = providerSetup.requiresApiKey && (!providerSetup.apiKey || !providerSetup.apiKey.trim());
+        
+        if (isApiKeyMissing) {
+            contentArea.innerHTML = `
+                <div class="model-selector__list model-selector__list--empty">
+                    <div class="model-selector__empty-message">
+                        No models found. Please add an API key in settings.
+                    </div>
+                </div>
+            `;
+        } else {
+            // Show loading spinner
+            contentArea.innerHTML = `
+                <div class="model-selector__loading">
+                    <div class="model-selector__spinner"></div>
+                    <div>Fetching models...</div>
+                </div>
+            `;
+            
+            // Asynchronously fetch models
+            (async () => {
+                try {
+                    const IPC = await import('../shared/ipc.js');
+                    const discoveryResult = await IPC.discoverModels({
+                        providerId: providerSetup.providerId,
+                        apiBase: providerSetup.apiBase || providerSetup.defaultApiBase,
+                        apiKey: providerSetup.apiKey,
+                    });
+                    
+                    const availableModels = discoveryResult.models || [];
+                    const currentModel = providerSetup.selectedModel || availableModels[0]?.modelId || '';
+                    
+                    if (availableModels.length === 0) {
+                        contentArea.innerHTML = `
+                            <div class="model-selector__list model-selector__list--empty">
+                                <div class="model-selector__empty-message">
+                                    No models found. Please configure models in settings.
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Render models list
+                    contentArea.innerHTML = `
+                        <div class="model-selector__list">
+                            ${availableModels.map(model => `
+                                <button 
+                                    class="model-selector__item ${model.modelId === currentModel ? 'is-active' : ''}"
+                                    data-model-id="${this.escapeHtml(model.modelId)}"
+                                >
+                                    <span class="model-selector__item-name">${this.escapeHtml(model.modelId)}</span>
+                                    ${model.modelId === currentModel ? '<span class="model-selector__item-check">✓</span>' : ''}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="model-selector__footer">
+                            <span class="model-selector__context">Context: ${this.formatContextWindow(currentModel, availableModels)}</span>
+                        </div>
+                    `;
+                    
+                    // Bind events to items
+                    contentArea.querySelectorAll('.model-selector__item').forEach(item => {
+                        item.addEventListener('click', async () => {
+                            const modelId = item.getAttribute('data-model-id');
+                            await this.selectModel(providerSetup.providerId, modelId);
+                            this.closeModelDropdown();
+                        });
+                    });
+                    
+                } catch (error) {
+                    console.error('Failed to discover models on the fly:', error);
+                    contentArea.innerHTML = `
+                        <div class="model-selector__list model-selector__list--empty">
+                            <div class="model-selector__empty-message model-selector__empty-message--error">
+                                Failed to load models. Please verify your API key in settings.
+                            </div>
+                        </div>
+                    `;
+                }
+            })();
+        }
         
         // Click outside to close
         setTimeout(() => {
             document.addEventListener('click', this.handleDropdownClickOutside.bind(this), { once: true });
         }, 0);
-        
-        // Store reference
-        this._activeDropdown = dropdown;
     }
     
     /**
@@ -513,6 +569,11 @@ class InputPanelController {
         const labelEl = modelBtn?.querySelector('.input-panel__action-label');
         
         if (labelEl) {
+            if (!modelId) {
+                labelEl.textContent = 'Select model';
+                return;
+            }
+            
             // Extract a friendly name from the model ID
             let displayName = modelId;
             
@@ -531,16 +592,46 @@ class InputPanelController {
             labelEl.textContent = displayName;
         }
     }
+
+    /**
+     * Load the active model on startup and update display
+     */
+    async loadActiveModel() {
+        try {
+            // Set default text first in case it takes time to load
+            this.updateModelDisplay('');
+            
+            const IPC = await import('../shared/ipc.js');
+            const activeProvider = await IPC.getActiveProvider();
+            if (activeProvider && activeProvider.selectedModel) {
+                this.updateModelDisplay(activeProvider.selectedModel);
+            } else {
+                this.updateModelDisplay('');
+            }
+        } catch (error) {
+            console.error('Failed to load active model on startup:', error);
+            this.updateModelDisplay('');
+        }
+    }
     
     /**
      * Format context window size
      * 
      * @param {string} modelId - Model ID
+     * @param {Array} availableModels - Discovered models array
      * @returns {string} Formatted context window
      */
-    formatContextWindow(modelId) {
-        // TODO: Get actual context window from backend
-        // For now, return placeholder
+    formatContextWindow(modelId, availableModels = []) {
+        const model = availableModels.find(m => m.modelId === modelId);
+        if (model && model.contextWindow) {
+            const windowTokens = model.contextWindow;
+            if (windowTokens >= 1000000) {
+                return `${(windowTokens / 1000000).toFixed(1).replace('.0', '')}M`;
+            } else if (windowTokens >= 1000) {
+                return `${(windowTokens / 1000).toFixed(0)}K`;
+            }
+            return `${windowTokens}`;
+        }
         return '128K';
     }
     
