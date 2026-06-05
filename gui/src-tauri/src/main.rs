@@ -32,11 +32,11 @@ fn main() {
         .manage(app_state)
         // Register IPC command handlers
         .invoke_handler(tauri::generate_handler![
-            commands::get_model_providers,
-            commands::get_model_provider_setup,
-            commands::discover_models,
-            commands::save_provider_setup,
-            commands::get_active_provider,
+            commands::model_commands::get_model_providers,
+            commands::model_commands::get_model_provider_setup,
+            commands::model_commands::discover_models,
+            commands::model_commands::save_provider_setup,
+            commands::model_commands::get_active_provider,
         ])
         // Setup window and app configuration
         .setup(|app| {

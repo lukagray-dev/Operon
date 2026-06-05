@@ -1,11 +1,4 @@
-// commands.rs — Tauri IPC command handlers for the Operon GUI.
-//
-// All commands exposed to the frontend JavaScript are defined here.
-// Each command is marked with #[tauri::command] and registered in main.rs.
-//
-// Command categories:
-//   - Model providers: list, get setup, fetch models, save configuration
-//   - Config management: load, update, validate
+// model_commands.rs — Tauri IPC command handlers for model providers.
 
 use operon_rs::{load as load_config, ApiCredentials, ModelConfig, Provider, ProviderConfig};
 use serde::{Deserialize, Serialize};
