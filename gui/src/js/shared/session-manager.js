@@ -1,0 +1,774 @@
+'use strict';
+
+/**
+ * session-manager.js
+ *
+ * Central frontend controller for managing agent chat sessions.
+ * Coordinates between left-sidebar list, input panel, user messages,
+ * assistant messages, and Tauri IPC commands.
+ *
+ * It listens to "session-event" from Rust to stream live responses,
+ * thinking blocks, tool calls, and permission prompts.
+ */
+
+import * as IPC from './ipc.js';
+import { showError, showSuccess } from './toast.js';
+
+class SessionManager {
+    constructor() {
+        this.activeSessionId = null;
+        this.currentProjectDir = null; // VS Code style opened project path
+        
+        // Element references for streaming the current response
+        this.currentAssistantMsgEl = null;
+        this.currentAssistantContentEl = null;
+        
+        // Reasoning block variables
+        this.currentThinkingEl = null;
+        this.currentThinkingContentEl = null;
+        
+        // Maps to track active inline components by ID
+        this.activeToolCalls = new Map();         // call_id -> card DOM element
+        this.activePermissionPrompts = new Map(); // approval_id -> card DOM element
+        
+        // Tauri unlisten handle
+        this.unlistenSessionEvents = null;
+    }
+
+    /**
+     * Initialize the session manager
+     */
+    async init() {
+        try {
+            // Bind Tauri event listener for live streaming
+            if (window.__TAURI__) {
+                const { listen } = window.__TAURI__.event;
+                this.unlistenSessionEvents = await listen('session-event', (event) => {
+                    this.handleSessionEvent(event.payload);
+                });
+            }
+            
+            console.log('Session manager initialized successfully');
+            
+            // Load initial chats list in the sidebar
+            await this.loadSessionsList();
+        } catch (error) {
+            console.error('Failed to initialize session manager:', error);
+        }
+    }
+
+    /**
+     * Terminate and clean up Tauri event listener
+     */
+    destroy() {
+        if (this.unlistenSessionEvents) {
+            this.unlistenSessionEvents();
+            this.unlistenSessionEvents = null;
+        }
+    }
+
+    /**
+     * Reset streaming references for a new turn
+     */
+    resetStreamingState() {
+        this.hideTypingIndicator();
+        this.currentAssistantMsgEl = null;
+        this.currentAssistantContentEl = null;
+        this.currentThinkingEl = null;
+        this.currentThinkingContentEl = null;
+        this.activeToolCalls.clear();
+        this.activePermissionPrompts.clear();
+    }
+
+    /**
+     * Show a bouncing typing indicator at the end of the chat container
+     */
+    showTypingIndicator() {
+        this.hideTypingIndicator(); // Ensure any previous one is cleaned up
+        
+        const container = window.assistantMessageController?.messagesContainer;
+        if (!container) return;
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'assistant-message__typing-indicator';
+        indicator.id = 'assistant-typing-indicator';
+        indicator.innerHTML = `
+            <div class="assistant-message__typing-dot"></div>
+            <div class="assistant-message__typing-dot"></div>
+            <div class="assistant-message__typing-dot"></div>
+        `;
+        
+        container.appendChild(indicator);
+        window.assistantMessageController.scrollToBottom();
+    }
+
+    /**
+     * Remove the typing indicator from the DOM
+     */
+    hideTypingIndicator() {
+        const indicator = document.getElementById('assistant-typing-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+
+    /**
+     * Start a brand new, empty chat session.
+     * Clears messages, hides empty state, and updates the title.
+     */
+    startNewChat() {
+        this.activeSessionId = null;
+        this.resetStreamingState();
+        
+        // Clear message log
+        if (window.userMessageController) {
+            window.userMessageController.clearMessages();
+        }
+        if (window.assistantMessageController) {
+            window.assistantMessageController.clearMessages();
+        }
+        
+        // Restore empty state
+        if (window.emptyStateController) {
+            window.emptyStateController.showEmptyState();
+        }
+        
+        // Update session header title
+        const titleEl = document.getElementById('session-title');
+        if (titleEl) {
+            titleEl.textContent = 'New Chat';
+        }
+        
+        // Deselect any active item in left sidebar
+        const activeItem = document.querySelector('.left-sidebar__chat-item.active');
+        if (activeItem) {
+            activeItem.classList.remove('active');
+        }
+    }
+
+    /**
+     * Load the list of sessions from SQLite databases and render them in the left sidebar.
+     */
+    async loadSessionsList() {
+        try {
+            const sessions = await IPC.listSessions();
+            
+            // Find sidebar container
+            const chatsContent = document.querySelector('[data-section-content="chats"]');
+            if (!chatsContent) return;
+            
+            chatsContent.innerHTML = '';
+            
+            if (sessions.length === 0) {
+                chatsContent.innerHTML = '<div class="left-sidebar__no-chats" style="padding: 12px 16px; font-size: 12px; color: #777777;">No recent chats</div>';
+                return;
+            }
+            
+            sessions.forEach(session => {
+                const chatBtn = document.createElement('button');
+                chatBtn.className = 'left-sidebar__chat-item';
+                if (session.id === this.activeSessionId) {
+                    chatBtn.classList.add('active');
+                }
+                chatBtn.setAttribute('data-chat-id', session.id);
+                chatBtn.setAttribute('title', session.title);
+                
+                const chatText = document.createElement('span');
+                chatText.className = 'left-sidebar__chat-text';
+                chatText.textContent = session.title;
+                
+                chatBtn.appendChild(chatText);
+                
+                chatBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectSession(session.id);
+                });
+                
+                chatsContent.appendChild(chatBtn);
+            });
+        } catch (error) {
+            console.error('Failed to load sessions list:', error);
+        }
+    }
+
+    /**
+     * Select and load history for a specific chat session.
+     * @param {string} sessionId - The session ID to open
+     */
+    async selectSession(sessionId) {
+        if (this.activeSessionId === sessionId) return;
+        
+        this.activeSessionId = sessionId;
+        this.resetStreamingState();
+        
+        // Highlight active sidebar item
+        document.querySelectorAll('.left-sidebar__chat-item').forEach(item => {
+            if (item.getAttribute('data-chat-id') === sessionId) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+        
+        // Hide empty state logo
+        if (window.emptyStateController) {
+            window.emptyStateController.hideEmptyState();
+        }
+        
+        // Clear current screen messages
+        if (window.userMessageController) {
+            window.userMessageController.clearMessages();
+        }
+        if (window.assistantMessageController) {
+            window.assistantMessageController.clearMessages();
+        }
+        
+        try {
+            // Load messages from SQLite turns database
+            const history = await IPC.getSessionHistory(sessionId);
+            
+            if (history.length === 0) {
+                this.startNewChat();
+                return;
+            }
+            
+            // Extract the first user message for title
+            let title = 'Chat Session';
+            
+            // 1. Build a map of tool results keyed by call_id
+            const toolResultsMap = new Map();
+            history.forEach(msg => {
+                if (msg.role === 'Tool') {
+                    msg.content.forEach(block => {
+                        if (block.ToolResult) {
+                            toolResultsMap.set(block.ToolResult.call_id, block.ToolResult);
+                        }
+                    });
+                }
+            });
+            
+            // 2. Render user and assistant turns
+            history.forEach(msg => {
+                if (msg.role === 'User') {
+                    // Extract text
+                    let text = '';
+                    msg.content.forEach(block => {
+                        if (typeof block === 'string') text += block;
+                        else if (block.Text) text += block.Text;
+                    });
+                    
+                    if (window.userMessageController) {
+                        window.userMessageController.addMessage(text);
+                    }
+                    if (title === 'Chat Session') {
+                        title = text.replace('\n', ' ').trim();
+                        if (title.len > 40) title = title.substring(0, 40) + '...';
+                    }
+                } else if (msg.role === 'Assistant') {
+                    // Render assistant message block with nested thinking / tool calls
+                    this.renderHistoricalAssistantMessage(msg, toolResultsMap);
+                }
+            });
+            
+            // Update session title
+            const titleEl = document.getElementById('session-title');
+            if (titleEl) {
+                titleEl.textContent = title;
+            }
+            
+        } catch (error) {
+            console.error('Failed to load session history:', error);
+            showError('Failed to load chat history.');
+        }
+    }
+
+    /**
+     * Helper to render a historical assistant message including tool calls and results
+     */
+    renderHistoricalAssistantMessage(msg, toolResultsMap) {
+        if (!window.assistantMessageController) return;
+        
+        // Create base assistant message element
+        // We look for any text content block first
+        let textContent = '';
+        msg.content.forEach(block => {
+            if (block.Text) textContent += block.Text;
+        });
+        
+        const msgEl = window.assistantMessageController.createMessage(textContent || " ", "Just now");
+        window.assistantMessageController.messagesContainer.appendChild(msgEl);
+        
+        const contentEl = msgEl.querySelector('.assistant-message__content');
+        
+        // Loop blocks to add thinking processes and tool execution cards
+        msg.content.forEach(block => {
+            if (block.Reasoning) {
+                // Add a collapsed thinking card
+                const thinkingCard = document.createElement('div');
+                thinkingCard.className = 'assistant-message__thinking collapsed';
+                thinkingCard.innerHTML = `
+                    <div class="assistant-message__thinking-header">
+                        <img class="assistant-message__thinking-icon" src="./assets/icons/sidebar/new-chat.svg" style="filter: invert(1); width:14px; height:14px;">
+                        <span>Thinking Process</span>
+                    </div>
+                    <div class="assistant-message__thinking-content">${block.Reasoning.signature || block.Reasoning.thinking || ''}</div>
+                `;
+                
+                // Toggle collapse on click
+                thinkingCard.querySelector('.assistant-message__thinking-header').addEventListener('click', () => {
+                    thinkingCard.classList.toggle('collapsed');
+                });
+                
+                msgEl.insertBefore(thinkingCard, msgEl.querySelector('.assistant-message__separator'));
+            } else if (block.ToolCall) {
+                // Add tool card
+                const call = block.ToolCall;
+                const callId = call.id;
+                const result = toolResultsMap.get(callId);
+                
+                let statusClass = 'assistant-message__tool-status--completed';
+                let statusText = 'Completed';
+                let resultText = 'No result returned.';
+                
+                if (result) {
+                    if (result.is_error) {
+                        statusClass = 'assistant-message__tool-status--failed';
+                        statusText = 'Failed';
+                    }
+                    if (result.content) {
+                        if (result.content.Text) resultText = result.content.Text;
+                        else if (result.content.Json) resultText = JSON.stringify(result.content.Json, null, 2);
+                        else if (typeof result.content === 'string') resultText = result.content;
+                    }
+                }
+                
+                const toolCard = document.createElement('div');
+                toolCard.className = 'assistant-message__tool-card collapsed';
+                
+                let formattedArgs = '';
+                try {
+                    formattedArgs = JSON.stringify(call.arguments, null, 2);
+                } catch (e) {
+                    formattedArgs = JSON.stringify(call.arguments);
+                }
+                
+                toolCard.innerHTML = `
+                    <div class="assistant-message__tool-header">
+                        <div class="assistant-message__tool-title-wrapper">
+                            <span class="assistant-message__tool-icon">
+                                <img src="./assets/icons/sidebar/plugins.svg" style="filter: invert(1); width:16px; height:16px;">
+                            </span>
+                            <span class="assistant-message__tool-name">${call.name}</span>
+                        </div>
+                        <span class="assistant-message__tool-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="assistant-message__tool-details">
+                        <div class="assistant-message__tool-section">
+                            <div class="assistant-message__tool-section-title">Arguments</div>
+                            <pre class="assistant-message__tool-code">${formattedArgs}</pre>
+                        </div>
+                        <div class="assistant-message__tool-section">
+                            <div class="assistant-message__tool-section-title">Result</div>
+                            <pre class="assistant-message__tool-code">${resultText}</pre>
+                        </div>
+                    </div>
+                `;
+                
+                // Toggle collapse on click
+                toolCard.querySelector('.assistant-message__tool-header').addEventListener('click', () => {
+                    toolCard.classList.toggle('collapsed');
+                });
+                
+                msgEl.insertBefore(toolCard, msgEl.querySelector('.assistant-message__separator'));
+            }
+        });
+        
+        window.assistantMessageController.scrollToBottom();
+    }
+
+    /**
+     * Send a user message to the active or new session.
+     * @param {string} text - Message text to send
+     */
+    async sendUserMessage(text) {
+        if (!text || !text.trim()) return;
+        
+        // Hide empty state if visible
+        if (window.emptyStateController) {
+            window.emptyStateController.hideEmptyState();
+        }
+        
+        // Generate a new session ID if starting a new chat
+        if (!this.activeSessionId) {
+            this.activeSessionId = Date.now().toString(16) + Math.random().toString(16).substring(2, 6);
+            
+            // Set header title
+            const titleEl = document.getElementById('session-title');
+            if (titleEl) {
+                titleEl.textContent = text.replace('\n', ' ').trim().substring(0, 40) + '...';
+            }
+        }
+        
+        this.resetStreamingState();
+        
+        // Render user message on screen
+        if (window.userMessageController) {
+            window.userMessageController.addMessage(text);
+        }
+        
+        try {
+            // Show typing indicator while waiting for the background response
+            this.showTypingIndicator();
+            
+            // Invoke background send_message command
+            await IPC.sendMessage(this.activeSessionId, text, this.currentProjectDir);
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            showError(error.toString());
+            
+            // If failed to launch, clean up state
+            this.resetStreamingState();
+        }
+    }
+
+    /**
+     * Handle streaming event from the Rust SessionRunner
+     * @param {Object} event - The deserialized SessionEvent enum
+     */
+    handleSessionEvent(event) {
+        // Rust serialized enum format checks
+        if (event.SessionStarted) {
+            // Session starts
+            this.loadSessionsList();
+        } 
+        else if (event.TextDelta) {
+            this.ensureAssistantMessageCreated();
+            const text = event.TextDelta.text;
+            
+            // Accumulate the raw markdown text as it arrives
+            this.currentAssistantContentEl.rawMarkdown = (this.currentAssistantContentEl.rawMarkdown || "") + text;
+            
+            // Invoke the backend markdown parser to generate updated HTML
+            IPC.renderMarkdown(this.currentAssistantContentEl.rawMarkdown)
+                .then(html => {
+                    this.currentAssistantContentEl.innerHTML = html;
+                    // Run KaTeX equations auto-typeset over the message element
+                    if (window.renderMathInElement) {
+                        window.renderMathInElement(this.currentAssistantContentEl, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false},
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '\\[', right: '\\]', display: true}
+                            ],
+                            throwOnError: false
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to render markdown delta:", err);
+                    this.currentAssistantContentEl.textContent += text;
+                });
+                
+            window.assistantMessageController.scrollToBottom();
+        } 
+        else if (event.ThinkingDelta) {
+            this.ensureAssistantMessageCreated();
+            this.ensureThinkingBlockCreated();
+            const text = event.ThinkingDelta.text;
+            this.currentThinkingContentEl.textContent += text;
+            window.assistantMessageController.scrollToBottom();
+        } 
+        else if (event.ToolCallStart) {
+            this.ensureAssistantMessageCreated();
+            const { call_id, name } = event.ToolCallStart;
+            this.createToolCallCard(call_id, name);
+        } 
+        else if (event.ToolCallArgsReady) {
+            const { call_id, args_json } = event.ToolCallArgsReady;
+            this.updateToolCallArgs(call_id, args_json);
+        } 
+        else if (event.ToolProgress) {
+            // We can log progress
+        } 
+        else if (event.ToolCallResult) {
+            const { call_id, is_error, content_json } = event.ToolCallResult;
+            this.completeToolCallCard(call_id, is_error, content_json);
+        } 
+        else if (event.PermissionDenied) {
+            // Tool call was denied globally or locally
+            showError(`Permission Denied: ${event.PermissionDenied.reason}`);
+        } 
+        else if (event.ApprovalRequired) {
+            this.ensureAssistantMessageCreated();
+            const { id, tool, path, reason, args_json } = event.ApprovalRequired;
+            this.createPermissionPromptCard(id, tool, path, reason, args_json);
+        } 
+        else if (event.ApprovalGranted) {
+            const { id } = event.ApprovalGranted;
+            this.resolvePermissionPrompt(id, true);
+        } 
+        else if (event.Done) {
+            // Turn completed successfully!
+            // Collapse thinking block if finished
+            if (this.currentThinkingEl) {
+                this.currentThinkingEl.classList.add('collapsed');
+            }
+            this.resetStreamingState();
+            this.loadSessionsList();
+        } 
+        else if (event.Error) {
+            showError(`Session Error: ${event.Error.message}`);
+            this.resetStreamingState();
+        }
+    }
+
+    /**
+     * Lazily initialize assistant message DOM elements for streaming
+     */
+    ensureAssistantMessageCreated() {
+        if (!this.currentAssistantMsgEl) {
+            this.hideTypingIndicator(); // Hide typing indicator when response starts streaming
+            
+            if (!window.assistantMessageController) return;
+            
+            // Create a message container with a single space
+            const msgEl = window.assistantMessageController.createMessage(" ", "Just now");
+            window.assistantMessageController.messagesContainer.appendChild(msgEl);
+            
+            this.currentAssistantMsgEl = msgEl;
+            this.currentAssistantContentEl = msgEl.querySelector('.assistant-message__content');
+            this.currentAssistantContentEl.textContent = ""; // Clear placeholder
+            
+            window.assistantMessageController.scrollToBottom();
+        }
+    }
+
+    /**
+     * Lazily initialize inline thinking box for streaming thinking process
+     */
+    ensureThinkingBlockCreated() {
+        if (!this.currentThinkingEl) {
+            const thinkingCard = document.createElement('div');
+            thinkingCard.className = 'assistant-message__thinking';
+            thinkingCard.innerHTML = `
+                <div class="assistant-message__thinking-header">
+                    <img class="assistant-message__thinking-icon" src="./assets/icons/sidebar/new-chat.svg" style="filter: invert(0.6); width:14px; height:14px;">
+                    <span>Thinking Process</span>
+                </div>
+                <div class="assistant-message__thinking-content"></div>
+            `;
+            
+            // Toggle collapse on click
+            thinkingCard.querySelector('.assistant-message__thinking-header').addEventListener('click', () => {
+                thinkingCard.classList.toggle('collapsed');
+            });
+            
+            // Insert before separator and actions row
+            const separator = this.currentAssistantMsgEl.querySelector('.assistant-message__separator');
+            this.currentAssistantMsgEl.insertBefore(thinkingCard, separator);
+            
+            this.currentThinkingEl = thinkingCard;
+            this.currentThinkingContentEl = thinkingCard.querySelector('.assistant-message__thinking-content');
+        }
+    }
+
+    /**
+     * Create inline tool card
+     */
+    createToolCallCard(callId, name) {
+        const toolCard = document.createElement('div');
+        toolCard.className = 'assistant-message__tool-card';
+        toolCard.id = `tool-${callId}`;
+        toolCard.innerHTML = `
+            <div class="assistant-message__tool-header">
+                <div class="assistant-message__tool-title-wrapper">
+                    <span class="assistant-message__tool-icon">
+                        <img src="./assets/icons/sidebar/plugins.svg" style="filter: invert(1); width:16px; height:16px;">
+                    </span>
+                    <span class="assistant-message__tool-name">tool: ${name}</span>
+                </div>
+                <span class="assistant-message__tool-status assistant-message__tool-status--running">
+                    <span class="tool-spinner"></span>Running
+                </span>
+            </div>
+            <div class="assistant-message__tool-details">
+                <div class="assistant-message__tool-section">
+                    <div class="assistant-message__tool-section-title">Arguments</div>
+                    <pre class="assistant-message__tool-code">Pending...</pre>
+                </div>
+            </div>
+        `;
+        
+        // Toggle collapse
+        toolCard.querySelector('.assistant-message__tool-header').addEventListener('click', () => {
+            toolCard.classList.toggle('collapsed');
+        });
+        
+        const separator = this.currentAssistantMsgEl.querySelector('.assistant-message__separator');
+        this.currentAssistantMsgEl.insertBefore(toolCard, separator);
+        
+        this.activeToolCalls.set(callId, toolCard);
+        window.assistantMessageController.scrollToBottom();
+    }
+
+    /**
+     * Update tool arguments in inline tool card
+     */
+    updateToolCallArgs(callId, argsJson) {
+        const toolCard = this.activeToolCalls.get(callId);
+        if (toolCard) {
+            const codeEl = toolCard.querySelector('.assistant-message__tool-code');
+            if (codeEl) {
+                try {
+                    const parsed = JSON.parse(argsJson);
+                    codeEl.textContent = JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    codeEl.textContent = argsJson;
+                }
+            }
+        }
+    }
+
+    /**
+     * Complete inline tool card execution, setting status and result
+     */
+    completeToolCallCard(callId, isError, contentJson) {
+        const toolCard = this.activeToolCalls.get(callId);
+        if (toolCard) {
+            // Update status badge
+            const statusEl = toolCard.querySelector('.assistant-message__tool-status');
+            if (statusEl) {
+                if (isError) {
+                    statusEl.className = 'assistant-message__tool-status assistant-message__tool-status--failed';
+                    statusEl.textContent = 'Failed';
+                } else {
+                    statusEl.className = 'assistant-message__tool-status assistant-message__tool-status--completed';
+                    statusEl.textContent = 'Completed';
+                }
+            }
+            
+            // Append result section
+            const detailsEl = toolCard.querySelector('.assistant-message__tool-details');
+            if (detailsEl) {
+                const resultSection = document.createElement('div');
+                resultSection.className = 'assistant-message__tool-section';
+                
+                let cleanResult = contentJson;
+                try {
+                    const parsed = JSON.parse(contentJson);
+                    cleanResult = JSON.stringify(parsed, null, 2);
+                } catch (e) {}
+                
+                resultSection.innerHTML = `
+                    <div class="assistant-message__tool-section-title">Result</div>
+                    <pre class="assistant-message__tool-code">${cleanResult}</pre>
+                `;
+                detailsEl.appendChild(resultSection);
+            }
+            
+            // Collapse automatically to keep the feed clean
+            toolCard.classList.add('collapsed');
+        }
+    }
+
+    /**
+     * Create inline permission approval prompt card
+     */
+    createPermissionPromptCard(id, tool, path, reason, argsJson) {
+        const permCard = document.createElement('div');
+        permCard.className = 'assistant-message__permission-card';
+        permCard.id = `approval-${id}`;
+        
+        let pathInfo = '';
+        if (path) {
+            pathInfo = ` on <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;">${path}</code>`;
+        }
+        
+        permCard.innerHTML = `
+            <div class="assistant-message__permission-header">
+                <img class="assistant-message__permission-warning-icon" src="./assets/icons/sidebar/settings.svg" style="filter: invert(0.8) sepia(1) saturate(5) hue-rotate(5deg); width:18px; height:18px;">
+                <span class="assistant-message__permission-title">Permission Requested</span>
+            </div>
+            <div class="assistant-message__permission-body">
+                <div class="assistant-message__permission-reason" style="margin-bottom: 12px; font-size:13px; line-height:18px;">
+                    The model requests permission to execute <strong>${tool}</strong>${pathInfo}.<br>
+                    <span style="color: #bbbbbb; font-style: italic;">Reason: ${reason}</span>
+                </div>
+                <div class="assistant-message__permission-actions">
+                    <button class="btn-permission btn-permission--allow">Allow</button>
+                    <button class="btn-permission btn-permission--deny">Deny</button>
+                </div>
+            </div>
+        `;
+        
+        // Bind button actions
+        permCard.querySelector('.btn-permission--allow').addEventListener('click', async () => {
+            permCard.querySelectorAll('.btn-permission').forEach(b => b.disabled = true);
+            try {
+                await IPC.approveToolCall(this.activeSessionId, id);
+            } catch (err) {
+                showError(err.toString());
+                permCard.querySelectorAll('.btn-permission').forEach(b => b.disabled = false);
+            }
+        });
+        
+        permCard.querySelector('.btn-permission--deny').addEventListener('click', async () => {
+            permCard.querySelectorAll('.btn-permission').forEach(b => b.disabled = true);
+            try {
+                await IPC.denyToolCall(this.activeSessionId, id);
+                this.resolvePermissionPrompt(id, false);
+            } catch (err) {
+                showError(err.toString());
+                permCard.querySelectorAll('.btn-permission').forEach(b => b.disabled = false);
+            }
+        });
+        
+        const separator = this.currentAssistantMsgEl.querySelector('.assistant-message__separator');
+        this.currentAssistantMsgEl.insertBefore(permCard, separator);
+        
+        this.activePermissionPrompts.set(id, permCard);
+        window.assistantMessageController.scrollToBottom();
+    }
+
+    /**
+     * Resolve/update an inline permission prompt card once approved or denied
+     */
+    resolvePermissionPrompt(id, approved) {
+        const permCard = this.activePermissionPrompts.get(id);
+        if (permCard) {
+            const actionsEl = permCard.querySelector('.assistant-message__permission-actions');
+            if (actionsEl) {
+                if (approved) {
+                    actionsEl.innerHTML = `
+                        <span class="assistant-message__permission-status assistant-message__permission-status--approved">
+                            ✓ Approved
+                        </span>
+                    `;
+                } else {
+                    actionsEl.innerHTML = `
+                        <span class="assistant-message__permission-status assistant-message__permission-status--denied">
+                            ✗ Denied
+                        </span>
+                    `;
+                }
+            }
+        }
+    }
+}
+
+// Create and export singleton instance
+const sessionManager = new SessionManager();
+
+// Auto-initialize once DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        sessionManager.init();
+        window.sessionManager = sessionManager;
+    });
+} else {
+    sessionManager.init();
+    window.sessionManager = sessionManager;
+}
+
+export default sessionManager;

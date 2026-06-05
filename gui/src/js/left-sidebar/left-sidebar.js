@@ -211,9 +211,10 @@ class LeftSidebarController {
      * - Update the sidebar to show the new chat
      */
     handleNewChat() {
-        // TODO: Implement new chat creation
         console.log('Creating new chat...');
-        alert('New chat functionality will be implemented here');
+        if (window.sessionManager) {
+            window.sessionManager.startNewChat();
+        }
     }
 
     /**
@@ -436,17 +437,9 @@ class LeftSidebarController {
      * with standalone chats.
      */
     renderChats() {
-        const chatsContent = document.querySelector('[data-section-content="chats"]');
-        if (!chatsContent) return;
-
-        // Clear existing content
-        chatsContent.innerHTML = '';
-
-        // Render each standalone chat
-        this.mockData.chats.forEach(chat => {
-            const chatElement = this.createChatElement(chat);
-            chatsContent.appendChild(chatElement);
-        });
+        if (window.sessionManager) {
+            window.sessionManager.loadSessionsList();
+        }
     }
 
     /**
@@ -500,8 +493,9 @@ class LeftSidebarController {
             this.activeChatId = chatId;
             
             console.log(`Selected chat: ${chatId}`);
-            // TODO: Load chat content in main area
-            this.loadChatContent(chatId);
+            if (window.sessionManager) {
+                window.sessionManager.selectSession(chatId);
+            }
         }
     }
 

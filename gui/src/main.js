@@ -34,6 +34,9 @@ import './js/main-content/sessiontitle.js';
 // Load empty state component (initializes itself on load)
 import './js/main-content/emptystate.js';
 
+// Load session manager to handle agent events and chats history
+import './js/shared/session-manager.js';
+
 // Initialize the settings panel (builds the overlay DOM node once on startup)
 import { initSettingsPanel } from './js/settings/settings-panel.js';
 

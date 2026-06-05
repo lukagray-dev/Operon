@@ -12,6 +12,8 @@
 
 'use strict';
 
+import { renderMarkdown } from '../shared/ipc.js';
+
 /**
  * AssistantMessageController class
  * 
@@ -73,8 +75,8 @@ class AssistantMessageController {
      * @returns {HTMLElement} The created message element
      */
     createMessage(content, timestamp = null) {
-        if (!content || !content.trim()) {
-            console.warn('Cannot create empty message');
+        if (content === undefined || content === null) {
+            console.warn('Cannot create message with null content');
             return null;
         }
 
@@ -89,7 +91,34 @@ class AssistantMessageController {
         // Create content div
         const contentDiv = document.createElement('div');
         contentDiv.className = 'assistant-message__content';
-        contentDiv.textContent = content;
+        
+        // If content is empty or a placeholder space (used for starting streams), just set textContent.
+        // Otherwise, render it asynchronously as markdown to prevent blocking the UI thread.
+        if (content && content.trim() !== "") {
+            contentDiv.rawMarkdown = content;
+            renderMarkdown(content)
+                .then(html => {
+                    contentDiv.innerHTML = html;
+                    // Auto-typeset math equations using KaTeX if the library is loaded in the browser
+                    if (window.renderMathInElement) {
+                        window.renderMathInElement(contentDiv, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false},
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '\\[', right: '\\]', display: true}
+                            ],
+                            throwOnError: false
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to render markdown on history load:", err);
+                    contentDiv.textContent = content;
+                });
+        } else {
+            contentDiv.textContent = content;
+        }
 
         messageDiv.appendChild(contentDiv);
 
@@ -271,9 +300,15 @@ class AssistantMessageController {
      * @param {HTMLElement} button - The button element
      */
     handleAction(action, messageId, content, button) {
+        // Find the message DOM element and extract its accumulated raw markdown if available.
+        // This ensures actions like 'copy' or 'fork' retrieve the final streamed text rather than the initial placeholder space.
+        const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+        const contentEl = messageEl ? messageEl.querySelector('.assistant-message__content') : null;
+        const actualContent = (contentEl && contentEl.rawMarkdown) ? contentEl.rawMarkdown : content;
+
         switch (action) {
             case 'copy':
-                this.handleCopy(content);
+                this.handleCopy(actualContent);
                 break;
             case 'like':
                 this.handleLike(messageId, button);
@@ -285,7 +320,7 @@ class AssistantMessageController {
                 this.handleRegenerate(messageId);
                 break;
             case 'fork':
-                this.handleFork(messageId, content);
+                this.handleFork(messageId, actualContent);
                 break;
             default:
                 console.warn(`Unknown action: ${action}`);

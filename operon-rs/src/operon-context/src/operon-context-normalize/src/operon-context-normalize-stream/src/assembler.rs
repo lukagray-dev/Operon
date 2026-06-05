@@ -141,36 +141,72 @@ impl StreamAssembler {
 
     /// Finish assembly after the final stream line has been processed.
     ///
-    /// Drain order:
-    /// 1. Incomplete tool buffers -> error.
-    /// 2. Pending reasoning text -> `Reasoning`.
-    /// 3. Final normalized stop reason -> `StreamEnded`.
-    pub fn finish(&mut self) -> Result<AssemblerOutput> {
-        if !self.tool_call_buffers.is_empty() {
-            let mut pending_indices = self.tool_call_buffers.keys().copied().collect::<Vec<_>>();
-            pending_indices.sort_unstable();
-            return Err(StreamNormalizeError::AssemblerIncomplete {
-                provider: provider_label(&self.provider),
-                detail: format!(
-                    "unfinalized tool call buffers at indices: {:?}",
-                    pending_indices
-                ),
-            });
+    /// We drain any remaining outputs in the following order:
+    /// 1. Finalize any uncompleted tool call buffers (or error if the provider requires explicit end events).
+    /// 2. Take and return any pending reasoning/thinking text.
+    /// 3. Return the final normalized stop reason.
+    ///
+    /// Since multiple outputs can be drained at the end (e.g. finalized tool calls AND a stop reason),
+    /// this function returns a list of outputs rather than just one.
+    pub fn finish(&mut self) -> Result<Vec<AssemblerOutput>> {
+        let mut outputs = Vec::new();
+
+        // Check our active provider type to determine how to handle unclosed tool calls.
+        // Some providers (like Anthropic and Cohere) send explicit events when a tool call finishes.
+        // If they finish streaming but still have buffers, it's a protocol mismatch/incomplete error.
+        // Other providers (like OpenAI, Groq, DeepSeek, etc.) stream argument chunks but never send
+        // an explicit end marker. We must finalize those automatically here!
+        match self.provider {
+            Provider::Anthropic | Provider::Cohere => {
+                if !self.tool_call_buffers.is_empty() {
+                    let mut pending_indices = self.tool_call_buffers.keys().copied().collect::<Vec<_>>();
+                    pending_indices.sort_unstable();
+                    return Err(StreamNormalizeError::AssemblerIncomplete {
+                        provider: provider_label(&self.provider),
+                        detail: format!(
+                            "unfinalized tool call buffers at indices: {:?}",
+                            pending_indices
+                        ),
+                    });
+                }
+            }
+            _ => {
+                // For OpenAI-compatible endpoints, any tool call buffers still present
+                // are completed, as the provider has stopped sending argument deltas.
+                if !self.tool_call_buffers.is_empty() {
+                    let mut pending_indices = self.tool_call_buffers.keys().copied().collect::<Vec<_>>();
+                    pending_indices.sort_unstable();
+                    for index in pending_indices {
+                        match self.finalize_tool_call(index) {
+                            Ok(AssemblerOutput::ToolCall(call)) => {
+                                outputs.push(AssemblerOutput::ToolCall(call));
+                            }
+                            Ok(_) => {}
+                            Err(e) => return Err(e),
+                        }
+                    }
+                }
+            }
         }
 
+        // If there's any remaining thinking/reasoning text that hasn't been emitted yet,
+        // take it out of our internal buffer and yield it.
         if !self.reasoning_text.is_empty() {
-            return Ok(AssemblerOutput::Reasoning {
+            outputs.push(AssemblerOutput::Reasoning {
                 text: std::mem::take(&mut self.reasoning_text),
                 signature: self.reasoning_signature.take(),
             });
         }
 
+        // Determine the final normalized stop reason from our raw stream value.
         let stop_reason = self
             .stop_reason
             .as_deref()
             .map(|raw| normalize_stop_reason(raw, &to_messages_provider(&self.provider)));
 
-        Ok(AssemblerOutput::StreamEnded { stop_reason })
+        outputs.push(AssemblerOutput::StreamEnded { stop_reason });
+
+        Ok(outputs)
     }
 
     /// Finalize one buffered tool call into a canonical `ToolCall`.

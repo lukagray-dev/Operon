@@ -32,6 +32,7 @@ fn main() {
         .manage(app_state)
         // Register IPC command handlers
         .invoke_handler(tauri::generate_handler![
+            commands::markdown_commands::render_markdown,
             commands::model_commands::get_model_providers,
             commands::model_commands::get_model_provider_setup,
             commands::model_commands::discover_models,
@@ -42,6 +43,12 @@ fn main() {
             commands::permission_commands::remove_allowed_directory,
             commands::permission_commands::get_permission_rows,
             commands::permission_commands::update_permission_mode,
+            commands::session_commands::list_sessions,
+            commands::session_commands::get_session_history,
+            commands::session_commands::send_message,
+            commands::session_commands::cancel_session,
+            commands::session_commands::approve_tool_call,
+            commands::session_commands::deny_tool_call,
         ])
         // Setup window and app configuration
         .setup(|app| {

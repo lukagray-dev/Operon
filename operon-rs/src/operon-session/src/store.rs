@@ -237,6 +237,46 @@ impl SessionStore {
 
         Ok(rows)
     }
+
+    /// Get the token count of the last recorded turn for a session.
+    /// Used when resuming a session to initialize the token tracker's context estimate.
+    pub async fn get_last_token_count(&self, session_id: &str) -> Result<Option<usize>, SessionError> {
+        let row: Option<(Option<i64>,)> = sqlx::query_as(
+            "SELECT token_count FROM turns WHERE session_id = ? ORDER BY turn_index DESC LIMIT 1"
+        )
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| SessionError::Store(format!("Failed to query last token count: {e}")))?;
+
+        Ok(row.and_then(|(tc,)| tc.map(|val| val as usize)))
+    }
+
+    /// Extract the first user message text to use as the chat title.
+    pub async fn get_first_user_message_text(&self, session_id: &str) -> Result<Option<String>, SessionError> {
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT messages_json FROM turns WHERE session_id = ? AND turn_index = 0 LIMIT 1"
+        )
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| SessionError::Store(format!("Failed to query first turn: {e}")))?;
+
+        if let Some((json,)) = row {
+            if let Ok(messages) = serde_json::from_str::<Vec<ConversationMessage>>(&json) {
+                for msg in messages {
+                    if msg.role == operon_context_normalize_messages::MessageRole::User {
+                        for block in msg.content {
+                            if let operon_context_normalize_messages::ContentBlock::Text(text) = block {
+                                return Ok(Some(text));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

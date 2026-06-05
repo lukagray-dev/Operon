@@ -10,7 +10,7 @@ use operon_context_normalize_tools::{
 use serde_json::{json, Value};
 
 use crate::error::{MessageNormalizeError, Result};
-use crate::stop_reason::{denormalize_stop_reason, normalize_stop_reason};
+use crate::stop_reason::normalize_stop_reason;
 use crate::types::{ContentBlock, ConversationMessage, MessageRole};
 
 const PROVIDER: &str = "Cohere";
@@ -142,17 +142,8 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                 if !tool_calls.is_empty() {
                     obj.insert("tool_calls".to_string(), Value::Array(tool_calls));
                 }
-                if msg.role == MessageRole::Assistant {
-                    if let Some(stop) = &msg.stop_reason {
-                        obj.insert(
-                            "finish_reason".to_string(),
-                            Value::String(
-                                denormalize_stop_reason(stop, &crate::provider::Provider::Cohere)
-                                    .to_string(),
-                            ),
-                        );
-                    }
-                }
+                // NOTE: We do not serialize stop_reason / finish_reason back into the messages list
+                // for the API request payload because providers only accept those fields in model outputs.
                 wire_messages.push(Value::Object(obj));
             }
         }

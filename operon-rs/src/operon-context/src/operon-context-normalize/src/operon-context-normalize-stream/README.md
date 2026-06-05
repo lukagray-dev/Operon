@@ -15,7 +15,7 @@ The crate is sync-only and push-based:
 - `parse_line(line: &str, provider: &Provider) -> Result<Vec<StreamEvent>>`
 - `new_assembler(provider: &Provider) -> StreamAssembler`
 - `StreamAssembler::push(event: StreamEvent) -> Result<AssemblerOutput>`
-- `StreamAssembler::finish() -> Result<AssemblerOutput>`
+- `StreamAssembler::finish() -> Result<Vec<AssemblerOutput>>`
 
 `parse_line`:
 - accepts one already-split payload line
@@ -110,8 +110,8 @@ for line in lines {
     }
 }
 
-let final_output = assembler.finish().unwrap();
-assert!(matches!(final_output, AssemblerOutput::StreamEnded { .. }));
+let final_outputs = assembler.finish().unwrap();
+assert!(matches!(final_outputs[0], AssemblerOutput::StreamEnded { .. }));
 ```
 
 ## Testing

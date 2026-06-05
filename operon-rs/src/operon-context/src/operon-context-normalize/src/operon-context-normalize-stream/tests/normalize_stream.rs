@@ -106,13 +106,17 @@ fn anthropic_thinking_and_signature_finish_to_reasoning() {
         AssemblerOutput::Pending
     ));
 
+    // Finish assembly and verify it yields both our reasoning block and a default stream end output
     let finished = assembler.finish().unwrap();
     assert_eq!(
         finished,
-        AssemblerOutput::Reasoning {
-            text: "step by step".to_string(),
-            signature: Some("sig_1".to_string()),
-        }
+        vec![
+            AssemblerOutput::Reasoning {
+                text: "step by step".to_string(),
+                signature: Some("sig_1".to_string()),
+            },
+            AssemblerOutput::StreamEnded { stop_reason: None }
+        ]
     );
 }
 
@@ -423,12 +427,13 @@ fn assembler_round_trip_text_then_stop_reason() {
         ]
     );
 
+    // Verify that the final outputs from finish include the StreamEnded event
     let final_output = assembler.finish().unwrap();
     assert_eq!(
         final_output,
-        AssemblerOutput::StreamEnded {
+        vec![AssemblerOutput::StreamEnded {
             stop_reason: Some(StopReason::EndTurn),
-        }
+        }]
     );
 }
 
@@ -534,7 +539,9 @@ fn assembler_emits_two_parallel_tool_calls() {
 
 #[test]
 fn assembler_errors_on_incomplete_tool_call_at_finish() {
-    let mut assembler = new_assembler(&Provider::OpenAI);
+    // Anthropic requires explicit ToolCallEnd events. Since we only push ToolCallStart
+    // and call finish without ToolCallEnd, this should return an AssemblerIncomplete error.
+    let mut assembler = new_assembler(&Provider::Anthropic);
     assembler
         .push(StreamEvent::ToolCallStart {
             index: 3,
@@ -547,7 +554,7 @@ fn assembler_errors_on_incomplete_tool_call_at_finish() {
     assert!(matches!(
         err,
         StreamNormalizeError::AssemblerIncomplete {
-            provider: "OpenAI",
+            provider: "Anthropic",
             ..
         }
     ));

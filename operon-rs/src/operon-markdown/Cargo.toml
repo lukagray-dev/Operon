@@ -1,0 +1,12 @@
+[package]
+name        = "operon-markdown"
+description = "Operon markdown parsing and HTML generation library"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+pulldown-cmark = "0.11"
+anyhow.workspace         = true

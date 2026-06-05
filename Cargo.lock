@@ -3730,6 +3730,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "operon-markdown"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "pulldown-cmark",
+]
+
+[[package]]
 name = "operon-policy"
 version = "0.1.0"
 dependencies = [
@@ -3758,6 +3766,7 @@ dependencies = [
  "operon-config",
  "operon-context",
  "operon-events",
+ "operon-markdown",
  "operon-policy",
  "operon-providers",
  "operon-session",
@@ -4582,6 +4591,25 @@ dependencies = [
  "idna",
  "psl-types",
 ]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "679341d22c78c6c649893cbd6c3278dcbe9fc4faa62fea3a9296ae2b50c14625"
+dependencies = [
+ "bitflags 2.11.1",
+ "getopts",
+ "memchr",
+ "pulldown-cmark-escape",
+ "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark-escape"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "007d8adb5ddab6f8e3f491ac63566a7d5002cc7ed73901f72057943fa71ae1ae"
 
 [[package]]
 name = "pxfm"
@@ -7062,6 +7090,12 @@ checksum = "96bd2f2237fe450fcd0a1d2f5f4e91711124f7857ba2e964247776ebeeb7b0c4"
 dependencies = [
  "unic-common",
 ]
+
+[[package]]
+name = "unicase"
+version = "2.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbc4bc3a9f746d862c45cb89d705aa10f187bb96c76001afab07a0d35ce60142"
 
 [[package]]
 name = "unicode-bidi"

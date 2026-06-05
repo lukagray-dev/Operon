@@ -211,3 +211,84 @@ export async function updatePermissionMode(scope, directory, key, mode) {
         mode: mode ? normalizeString(mode) : null,
     });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SESSION COMMANDS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * List all historical sessions saved on the system
+ * @returns {Promise<Array<Object>>}
+ */
+export async function listSessions() {
+    return await invoke('list_sessions');
+}
+
+/**
+ * Get message history for a session
+ * @param {string} sessionId - The session ID
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getSessionHistory(sessionId) {
+    return await invoke('get_session_history', { sessionId: normalizeString(sessionId) });
+}
+
+/**
+ * Send a message to a session runner (starts/resumes it in background)
+ * @param {string} sessionId - The session ID
+ * @param {string} message - User message
+ * @param {string|null} [projectDir=null] - Project directory path if in PROJECT mode
+ * @returns {Promise<void>}
+ */
+export async function sendMessage(sessionId, message, projectDir = null) {
+    return await invoke('send_message', {
+        sessionId: normalizeString(sessionId),
+        message: normalizeString(message),
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+    });
+}
+
+/**
+ * Gracefully cancel the running session
+ * @param {string} sessionId - The session ID
+ * @returns {Promise<void>}
+ */
+export async function cancelSession(sessionId) {
+    return await invoke('cancel_session', { sessionId: normalizeString(sessionId) });
+}
+
+/**
+ * Approve a pending Ask-mode permission request
+ * @param {string} sessionId - The session ID
+ * @param {string} id - The approval request ID
+ * @returns {Promise<void>}
+ */
+export async function approveToolCall(sessionId, id) {
+    return await invoke('approve_tool_call', {
+        sessionId: normalizeString(sessionId),
+        id: normalizeString(id),
+    });
+}
+
+/**
+ * Deny a pending Ask-mode permission request
+ * @param {string} sessionId - The session ID
+ * @param {string} id - The approval request ID
+ * @returns {Promise<void>}
+ */
+export async function denyToolCall(sessionId, id) {
+    return await invoke('deny_tool_call', {
+        sessionId: normalizeString(sessionId),
+        id: normalizeString(id),
+    });
+}
+
+/**
+ * Renders raw markdown into HTML on the backend.
+ * @param {string} markdown - The markdown content to render.
+ * @returns {Promise<string>} - The rendered HTML string.
+ */
+export async function renderMarkdown(markdown) {
+    return await invoke('render_markdown', { markdown });
+}
+

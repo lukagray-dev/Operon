@@ -721,29 +721,13 @@ class InputPanelController {
         console.log('Sending message:', message);
         console.log('Auto-approve enabled:', this.autoApproveEnabled);
 
-        // Hide empty state if visible
-        if (window.emptyStateController) {
-            window.emptyStateController.hideEmptyState();
-        }
-
-        // Create user message in chat
-        if (window.userMessageController) {
-            window.userMessageController.addMessage(message);
+        // Send user message to backend via sessionManager
+        if (window.sessionManager) {
+            window.sessionManager.sendUserMessage(message);
         }
 
         // Clear textarea after sending
         this.clearInput();
-
-        // Simulate assistant response immediately (for testing)
-        if (window.assistantMessageController) {
-            const mockResponse = `This is a sample assistant message using PT Serif font. The assistant's response appears without a bubble, spanning the full width of the input panel. Below this message, you'll find action buttons for copying, liking, regenerating, and more.`;
-            window.assistantMessageController.addMessage(mockResponse, '2m ago');
-        }
-
-        // TODO: Implement backend message sending
-        // - Send to backend API
-        // - Get AI response
-        // - Display assistant message
     }
 
     /**

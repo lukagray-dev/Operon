@@ -157,8 +157,37 @@ impl SessionRunner {
                 .map_err(|e| SessionError::Config(e.to_string()))?;
         }
 
-        // Generate a unique session ID using nanosecond hex timestamp.
-        let session_id = generate_session_id();
+        // Determine the session ID:
+        // 1. If a database path is provided, check if it contains an existing session ID in its record.
+        // 2. If it is a new database, use the file stem name as the session ID.
+        // 3. If no database path is provided (e.g. testing), generate a unique timestamp-based ID.
+        let mut session_id = generate_session_id();
+        let mut store = None;
+
+        if let Some(path) = &config.store_path {
+            let s = SessionStore::open(path).await?;
+            let existing_id = if let Ok(rows) = s.list_sessions().await {
+                rows.first().map(|r| r.id.clone())
+            } else {
+                None
+            };
+
+            if let Some(id) = existing_id {
+                session_id = id;
+            } else {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    session_id = stem.to_string();
+                }
+                s.create_session(
+                    &session_id,
+                    &config.workspace_root.display().to_string(),
+                    config.provider_config.model_id(),
+                    &format!("{:?}", config.provider_config.provider),
+                )
+                .await?;
+            }
+            store = Some(s);
+        }
 
         // Build the snapshot builder — this also starts the filesystem watcher.
         let snapshot_config = config.snapshot_config(&session_id);
@@ -185,21 +214,6 @@ impl SessionRunner {
 
         // Build the policy resolver from the fully validated policy config.
         let policy_resolver = PolicyResolver::new(config.policy.clone());
-
-        // Open the SQLite store if a path was provided in the configuration.
-        let store = if let Some(path) = &config.store_path {
-            let s = SessionStore::open(path).await?;
-            s.create_session(
-                &session_id,
-                &config.workspace_root.display().to_string(),
-                config.provider_config.model_id(),
-                &format!("{:?}", config.provider_config.provider),
-            )
-            .await?;
-            Some(s)
-        } else {
-            None
-        };
 
         // Emit SessionStarted — the UI now knows the session ID and can label panels.
         // This is the first event on the channel; it fires before any turn runs.
@@ -228,6 +242,15 @@ impl SessionRunner {
             store,
             turn_index: 0,
         })
+    }
+
+    /// Load conversation history, turn index, and last token count to resume a session.
+    pub fn set_history(&mut self, messages: Vec<ConversationMessage>, turn_index: usize, last_token_count: Option<usize>) {
+        self.messages = messages;
+        self.turn_index = turn_index;
+        if let Some(tokens) = last_token_count {
+            self.token_state.apply_estimate(tokens, operon_context_token_tracker::EstimationTier::Exact);
+        }
     }
 
     /// Run one user turn through the agent loop.
@@ -319,7 +342,14 @@ impl SessionRunner {
 
             // ── 5. Send + consume SSE stream ─────────────────────────────────
             // Clone to String so there's no borrow of self across the await.
-            let endpoint = self.config.provider_config.effective_base_url().to_string();
+            let base_url = self.config.provider_config.effective_base_url();
+            let provider = &self.config.provider_config.provider;
+            let endpoint = match provider {
+                Provider::Anthropic => format!("{}/messages", base_url.trim_end_matches('/')),
+                Provider::Gemini => format!("{}/models", base_url.trim_end_matches('/')),
+                Provider::Cohere => format!("{}/chat", base_url.trim_end_matches('/')),
+                _ => format!("{}/chat/completions", base_url.trim_end_matches('/')),
+            };
             let api_key = self
                 .config
                 .provider_config

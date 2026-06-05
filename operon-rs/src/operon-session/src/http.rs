@@ -221,7 +221,7 @@ pub async fn send_streaming(
                             let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
                         }
 
-                        // Complete tool call — notify UI with args then start.
+                        // Complete tool call — notify UI with start then args.
                         AssemblerOutput::ToolCall(call) => {
                             // Serialize the call arguments for the ToolCallArgsReady event.
                             // unwrap_or_default is safe — serde_json::to_string only fails on
@@ -229,21 +229,21 @@ pub async fn send_streaming(
                             let args_json =
                                 serde_json::to_string(&call.arguments).unwrap_or_default();
 
-                            // Fire ToolCallArgsReady FIRST — full args are now available.
+                            // Fire ToolCallStart FIRST — tells the TUI a dispatch is imminent.
+                            let _ = event_tx
+                                .send(SessionEvent::ToolCallStart {
+                                    call_id: call.id.0.clone(),
+                                    name: call.name.clone(),
+                                })
+                                .await;
+
+                            // Fire ToolCallArgsReady SECOND — full args are now available.
                             // The TUI can show an expandable "Arguments" section.
                             let _ = event_tx
                                 .send(SessionEvent::ToolCallArgsReady {
                                     call_id: call.id.0.clone(),
                                     name: call.name.clone(),
                                     args_json,
-                                })
-                                .await;
-
-                            // Then fire ToolCallStart — tells the TUI a dispatch is imminent.
-                            let _ = event_tx
-                                .send(SessionEvent::ToolCallStart {
-                                    call_id: call.id.0.clone(),
-                                    name: call.name.clone(),
                                 })
                                 .await;
                             result.tool_calls.push(call);
@@ -265,28 +265,60 @@ pub async fn send_streaming(
         }
     }
 
-    // Signal the assembler that the stream is complete. It flushes any buffered
-    // reasoning blocks and emits the final stop reason.
-    match assembler
+    // Signal the assembler that the stream is complete.
+    // The assembler will now flush any final buffered outputs. Since finish() returns a Vec,
+    // we iterate over all generated outputs (such as finalized tool calls, reasoning blocks,
+    // and the final StreamEnded/stop reason) and process them.
+    let final_outputs = assembler
         .finish()
-        .map_err(|e| SessionError::Stream(e.to_string()))?
-    {
-        // Flush any remaining buffered reasoning text.
-        AssemblerOutput::Reasoning { text, .. } => {
-            let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
-        }
+        .map_err(|e| SessionError::Stream(e.to_string()))?;
 
-        // Final stop reason from assembler (may differ from stream-embedded one).
-        AssemblerOutput::StreamEnded { stop_reason } => {
-            // Prefer the stop reason already recorded from the stream; use the
-            // assembler's finalized value only if we don't already have one.
-            if result.stop_reason.is_none() {
-                result.stop_reason = stop_reason;
+    for output in final_outputs {
+        match output {
+            // Flush any remaining buffered reasoning/thinking text.
+            AssemblerOutput::Reasoning { text, .. } => {
+                let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
             }
-        }
 
-        // Other outputs on finish are unexpected but harmless — ignore them.
-        _ => {}
+            // If a tool call was finalized at the end (e.g. for OpenAI-compatible providers
+            // that do not emit explicit ToolCallEnd events), emit it to the UI and store it.
+            AssemblerOutput::ToolCall(call) => {
+                // Serialize the arguments to JSON so the UI can render them cleanly.
+                let args_json = serde_json::to_string(&call.arguments).unwrap_or_default();
+
+                // Notify UI that a tool call has started.
+                let _ = event_tx
+                    .send(SessionEvent::ToolCallStart {
+                        call_id: call.id.0.clone(),
+                        name: call.name.clone(),
+                    })
+                    .await;
+
+                // Notify UI that the tool call arguments are fully ready/available.
+                let _ = event_tx
+                    .send(SessionEvent::ToolCallArgsReady {
+                        call_id: call.id.0.clone(),
+                        name: call.name.clone(),
+                        args_json,
+                    })
+                    .await;
+
+                // Accumulate the tool call in our stream result.
+                result.tool_calls.push(call);
+            }
+
+            // Final stop reason from the assembler.
+            AssemblerOutput::StreamEnded { stop_reason } => {
+                // We prefer the stop reason already recorded directly from the stream events,
+                // but use the assembler's finalized stop reason as a fallback if needed.
+                if result.stop_reason.is_none() {
+                    result.stop_reason = stop_reason;
+                }
+            }
+
+            // Other outputs are unexpected at finish, so we can ignore them.
+            _ => {}
+        }
     }
 
     Ok(result)

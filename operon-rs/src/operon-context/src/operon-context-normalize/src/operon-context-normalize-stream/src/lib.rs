@@ -40,8 +40,8 @@
 //!     }
 //! }
 //!
-//! let ended = assembler.finish().unwrap();
-//! assert!(matches!(ended, AssemblerOutput::StreamEnded { .. }));
+//! let ended_outputs = assembler.finish().unwrap();
+//! assert!(matches!(ended_outputs[0], AssemblerOutput::StreamEnded { .. }));
 //! ```
 
 pub mod assembler;
