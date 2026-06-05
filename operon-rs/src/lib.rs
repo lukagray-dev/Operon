@@ -15,7 +15,7 @@ pub use operon_session as session;
 pub use operon_tools as tools;
 pub use operon_tools_core as tools_core;
 
-pub use config::{load, AppConfig, ConfigError, OperonPaths};
+pub use config::{load, save_provider, AppConfig, ConfigError, OperonPaths};
 pub use context::{
     compact, sanitize, CompactionClient, CompactionConfig, CompactionError, CompactionResult,
     ContentBlock, ConversationMessage, DocumentBlock, DocumentSource, EstimationTier, ImageBlock,
@@ -30,8 +30,8 @@ pub use policy::{
     PolicyConfig, PolicyDecision, PolicyError, PolicyResolver,
 };
 pub use providers::{
-    ApiCredentials, AuthHeader, ModelConfig, Provider, ProviderCapabilities, ProviderConfig,
-    SecretString,
+    discover_models, ApiCredentials, AuthHeader, DiscoveredModel, DiscoveryResult, ModelConfig,
+    Provider, ProviderCapabilities, ProviderConfig, SecretString,
 };
 pub use session::{LifecycleState, SessionConfig, SessionError, SessionRunner};
 pub use tools::dispatcher::{DispatchOutcome, Dispatcher};

@@ -45,6 +45,22 @@ pub enum ConfigError {
     #[error("unknown provider '{name}' in config; valid values are: {valid}")]
     UnknownProvider { name: String, valid: String },
 
+    /// The `[provider]` section is present but the provider name is empty.
+    ///
+    /// This is the expected first-run state: the user has not picked a model
+    /// provider yet, so the GUI should continue without an active runtime config.
+    #[error("no provider selected in config; choose a provider in the Models settings page")]
+    MissingProviderSelection,
+
+    /// The `[provider]` section has a provider, but no model ID has been set.
+    ///
+    /// This is treated as an incomplete configuration instead of silently
+    /// falling back to a provider-specific default model.
+    #[error(
+        "no model selected for provider '{provider}'; choose a model in the Models settings page"
+    )]
+    MissingModelSelection { provider: String },
+
     /// No API key was found for the configured provider.
     ///
     /// The key may come from the `[credentials]` section or from the env var

@@ -42,7 +42,11 @@ use crate::provider::{AuthHeader, Provider};
 /// let config = ProviderConfig {
 ///     provider:          Provider::Anthropic,
 ///     credentials:       ApiCredentials::with_key("sk-ant-..."),
-///     model:             ModelConfig::claude_sonnet_4(),
+///     model: ModelConfig {
+///         model_id: "claude-3-5-sonnet-latest".to_string(),
+///         context_window: 200_000,
+///         max_tokens: 8_192,
+///     },
 ///     base_url_override: None,
 /// };
 ///
@@ -144,7 +148,11 @@ mod tests {
         ProviderConfig {
             provider: Provider::Anthropic,
             credentials: ApiCredentials::with_key("sk-ant-test-key"),
-            model: ModelConfig::claude_sonnet_4(),
+            model: ModelConfig {
+                model_id: "claude-sonnet-4-20250514".to_string(),
+                context_window: 200_000,
+                max_tokens: 16_000,
+            },
             base_url_override: None,
         }
     }
@@ -153,7 +161,11 @@ mod tests {
         ProviderConfig {
             provider: Provider::Ollama,
             credentials: ApiCredentials::unauthenticated(),
-            model: ModelConfig::ollama_llama3_2(),
+            model: ModelConfig {
+                model_id: "llama3.2".to_string(),
+                context_window: 128_000,
+                max_tokens: 8_192,
+            },
             base_url_override: None,
         }
     }
@@ -198,7 +210,11 @@ mod tests {
         let config = ProviderConfig {
             provider: Provider::OpenAI,
             credentials: ApiCredentials::with_key("sk-test"),
-            model: ModelConfig::gpt_4o(),
+            model: ModelConfig {
+                model_id: "gpt-4o".to_string(),
+                context_window: 128_000,
+                max_tokens: 16_384,
+            },
             base_url_override: None,
         };
         assert_eq!(config.auth_header(), AuthHeader::Bearer);
@@ -228,7 +244,11 @@ mod tests {
         let config = ProviderConfig {
             provider: Provider::OpenAI,
             credentials: ApiCredentials::with_key(""),
-            model: ModelConfig::gpt_4o(),
+            model: ModelConfig {
+                model_id: "gpt-4o".to_string(),
+                context_window: 128_000,
+                max_tokens: 16_384,
+            },
             base_url_override: None,
         };
         assert!(

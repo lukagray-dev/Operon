@@ -22,6 +22,7 @@ operon-providers.workspace = true
 serde.workspace     = true
 serde_json.workspace = true
 toml.workspace      = true
+toml_edit.workspace = true
 thiserror.workspace = true
 dirs.workspace      = true
 

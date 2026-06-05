@@ -40,6 +40,7 @@ class InputPanelController {
         // State tracking
         this.isFocused = false;
         this.autoApproveEnabled = false;
+        this._activeDropdown = null;
         
         // Textarea settings
         this.lineHeight = 20; // Must match CSS --input-panel-textarea-line-height
@@ -349,16 +350,210 @@ class InputPanelController {
     /**
      * Handle model selection button click
      * 
-     * Opens model selector dropdown.
-     * In production, this would:
-     * - Show dropdown with available models
-     * - Allow switching between models (Small, Medium, Large, etc.)
-     * - Update the displayed model name
+     * Opens model selector dropdown showing available models from the active provider.
      */
-    handleModelSelect() {
+    async handleModelSelect() {
         console.log('Model selector clicked');
-        // TODO: Implement model selection dropdown
-        alert('Model selection functionality will be implemented here');
+        
+        // Import IPC module dynamically
+        const IPC = await import('../shared/ipc.js');
+        
+        try {
+            // Get active provider and available models
+            const activeProvider = await IPC.getActiveProvider();
+            
+            if (!activeProvider) {
+                alert('No active provider configured. Please configure a model provider in Settings.');
+                return;
+            }
+            
+            // Show model selection dropdown
+            this.showModelDropdown(activeProvider);
+        } catch (error) {
+            console.error('Failed to load models:', error);
+            alert('Failed to load available models. Please try again.');
+        }
+    }
+    
+    /**
+     * Show model selection dropdown
+     * 
+     * @param {Object} providerSetup - The active provider configuration
+     */
+    showModelDropdown(providerSetup) {
+        const modelBtn = document.getElementById('input-model');
+        if (!modelBtn) return;
+        
+        // Remove existing dropdown if any
+        this.closeModelDropdown();
+        
+        // Get available models (discovered or fallback)
+        const availableModels = providerSetup.fallbackModels || [];
+        const currentModel = providerSetup.selectedModel || availableModels[0] || '';
+        
+        if (availableModels.length === 0) {
+            alert('No models available for this provider. Please configure models in Settings.');
+            return;
+        }
+        
+        // Create dropdown HTML
+        const dropdown = document.createElement('div');
+        dropdown.className = 'model-selector__dropdown';
+        dropdown.innerHTML = `
+            <div class="model-selector__header">
+                <span class="model-selector__title">${this.escapeHtml(providerSetup.label)}</span>
+                <span class="model-selector__subtitle">Select Model</span>
+            </div>
+            <div class="model-selector__list">
+                ${availableModels.map(modelId => `
+                    <button 
+                        class="model-selector__item ${modelId === currentModel ? 'is-active' : ''}"
+                        data-model-id="${this.escapeHtml(modelId)}"
+                    >
+                        <span class="model-selector__item-name">${this.escapeHtml(modelId)}</span>
+                        ${modelId === currentModel ? '<span class="model-selector__item-check">✓</span>' : ''}
+                    </button>
+                `).join('')}
+            </div>
+            <div class="model-selector__footer">
+                <span class="model-selector__context">Context: ${this.formatContextWindow(providerSetup.selectedModel)}</span>
+            </div>
+        `;
+        
+        // Position dropdown
+        const btnRect = modelBtn.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
+        dropdown.style.right = `${window.innerWidth - btnRect.right}px`;
+        
+        // Add to body
+        document.body.appendChild(dropdown);
+        
+        // Bind events
+        dropdown.querySelectorAll('.model-selector__item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const modelId = item.getAttribute('data-model-id');
+                await this.selectModel(providerSetup.providerId, modelId);
+                this.closeModelDropdown();
+            });
+        });
+        
+        // Click outside to close
+        setTimeout(() => {
+            document.addEventListener('click', this.handleDropdownClickOutside.bind(this), { once: true });
+        }, 0);
+        
+        // Store reference
+        this._activeDropdown = dropdown;
+    }
+    
+    /**
+     * Close model dropdown
+     */
+    closeModelDropdown() {
+        if (this._activeDropdown) {
+            this._activeDropdown.remove();
+            this._activeDropdown = null;
+        }
+    }
+    
+    /**
+     * Handle click outside dropdown
+     * 
+     * @param {MouseEvent} e - Click event
+     */
+    handleDropdownClickOutside(e) {
+        const modelBtn = document.getElementById('input-model');
+        if (!modelBtn) return;
+        
+        if (!modelBtn.contains(e.target) && this._activeDropdown && !this._activeDropdown.contains(e.target)) {
+            this.closeModelDropdown();
+        }
+    }
+    
+    /**
+     * Select a model
+     * 
+     * @param {string} providerId - Provider ID
+     * @param {string} modelId - Model ID to select
+     */
+    async selectModel(providerId, modelId) {
+        try {
+            // Import IPC module
+            const IPC = await import('../shared/ipc.js');
+            
+            // Get current provider setup
+            const setup = await IPC.getModelProviderSetup(providerId);
+            
+            // Save with new model
+            await IPC.saveProviderSetup({
+                providerId: providerId,
+                apiBase: setup.apiBase || setup.defaultApiBase,
+                apiKey: setup.apiKey,
+                model: modelId,
+            });
+            
+            // Update UI to show selected model
+            this.updateModelDisplay(modelId);
+            
+            console.log(`Model changed to: ${modelId}`);
+        } catch (error) {
+            console.error('Failed to select model:', error);
+            alert('Failed to change model. Please try again.');
+        }
+    }
+    
+    /**
+     * Update model display in button
+     * 
+     * @param {string} modelId - The model ID to display
+     */
+    updateModelDisplay(modelId) {
+        const modelBtn = document.getElementById('input-model');
+        const labelEl = modelBtn?.querySelector('.input-panel__action-label');
+        
+        if (labelEl) {
+            // Extract a friendly name from the model ID
+            let displayName = modelId;
+            
+            // Try to extract a short name
+            if (modelId.includes('sonnet')) displayName = 'Sonnet';
+            else if (modelId.includes('opus')) displayName = 'Opus';
+            else if (modelId.includes('haiku')) displayName = 'Haiku';
+            else if (modelId.includes('gpt-4o-mini')) displayName = 'GPT-4o Mini';
+            else if (modelId.includes('gpt-4o')) displayName = 'GPT-4o';
+            else if (modelId.includes('o4-mini')) displayName = 'o4 Mini';
+            else if (modelId.includes('o3')) displayName = 'o3';
+            else if (modelId.includes('gemini')) displayName = 'Gemini';
+            else if (modelId.includes('deepseek')) displayName = 'DeepSeek';
+            else if (modelId.includes('llama')) displayName = 'Llama';
+            
+            labelEl.textContent = displayName;
+        }
+    }
+    
+    /**
+     * Format context window size
+     * 
+     * @param {string} modelId - Model ID
+     * @returns {string} Formatted context window
+     */
+    formatContextWindow(modelId) {
+        // TODO: Get actual context window from backend
+        // For now, return placeholder
+        return '128K';
+    }
+    
+    /**
+     * Escape HTML to prevent XSS
+     * 
+     * @param {string} str - String to escape
+     * @returns {string} Escaped string
+     */
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     /**

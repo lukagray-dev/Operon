@@ -12,9 +12,9 @@
 //   9. Return AppConfig.
 //
 // DEFAULT CONFIG BEHAVIOR:
-//   On first run, no config.toml exists. The loader writes a documented default
-//   config with sensible values (Anthropic, Claude Sonnet 4, all global tools
-//   denied for external). The user edits this file to customize their setup.
+//   On first run, no config.toml exists. The loader writes a documented
+//   scaffold with empty provider/model fields and commented guidance. The user
+//   edits this file to choose a provider, add credentials, and set policies.
 //
 // ENV VAR OVERRIDE ORDER:
 //   1. [credentials] api_key in config.toml — explicit file-based credential.
@@ -30,6 +30,8 @@ use crate::policy::{DirectoryPolicy, PolicyConfig};
 use crate::schema::{
     build_directory_policy, build_global_policy, build_provider_config, AppConfig, AppConfigToml,
 };
+use serde::de::Error as _;
+use toml_edit::{value, DocumentMut, Item, Table};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public entry point
@@ -53,8 +55,9 @@ use crate::schema::{
 /// # Errors
 ///
 /// Returns `ConfigError` for any failure: missing home dir, I/O error,
-/// malformed TOML, unknown provider name, missing API key, or a directory
-/// path in `[[directories]]` that cannot be canonicalized.
+/// malformed TOML, missing provider/model selection, unknown provider name,
+/// missing API key, or a directory path in `[[directories]]` that cannot be
+/// canonicalized.
 pub fn load() -> Result<AppConfig, ConfigError> {
     // Step 1: Resolve all runtime paths.
     let paths = OperonPaths::resolve()?;
@@ -217,6 +220,7 @@ fn default_config_content() -> String {
 #
 # This file was created automatically on first run.
 # Edit it to configure your provider, API key, and tool permissions.
+# The provider and model fields start empty on purpose.
 # Restart Operon after making changes.
 #
 # ─────────────────────────────────────────────────────────────────────────────
@@ -230,10 +234,10 @@ fn default_config_content() -> String {
 # ─────────────────────────────────────────────────────────────────────────────
 
 [provider]
-name           = "anthropic"
-model_id       = "claude-sonnet-4-20250514"
-context_window = 200000
-max_tokens     = 16000
+name           = ""
+model_id       = ""
+context_window = 0
+max_tokens     = 0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CREDENTIALS
@@ -330,6 +334,7 @@ load_tools = "deny"
 mod tests {
     use super::*;
     use crate::schema::AppConfigToml;
+    use operon_providers::{ApiCredentials, ModelConfig, Provider, ProviderConfig};
 
     #[test]
     fn test_default_config_parses_cleanly() {
@@ -337,11 +342,59 @@ mod tests {
         let content = default_config_content();
         let parsed: AppConfigToml =
             toml::from_str(&content).expect("default config content should parse without errors");
-        assert_eq!(parsed.provider.name, "anthropic");
+        assert_eq!(parsed.provider.name, "");
+        assert_eq!(parsed.provider.model_id, "");
+        assert_eq!(parsed.provider.context_window, 0);
+        assert_eq!(parsed.provider.max_tokens, 0);
         assert!(
             parsed.directories.is_empty(),
             "default config has no user directories"
         );
+    }
+
+    #[test]
+    fn test_save_provider_preserves_comments() {
+        let temp = tempfile::tempdir().unwrap();
+        let fake_paths = OperonPaths {
+            config_dir: temp.path().join(".operon"),
+            workspace_dir: temp.path().join(".operon").join("workspace"),
+            config_file: temp.path().join(".operon").join("config.toml"),
+            sessions_dir: temp.path().join(".operon").join("sessions"),
+        };
+
+        let provider_config = ProviderConfig {
+            provider: Provider::Groq,
+            credentials: ApiCredentials::with_key("gsk-test-key"),
+            model: ModelConfig {
+                model_id: "openai/gpt-oss-120b".to_string(),
+                context_window: 128_000,
+                max_tokens: 4_096,
+            },
+            base_url_override: None,
+        };
+
+        save_provider_at_paths(&fake_paths, &provider_config)
+            .expect("saving provider should succeed");
+
+        let content =
+            std::fs::read_to_string(&fake_paths.config_file).expect("config file should exist");
+
+        assert!(
+            content.contains("# PROVIDER"),
+            "the saved file should keep the template comments"
+        );
+        assert!(
+            content.contains("# GLOBAL TOOL PERMISSIONS"),
+            "the saved file should keep the permission comments"
+        );
+
+        // Re-parse the file to verify the rewritten values without depending on
+        // TOML editor whitespace formatting.
+        let parsed: AppConfigToml =
+            toml::from_str(&content).expect("saved config should still parse cleanly");
+        assert_eq!(parsed.provider.name, "groq");
+        assert_eq!(parsed.provider.model_id, "openai/gpt-oss-120b");
+        assert_eq!(parsed.credentials.api_key, "gsk-test-key");
     }
 
     #[test]
@@ -438,4 +491,84 @@ web = "allow"
             "workspace should be in policy"
         );
     }
+}
+
+/// Save provider configuration to `~/.operon/config.toml`.
+///
+/// This updates only the provider and credentials sections, preserving
+/// all other configuration (policy, directories, etc.).
+///
+/// # What this does
+///
+/// 1. Loads the existing config file (or creates default if missing).
+/// 2. Updates the [provider] and [credentials] sections with new values.
+/// 3. Writes the modified TOML back to disk.
+///
+/// # Errors
+///
+/// Returns `ConfigError` for any I/O or serialization failure.
+pub fn save_provider(
+    provider_config: &operon_providers::ProviderConfig,
+) -> Result<(), ConfigError> {
+    // Step 1: Resolve paths.
+    let paths = OperonPaths::resolve()?;
+
+    save_provider_at_paths(&paths, provider_config)
+}
+
+/// Save provider configuration using a pre-resolved path set.
+///
+/// The public [`save_provider`] wrapper resolves the user's home directory and
+/// forwards here. Tests use this helper directly so they can point Operon at a
+/// temporary directory without relying on platform-specific HOME semantics.
+fn save_provider_at_paths(
+    paths: &OperonPaths,
+    provider_config: &operon_providers::ProviderConfig,
+) -> Result<(), ConfigError> {
+    // Step 2: Ensure directories exist.
+    paths.ensure_dirs_exist()?;
+
+    // Step 3: Read existing config or create default.
+    let toml_text = read_or_create_config(paths)?;
+
+    // Step 4: Parse the existing TOML document while preserving comments.
+    let mut doc = toml_text
+        .parse::<DocumentMut>()
+        .map_err(|e| ConfigError::TomlParse {
+            path: paths.config_file.display().to_string(),
+            source: toml::de::Error::custom(format!(
+                "failed to parse existing config for update: {}",
+                e
+            )),
+        })?;
+
+    // Step 5: Update the provider section in place so comments survive the write.
+    let provider_name = serde_json::to_string(&provider_config.provider)
+        .unwrap_or_default()
+        .trim_matches('"')
+        .to_string();
+
+    if doc["provider"].as_table_mut().is_none() {
+        doc["provider"] = Item::Table(Table::new());
+    }
+    if doc["credentials"].as_table_mut().is_none() {
+        doc["credentials"] = Item::Table(Table::new());
+    }
+
+    doc["provider"]["name"] = value(provider_name);
+    doc["provider"]["model_id"] = value(provider_config.model.model_id.clone());
+    doc["provider"]["context_window"] = value(provider_config.model.context_window as i64);
+    doc["provider"]["max_tokens"] = value(provider_config.model.max_tokens as i64);
+
+    doc["credentials"]["api_key"] = value(provider_config.credentials.api_key.expose().to_string());
+    if let Some(org_id) = &provider_config.credentials.org_id {
+        doc["credentials"]["org_id"] = value(org_id.clone());
+    } else if let Some(credentials) = doc["credentials"].as_table_mut() {
+        credentials.remove("org_id");
+    }
+
+    // Step 6: Serialize the edited document and write it back to disk.
+    fs::write(&paths.config_file, doc.to_string())?;
+
+    Ok(())
 }

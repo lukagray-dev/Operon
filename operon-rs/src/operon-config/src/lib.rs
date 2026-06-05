@@ -82,7 +82,7 @@ pub mod schema;
 ///
 /// This is the primary entry point. Call once at startup.
 /// See [`crate`] module docs for full behavior description.
-pub use loader::load;
+pub use loader::{load, save_provider};
 
 /// All error variants that can occur during config loading.
 pub use error::ConfigError;

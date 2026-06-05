@@ -22,10 +22,7 @@ import {
   escapeHtml,
   normalizeErrorMessage,
 } from '../settings-panel.js';
-import {
-  PLACEHOLDER_MODEL_PROVIDERS,
-  PLACEHOLDER_PROVIDER_SETUPS,
-} from './placeholders.js';
+import * as IPC from '../../shared/ipc.js';
 
 // ── Provider Icon Mapping ─────────────────────────────────────────────────────
 
@@ -114,9 +111,8 @@ async function hydrateModelsPage(modal) {
     modelsState.loadingProviders = true;
     renderModelsStage(modal);
     try {
-      // PLACEHOLDER: Load model providers from static data
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate async
-      const rows = PLACEHOLDER_MODEL_PROVIDERS;
+      // Load model providers from backend
+      const rows = await IPC.getModelProviders();
       modelsState.providers = Array.isArray(rows) ? rows.map(normalizeProviderRow) : [];
     } catch (error) {
       modelsState.providers = [];
@@ -431,20 +427,8 @@ async function loadProviderSetup(modal, providerId, force = false) {
   renderModelsStage(modal);
 
   try {
-    // PLACEHOLDER: Load provider setup from static data
-    await new Promise(resolve => setTimeout(resolve, 200)); // Simulate async
-    const setup = PLACEHOLDER_PROVIDER_SETUPS.get(providerId) || {
-      providerId,
-      label: 'Provider',
-      defaultApiBase: '',
-      docsUrl: '',
-      requiresApiKey: false,
-      apiBase: '',
-      apiKey: '',
-      selectedModel: '',
-      fallbackModels: [],
-      isActive: false,
-    };
+    // Load provider setup from backend
+    const setup = await IPC.getModelProviderSetup(providerId);
     const normalized = normalizeProviderSetup(setup);
     modelsState.setupByProvider.set(providerId, normalized);
     syncProviderSummary(providerId, normalized);
@@ -462,6 +446,10 @@ async function loadProviderSetup(modal, providerId, force = false) {
       });
     }
   } catch (error) {
+    console.error('Failed to load provider setup for models page:', {
+      providerId,
+      error,
+    });
     showError(normalizeErrorMessage(error, 'Failed to load provider setup.'));
   } finally {
     modelsState.loadingSetup = false;
@@ -513,17 +501,27 @@ async function discoverModelsForSelectedProvider(modal) {
   renderModelsStage(modal);
 
   try {
-    // PLACEHOLDER: Simulate model discovery with fallback models
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate async
-    const setup = modelsState.setupByProvider.get(providerId);
-    const discovered = setup?.fallbackModels || [];
-    const payload = { models: discovered, activeModel: discovered[0] || '' };
-    modelsState.discoveredByProvider.set(providerId, discovered);
+    // Call backend to discover models
+    const payload = await IPC.discoverModels({
+      providerId,
+      apiBase: form.apiBase,
+      apiKey: form.apiKey,
+    });
 
-    // Update the same setup object retrieved above
+    if (!payload || !Array.isArray(payload.models)) {
+      throw new Error('Model discovery returned an invalid response.');
+    }
+
+    const discoveredModelIds = payload.models
+      .map(m => String(m?.modelId || '').trim())
+      .filter(Boolean);
+    modelsState.discoveredByProvider.set(providerId, discoveredModelIds);
+
+    // Update setup with discovered models
+    const setup = modelsState.setupByProvider.get(providerId);
     if (setup) {
       const preferred = String(payload?.activeModel || form.model || setup.selectedModel || '').trim();
-      setup.selectedModel = preferred || (discovered[0] ?? '');
+      setup.selectedModel = preferred || (discoveredModelIds[0] ?? '');
       setup.apiBase = form.apiBase || setup.defaultApiBase;
       setup.apiKey  = form.apiKey;
       modelsState.setupByProvider.set(providerId, setup);
@@ -535,7 +533,15 @@ async function discoverModelsForSelectedProvider(modal) {
     draft.apiKey  = form.apiKey;
     if (setup?.selectedModel) draft.model = setup.selectedModel;
     modelsState.draftByProvider.set(providerId, draft);
+    
+    showSuccess('Models discovered successfully.');
   } catch (error) {
+    console.error('Failed to discover models for provider setup:', {
+      providerId,
+      apiBase: form.apiBase,
+      apiKeyProvided: Boolean(form.apiKey),
+      error,
+    });
     showError(normalizeErrorMessage(error, 'Failed to discover models.'));
   } finally {
     modelsState.loadingDiscovery = false;
@@ -554,9 +560,14 @@ async function saveSelectedProviderSetup(modal) {
   renderModelsStage(modal);
 
   try {
-    // PLACEHOLDER: Simulate saving provider setup
-    await new Promise(resolve => setTimeout(resolve, 400)); // Simulate async
-    const payload = { model: form.model };
+    // Call backend to save provider setup
+    const payload = await IPC.saveProviderSetup({
+      providerId,
+      apiBase: form.apiBase,
+      apiKey: form.apiKey,
+      model: form.model,
+    });
+
     const resolvedModel = String(payload?.model || form.model).trim() || form.model;
 
     const setup = modelsState.setupByProvider.get(providerId);
@@ -583,9 +594,16 @@ async function saveSelectedProviderSetup(modal) {
       modelsState.discoveredByProvider.set(providerId, [resolvedModel, ...discovered]);
     }
     modelsState.draftByProvider.set(providerId, { apiBase: form.apiBase, apiKey: form.apiKey, model: resolvedModel });
-
-    showSuccess('Model provider setup saved.');
+    
+    showSuccess('Model provider setup saved and activated.');
   } catch (error) {
+    console.error('Failed to save provider setup:', {
+      providerId,
+      apiBase: form.apiBase,
+      model: form.model,
+      apiKeyProvided: Boolean(form.apiKey),
+      error,
+    });
     showError(normalizeErrorMessage(error, 'Failed to save provider setup.'));
   } finally {
     modelsState.saving = false;

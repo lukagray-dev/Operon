@@ -60,16 +60,21 @@
 //! let config = ProviderConfig {
 //!     provider:          Provider::Anthropic,
 //!     credentials:       ApiCredentials::with_key("sk-ant-..."),
-//!     model:             ModelConfig::claude_sonnet_4(),
+//!     model: ModelConfig {
+//!         model_id: "claude-3-5-sonnet-latest".to_string(),
+//!         context_window: 200_000,
+//!         max_tokens: 8_192,
+//!     },
 //!     base_url_override: None,
 //! };
 //!
 //! assert_eq!(config.effective_base_url(), "https://api.anthropic.com/v1");
-//! assert_eq!(config.model_id(), "claude-sonnet-4-20250514");
+//! assert_eq!(config.model_id(), "claude-3-5-sonnet-latest");
 //! ```
 
 pub mod config;
 pub mod credentials;
+pub mod discovery;
 pub mod model;
 pub mod provider;
 
@@ -89,3 +94,6 @@ pub use model::ModelConfig;
 
 // Assembled runtime config — what the session runner consumes.
 pub use config::ProviderConfig;
+
+// Model discovery.
+pub use discovery::{discover_models, DiscoveredModel, DiscoveryResult};

@@ -1,0 +1,153 @@
+'use strict';
+
+/**
+ * ipc.js
+ *
+ * Centralized IPC (Inter-Process Communication) module for Tauri backend calls.
+ * All frontend-to-backend communication goes through this module.
+ *
+ * Uses the Tauri invoke API to call Rust command handlers.
+ */
+
+/**
+ * Check if Tauri API is available
+ * @returns {boolean}
+ */
+export function isTauriAvailable() {
+    return typeof window !== 'undefined' && 
+           typeof window.__TAURI__ !== 'undefined' &&
+           typeof window.__TAURI__.core !== 'undefined';
+}
+
+/**
+ * Invoke a Tauri command
+ * @param {string} command - The command name
+ * @param {Object} [args] - Optional arguments
+ * @returns {Promise<any>}
+ */
+async function invoke(command, args = {}) {
+    if (!isTauriAvailable()) {
+        throw new Error('Tauri API is not available');
+    }
+    
+    try {
+        const result = await window.__TAURI__.core.invoke(command, args);
+        return result;
+    } catch (error) {
+        console.error(`IPC error calling ${command}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Normalize a value into a trimmed string.
+ *
+ * Tauri command payloads are serialized through JSON, so we keep the values
+ * explicit and string-based here instead of letting `undefined` disappear from
+ * the request object and break the backend deserializer.
+ *
+ * @param {unknown} value - Any incoming value from the UI layer.
+ * @returns {string}
+ */
+function normalizeString(value) {
+    return String(value ?? '').trim();
+}
+
+/**
+ * Build the payload expected by the Rust `discover_models` command.
+ *
+ * The backend command takes a single `request` object, so the frontend must
+ * wrap the fields rather than sending them flat at the top level.
+ *
+ * @param {Object} request - Raw request data from the UI.
+ * @returns {{ providerId: string, apiBase: string, apiKey: string }}
+ */
+function buildDiscoverModelsRequest(request) {
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+        throw new TypeError('discoverModels expects a request object.');
+    }
+
+    return {
+        providerId: normalizeString(request.providerId),
+        apiBase: normalizeString(request.apiBase),
+        apiKey: normalizeString(request.apiKey),
+    };
+}
+
+/**
+ * Build the payload expected by the Rust `save_provider_setup` command.
+ *
+ * This mirrors the backend DTO exactly so the IPC bridge stays explicit and
+ * easy to debug when the provider setup flow changes later.
+ *
+ * @param {Object} request - Raw request data from the UI.
+ * @returns {{ providerId: string, apiBase: string, apiKey: string, model: string }}
+ */
+function buildSaveProviderRequest(request) {
+    if (!request || typeof request !== 'object' || Array.isArray(request)) {
+        throw new TypeError('saveProviderSetup expects a request object.');
+    }
+
+    return {
+        providerId: normalizeString(request.providerId),
+        apiBase: normalizeString(request.apiBase),
+        apiKey: normalizeString(request.apiKey),
+        model: normalizeString(request.model),
+    };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODEL PROVIDER COMMANDS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get list of all available model providers
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getModelProviders() {
+    return await invoke('get_model_providers');
+}
+
+/**
+ * Get detailed setup for a specific provider
+ * @param {string} providerId - The provider ID (e.g., 'anthropic', 'open_ai')
+ * @returns {Promise<Object>}
+ */
+export async function getModelProviderSetup(providerId) {
+    return await invoke('get_model_provider_setup', { providerId });
+}
+
+/**
+ * Discover available models for a provider
+ * @param {Object} request - Provider discovery request payload
+ * @param {string} request.providerId - The provider ID
+ * @param {string} request.apiBase - API base URL
+ * @param {string} request.apiKey - API key
+ * @returns {Promise<Object>} - { models: Array, activeModel: string }
+ */
+export async function discoverModels(request) {
+    const payload = buildDiscoverModelsRequest(request);
+    return await invoke('discover_models', { request: payload });
+}
+
+/**
+ * Save provider configuration and activate it
+ * @param {Object} request - Provider setup payload
+ * @param {string} request.providerId - The provider ID
+ * @param {string} request.apiBase - API base URL
+ * @param {string} request.apiKey - API key
+ * @param {string} request.model - Model ID
+ * @returns {Promise<Object>} - { model: string }
+ */
+export async function saveProviderSetup(request) {
+    const payload = buildSaveProviderRequest(request);
+    return await invoke('save_provider_setup', { request: payload });
+}
+
+/**
+ * Get the currently active provider configuration
+ * @returns {Promise<Object|null>}
+ */
+export async function getActiveProvider() {
+    return await invoke('get_active_provider');
+}

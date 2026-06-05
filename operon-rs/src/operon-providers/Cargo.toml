@@ -18,3 +18,7 @@ serde_json = { workspace = true }
 
 # Error handling for credential validation.
 thiserror = { workspace = true }
+
+# HTTP client for model discovery
+reqwest = { workspace = true }
+tokio = { workspace = true }

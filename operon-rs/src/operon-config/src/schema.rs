@@ -46,9 +46,12 @@ use crate::policy::{
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Top-level deserialization struct for ~/.operon/config.toml.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct AppConfigToml {
     /// Which LLM provider and model to use.
+    ///
+    /// These values start empty on first run so the user can choose them in the
+    /// GUI instead of being forced into a hardcoded provider.
     #[serde(default)]
     pub(crate) provider: ProviderToml,
 
@@ -83,7 +86,8 @@ impl Default for AppConfigToml {
 /// [provider] section — selects the LLM provider and model.
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct ProviderToml {
-    /// Provider name in snake_case. Valid values:
+    /// Provider name in snake_case. Empty means "not configured yet".
+    /// Valid values:
     /// anthropic, open_ai, gemini, ollama, deep_seek, open_router, groq, mistral, xai, cohere
     ///
     /// Serialized form of `operon_providers::Provider` (via serde rename_all = "snake_case").
@@ -91,7 +95,7 @@ pub(crate) struct ProviderToml {
     pub(crate) name: String,
 
     /// Exact model ID string sent in the request body.
-    /// Defaults to Claude Sonnet 4 if not set.
+    /// Starts empty on first run so the user can choose a model in the GUI.
     #[serde(default = "default_model_id")]
     pub(crate) model_id: String,
 
@@ -116,10 +120,10 @@ impl Default for ProviderToml {
 }
 
 fn default_provider_name() -> String {
-    "anthropic".to_string()
+    String::new()
 }
 fn default_model_id() -> String {
-    "claude-sonnet-4-20250514".to_string()
+    String::new()
 }
 fn default_context_window() -> usize {
     200_000
@@ -150,7 +154,7 @@ pub(crate) struct CredentialsToml {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// [policy] section — tool permission configuration.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct PolicyToml {
     /// [policy.global] — permissions for non-filesystem tools.
     #[serde(default)]
@@ -158,7 +162,7 @@ pub(crate) struct PolicyToml {
 }
 
 /// [policy.global] section — permissions for web, subagent, ask, todo, load_tools.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct GlobalPolicyToml {
     /// [policy.global.owner] — tool permissions for the owner role.
     /// GlobalTool variants are serialized as snake_case (e.g. "load_tools").
@@ -175,7 +179,7 @@ pub(crate) struct GlobalPolicyToml {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// One entry in the [[directories]] array.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct DirEntryToml {
     /// Path to the directory. Supports ~ expansion.
     /// Canonicalized (symlinks resolved) by PolicyConfig::validate() after loading.
@@ -187,7 +191,7 @@ pub(crate) struct DirEntryToml {
 }
 
 /// [directories.permissions] — owner and external role permissions for a directory.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct DirPermissionsToml {
     /// [directories.permissions.owner] — what the owner can do in this directory.
     #[serde(default)]
@@ -215,7 +219,7 @@ pub(crate) struct DirPermissionsToml {
 ///
 /// If `fs` is absent and an individual key is also absent, the tool defaults to `Deny`.
 /// This enforces safe-by-default posture: unspecified tools are blocked.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct DirRolePermsToml {
     // ── Filesystem group shorthand ────────────────────────────────────────────
     /// Applies to all fs tools not overridden individually.
@@ -353,7 +357,19 @@ pub(crate) fn build_provider_config(
     creds: &CredentialsToml,
     env_api_key: Option<String>,
 ) -> Result<ProviderConfig, ConfigError> {
-    let provider = parse_provider(&toml.name)?;
+    let provider_name = toml.name.trim();
+    if provider_name.is_empty() {
+        return Err(ConfigError::MissingProviderSelection);
+    }
+
+    let model_id = toml.model_id.trim();
+    if model_id.is_empty() {
+        return Err(ConfigError::MissingModelSelection {
+            provider: provider_name.to_string(),
+        });
+    }
+
+    let provider = parse_provider(provider_name)?;
 
     // API key resolution: config file wins over env var.
     // For Ollama, an empty key is fine — it's local and auth-free.
@@ -369,7 +385,7 @@ pub(crate) fn build_provider_config(
     };
 
     let model = ModelConfig {
-        model_id: toml.model_id.clone(),
+        model_id: model_id.to_string(),
         context_window: toml.context_window,
         max_tokens: toml.max_tokens,
     };
