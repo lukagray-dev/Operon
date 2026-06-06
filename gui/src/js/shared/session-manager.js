@@ -120,6 +120,11 @@ class SessionManager {
         this.activeSessionId = null;
         this.resetStreamingState();
         
+        // Clear diagnostics bar if visible
+        if (window.inputPanelController) {
+            window.inputPanelController.clearDiagnostics();
+        }
+        
         // Clear message log
         if (window.userMessageController) {
             window.userMessageController.clearMessages();
@@ -200,6 +205,11 @@ class SessionManager {
         
         this.activeSessionId = sessionId;
         this.resetStreamingState();
+        
+        // Clear diagnostics bar if visible
+        if (window.inputPanelController) {
+            window.inputPanelController.clearDiagnostics();
+        }
         
         // Highlight active sidebar item
         document.querySelectorAll('.left-sidebar__chat-item').forEach(item => {
@@ -508,6 +518,18 @@ class SessionManager {
             const { id } = event.ApprovalGranted;
             this.resolvePermissionPrompt(id, true);
         } 
+        else if (event.PreTurnReady) {
+            const { turn_index, message_count, tool_count, estimated_tokens } = event.PreTurnReady;
+            if (window.inputPanelController) {
+                window.inputPanelController.showDiagnosticsReady(turn_index, message_count, tool_count, estimated_tokens);
+            }
+        } 
+        else if (event.PreTurnFailed) {
+            const { turn_index, step, reason } = event.PreTurnFailed;
+            if (window.inputPanelController) {
+                window.inputPanelController.showDiagnosticsFailed(turn_index, step, reason);
+            }
+        }
         else if (event.Done) {
             // Turn completed successfully!
             // Collapse thinking block if finished

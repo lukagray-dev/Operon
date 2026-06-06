@@ -65,3 +65,10 @@ pub use session::SessionEvent;
 /// The UI holds an `mpsc::Sender<SessionCommand>` and the runner holds the
 /// corresponding `mpsc::Receiver<SessionCommand>`.
 pub use session::SessionCommand;
+
+/// Identifies which specific pre-turn step produced an error.
+///
+/// Consumers can write `use operon_events::PreTurnStep;` rather than
+/// `use operon_events::session::PreTurnStep;`.
+pub use session::PreTurnStep;
+

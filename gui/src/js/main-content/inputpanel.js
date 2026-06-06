@@ -36,6 +36,7 @@ class InputPanelController {
         this.container = null;
         this.textarea = null;
         this.autoApproveBtn = null;
+        this.diagnosticsEl = null; // Status/diagnostics container
         
         // State tracking
         this.isFocused = false;
@@ -63,6 +64,7 @@ class InputPanelController {
             this.container = document.querySelector('.input-panel__container');
             this.textarea = document.getElementById('input-textarea');
             this.autoApproveBtn = document.getElementById('input-auto-approve');
+            this.diagnosticsEl = document.getElementById('input-diagnostics');
             
             if (!this.container || !this.textarea) {
                 throw new Error('Required input panel elements not found');
@@ -138,14 +140,16 @@ class InputPanelController {
     setupTextareaListeners() {
         if (!this.textarea) return;
 
-        // Input event - handle auto-expansion
+        // Input event - handle auto-expansion and clear old diagnostics
         this.textarea.addEventListener('input', () => {
             this.adjustTextareaHeight();
+            this.clearDiagnostics();
         });
 
-        // Focus event - add focused state to container
+        // Focus event - add focused state to container and clear diagnostics
         this.textarea.addEventListener('focus', () => {
             this.handleFocus();
+            this.clearDiagnostics();
         });
 
         // Blur event - remove focused state from container
@@ -721,6 +725,9 @@ class InputPanelController {
         console.log('Sending message:', message);
         console.log('Auto-approve enabled:', this.autoApproveEnabled);
 
+        // Show preparing turn status in the diagnostics bar
+        this.showPreparingTurn();
+
         // Send user message to backend via sessionManager
         if (window.sessionManager) {
             window.sessionManager.sendUserMessage(message);
@@ -805,6 +812,108 @@ class InputPanelController {
             'data-state', 
             enabled ? 'enabled' : 'disabled'
         );
+    }
+
+    /* ========================================================================
+       DIAGNOSTICS & STATUS HANDLERS
+       ======================================================================== */
+
+    /**
+     * Hide and empty the diagnostics bar
+     */
+    clearDiagnostics() {
+        if (!this.diagnosticsEl) return;
+        this.diagnosticsEl.style.display = 'none';
+        this.diagnosticsEl.innerHTML = '';
+    }
+
+    /**
+     * Show a pulsing dot indicator while the pre-turn workspace state is assembled
+     */
+    showPreparingTurn() {
+        if (!this.diagnosticsEl) return;
+        this.diagnosticsEl.style.display = 'flex';
+        this.diagnosticsEl.innerHTML = `
+            <div class="input-panel__diagnostics-left">
+                <div class="input-panel__diagnostics-status">
+                    <span class="input-panel__diagnostics-dot input-panel__diagnostics-dot--pulse"></span>
+                    <span>Assembling prompt context...</span>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Show pre-turn diagnostics details once they are compiled and validated
+     */
+    showDiagnosticsReady(turnIndex, messageCount, toolCount, estimatedTokens) {
+        if (!this.diagnosticsEl) return;
+        
+        // Format estimated token count to match professional design (e.g. 1.2K)
+        let formattedTokens = estimatedTokens;
+        if (estimatedTokens >= 1000) {
+            formattedTokens = `${(estimatedTokens / 1000).toFixed(1).replace('.0', '')}K`;
+        }
+        
+        // Show a warning badge if only load_tools is active (lazy loading active)
+        let toolsWarning = '';
+        if (toolCount === 1) {
+            toolsWarning = ` <span class="input-panel__diagnostics-badge input-panel__diagnostics-badge--warning">meta-only</span>`;
+        }
+
+        this.diagnosticsEl.style.display = 'flex';
+        this.diagnosticsEl.innerHTML = `
+            <div class="input-panel__diagnostics-left">
+                <div class="input-panel__diagnostics-status">
+                    <span class="input-panel__diagnostics-dot"></span>
+                    <span>Pre-turn ready</span>
+                </div>
+                <div class="input-panel__diagnostics-item">
+                    <span>Turn:</span>
+                    <span class="input-panel__diagnostics-badge">${turnIndex}</span>
+                </div>
+                <div class="input-panel__diagnostics-item">
+                    <span>Messages:</span>
+                    <span class="input-panel__diagnostics-badge">${messageCount}</span>
+                </div>
+                <div class="input-panel__diagnostics-item">
+                    <span>Tools:</span>
+                    <span class="input-panel__diagnostics-badge">${toolCount}</span>
+                    ${toolsWarning}
+                </div>
+            </div>
+            <div class="input-panel__diagnostics-right">
+                <div class="input-panel__diagnostics-item">
+                    <span>Est. tokens:</span>
+                    <span class="input-panel__diagnostics-badge">${formattedTokens}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Show pre-turn failed message with the error and specific failing step in red
+     */
+    showDiagnosticsFailed(turnIndex, step, reason) {
+        if (!this.diagnosticsEl) return;
+        
+        // Format the failing step name cleanly
+        let stepLabel = step.replace('_', ' ');
+        stepLabel = stepLabel.charAt(0).toUpperCase() + stepLabel.slice(1);
+
+        this.diagnosticsEl.style.display = 'flex';
+        this.diagnosticsEl.innerHTML = `
+            <div class="input-panel__diagnostics-left">
+                <div class="input-panel__diagnostics-status input-panel__diagnostics-status--failed">
+                    <span class="input-panel__diagnostics-dot"></span>
+                    <span>Pre-turn failed</span>
+                </div>
+                <span class="input-panel__diagnostics-badge input-panel__diagnostics-badge--error">${this.escapeHtml(stepLabel)}</span>
+                <span style="color: #f44336; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; max-width: 380px;" title="${this.escapeHtml(reason)}">
+                    ${this.escapeHtml(reason)}
+                </span>
+            </div>
+        `;
     }
 }
 

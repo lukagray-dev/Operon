@@ -421,3 +421,122 @@
     }
 }
 
+/* ============================================================================
+   INPUT PANEL DIAGNOSTICS BAR
+   ============================================================================ */
+
+/* The main container for pre-turn diagnostic information */
+.input-panel__diagnostics {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 11px;
+    color: #8e8e8e;
+    padding: 6px 4px;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+    margin-top: 4px;
+    margin-bottom: 2px;
+    animation: inputPanelDiagnosticsFadeIn 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Container for grouping stats items on the left */
+.input-panel__diagnostics-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Individual statistic item (e.g. message count, estimated tokens) */
+.input-panel__diagnostics-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Sleek monospace badge for numerical stats or statuses */
+.input-panel__diagnostics-badge {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #e0e0e0;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: var(--font-family-mono, monospace);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+/* Warning styling for badges, e.g. when lazy loading is active with 1 tool */
+.input-panel__diagnostics-badge--warning {
+    background-color: rgba(255, 193, 7, 0.12);
+    color: #ffc107;
+    border: 0.5px solid rgba(255, 193, 7, 0.2);
+}
+
+/* Error styling for badges in case a pre-turn step fails */
+.input-panel__diagnostics-badge--error {
+    background-color: rgba(244, 67, 54, 0.12);
+    color: #f44336;
+    border: 0.5px solid rgba(244, 67, 54, 0.2);
+}
+
+/* Pre-turn status label indicating general state */
+.input-panel__diagnostics-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #4caf50; /* Green for turn ready/requesting */
+    font-weight: 500;
+}
+
+/* Pre-turn status label indicating pre-turn failures */
+.input-panel__diagnostics-status--failed {
+    color: #f44336; /* Red for failure */
+}
+
+/* Sleek CSS-only dot representing status */
+.input-panel__diagnostics-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+    flex-shrink: 0;
+}
+
+/* Pulsing effect to make loading or ready states look alive */
+.input-panel__diagnostics-dot--pulse {
+    animation: inputPanelDotPulse 1.5s infinite ease-in-out;
+}
+
+/* Diagnostic warning label styling */
+.input-panel__diagnostics-warning {
+    color: #ffc107;
+    margin-left: 4px;
+}
+
+/* Fade in animation for diagnostics panel */
+@keyframes inputPanelDiagnosticsFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pulse keyframes for dot indicator */
+@keyframes inputPanelDotPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 4px rgba(76, 175, 80, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+    }
+}
+
+

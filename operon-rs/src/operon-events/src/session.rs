@@ -258,7 +258,52 @@ pub enum SessionEvent {
     /// After `Error`, the runner transitions to `LifecycleState::Failed` and no
     /// further events will arrive on this channel.
     Error { message: String },
+
+    // ── Pre-turn diagnostics ─────────────────────────────────────────────────
+    /// Emitted once per agent loop iteration, immediately before the API request
+    /// is sent. Confirms that all pre-turn assembly steps completed successfully.
+    /// The frontend can use this to show a "turn ready" indicator and for debugging.
+    PreTurnReady {
+        /// 0-based turn index within this session (same as `TurnComplete.turn_index`
+        /// that will be emitted after the model responds).
+        turn_index: usize,
+        /// Number of messages in the sanitized history sent to the provider,
+        /// including the system message.
+        message_count: usize,
+        /// Number of tool definitions included in the `tools` array of this request.
+        /// Should be 1 (only `load_tools`) on the first turn if lazy loading is active.
+        tool_count: usize,
+        /// Estimated token count for this request (heuristic, not provider-reported).
+        /// Useful for diagnosing 413 errors before they happen.
+        estimated_tokens: usize,
+    },
+
+    /// Emitted when a pre-turn step (snapshot, sanitize, compaction) fails before
+    /// the API request is sent. The session lifecycle transitions to Failed.
+    /// Distinct from `SessionEvent::Error` which covers stream-level failures.
+    PreTurnFailed {
+        /// 0-based turn index.
+        turn_index: usize,
+        /// Which step failed.
+        step: PreTurnStep,
+        /// Human-readable error message explaining why the step failed.
+        reason: String,
+    },
 }
+
+/// Identifies which specific pre-turn assembly step failed.
+/// This enum is serialized and sent to the frontend for diagnosis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreTurnStep {
+    /// Context compaction failed (e.g., failure contacting the summarization API).
+    Compaction,
+    /// Building the filesystem snapshot or project context failed.
+    Snapshot,
+    /// Message history sanitization failed.
+    Sanitizer,
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionCommand — inbound (UI → runner)

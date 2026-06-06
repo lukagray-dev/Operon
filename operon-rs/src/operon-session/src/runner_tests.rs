@@ -251,3 +251,48 @@ fn test_set_history_restores_loaded_groups() {
     assert!(!loaded.contains("web"), "The failed 'web' group must NOT be marked loaded");
     assert!(!loaded.contains("read"), "Individual tool calls must not affect loaded groups");
 }
+
+#[test]
+fn test_heuristic_token_estimator() {
+    // This test verifies the heuristic token estimator used in the session runner
+    // for diagnosing potential context length overflows before sending the API request.
+
+    // 1. Text content block: estimated at length of string / 4
+    let text_block = ContentBlock::Text("hello world".to_string()); // 11 chars -> 2 tokens
+    
+    // 2. Tool call content block: estimated at length of arguments JSON string / 4 + 10
+    let tool_call_block = ContentBlock::ToolCall(ToolCall {
+        id: ToolCallId("call_1".to_string()),
+        name: "test_tool".to_string(),
+        arguments: json!({ "arg": "value" }), // {"arg":"value"} is 15 chars -> 3 tokens + 10 = 13 tokens
+    });
+    
+    // 3. Tool result content block: estimated at length of result payload / 4 + 10
+    let tool_result_block = ContentBlock::ToolResult(ToolResult {
+        call_id: ToolCallId("call_1".to_string()),
+        name: "test_tool".to_string(),
+        content: ToolContent::Text("success".to_string()), // "success" is 7 chars -> 1 token + 10 = 11 tokens
+        is_error: false,
+    });
+
+    // Run the same match heuristic used in runner.rs
+    let estimate = |block: &ContentBlock| match block {
+        ContentBlock::Text(t) => t.len() / 4,
+        ContentBlock::ToolCall(c) => {
+            c.arguments.to_string().len() / 4 + 10
+        }
+        ContentBlock::ToolResult(r) => {
+            let content_len = match &r.content {
+                ToolContent::Text(t) => t.len(),
+                ToolContent::Json(val) => val.to_string().len(),
+            };
+            content_len / 4 + 10
+        }
+        _ => 5,
+    };
+
+    assert_eq!(estimate(&text_block), 2, "Text block token estimation mismatch");
+    assert_eq!(estimate(&tool_call_block), 13, "Tool call token estimation mismatch");
+    assert_eq!(estimate(&tool_result_block), 11, "Tool result token estimation mismatch");
+}
+

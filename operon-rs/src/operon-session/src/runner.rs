@@ -341,20 +341,91 @@ impl SessionRunner {
                             .await;
                     }
                     Err(e) => {
+                        // If compaction encounters a fatal error, emit PreTurnFailed,
+                        // transition session lifecycle state to Failed, and return the error.
+                        let _ = self.event_tx.send(SessionEvent::PreTurnFailed {
+                            turn_index: self.turn_index,
+                            step: operon_events::PreTurnStep::Compaction,
+                            reason: e.to_string(),
+                        }).await;
                         self.lifecycle = LifecycleState::Failed;
                         return Err(e);
                     }
                 }
             }
 
-            // ── 2. Build snapshot + sanitize ─────────────────────────────────
-            let snapshot = self.snapshot_builder.build()?;
-            let clean_messages = sanitize(self.messages.clone(), &snapshot, self.config.role)?;
+            // ── 2. Build snapshot ────────────────────────────────────────────
+            // We build a filesystem/project snapshot that captures the current workspace file tree
+            // and files status, which the AI model uses to understand project context.
+            // If snapshotting fails, we emit a PreTurnFailed event so the UI can notify the user,
+            // transition the lifecycle state to Failed, and return the error.
+            let snapshot = match self.snapshot_builder.build() {
+                Ok(s) => s,
+                Err(e) => {
+                    let _ = self.event_tx.send(SessionEvent::PreTurnFailed {
+                        turn_index: self.turn_index,
+                        step: operon_events::PreTurnStep::Snapshot,
+                        reason: e.to_string(),
+                    }).await;
+                    self.lifecycle = LifecycleState::Failed;
+                    return Err(e.into());
+                }
+            };
+
+            // ── 2b. Sanitize conversation messages ───────────────────────────
+            // We sanitize the conversation messages to strip out any invalid blocks,
+            // inject the system prompt snapshot, and prepare the history for the provider.
+            // If sanitization fails, we emit PreTurnFailed, set session state to Failed, and exit.
+            let clean_messages = match sanitize(self.messages.clone(), &snapshot, self.config.role) {
+                Ok(m) => m,
+                Err(e) => {
+                    let _ = self.event_tx.send(SessionEvent::PreTurnFailed {
+                        turn_index: self.turn_index,
+                        step: operon_events::PreTurnStep::Sanitizer,
+                        reason: e.to_string(),
+                    }).await;
+                    self.lifecycle = LifecycleState::Failed;
+                    return Err(e.into());
+                }
+            };
 
             // ── 3. Collect tool definitions ──────────────────────────────────
+            // Get all tool definitions that are currently available to the agent.
             let tool_defs: Vec<_> = self.dispatcher.definitions().cloned().collect();
 
+            // ── 3b. Emit PreTurnReady confirmation ───────────────────────────
+            // Estimate the number of tokens to be sent in the prompt request.
+            // We use a simple heuristic where 4 characters roughly equal 1 token.
+            // This is useful for detecting and debugging context window overflow issues.
+            let estimated_tokens = clean_messages.iter()
+                .flat_map(|m| m.content.iter())
+                .map(|block| match block {
+                    ContentBlock::Text(t) => t.len() / 4,
+                    ContentBlock::ToolCall(c) => {
+                        c.arguments.to_string().len() / 4 + 10
+                    }
+                    ContentBlock::ToolResult(r) => {
+                        let content_len = match &r.content {
+                            ToolContent::Text(t) => t.len(),
+                            ToolContent::Json(val) => val.to_string().len(),
+                        };
+                        content_len / 4 + 10
+                    }
+                    _ => 5,
+                })
+                .sum::<usize>();
+
+            // Let the frontend know that all pre-turn processing succeeded and we are
+            // about to dispatch the API request to the model provider.
+            let _ = self.event_tx.send(SessionEvent::PreTurnReady {
+                turn_index: self.turn_index,
+                message_count: clean_messages.len(),
+                tool_count: tool_defs.len(),
+                estimated_tokens,
+            }).await;
+
             // ── 4. Build request body ────────────────────────────────────────
+            // Construct the payload for the model provider request.
             let body = build_request(
                 &self.config.provider_config.provider,
                 self.config.provider_config.model_id(),
@@ -363,6 +434,7 @@ impl SessionRunner {
                 &tool_defs,
                 true, // streaming = true
             )?;
+
 
             // ── 5. Send + consume SSE stream ─────────────────────────────────
             // Clone to String so there's no borrow of self across the await.
