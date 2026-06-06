@@ -123,6 +123,8 @@ class SessionManager {
         // Clear diagnostics bar if visible
         if (window.inputPanelController) {
             window.inputPanelController.clearDiagnostics();
+            // Reset context usage display back to default placeholder values when starting a fresh session
+            window.inputPanelController.updateContextUsage(0, 0, 0);
         }
         
         // Clear message log
@@ -209,6 +211,8 @@ class SessionManager {
         // Clear diagnostics bar if visible
         if (window.inputPanelController) {
             window.inputPanelController.clearDiagnostics();
+            // Reset context usage display back to default placeholder values when changing the active chat session
+            window.inputPanelController.updateContextUsage(0, 0, 0);
         }
         
         // Highlight active sidebar item
@@ -564,6 +568,14 @@ class SessionManager {
             const { turn_index, step, reason } = event.PreTurnFailed;
             if (window.inputPanelController) {
                 window.inputPanelController.showDiagnosticsFailed(turn_index, step, reason);
+            }
+        }
+        else if (event.ContextUsageUpdated) {
+            // Retrieve current and total token counts, plus current usage ratio from backend event
+            const { current_context_tokens, context_window, utilization } = event.ContextUsageUpdated;
+            if (window.inputPanelController) {
+                // Update the token count displays and color states dynamically
+                window.inputPanelController.updateContextUsage(current_context_tokens, context_window, utilization);
             }
         }
         else if (event.Done) {

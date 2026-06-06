@@ -341,17 +341,14 @@ class InputPanelController {
     }
 
     /**
-     * Handle context button click
+     * Handle context button click.
      * 
-     * Opens context selection interface.
-     * In production, this would:
-     * - Show context picker (files, folders, URLs)
-     * - Allow adding context to the message
+     * In this iteration, the context button simply displays live token usage/capacity details.
+     * A future release will handle clicks by launching a detail panel showing granular context blocks.
      */
     handleContext() {
-        console.log('Context clicked');
-        // TODO: Implement context selection
-        alert('Context selection functionality will be implemented here');
+        // Context button currently displays live token usage via updateContextUsage().
+        // A detailed context panel will be wired here in a future iteration.
     }
 
     /**
@@ -812,6 +809,52 @@ class InputPanelController {
             'data-state', 
             enabled ? 'enabled' : 'disabled'
         );
+    }
+
+    /**
+     * Update context window usage display on the context button label.
+     * 
+     * This receives token numbers from backend event updates. It updates the DOM
+     * label element inside the button to display compact information like "1.2K / 128K".
+     * It also highlights the text color using warning or error colors depending on how
+     * close the usage is to the context window capacity limit.
+     *
+     * @param {number} currentTokens - Tokens used so far this session
+     * @param {number} contextWindow - Total context window size for the active model
+     * @param {number} utilization   - Usage ratio 0.0–1.0
+     */
+    updateContextUsage(currentTokens, contextWindow, utilization) {
+        const labelEl = document.getElementById('input-context-label');
+        if (!labelEl) return;
+
+        // No session active yet — show neutral placeholder (...)
+        if (contextWindow === 0) {
+            labelEl.textContent = '...';
+            labelEl.style.color = '';
+            return;
+        }
+
+        // Format used tokens compactly (e.g., 1200 → "1.2K", 45000 → "45K", 1200000 → "1.2M")
+        // This helper function simplifies large numbers by showing them with decimal notation.
+        const fmt = (n) => {
+            if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.0', '')}M`;
+            if (n >= 1_000)     return `${(n / 1_000).toFixed(1).replace('.0', '')}K`;
+            return `${n}`;
+        };
+
+        labelEl.textContent = `${fmt(currentTokens)} / ${fmt(contextWindow)}`;
+
+        // Color the label based on utilization ratio:
+        // - More than 80% (0.80) usage: show red danger color to alert the user
+        // - More than 60% (0.60) usage: show amber warning color
+        // - Under 60% usage: inherit the default muted text styling
+        if (utilization > 0.80) {
+            labelEl.style.color = '#f44336'; // red danger
+        } else if (utilization > 0.60) {
+            labelEl.style.color = '#ffc107'; // amber warning
+        } else {
+            labelEl.style.color = ''; // inherit default muted color
+        }
     }
 
     /* ========================================================================
