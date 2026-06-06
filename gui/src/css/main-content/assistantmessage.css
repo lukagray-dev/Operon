@@ -93,6 +93,249 @@
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    min-width: 0;                   /* Allow the flex item to shrink below content size */
+    max-width: 100%;                /* Bound content inside the parent assistant message container */
+}
+
+/* ============================================================================
+   MARKDOWN RENDERED ELEMENTS
+   ============================================================================ */
+
+/* 
+ * Markdown Paragraphs and Blocks
+ * 
+ * We ensure paragraphs have clean line height and spacing.
+ * Also, we force wrap on all text blocks to prevent any potential horizontal overflow.
+ */
+.assistant-message__content p {
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.assistant-message__content p:last-child {
+    margin-bottom: 0;
+}
+
+/* 
+ * Headings (H1 to H6)
+ * 
+ * Styled with a slightly larger font size, extra spacing on top,
+ * and a cleaner bold weight for clear readability.
+ */
+.assistant-message__content h1,
+.assistant-message__content h2,
+.assistant-message__content h3,
+.assistant-message__content h4,
+.assistant-message__content h5,
+.assistant-message__content h6 {
+    color: #ffffff;
+    font-family: var(--font-family-primary); /* Use primary clean font for headings */
+    font-weight: 600;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    line-height: 1.3;
+}
+
+.assistant-message__content h1 { font-size: 20px; }
+.assistant-message__content h2 { font-size: 18px; }
+.assistant-message__content h3 { font-size: 16px; }
+.assistant-message__content h4 { font-size: 14px; }
+.assistant-message__content h5 { font-size: 13px; }
+.assistant-message__content h6 { font-size: 12px; }
+
+/* 
+ * Lists (ul, ol, li)
+ * 
+ * We set standard bullets (disc) and numbers (decimal), indent them properly,
+ * and ensure long items wrap correctly without going off-screen.
+ */
+.assistant-message__content ul,
+.assistant-message__content ol {
+    margin-bottom: 12px;
+    padding-left: 24px;
+}
+
+.assistant-message__content ul {
+    list-style-type: disc;
+}
+
+.assistant-message__content ol {
+    list-style-type: decimal;
+}
+
+.assistant-message__content li {
+    margin-bottom: 4px;
+    line-height: var(--assistant-message-line-height);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* 
+ * Blockquotes
+ * 
+ * Used for quoting text. Features a muted left border and slightly lighter text
+ * to separate it from the main body content.
+ */
+.assistant-message__content blockquote {
+    border-left: 3px solid rgba(255, 255, 255, 0.2);
+    padding-left: 16px;
+    margin: 12px 0;
+    color: #c0c0c0;
+    font-style: italic;
+}
+
+/* 
+ * Code Blocks (pre)
+ * 
+ * Pre-formatted text containers. 
+ * - We enforce 'max-width: 100%' and 'overflow-x: auto' to contain long code lines
+ *   and provide a native, smooth horizontal scrollbar instead of stretching out of the container.
+ * - Monospace font family, dark background, and subtle border for premium readability.
+ */
+.assistant-message__content pre {
+    max-width: 100%;
+    overflow-x: auto;
+    background: rgba(30, 30, 30, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    font-family: "Fira Code", Consolas, Monaco, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    /* Custom scrollbar style for premium feel */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* 
+ * Webkit Custom Scrollbar for pre-formatted blocks
+ */
+.assistant-message__content pre::-webkit-scrollbar {
+    height: 6px;
+}
+
+.assistant-message__content pre::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.assistant-message__content pre::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.assistant-message__content pre::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* 
+ * Code Elements (code)
+ * 
+ * Both inline code and block code.
+ * - Inline code gets a soft gray background, padding, and subtle rounding.
+ * - Code elements inside pre tags have their background and padding reset to inherit from the pre block.
+ */
+.assistant-message__content code {
+    font-family: "Fira Code", Consolas, Monaco, monospace;
+    font-size: 12px;
+    color: #e0e0e0;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    word-break: break-word;
+}
+
+.assistant-message__content pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    color: inherit;
+    font-size: inherit;
+    white-space: pre;
+    word-break: normal;
+}
+
+/* 
+ * Tables (table, th, td)
+ * 
+ * Styled as block elements with horizontal scrolling to handle wide columns.
+ * Professional borders and alternating row colors for data density.
+ */
+.assistant-message__content table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 16px 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.assistant-message__content table::-webkit-scrollbar {
+    height: 6px;
+}
+
+.assistant-message__content table::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.assistant-message__content table::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.assistant-message__content table::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.assistant-message__content th,
+.assistant-message__content td {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: left;
+    font-family: var(--font-family-primary);
+    font-size: 13px;
+}
+
+.assistant-message__content th {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.assistant-message__content tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 
+ * Links (a)
+ * 
+ * High contrast blue with clean hover animations.
+ */
+.assistant-message__content a {
+    color: #64b5f6;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(100, 181, 246, 0.4);
+    transition: color 0.15s ease, border-bottom-color 0.15s ease;
+}
+
+.assistant-message__content a:hover {
+    color: #90caf9;
+    border-bottom-color: #90caf9;
+}
+
+/* 
+ * Horizontal Rule (hr)
+ * 
+ * Subtle partition divider.
+ */
+.assistant-message__content hr {
+    border: none;
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.08);
+    margin: 16px 0;
 }
 
 /* ============================================================================
@@ -289,6 +532,8 @@
     line-height: 20px;
     white-space: pre-wrap;
     background: rgba(0, 0, 0, 0.1);
+    word-wrap: break-word;          /* Wrap long words to avoid layout breakage */
+    overflow-wrap: break-word;     /* Ensure word breaks occur on long tokens */
 }
 
 .assistant-message__thinking.collapsed .assistant-message__thinking-content {

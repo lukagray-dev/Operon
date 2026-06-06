@@ -247,12 +247,24 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
             .and_then(|v| v.as_str())
             .map(PathBuf::from),
 
+        // The "grep" tool accepts an array of directory paths in its `"paths"` argument
+        // (similar to the "read" tool). To perform policy verification, we extract the
+        // first path from this array to act as the representative anchor. This allows us
+        // to verify that the pattern search is targeting a permitted directory.
+        DirTool::Fs(FsTool::Grep) => args
+            .get("paths")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from),
+
         // The `bash` tool uses `"cwd"` as the policy anchor (Option C).
         // If cwd is missing, the tool executor would also reject it — but we
         // reject it here first so the policy layer catches it before dispatch.
         DirTool::Bash => args.get("cwd").and_then(|v| v.as_str()).map(PathBuf::from),
 
-        // All other filesystem tools use a single `"path"` string argument.
+        // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"`
+        // string argument. We extract this value to verify directory containment.
         DirTool::Fs(_) => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
     }
 }
@@ -671,6 +683,39 @@ mod tests {
         assert!(
             decision.is_deny(),
             "write should default to Deny when not configured"
+        );
+    }
+
+    #[test]
+    fn test_grep_uses_paths_array_for_policy() {
+        // We create a temporary directory to act as the allowed directory in our policy config.
+        let tmp = TempDir::new().unwrap();
+        let canonical_dir = std::fs::canonicalize(tmp.path()).unwrap();
+        
+        // We build a directory policy configuration that allows the "grep" tool inside this temporary directory.
+        let config = make_dir_config(
+            canonical_dir,
+            vec![(DirTool::Fs(FsTool::Grep), PermissionMode::Allow)],
+            vec![],
+        );
+        let resolver = PolicyResolver::new(config);
+
+        // Correct call shape: grep with a "paths" array targeting the allowed temporary directory.
+        let call = make_call(
+            "grep",
+            json!({ "pattern": "foo", "paths": [tmp.path().to_str().unwrap()] }),
+        );
+        assert!(
+            resolver.check(&call, CallerRole::Owner).is_allow(),
+            "grep with paths array inside allowed dir should be allowed"
+        );
+
+        // Missing paths: grep tool call that lacks the "paths" argument. The policy resolver
+        // should default to Deny since it cannot locate the directory context to evaluate.
+        let bad_call = make_call("grep", json!({ "pattern": "foo" }));
+        assert!(
+            resolver.check(&bad_call, CallerRole::Owner).is_deny(),
+            "grep without paths should be denied"
         );
     }
 

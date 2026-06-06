@@ -70,65 +70,63 @@ class AssistantMessageController {
     /**
      * Create and render an assistant message
      * 
-     * @param {string} content - The message content
+     * @param {string|null} content - The message content. If null, we create an empty container for streaming sequential blocks.
      * @param {string} timestamp - Optional timestamp (e.g., "2m ago")
      * @returns {HTMLElement} The created message element
      */
     createMessage(content, timestamp = null) {
-        if (content === undefined || content === null) {
-            console.warn('Cannot create message with null content');
-            return null;
-        }
-
-        // Generate unique message ID
+        // Generate unique message ID to keep track of this specific message
         const messageId = `assistant-message-${this.messageIdCounter++}`;
 
-        // Create message wrapper
+        // Create the main wrapper container for the assistant message
         const messageDiv = document.createElement('div');
         messageDiv.className = 'assistant-message';
         messageDiv.setAttribute('data-message-id', messageId);
 
-        // Create content div
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'assistant-message__content';
-        
-        // If content is empty or a placeholder space (used for starting streams), just set textContent.
-        // Otherwise, render it asynchronously as markdown to prevent blocking the UI thread.
-        if (content && content.trim() !== "") {
-            contentDiv.rawMarkdown = content;
-            renderMarkdown(content)
-                .then(html => {
-                    contentDiv.innerHTML = html;
-                    // Auto-typeset math equations using KaTeX if the library is loaded in the browser
-                    if (window.renderMathInElement) {
-                        window.renderMathInElement(contentDiv, {
-                            delimiters: [
-                                {left: '$$', right: '$$', display: true},
-                                {left: '$', right: '$', display: false},
-                                {left: '\\(', right: '\\)', display: false},
-                                {left: '\\[', right: '\\]', display: true}
-                            ],
-                            throwOnError: false
-                        });
-                    }
-                })
-                .catch(err => {
-                    console.error("Failed to render markdown on history load:", err);
-                    contentDiv.textContent = content;
-                });
-        } else {
-            contentDiv.textContent = content;
+        // We only create and append the content div if content is NOT null.
+        // If content is null, we are starting a stream or rendering sequential history,
+        // and we will append text blocks, thinking blocks, and tool cards on the fly.
+        if (content !== null) {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'assistant-message__content';
+            
+            // If content is not empty, render it asynchronously as markdown.
+            // This prevents the page from freezing up for long messages.
+            if (content && content.trim() !== "") {
+                contentDiv.rawMarkdown = content;
+                renderMarkdown(content)
+                    .then(html => {
+                        contentDiv.innerHTML = html;
+                        // Auto-typeset math equations using KaTeX if the library is loaded in the browser
+                        if (window.renderMathInElement) {
+                            window.renderMathInElement(contentDiv, {
+                                delimiters: [
+                                    {left: '$$', right: '$$', display: true},
+                                    {left: '$', right: '$', display: false},
+                                    {left: '\\(', right: '\\)', display: false},
+                                    {left: '\\[', right: '\\]', display: true}
+                                ],
+                                throwOnError: false
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to render markdown on history load:", err);
+                        contentDiv.textContent = content;
+                    });
+            } else {
+                contentDiv.textContent = content;
+            }
+            messageDiv.appendChild(contentDiv);
         }
 
-        messageDiv.appendChild(contentDiv);
-
-        // Create separator line
+        // Create separator line (the horizontal line separating content and actions)
         const separatorDiv = document.createElement('div');
         separatorDiv.className = 'assistant-message__separator';
         messageDiv.appendChild(separatorDiv);
 
-        // Create actions row
-        const actionsDiv = this.createActionsRow(messageId, content, timestamp);
+        // Create actions row (like/dislike/copy/regenerate buttons) at the bottom
+        const actionsDiv = this.createActionsRow(messageId, content || "", timestamp);
         messageDiv.appendChild(actionsDiv);
 
         return messageDiv;
@@ -300,11 +298,30 @@ class AssistantMessageController {
      * @param {HTMLElement} button - The button element
      */
     handleAction(action, messageId, content, button) {
-        // Find the message DOM element and extract its accumulated raw markdown if available.
-        // This ensures actions like 'copy' or 'fork' retrieve the final streamed text rather than the initial placeholder space.
+        // Find the message DOM element and extract its accumulated raw markdown from all content segments.
+        // Since the response can be split into multiple text content blocks interspersed with thinking and tool calls,
+        // we gather text from all of them to make copy/fork actions work correctly with the whole message.
         const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
-        const contentEl = messageEl ? messageEl.querySelector('.assistant-message__content') : null;
-        const actualContent = (contentEl && contentEl.rawMarkdown) ? contentEl.rawMarkdown : content;
+        let actualContent = "";
+        
+        if (messageEl) {
+            const contentEls = messageEl.querySelectorAll('.assistant-message__content');
+            if (contentEls.length > 0) {
+                const parts = [];
+                contentEls.forEach(el => {
+                    if (el.rawMarkdown !== undefined && el.rawMarkdown !== null) {
+                        parts.push(el.rawMarkdown);
+                    } else if (el.textContent) {
+                        parts.push(el.textContent);
+                    }
+                });
+                actualContent = parts.join("\n\n");
+            } else {
+                actualContent = content;
+            }
+        } else {
+            actualContent = content;
+        }
 
         switch (action) {
             case 'copy':

@@ -48,28 +48,35 @@ fn command_matches_only_accepts_cancel_or_the_matching_approval_id() {
 
 #[test]
 fn policy_path_for_call_extracts_the_correct_anchor() {
-    // read uses the first entry from the paths array.
+    // 1. "read" tool uses the first entry from its "paths" array argument as the policy anchor path.
     let read_call = make_call("read", json!({ "paths": ["/tmp/a.txt", "/tmp/b.txt"] }));
     assert_eq!(
         policy_path_for_call(&read_call).as_deref(),
         Some("/tmp/a.txt")
     );
 
-    // bash uses cwd as its policy anchor.
+    // 2. "bash" tool uses the "cwd" string argument as its policy anchor path.
     let bash_call = make_call("bash", json!({ "command": "ls", "cwd": "/tmp/work" }));
     assert_eq!(
         policy_path_for_call(&bash_call).as_deref(),
         Some("/tmp/work")
     );
 
-    // Other filesystem tools use the path field.
+    // 3. Other filesystem tools (e.g. "write") use the singular "path" argument.
     let write_call = make_call("write", json!({ "path": "/tmp/w.txt" }));
     assert_eq!(
         policy_path_for_call(&write_call).as_deref(),
         Some("/tmp/w.txt")
     );
 
-    // Global tools should not have a path anchor.
+    // 4. "grep" tool uses the first entry from its "paths" array argument as the representative anchor.
+    let grep_call = make_call("grep", json!({ "paths": ["/tmp/x.txt", "/tmp/y.txt"] }));
+    assert_eq!(
+        policy_path_for_call(&grep_call).as_deref(),
+        Some("/tmp/x.txt")
+    );
+
+    // 5. Global tools (e.g. "web_search") do not have a path anchor and should return None.
     let web_call = make_call("web_search", json!({ "query": "hello" }));
     assert_eq!(policy_path_for_call(&web_call), None);
 }

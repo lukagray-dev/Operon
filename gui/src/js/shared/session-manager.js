@@ -295,25 +295,59 @@ class SessionManager {
     /**
      * Helper to render a historical assistant message including tool calls and results
      */
+    /**
+     * Helper to render a historical assistant message including tool calls and results
+     * in the sequential order they were executed.
+     */
     renderHistoricalAssistantMessage(msg, toolResultsMap) {
         if (!window.assistantMessageController) return;
         
-        // Create base assistant message element
-        // We look for any text content block first
-        let textContent = '';
-        msg.content.forEach(block => {
-            if (block.Text) textContent += block.Text;
-        });
+        // Create an empty assistant message wrapper (passing null for the content)
+        // so that we can append text, thinking, and tool blocks in their exact execution order.
+        const msgEl = window.assistantMessageController.createMessage(null, "Just now");
+        if (!msgEl) return;
         
-        const msgEl = window.assistantMessageController.createMessage(textContent || " ", "Just now");
         window.assistantMessageController.messagesContainer.appendChild(msgEl);
+        const separator = msgEl.querySelector('.assistant-message__separator');
         
-        const contentEl = msgEl.querySelector('.assistant-message__content');
-        
-        // Loop blocks to add thinking processes and tool execution cards
+        // Loop through all blocks in sequence to build the sequential flow
         msg.content.forEach(block => {
-            if (block.Reasoning) {
-                // Add a collapsed thinking card
+            let blockText = null;
+            if (typeof block === 'string') {
+                blockText = block;
+            } else if (block && block.Text) {
+                blockText = block.Text;
+            }
+            
+            if (blockText !== null) {
+                // Render text block sequentially
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'assistant-message__content';
+                contentDiv.rawMarkdown = blockText;
+                
+                IPC.renderMarkdown(blockText)
+                    .then(html => {
+                        contentDiv.innerHTML = html;
+                        if (window.renderMathInElement) {
+                            window.renderMathInElement(contentDiv, {
+                                delimiters: [
+                                    {left: '$$', right: '$$', display: true},
+                                    {left: '$', right: '$', display: false},
+                                    {left: '\\(', right: '\\)', display: false},
+                                    {left: '\\[', right: '\\]', display: true}
+                                ],
+                                throwOnError: false
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to render historical markdown:", err);
+                        contentDiv.textContent = blockText;
+                    });
+                
+                msgEl.insertBefore(contentDiv, separator);
+            } else if (block && block.Reasoning) {
+                // Add a collapsed thinking card sequentially
                 const thinkingCard = document.createElement('div');
                 thinkingCard.className = 'assistant-message__thinking collapsed';
                 thinkingCard.innerHTML = `
@@ -329,9 +363,9 @@ class SessionManager {
                     thinkingCard.classList.toggle('collapsed');
                 });
                 
-                msgEl.insertBefore(thinkingCard, msgEl.querySelector('.assistant-message__separator'));
-            } else if (block.ToolCall) {
-                // Add tool card
+                msgEl.insertBefore(thinkingCard, separator);
+            } else if (block && block.ToolCall) {
+                // Add tool card sequentially
                 const call = block.ToolCall;
                 const callId = call.id;
                 const result = toolResultsMap.get(callId);
@@ -389,7 +423,7 @@ class SessionManager {
                     toolCard.classList.toggle('collapsed');
                 });
                 
-                msgEl.insertBefore(toolCard, msgEl.querySelector('.assistant-message__separator'));
+                msgEl.insertBefore(toolCard, separator);
             }
         });
         
@@ -453,18 +487,20 @@ class SessionManager {
         } 
         else if (event.TextDelta) {
             this.ensureAssistantMessageCreated();
+            this.ensureAssistantContentElCreated();
             const text = event.TextDelta.text;
             
-            // Accumulate the raw markdown text as it arrives
-            this.currentAssistantContentEl.rawMarkdown = (this.currentAssistantContentEl.rawMarkdown || "") + text;
+            // Capture a reference to the active element to prevent race conditions during async markdown rendering
+            const activeEl = this.currentAssistantContentEl;
+            activeEl.rawMarkdown = (activeEl.rawMarkdown || "") + text;
             
             // Invoke the backend markdown parser to generate updated HTML
-            IPC.renderMarkdown(this.currentAssistantContentEl.rawMarkdown)
+            IPC.renderMarkdown(activeEl.rawMarkdown)
                 .then(html => {
-                    this.currentAssistantContentEl.innerHTML = html;
+                    activeEl.innerHTML = html;
                     // Run KaTeX equations auto-typeset over the message element
                     if (window.renderMathInElement) {
-                        window.renderMathInElement(this.currentAssistantContentEl, {
+                        window.renderMathInElement(activeEl, {
                             delimiters: [
                                 {left: '$$', right: '$$', display: true},
                                 {left: '$', right: '$', display: false},
@@ -477,7 +513,7 @@ class SessionManager {
                 })
                 .catch(err => {
                     console.error("Failed to render markdown delta:", err);
-                    this.currentAssistantContentEl.textContent += text;
+                    activeEl.textContent += text;
                 });
                 
             window.assistantMessageController.scrollToBottom();
@@ -548,28 +584,59 @@ class SessionManager {
     /**
      * Lazily initialize assistant message DOM elements for streaming
      */
+    /**
+     * Lazily initialize assistant message DOM elements for streaming.
+     * We pass null to createMessage to start with a clean container, allowing sequential streams.
+     */
     ensureAssistantMessageCreated() {
         if (!this.currentAssistantMsgEl) {
             this.hideTypingIndicator(); // Hide typing indicator when response starts streaming
             
             if (!window.assistantMessageController) return;
             
-            // Create a message container with a single space
-            const msgEl = window.assistantMessageController.createMessage(" ", "Just now");
+            // Create a message container without default content
+            const msgEl = window.assistantMessageController.createMessage(null, "Just now");
             window.assistantMessageController.messagesContainer.appendChild(msgEl);
             
             this.currentAssistantMsgEl = msgEl;
-            this.currentAssistantContentEl = msgEl.querySelector('.assistant-message__content');
-            this.currentAssistantContentEl.textContent = ""; // Clear placeholder
+            this.currentAssistantContentEl = null;
             
             window.assistantMessageController.scrollToBottom();
         }
     }
 
     /**
-     * Lazily initialize inline thinking box for streaming thinking process
+     * Ensure we have an active text content element ready for streaming text.
+     * If transitioning from a thinking block, we collapse it and create a new text block.
+     */
+    ensureAssistantContentElCreated() {
+        // If we were thinking, collapse that thinking block as we are now transitioning to text response.
+        if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.add('collapsed');
+            this.currentThinkingEl = null;
+        }
+
+        if (!this.currentAssistantContentEl) {
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'assistant-message__content';
+            contentDiv.textContent = "";
+            contentDiv.rawMarkdown = "";
+            
+            const separator = this.currentAssistantMsgEl.querySelector('.assistant-message__separator');
+            this.currentAssistantMsgEl.insertBefore(contentDiv, separator);
+            
+            this.currentAssistantContentEl = contentDiv;
+        }
+    }
+
+    /**
+     * Lazily initialize inline thinking box for streaming thinking process.
+     * If transitioning from text, we clear current text block reference to force a new block next time.
      */
     ensureThinkingBlockCreated() {
+        // Transitioning to thinking, so any subsequent text will start in a new text block.
+        this.currentAssistantContentEl = null;
+
         if (!this.currentThinkingEl) {
             const thinkingCard = document.createElement('div');
             thinkingCard.className = 'assistant-message__thinking';
@@ -598,7 +665,18 @@ class SessionManager {
     /**
      * Create inline tool card
      */
+    /**
+     * Create inline tool card
+     */
     createToolCallCard(callId, name) {
+        // If we were thinking, collapse that thinking block.
+        if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.add('collapsed');
+            this.currentThinkingEl = null;
+        }
+        // Force new text/thinking blocks after this tool execution card.
+        this.currentAssistantContentEl = null;
+
         const toolCard = document.createElement('div');
         toolCard.className = 'assistant-message__tool-card';
         toolCard.id = `tool-${callId}`;
@@ -697,7 +775,18 @@ class SessionManager {
     /**
      * Create inline permission approval prompt card
      */
+    /**
+     * Create inline permission approval prompt card
+     */
     createPermissionPromptCard(id, tool, path, reason, argsJson) {
+        // Collapse active thinking block when prompt appears.
+        if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.add('collapsed');
+            this.currentThinkingEl = null;
+        }
+        // Force new text/thinking blocks after this permission card.
+        this.currentAssistantContentEl = null;
+
         const permCard = document.createElement('div');
         permCard.className = 'assistant-message__permission-card';
         permCard.id = `approval-${id}`;
