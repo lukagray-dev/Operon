@@ -31,6 +31,12 @@ pub struct SessionItem {
     pub model_id: String,
     pub provider: String,
     pub title: String,
+    /// True when this session's workspace is a project directory
+    /// (i.e. not ~/.operon/workspace/).
+    pub is_project: bool,
+    /// The folder name of the project directory (e.g. "Operon").
+    /// Empty string when is_project is false.
+    pub project_name: String,
 }
 
 /// Retrieve the list of all historical sessions saved on the system.
@@ -43,6 +49,12 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
     // Resolve platform-specific ~/.operon paths
     let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
     let sessions_dir = paths.sessions_dir;
+
+    let default_workspace = paths.workspace_dir
+        .canonicalize()
+        .unwrap_or_else(|_| paths.workspace_dir.clone())
+        .to_string_lossy()
+        .to_string();
 
     let mut sessions = Vec::new();
     if sessions_dir.exists() {
@@ -69,6 +81,24 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
                                     }
                                     _ => "Untitled Chat".to_string(),
                                 };
+
+                                let session_workspace_canon = std::path::PathBuf::from(&row.workspace)
+                                    .canonicalize()
+                                    .unwrap_or_else(|_| std::path::PathBuf::from(&row.workspace))
+                                    .to_string_lossy()
+                                    .to_string();
+
+                                let is_project = session_workspace_canon != default_workspace;
+                                let project_name = if is_project {
+                                    std::path::Path::new(&row.workspace)
+                                        .file_name()
+                                        .and_then(|n| n.to_str())
+                                        .unwrap_or("")
+                                        .to_string()
+                                } else {
+                                    String::new()
+                                };
+
                                 sessions.push(SessionItem {
                                     id: row.id.clone(),
                                     created_at: row.created_at,
@@ -76,6 +106,8 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
                                     model_id: row.model_id.clone(),
                                     provider: row.provider.clone(),
                                     title,
+                                    is_project,
+                                    project_name,
                                 });
                             }
                         }
@@ -328,4 +360,53 @@ pub async fn deny_tool_call(session_id: String, id: String, state: State<'_, Sha
     } else {
         Err("Session is not active or running".to_string())
     }
+}
+
+/// Open a native folder picker and register the selected folder as an allowed
+/// directory in config.toml (if not already present).
+///
+/// Hey friend! This is the entry point for "Files → Open Folder". The picked
+/// directory is added to config.toml with ask/ask defaults so the user can
+/// configure its permissions from the Permissions settings panel. If the folder
+/// is already in config.toml, we skip the write — existing permissions are
+/// untouched.
+///
+/// Returns the selected path, or None if the user cancelled the picker.
+#[tauri::command]
+pub async fn open_project_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    // Show the native OS folder picker and block until the user picks or cancels.
+    let folder = app
+        .dialog()
+        .file()
+        .blocking_pick_folder();
+
+    let path = match folder {
+        Some(p) => p
+            .into_path()
+            .map_err(|e| format!("Invalid folder path: {}", e))?
+            .to_string_lossy()
+            .to_string(),
+        None => return Ok(None), // User cancelled — not an error
+    };
+
+    // Add to config.toml if not already present. add_allowed_directory() is
+    // idempotent — it checks for duplicates before writing.
+    operon_rs::config::add_allowed_directory(&path)
+        .map_err(|e| format!("Failed to register project directory: {}", e))?;
+
+    Ok(Some(path))
+}
+
+/// Return the canonical path of the default workspace directory (~/.operon/workspace/).
+///
+/// Hey buddy! The frontend uses this to classify sessions: sessions whose stored
+/// workspace path matches the default workspace are shown under "Chats"; sessions
+/// whose stored workspace path differs are grouped under "Projects" in the sidebar.
+#[tauri::command]
+pub async fn get_default_workspace() -> Result<String, String> {
+    let paths = operon_rs::config::OperonPaths::resolve()
+        .map_err(|e| e.to_string())?;
+    Ok(paths.workspace_dir.to_string_lossy().to_string())
 }

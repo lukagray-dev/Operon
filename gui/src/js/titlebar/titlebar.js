@@ -274,10 +274,15 @@ class TitlebarController {
         }
 
         if (openProject) {
-            openProject.addEventListener('click', () => {
-                console.log('Open project - not implemented yet');
+            openProject.addEventListener('click', async () => {
                 this.closeAllMenus();
-                // TODO: Open file picker for project
+                if (window.sessionManager) {
+                    try {
+                        await window.sessionManager.openProject();
+                    } catch (err) {
+                        console.error('Failed to open project:', err);
+                    }
+                }
             });
         }
     }

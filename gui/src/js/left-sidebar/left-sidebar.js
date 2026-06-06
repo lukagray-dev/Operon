@@ -83,46 +83,14 @@ class LeftSidebarController {
     }
 
     /**
-     * Generate mock data for demonstration
+     * Generate initial empty data structure for projects and chats
      * 
-     * This creates sample projects and chats to demonstrate the sidebar functionality.
-     * In production, this would be replaced with actual data from the backend.
-     * 
-     * @returns {Object} Mock data structure with projects and chats
+     * @returns {Object} Initial empty data structure
      */
     generateMockData() {
         return {
-            projects: [
-                {
-                    id: 'project-1',
-                    name: 'Lumify',
-                    chats: [
-                        { id: 'chat-1-1', title: 'YOU are working in this directory' },
-                        { id: 'chat-1-2', title: 'Add CloudStream style streaming' },
-                        { id: 'chat-1-3', title: 'Fix PTI error handling' },
-                        { id: 'chat-1-4', title: 'Fix player bar position' }
-                    ]
-                },
-                {
-                    id: 'project-2',
-                    name: 'bt',
-                    chats: [
-                        { id: 'chat-2-1', title: 'Execute Prompt.md' }
-                    ]
-                },
-                {
-                    id: 'project-3',
-                    name: 'Operon',
-                    chats: [
-                        { id: 'chat-3-1', title: 'Connect to GitHub' },
-                        { id: 'chat-3-2', title: 'Connect your favorite apps to Codex' }
-                    ]
-                }
-            ],
-            chats: [
-                { id: 'chat-standalone-1', title: 'Explain this project to me' },
-                { id: 'chat-standalone-2', title: 'Explore this project to me' }
-            ]
+            projects: [],
+            chats: []
         };
     }
 
@@ -378,6 +346,13 @@ class LeftSidebarController {
         // Create project chats container
         const chatsDiv = document.createElement('div');
         chatsDiv.className = 'left-sidebar__project-chats';
+
+        // Check if project should be collapsed
+        const isCollapsed = this.collapsedProjects.has(project.id);
+        if (isCollapsed) {
+            toggleBtn.classList.add('collapsed');
+            chatsDiv.classList.add('collapsed');
+        }
 
         // Render project chats
         project.chats.forEach(chat => {
@@ -680,10 +655,12 @@ let leftSidebarController = null;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         leftSidebarController = new LeftSidebarController();
+        window.leftSidebarController = leftSidebarController;
     });
 } else {
     // DOM is already loaded
     leftSidebarController = new LeftSidebarController();
+    window.leftSidebarController = leftSidebarController;
 }
 
 // Export for potential use in other modules

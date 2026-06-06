@@ -31,12 +31,13 @@
 //  12. Dispatch allowed tool calls sequentially → emit ToolDegraded if needed
 //  13. Loop back for the next model turn
 //
-// ── Three-directional model integration ──────────────────────────────────────
+// ── Project directory model ───────────────────────────────────────────────────
 //
-// At startup (new()), if config.project_dir is Some, the runner injects it into
-// the PolicyConfig with owner-full-access permissions. This is Direction 3 — a
-// project directory opened VS Code-style that is temporarily allowed for this
-// session but not persisted to config.toml.
+// When a project directory is open (config.project_dir is Some), the runner uses
+// it as the snapshot root (workspace_root) so AGENTS.md, directory tree, and git
+// status come from the project instead of ~/.operon/workspace/. No policy changes
+// are made at runtime — the project directory must already be in config.toml as a
+// normal allowed directory, configured by the user via the Permissions settings.
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -44,7 +45,7 @@ use std::sync::Arc;
 use reqwest::Client;
 use tokio::sync::mpsc;
 
-use operon_config::{DirectoryPolicy, PolicyConfig};
+use operon_config::PolicyConfig;
 use operon_context_compaction::{compact, AnthropicCompactionClient};
 use operon_context_normalize_messages::{ContentBlock, ConversationMessage, MessageRole};
 use operon_context_normalize_tools::{ToolCall, ToolContent, ToolResult};
@@ -124,38 +125,21 @@ impl SessionRunner {
     ///
     /// # Initialization order
     ///
-    /// 1. Inject `project_dir` into `PolicyConfig` if present (Direction 3).
-    /// 2. Generate unique session ID.
-    /// 3. Build `SnapshotBuilder` (starts filesystem watcher).
-    /// 4. Register tool groups on `Dispatcher`.
-    /// 5. Open SQLite store if configured.
-    /// 6. Emit `SessionStarted` — UI receives this immediately after construction.
+    /// 1. Generate unique session ID.
+    /// 2. Build `SnapshotBuilder` (starts filesystem watcher).
+    /// 3. Register tool groups on `Dispatcher`.
+    /// 4. Open SQLite store if configured.
+    /// 5. Emit `SessionStarted` — UI receives this immediately after construction.
     ///
     /// # Errors
     ///
-    /// Returns `SessionError` if project_dir cannot be canonicalized, the snapshot
-    /// builder fails, or the SQLite store cannot be opened.
+    /// Returns `SessionError` if the snapshot builder fails, or the SQLite store cannot be opened.
     pub async fn new(
-        mut config: SessionConfig,
+        config: SessionConfig,
         event_tx: mpsc::Sender<SessionEvent>,
         cmd_rx: mpsc::Receiver<SessionCommand>,
     ) -> Result<Self, SessionError> {
-        // ── Direction 3: inject project_dir into policy ───────────────────────
-        // If a project directory is open (VS Code-style), temporarily add it to
-        // the policy with owner-full-access. This entry lives only for this session
-        // and is never written to config.toml.
-        if let Some(ref proj_dir) = config.project_dir {
-            // Owner gets full access — they opened this project directory.
-            // External gets zero access — project dirs are owner-only.
-            let proj_policy = DirectoryPolicy::owner_full_access(proj_dir.clone());
-            config.policy.directories.push(proj_policy);
 
-            // validate() canonicalizes the new project_dir path.
-            config
-                .policy
-                .validate()
-                .map_err(|e| SessionError::Config(e.to_string()))?;
-        }
 
         // Determine the session ID:
         // 1. If a database path is provided, check if it contains an existing session ID in its record.
@@ -770,8 +754,7 @@ impl SessionRunner {
 
     /// Returns a reference to the resolved PolicyConfig for this session.
     ///
-    /// Includes the injected project_dir entry (if any). Useful for the TUI
-    /// to display which directories are currently accessible.
+    /// Useful for the TUI to display which directories are currently accessible.
     pub fn policy(&self) -> &PolicyConfig {
         &self.config.policy
     }

@@ -284,6 +284,22 @@ export async function denyToolCall(sessionId, id) {
 }
 
 /**
+ * Open native OS folder picker and register project directory.
+ * @returns {Promise<string|null>} - Selected path or null if cancelled
+ */
+export async function openProjectFolder() {
+    return await invoke('open_project_folder');
+}
+
+/**
+ * Get canonical path of the default workspace directory.
+ * @returns {Promise<string>}
+ */
+export async function getDefaultWorkspace() {
+    return await invoke('get_default_workspace');
+}
+
+/**
  * Renders raw markdown into HTML on the backend.
  * @param {string} markdown - The markdown content to render.
  * @returns {Promise<string>} - The rendered HTML string.

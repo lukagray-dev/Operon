@@ -25,3 +25,6 @@ tauri = { version = "2", features = [] }
 
 # Tauri plugin for opening URLs and files in default applications
 tauri-plugin-opener = "2"
+
+# Tauri plugin for dialogs (folder picker)
+tauri-plugin-dialog = "2"

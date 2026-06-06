@@ -18,10 +18,13 @@
 //     filesystem and shell tools inside these paths according to PolicyConfig.
 //
 //   Direction 3 — Project directory: opened VS Code-style by the user
-//     Passed via `project_dir: Some(path)`. NOT in config.toml.
-//     Injected into PolicyConfig at session startup with owner-full-access.
-//     The snapshot root switches to the project dir (PROJECT mode).
-//     When the session ends, the project dir is no longer in the allowed list.
+//     Passed via `project_dir: Some(path)`.
+//     The snapshot root switches to the project dir (PROJECT mode) — AGENTS.md,
+//     directory tree, and git status are read from the project directory.
+//     Policy is NOT modified at runtime. The project directory must already exist
+//     in config.toml as a normal allowed directory (Direction 2).
+//     In normal (non-project) sessions, that directory remains accessible to the
+//     agent as any other allowed directory — only the snapshot root differs.
 //
 // ── Snapshot root selection ───────────────────────────────────────────────────
 //
@@ -87,8 +90,7 @@ pub struct SessionConfig {
     ///
     /// Carries global tool permissions (web, subagent, ask, todo, load_tools)
     /// and per-directory permissions (filesystem + shell) for all allowed directories
-    /// (Direction 1 + 2). The runner injects Direction 3 (project_dir) at startup
-    /// if `project_dir` is `Some`.
+    /// (Direction 1 + 2).
     ///
     /// All directory paths in this config must already be canonical (ensured by
     /// `operon_config::load()` which calls `PolicyConfig::validate()`).
@@ -97,14 +99,16 @@ pub struct SessionConfig {
     pub policy: PolicyConfig,
 
     // ── Directory model ───────────────────────────────────────────────────────
-    /// Optional project directory opened VS Code-style (Direction 3).
+    /// Optional project directory opened VS Code-style.
     ///
     /// `None`  → NORMAL mode: snapshot root = `workspace_root` (~/.operon/workspace/).
     /// `Some(path)` → PROJECT mode: snapshot root = `workspace_root` = `path`.
     ///
-    /// When `Some`, the runner injects this path into `policy.directories` at startup
-    /// with `DirectoryPolicy::owner_full_access()`. This temporary entry is not
-    /// written back to config.toml — it exists only for this session's lifetime.
+    /// When `Some`, the runner uses this path as the snapshot root only. No policy
+    /// injection occurs at runtime — the project directory is expected to already be
+    /// present in `config.toml` as a normal allowed directory with user-configured
+    /// permissions. Use `operon_config::add_allowed_directory()` before starting the
+    /// session if the directory is not yet in `config.toml`.
     pub project_dir: Option<PathBuf>,
 
     /// The snapshot root directory — the single directory from which AGENTS.md,

@@ -18,6 +18,7 @@ class SessionManager {
     constructor() {
         this.activeSessionId = null;
         this.currentProjectDir = null; // VS Code style opened project path
+        this.sessions = [];            // Cache list of session items from backend
         
         // Element references for streaming the current response
         this.currentAssistantMsgEl = null;
@@ -159,36 +160,72 @@ class SessionManager {
     async loadSessionsList() {
         try {
             const sessions = await IPC.listSessions();
+            this.sessions = sessions;
             
-            // Find sidebar container
+            // Group sessions by project/workspace
+            const projectMap = new Map();
+            const standaloneChats = [];
+            
+            sessions.forEach(session => {
+                if (session.isProject) {
+                    let proj = projectMap.get(session.workspace);
+                    if (!proj) {
+                        proj = {
+                            id: session.workspace,
+                            name: session.projectName,
+                            chats: []
+                        };
+                        projectMap.set(session.workspace, proj);
+                    }
+                    proj.chats.push({
+                        id: session.id,
+                        title: session.title
+                    });
+                } else {
+                    standaloneChats.push({
+                        id: session.id,
+                        title: session.title
+                    });
+                }
+            });
+            
+            const projects = Array.from(projectMap.values());
+            
+            // Update left sidebar projects if available
+            if (window.leftSidebarController) {
+                window.leftSidebarController.mockData.projects = projects;
+                window.leftSidebarController.renderProjects();
+            }
+            
+            // Find sidebar chats container
             const chatsContent = document.querySelector('[data-section-content="chats"]');
             if (!chatsContent) return;
             
             chatsContent.innerHTML = '';
             
-            if (sessions.length === 0) {
+            if (standaloneChats.length === 0) {
                 chatsContent.innerHTML = '<div class="left-sidebar__no-chats" style="padding: 12px 16px; font-size: 12px; color: #777777;">No recent chats</div>';
                 return;
             }
             
-            sessions.forEach(session => {
+            standaloneChats.forEach(chat => {
                 const chatBtn = document.createElement('button');
                 chatBtn.className = 'left-sidebar__chat-item';
-                if (session.id === this.activeSessionId) {
+                if (chat.id === this.activeSessionId) {
                     chatBtn.classList.add('active');
                 }
-                chatBtn.setAttribute('data-chat-id', session.id);
-                chatBtn.setAttribute('title', session.title);
+                chatBtn.setAttribute('data-chat-id', chat.id);
+                chatBtn.setAttribute('title', chat.title);
                 
                 const chatText = document.createElement('span');
                 chatText.className = 'left-sidebar__chat-text';
-                chatText.textContent = session.title;
+                chatText.textContent = chat.title;
                 
                 chatBtn.appendChild(chatText);
                 
                 chatBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.selectSession(session.id);
+                    this.selectSession(chat.id);
                 });
                 
                 chatsContent.appendChild(chatBtn);
@@ -207,6 +244,14 @@ class SessionManager {
         
         this.activeSessionId = sessionId;
         this.resetStreamingState();
+        
+        // Update current project directory depending on if selected session is project-bound
+        const session = this.sessions?.find(s => s.id === sessionId);
+        if (session && session.isProject) {
+            this.currentProjectDir = session.workspace;
+        } else {
+            this.currentProjectDir = null;
+        }
         
         // Clear diagnostics bar if visible
         if (window.inputPanelController) {
@@ -293,6 +338,33 @@ class SessionManager {
         } catch (error) {
             console.error('Failed to load session history:', error);
             showError('Failed to load chat history.');
+        }
+    }
+
+    /**
+     * Open a native folder picker and register the folder as the current project directory.
+     * @returns {Promise<string|null>} - Selected path or null if cancelled
+     */
+    async openProject() {
+        try {
+            const projectPath = await IPC.openProjectFolder();
+            if (projectPath) {
+                this.currentProjectDir = projectPath;
+                this.startNewChat();
+                
+                // Show a toast or success notification
+                showSuccess(`Opened project: ${projectPath.split(/[/\\]/).pop() || projectPath}`);
+                
+                // Refresh sessions list so that if there are sessions for this project, they are displayed
+                await this.loadSessionsList();
+                
+                return projectPath;
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to open project:', error);
+            showError(`Failed to open project: ${error.message || error}`);
+            throw error;
         }
     }
 

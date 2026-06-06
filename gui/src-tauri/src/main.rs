@@ -28,6 +28,7 @@ fn main() {
     tauri::Builder::default()
         // Register plugins
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         // Register shared state
         .manage(app_state)
         // Register IPC command handlers
@@ -49,6 +50,8 @@ fn main() {
             commands::session_commands::cancel_session,
             commands::session_commands::approve_tool_call,
             commands::session_commands::deny_tool_call,
+            commands::session_commands::open_project_folder,
+            commands::session_commands::get_default_workspace,
         ])
         // Setup window and app configuration
         .setup(|app| {

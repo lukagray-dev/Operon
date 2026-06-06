@@ -16,6 +16,7 @@
                         "core:window:allow-close",
                         "core:window:allow-is-maximized",
                         "core:webview:allow-webview-position",
-                        "core:webview:allow-webview-size"
+                        "core:webview:allow-webview-size",
+                        "dialog:default"
                     ]
 }
