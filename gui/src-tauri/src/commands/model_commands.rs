@@ -480,6 +480,7 @@ fn provider_to_id(provider: &Provider) -> String {
         Provider::Groq => "groq".to_string(),
         Provider::Mistral => "mistral".to_string(),
         Provider::XAI => "xai".to_string(),
+        Provider::NvidiaNim => "nvidia_nim".to_string(),
         Provider::Cohere => "cohere".to_string(),
     }
 }
@@ -495,6 +496,7 @@ fn id_to_provider(id: &str) -> Option<Provider> {
         "groq" => Some(Provider::Groq),
         "mistral" => Some(Provider::Mistral),
         "xai" => Some(Provider::XAI),
+        "nvidia_nim" => Some(Provider::NvidiaNim),
         "cohere" => Some(Provider::Cohere),
         _ => None,
     }
@@ -511,6 +513,7 @@ fn get_provider_docs_url(id: &str) -> String {
         "groq" => "https://console.groq.com/docs",
         "mistral" => "https://docs.mistral.ai",
         "xai" => "https://docs.x.ai",
+        "nvidia_nim" => "https://docs.nvidia.com/nim",
         "cohere" => "https://docs.cohere.com",
         _ => "",
     }

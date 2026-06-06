@@ -95,7 +95,7 @@ pub fn build_request(
         }
 
         // OpenAI-family providers (OpenAI, DeepSeek, OpenRouter, Groq, Mistral,
-        // XAI, Ollama): the system message is already embedded inside messages_arr
+        // XAI, Ollama, NVIDIA NIM): the system message is already embedded inside messages_arr
         // by denormalize_messages. Gemini and Cohere also follow this fallthrough
         // with their own denormalization shapes.
         _ => {
@@ -138,6 +138,7 @@ pub fn provider_endpoint(provider: &Provider) -> &'static str {
         Provider::Groq => "https://api.groq.com/openai/v1/chat/completions",
         Provider::Mistral => "https://api.mistral.ai/v1/chat/completions",
         Provider::XAI => "https://api.x.ai/v1/chat/completions",
+        Provider::NvidiaNim => "https://integrate.api.nvidia.com/v1/chat/completions",
         Provider::Ollama => "http://localhost:11434/v1/chat/completions",
         Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
         Provider::Cohere => "https://api.cohere.com/v2/chat",

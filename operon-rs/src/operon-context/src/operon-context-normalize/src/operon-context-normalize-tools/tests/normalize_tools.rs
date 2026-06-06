@@ -623,6 +623,75 @@ fn groq_malformed_arguments() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NVIDIA NIM (OpenAI-compatible delegate)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn nvidia_nim_valid_normalize() {
+    let raw = json!({
+        "id": "call_nvidia_nim_99",
+        "type": "function",
+        "function": { "name": "web_search", "arguments": "{\"q\":\"llama 3\"}" }
+    });
+
+    let call = normalize(raw, &Provider::NvidiaNim).unwrap();
+    assert_eq!(call.id.0, "call_nvidia_nim_99");
+    assert_eq!(call.name, "web_search");
+    assert_eq!(call.arguments["q"], "llama 3");
+}
+
+#[test]
+fn nvidia_nim_denormalize_definition() {
+    let def = make_tool_definition();
+    let wire = denormalize_definition(&def, &Provider::NvidiaNim).unwrap();
+    assert_eq!(wire["type"], "function");
+}
+
+#[test]
+fn nvidia_nim_denormalize_result() {
+    let result = make_tool_result("call_nvidia_nim_99", "web_search");
+    let wire = denormalize_result(&result, &Provider::NvidiaNim).unwrap();
+    assert_eq!(wire["role"], "tool");
+    assert_eq!(wire["tool_call_id"], "call_nvidia_nim_99");
+}
+
+#[test]
+fn nvidia_nim_missing_function_key() {
+    let raw = json!({ "id": "call_nvidia_nim_99", "type": "function" });
+    let err = normalize(raw, &Provider::NvidiaNim).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            ToolNormalizeError::MissingField {
+                field: "function",
+                provider: "NVIDIA NIM"
+            }
+        ),
+        "expected MissingField for NVIDIA NIM 'function' key, got: {err}"
+    );
+}
+
+#[test]
+fn nvidia_nim_malformed_arguments() {
+    let raw = json!({
+        "id": "call_nvidia_nim_99",
+        "type": "function",
+        "function": { "name": "web_search", "arguments": "{ bad }" }
+    });
+    let err = normalize(raw, &Provider::NvidiaNim).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            ToolNormalizeError::ArgumentParseFailed {
+                provider: "NVIDIA NIM",
+                ..
+            }
+        ),
+        "expected ArgumentParseFailed for NVIDIA NIM, got: {err}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Mistral (OpenAI-compatible delegate)
 // ─────────────────────────────────────────────────────────────────────────────
 

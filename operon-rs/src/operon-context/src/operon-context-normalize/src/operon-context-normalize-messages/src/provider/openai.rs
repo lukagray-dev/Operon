@@ -577,6 +577,7 @@ fn tool_provider_from_name(provider_name: &'static str) -> ToolProvider {
         "Groq" => ToolProvider::Groq,
         "Mistral" => ToolProvider::Mistral,
         "xAI" => ToolProvider::XAI,
+        "NVIDIA NIM" => ToolProvider::NvidiaNim,
         "Cohere" => ToolProvider::Cohere,
         _ => ToolProvider::OpenAI,
     }
@@ -593,6 +594,7 @@ fn provider_from_name(provider_name: &'static str) -> crate::provider::Provider 
         "Groq" => crate::provider::Provider::Groq,
         "Mistral" => crate::provider::Provider::Mistral,
         "xAI" => crate::provider::Provider::XAI,
+        "NVIDIA NIM" => crate::provider::Provider::NvidiaNim,
         "Cohere" => crate::provider::Provider::Cohere,
         _ => crate::provider::Provider::OpenAI,
     }

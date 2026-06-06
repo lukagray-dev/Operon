@@ -41,7 +41,8 @@ pub fn normalize_stop_reason(raw: &str, provider: &Provider) -> StopReason {
         | Provider::OpenRouter
         | Provider::Groq
         | Provider::Mistral
-        | Provider::XAI => match raw {
+        | Provider::XAI
+        | Provider::NvidiaNim => match raw {
             "stop" => StopReason::EndTurn,
             "tool_calls" | "function_call" => StopReason::ToolUse,
             "length" => StopReason::MaxTokens,
@@ -94,7 +95,8 @@ pub fn denormalize_stop_reason(reason: &StopReason, provider: &Provider) -> &'st
         | Provider::OpenRouter
         | Provider::Groq
         | Provider::Mistral
-        | Provider::XAI => match reason {
+        | Provider::XAI
+        | Provider::NvidiaNim => match reason {
             StopReason::EndTurn => "stop",
             StopReason::ToolUse => "tool_calls",
             StopReason::MaxTokens => "length",

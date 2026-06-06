@@ -47,6 +47,7 @@ const PROVIDER_ICON_PATHS = {
   ollama:     './assets/icons/settings/provider-ollama.svg',
   qwen:       './assets/icons/settings/provider-qwen.svg',
   nvidia:     './assets/icons/settings/provider-nvidia.svg',
+  nvidia_nim: './assets/icons/settings/provider-nvidia.svg',
   custom:     './assets/icons/settings/provider-custom.svg',
 };
 

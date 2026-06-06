@@ -11,6 +11,7 @@ pub mod deepseek;
 pub mod gemini;
 pub mod groq;
 pub mod mistral;
+pub mod nvidia_nim;
 pub mod ollama;
 pub mod openai;
 pub mod openrouter;
@@ -54,6 +55,7 @@ impl FromWireMessage for ConversationMessage {
             Provider::Groq => groq::normalize_message(raw),
             Provider::Mistral => mistral::normalize_message(raw),
             Provider::XAI => xai::normalize_message(raw),
+            Provider::NvidiaNim => nvidia_nim::normalize_message(raw),
             Provider::Cohere => cohere::normalize_message(raw),
         }
     }
@@ -72,6 +74,7 @@ impl ToWireMessages for Vec<ConversationMessage> {
             Provider::Groq => groq::denormalize_messages(self),
             Provider::Mistral => mistral::denormalize_messages(self),
             Provider::XAI => xai::denormalize_messages(self),
+            Provider::NvidiaNim => nvidia_nim::denormalize_messages(self),
             Provider::Cohere => cohere::denormalize_messages(self),
         }
     }

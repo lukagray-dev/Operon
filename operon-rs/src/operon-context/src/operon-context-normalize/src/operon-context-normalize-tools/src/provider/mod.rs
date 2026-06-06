@@ -21,6 +21,7 @@ pub mod deepseek;
 pub mod gemini;
 pub mod groq;
 pub mod mistral;
+pub mod nvidia_nim;
 pub mod ollama;
 pub mod openai;
 pub mod openrouter;
@@ -99,6 +100,7 @@ impl FromWire for ToolCall {
             Provider::Groq => groq::from_wire_tool_call(raw),
             Provider::Mistral => mistral::from_wire_tool_call(raw),
             Provider::XAI => xai::from_wire_tool_call(raw),
+            Provider::NvidiaNim => nvidia_nim::from_wire_tool_call(raw),
             Provider::Cohere => cohere::from_wire_tool_call(raw),
         }
     }
@@ -117,6 +119,7 @@ impl ToWire for ToolDefinition {
             Provider::Groq => groq::to_wire_tool_definition(self),
             Provider::Mistral => mistral::to_wire_tool_definition(self),
             Provider::XAI => xai::to_wire_tool_definition(self),
+            Provider::NvidiaNim => nvidia_nim::to_wire_tool_definition(self),
             Provider::Cohere => cohere::to_wire_tool_definition(self),
         }
     }
@@ -135,6 +138,7 @@ impl ToWire for ToolResult {
             Provider::Groq => groq::to_wire_tool_result(self),
             Provider::Mistral => mistral::to_wire_tool_result(self),
             Provider::XAI => xai::to_wire_tool_result(self),
+            Provider::NvidiaNim => nvidia_nim::to_wire_tool_result(self),
             Provider::Cohere => cohere::to_wire_tool_result(self),
         }
     }

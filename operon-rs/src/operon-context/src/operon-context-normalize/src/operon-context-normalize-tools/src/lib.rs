@@ -1,6 +1,6 @@
 //! # operon-context-normalize-tools
 //!
-//! Canonical tool-call types and bidirectional wire format conversion for ten
+//! Canonical tool-call types and bidirectional wire format conversion for eleven
 //! major LLM providers.
 //!
 //! ## What this crate does
@@ -26,6 +26,7 @@
 //! | [`Provider::Groq`] | OpenAI-compatible |
 //! | [`Provider::Mistral`] | OpenAI-compatible |
 //! | [`Provider::XAI`] | OpenAI-compatible |
+//! | [`Provider::NvidiaNim`] | OpenAI-compatible |
 //! | [`Provider::Cohere`] | Cohere Chat API (distinct shape) |
 //!
 //! ## Quick start

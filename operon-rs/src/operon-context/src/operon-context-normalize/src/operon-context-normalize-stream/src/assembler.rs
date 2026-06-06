@@ -247,6 +247,7 @@ fn to_messages_provider(provider: &Provider) -> MessageProvider {
         Provider::Groq => MessageProvider::Groq,
         Provider::Mistral => MessageProvider::Mistral,
         Provider::XAI => MessageProvider::XAI,
+        Provider::NvidiaNim => MessageProvider::NvidiaNim,
         Provider::Cohere => MessageProvider::Cohere,
     }
 }
@@ -262,6 +263,7 @@ fn provider_label(provider: &Provider) -> &'static str {
         Provider::Groq => "Groq",
         Provider::Mistral => "Mistral",
         Provider::XAI => "xAI",
+        Provider::NvidiaNim => "NVIDIA NIM",
         Provider::Cohere => "Cohere",
     }
 }

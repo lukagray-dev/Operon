@@ -23,6 +23,7 @@ fn parse_line_empty_comment_and_done_are_ignored_for_all_providers() {
         Provider::Groq,
         Provider::Mistral,
         Provider::XAI,
+        Provider::NvidiaNim,
         Provider::Cohere,
     ];
 
@@ -382,12 +383,13 @@ fn openrouter_delegates_openai_shape() {
 }
 
 #[test]
-fn groq_mistral_xai_delegate_to_openai_parser() {
+fn groq_mistral_xai_nvidia_nim_delegate_to_openai_parser() {
     let line = r#"{"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}"#;
 
     let groq = parse_line(line, &Provider::Groq).unwrap();
     let mistral = parse_line(line, &Provider::Mistral).unwrap();
     let xai = parse_line(line, &Provider::XAI).unwrap();
+    let nvidia_nim = parse_line(line, &Provider::NvidiaNim).unwrap();
 
     let expected = vec![
         StreamEvent::TextDelta {
@@ -400,6 +402,7 @@ fn groq_mistral_xai_delegate_to_openai_parser() {
     assert_eq!(groq, expected);
     assert_eq!(mistral, expected);
     assert_eq!(xai, expected);
+    assert_eq!(nvidia_nim, expected);
 }
 
 #[test]

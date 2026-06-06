@@ -1,6 +1,6 @@
 //! # operon-context-normalize-stream
 //!
-//! Canonical streaming event normalization for ten major LLM providers.
+//! Canonical streaming event normalization for eleven major LLM providers.
 //!
 //! ## What this crate does
 //!

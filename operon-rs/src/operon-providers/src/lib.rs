@@ -1,7 +1,7 @@
 //! # operon-providers
 //!
 //! Provider identity, API credentials, model configuration, and capability
-//! metadata for Operon's ten supported LLM providers.
+//! metadata for Operon's eleven supported LLM providers.
 //!
 //! ## Role in the architecture
 //!
@@ -27,7 +27,7 @@
 //!
 //! | Type | Purpose |
 //! |---|---|
-//! | [`Provider`] | 10-variant enum identifying the LLM provider |
+//! | [`Provider`] | 11-variant enum identifying the LLM provider |
 //! | [`ProviderCapabilities`] | Per-provider metadata (base URL, auth style, feature flags) |
 //! | [`AuthHeader`] | How to transmit the API key in HTTP headers |
 //! | [`ApiCredentials`] | API key (redacted in logs) + optional org ID |
@@ -47,6 +47,7 @@
 //! | [`Provider::Groq`] | Groq | OpenAI-compatible |
 //! | [`Provider::Mistral`] | Mistral | OpenAI-compatible |
 //! | [`Provider::XAI`] | xAI | OpenAI-compatible |
+//! | [`Provider::NvidiaNim`] | NVIDIA | OpenAI-compatible |
 //! | [`Provider::Cohere`] | Cohere | Cohere Chat API |
 //!
 //! ## Quick start

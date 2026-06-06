@@ -1,7 +1,7 @@
 //! # operon-context-normalize-messages
 //!
 //! Canonical conversation-message types and bidirectional wire-format conversion
-//! for ten major LLM providers.
+//! for eleven major LLM providers.
 //!
 //! ## What this crate does
 //!
@@ -27,6 +27,7 @@
 //! | [`Provider::Groq`] | OpenAI-compatible |
 //! | [`Provider::Mistral`] | OpenAI-compatible |
 //! | [`Provider::XAI`] | OpenAI-compatible with `reasoning_content` |
+//! | [`Provider::NvidiaNim`] | OpenAI-compatible with `reasoning_content` |
 //! | [`Provider::Cohere`] | Cohere v2 Chat API |
 //!
 //! ## Quick start

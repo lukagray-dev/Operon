@@ -126,7 +126,8 @@ pub async fn discover_models(
         | Provider::Groq
         | Provider::Mistral
         | Provider::XAI
-        | Provider::DeepSeek => discover_openai_compatible(provider, api_key, url).await,
+        | Provider::DeepSeek
+        | Provider::NvidiaNim => discover_openai_compatible(provider, api_key, url).await,
 
         Provider::Gemini => discover_gemini(api_key, url).await,
 
@@ -230,9 +231,13 @@ async fn discover_openai_compatible(
         .data
         .into_iter()
         .map(|m| {
+            // Fall back to a sensible default context window (e.g. 8192) if the provider
+            // API doesn't expose it. Many OpenAI-compatible providers do not return 
+            // metadata fields like context window or length, so we fall back rather
+            // than failing the entire discovery process.
             let context_window = m.context_window
                 .or(m.context_length)
-                .ok_or_else(|| format!("{} API did not return context window/length for model {}", provider.display_name(), m.id))?;
+                .unwrap_or(8192);
             let max_tokens = m.max_tokens
                 .or(m.max_output_tokens)
                 .unwrap_or_else(|| std::cmp::min(4_096, context_window));

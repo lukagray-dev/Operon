@@ -6,6 +6,7 @@ pub mod deepseek;
 pub mod gemini;
 pub mod groq;
 pub mod mistral;
+pub mod nvidia_nim;
 pub mod ollama;
 pub mod openai;
 pub mod openrouter;
@@ -28,6 +29,7 @@ pub fn parse_line_for_provider(line: &str, provider: &Provider) -> Result<Vec<St
         Provider::Groq => groq::parse_line(line),
         Provider::Mistral => mistral::parse_line(line),
         Provider::XAI => xai::parse_line(line),
+        Provider::NvidiaNim => nvidia_nim::parse_line(line),
         Provider::Cohere => cohere::parse_line(line),
     }
 }

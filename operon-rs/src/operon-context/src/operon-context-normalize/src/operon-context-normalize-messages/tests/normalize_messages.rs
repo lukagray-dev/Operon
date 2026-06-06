@@ -395,6 +395,39 @@ fn xai_unknown_role() {
 }
 
 #[test]
+fn nvidia_nim_reasoning_content_extraction() {
+    let raw = json!({
+        "choices":[{"message":{"role":"assistant","content":"done","reasoning_content":"think"},"finish_reason":"stop"}]
+    });
+    let msg = normalize_message(raw, &Provider::NvidiaNim).unwrap();
+    assert!(matches!(msg.content[0], ContentBlock::Reasoning(_)));
+    assert!(matches!(msg.content[1], ContentBlock::Text(_)));
+}
+
+#[test]
+fn nvidia_nim_denormalize_include_reasoning_content() {
+    let msgs = vec![ConversationMessage::assistant(vec![
+        ContentBlock::Reasoning(ReasoningBlock::new("think")),
+        ContentBlock::Text("answer".to_string()),
+    ])];
+    let wire = denormalize_messages(&msgs, &Provider::NvidiaNim).unwrap();
+    assert!(wire["messages"][0].get("reasoning_content").is_some());
+}
+
+#[test]
+fn nvidia_nim_unknown_role() {
+    let raw = json!({"role":"developer","content":"x"});
+    let err = normalize_message(raw, &Provider::NvidiaNim).unwrap_err();
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnknownRole {
+            provider: "NVIDIA NIM",
+            ..
+        }
+    ));
+}
+
+#[test]
 fn groq_delegate_basic_paths() {
     let user =
         normalize_message(json!({"role":"user","content":"hello"}), &Provider::Groq).unwrap();
@@ -414,6 +447,31 @@ fn groq_delegate_basic_paths() {
             "x".into(),
         )])],
         &Provider::Groq,
+    )
+    .unwrap();
+    assert!(wire["messages"].is_array());
+}
+
+#[test]
+fn nvidia_nim_delegate_basic_paths() {
+    let user =
+        normalize_message(json!({"role":"user","content":"hello"}), &Provider::NvidiaNim).unwrap();
+    assert_eq!(user.role, MessageRole::User);
+
+    let assistant = normalize_message(
+        json!({
+            "choices":[{"message":{"role":"assistant","content":"done"},"finish_reason":"stop"}]
+        }),
+        &Provider::NvidiaNim,
+    )
+    .unwrap();
+    assert_eq!(assistant.stop_reason, Some(StopReason::EndTurn));
+
+    let wire = denormalize_messages(
+        &[ConversationMessage::user(vec![ContentBlock::Text(
+            "x".into(),
+        )])],
+        &Provider::NvidiaNim,
     )
     .unwrap();
     assert!(wire["messages"].is_array());

@@ -327,6 +327,7 @@ fn test_deepseek_and_xai_and_ollama_normalization() {
         (Provider::DeepSeek, "reasoning_content"),
         (Provider::XAI, "reasoning_content"),
         (Provider::Ollama, "thinking"),
+        (Provider::NvidiaNim, "reasoning_content"),
     ];
 
     for (provider, field_name) in inputs {
@@ -356,7 +357,12 @@ fn test_deepseek_and_xai_and_ollama_normalization() {
 
 #[test]
 fn test_deepseek_and_xai_and_ollama_denormalization() {
-    let providers = vec![Provider::DeepSeek, Provider::XAI, Provider::Ollama];
+    let providers = vec![
+        Provider::DeepSeek,
+        Provider::XAI,
+        Provider::Ollama,
+        Provider::NvidiaNim,
+    ];
     let blocks = vec![
         ReasoningBlock::new("Part 1."),
         ReasoningBlock::new("Part 2."),

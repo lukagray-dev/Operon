@@ -80,6 +80,13 @@ pub enum Provider {
     #[serde(rename = "xai")]
     XAI,
 
+    /// NVIDIA NIM — OpenAI-compatible inference microservices.
+    /// Hosts 100+ models (Llama, DeepSeek-R1, QwQ, Nemotron, Qwen, etc.) via `https://integrate.api.nvidia.com/v1`.
+    /// API keys start with `nvapi-`. Auth: `Authorization: Bearer`.
+    /// Also supports self-hosted NIM containers via `base_url_override`.
+    #[serde(rename = "nvidia_nim")]
+    NvidiaNim,
+
     /// Cohere Command models — distinct wire format (`parameter_definitions` instead
     /// of JSON Schema). Auth: `Authorization: Bearer`.
     Cohere,
@@ -166,6 +173,14 @@ impl Provider {
                 supports_thinking: true,
                 supports_tool_use: true,
             },
+            Provider::NvidiaNim => ProviderCapabilities {
+                default_base_url: "https://integrate.api.nvidia.com/v1",
+                auth_header: AuthHeader::Bearer,
+                supports_streaming: true,
+                // Some NIM-hosted models (DeepSeek-R1, QwQ) expose reasoning_content.
+                supports_thinking: true,
+                supports_tool_use: true,
+            },
             Provider::Cohere => ProviderCapabilities {
                 default_base_url: "https://api.cohere.com/v2",
                 auth_header: AuthHeader::Bearer,
@@ -189,6 +204,7 @@ impl Provider {
             Provider::Groq => "Groq",
             Provider::Mistral => "Mistral",
             Provider::XAI => "xAI",
+            Provider::NvidiaNim => "NVIDIA NIM",
             Provider::Cohere => "Cohere",
         }
     }
@@ -207,6 +223,7 @@ impl Provider {
             Provider::Groq,
             Provider::Mistral,
             Provider::XAI,
+            Provider::NvidiaNim,
             Provider::Cohere,
         ]
     }
