@@ -135,3 +135,119 @@ fn tool_result_content_json_serializes_text_and_json_cleanly() {
     };
     assert_eq!(tool_result_content_json(&json_result), "{\"ok\":true}");
 }
+
+#[test]
+fn test_set_history_restores_loaded_groups() {
+    use std::collections::VecDeque;
+    use tokio::sync::mpsc;
+    use reqwest::Client;
+    use operon_providers::{Provider, ProviderConfig, ApiCredentials, ModelConfig};
+    use operon_context_compaction::CompactionConfig;
+    use operon_context_snapshot::SnapshotConfig;
+
+    // Create a SnapshotBuilder with a dummy configuration pointing to the temp directory.
+    let snapshot_builder = SnapshotBuilder::new(SnapshotConfig {
+        root: std::env::temp_dir(),
+        role: Role::Owner,
+        session_id: "test-session".to_string(),
+        tree_depth: 1,
+        tool_groups: Vec::new(),
+    })
+    .unwrap();
+
+    // Create dummy channels for session communication.
+    let (event_tx, _event_rx) = mpsc::channel(1);
+    let (_cmd_tx, cmd_rx) = mpsc::channel(1);
+
+    // Construct a SessionRunner instance manually with dummy fields to test set_history.
+    let mut runner = SessionRunner {
+        session_id: "test-session".to_string(),
+        config: SessionConfig {
+            provider_config: ProviderConfig {
+                provider: Provider::Anthropic,
+                credentials: ApiCredentials::unauthenticated(),
+                model: ModelConfig {
+                    model_id: "test-model".to_string(),
+                    context_window: 100_000,
+                    max_tokens: 1000,
+                },
+                base_url_override: None,
+            },
+            policy: PolicyConfig::empty(),
+            project_dir: None,
+            workspace_root: std::env::temp_dir(),
+            role: Role::Owner,
+            tool_groups: Vec::new(),
+            compaction: CompactionConfig::default(),
+            store_path: None,
+        },
+        messages: Vec::new(),
+        dispatcher: Dispatcher::new(),
+        snapshot_builder,
+        token_state: SessionTokenState::new(),
+        token_budget: TokenBudget::with_window(100_000).unwrap(),
+        lifecycle: LifecycleState::Idle,
+        http_client: Client::new(),
+        event_tx,
+        cmd_rx,
+        policy_resolver: PolicyResolver::new(PolicyConfig::empty()),
+        pending_commands: VecDeque::new(),
+        store: None,
+        turn_index: 0,
+    };
+
+    // Construct mock conversation history:
+    // 1. A successful load_tools call for "fs"
+    // 2. A failed load_tools call for "web"
+    // 3. A read tool call (should not affect groups)
+    let history = vec![
+        ConversationMessage {
+            role: MessageRole::Tool,
+            content: vec![
+                // Successful load_tools for "fs": should be recovered!
+                ContentBlock::ToolResult(ToolResult {
+                    call_id: ToolCallId("call_load_fs".to_string()),
+                    name: "load_tools".to_string(),
+                    content: ToolContent::Json(json!({
+                        "group": "fs",
+                        "tool_count": 7,
+                        "tools": []
+                    })),
+                    is_error: false,
+                }),
+                // Failed load_tools for "web": should NOT be recovered because is_error is true!
+                ContentBlock::ToolResult(ToolResult {
+                    call_id: ToolCallId("call_load_web".to_string()),
+                    name: "load_tools".to_string(),
+                    content: ToolContent::Json(json!({
+                        "group": "web",
+                        "tool_count": 2,
+                        "tools": []
+                    })),
+                    is_error: true,
+                }),
+                // Standard tool result: should NOT affect any loaded groups!
+                ContentBlock::ToolResult(ToolResult {
+                    call_id: ToolCallId("call_read_file".to_string()),
+                    name: "read".to_string(),
+                    content: ToolContent::Text("some file content".to_string()),
+                    is_error: false,
+                }),
+            ],
+            stop_reason: None,
+        }
+    ];
+
+    // Invoke set_history to simulate session resume.
+    runner.set_history(history, 4, Some(800));
+
+    // Verify turn index and token states are correctly recovered.
+    assert_eq!(runner.turn_index, 4, "Turn index must be set to 4");
+    assert_eq!(runner.token_state.current_context_tokens, 800, "Context tokens must be set to 800");
+
+    // Verify that the dispatcher has marked "fs" as loaded, but not "web" or "read".
+    let loaded = runner.dispatcher.loaded_groups();
+    assert!(loaded.contains("fs"), "The successfully loaded 'fs' group must be recovered");
+    assert!(!loaded.contains("web"), "The failed 'web' group must NOT be marked loaded");
+    assert!(!loaded.contains("read"), "Individual tool calls must not affect loaded groups");
+}

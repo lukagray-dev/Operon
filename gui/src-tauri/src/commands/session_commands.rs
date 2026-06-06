@@ -1,10 +1,10 @@
 // session_commands.rs — Tauri IPC command handlers for agent sessions.
 //
-// This module provides the connection between the Tauri GUI and the `operon-rs`
-// session runner, SQLite store, and event systems.
+// Hey friend! This module provides the connection between the Tauri GUI and the `operon-rs`
+// session runner, JSON store, and event systems.
 //
 // Features:
-//   - List saved historical sessions by scanning `~/.operon/sessions/*.db`.
+//   - List saved historical sessions by scanning `~/.operon/sessions/*.json`.
 //   - Retrieve message turns for a given session.
 //   - Start/resume a session, forwarding all `SessionEvent`s to the webview.
 //   - Send Approve/Deny/Cancel signals back to the running agent loop.
@@ -36,7 +36,7 @@ pub struct SessionItem {
 /// Retrieve the list of all historical sessions saved on the system.
 ///
 /// This works by scanning the standard sessions directory (~/.operon/sessions/)
-/// for `.db` files, opening each one to read the session metadata, and returning
+/// for `.json` files, opening each one to read the session metadata, and returning
 /// them sorted from newest to oldest.
 #[tauri::command]
 pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
@@ -50,12 +50,13 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
         for entry in entries {
             if let Ok(entry) = entry {
                 let path = entry.path();
-                // We only check files that have a `.db` extension
-                if path.extension().map_or(false, |ext| ext == "db") {
-                    // Open SQLite store in WAL read-only mode to extract metadata
+                // Hey buddy! We now look for files with a `.json` extension since
+                // we migrated away from SQLite databases.
+                if path.extension().map_or(false, |ext| ext == "json") {
+                    // Open the JSON store to extract session metadata
                     if let Ok(store) = SessionStore::open(&path).await {
                         if let Ok(rows) = store.list_sessions().await {
-                            // Since each DB represents a single session, we take the first row
+                            // Since each JSON file represents a single session, we take the first row
                             if let Some(row) = rows.first() {
                                 let title = match store.get_first_user_message_text(&row.id).await {
                                     Ok(Some(text)) => {
@@ -92,25 +93,25 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
 /// Retrieve the complete conversation history for a given session.
 ///
 /// If the session file does not exist, returns an empty list. Otherwise,
-/// loads all turns from the SQLite DB and returns the final turn's complete
+/// loads all turns from the JSON file and returns the final turn's complete
 /// messages list (which contains the full conversation history up to that point).
 #[tauri::command]
 pub async fn get_session_history(session_id: String) -> Result<Vec<operon_rs::prelude::ConversationMessage>, String> {
     let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
-    let mut db_path = paths.session_db(&session_id);
+    let mut json_path = paths.session_db(&session_id);
 
-    // Fallback: If the session database file (<session_id>.db) does not exist,
-    // search the sessions directory to see if any database file contains
-    // this session_id inside its database records (due to previous mismatched session ID bugs).
-    if !db_path.exists() {
+    // Fallback: If the session file (<session_id>.json) does not exist,
+    // search the sessions directory to see if any json file contains
+    // this session_id inside its records (due to previous mismatched session ID bugs).
+    if !json_path.exists() {
         if let Ok(entries) = std::fs::read_dir(&paths.sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |ext| ext == "db") {
+                if path.extension().map_or(false, |ext| ext == "json") {
                     if let Ok(store) = SessionStore::open(&path).await {
                         if let Ok(rows) = store.list_sessions().await {
                             if rows.iter().any(|r| r.id == session_id) {
-                                db_path = path;
+                                json_path = path;
                                 break;
                             }
                         }
@@ -120,11 +121,11 @@ pub async fn get_session_history(session_id: String) -> Result<Vec<operon_rs::pr
         }
     }
 
-    if !db_path.exists() {
+    if !json_path.exists() {
         return Ok(Vec::new());
     }
 
-    let store = SessionStore::open(&db_path)
+    let store = SessionStore::open(&json_path)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -193,20 +194,20 @@ pub async fn send_message(
                 paths.workspace_dir.clone()
             };
 
-            let mut db_path = paths.session_db(&session_id_clone);
+            let mut json_path = paths.session_db(&session_id_clone);
 
-            // Fallback: If the session database file (<session_id>.db) does not exist,
-            // search the sessions directory to see if any database file contains
-            // this session_id inside its database records (due to previous mismatched session ID bugs).
-            if !db_path.exists() {
+            // Fallback: If the session JSON file (<session_id>.json) does not exist,
+            // search the sessions directory to see if any JSON file contains
+            // this session_id inside its records (due to previous mismatched session ID bugs).
+            if !json_path.exists() {
                 if let Ok(entries) = std::fs::read_dir(&paths.sessions_dir) {
                     for entry in entries.flatten() {
                         let path = entry.path();
-                        if path.extension().map_or(false, |ext| ext == "db") {
+                        if path.extension().map_or(false, |ext| ext == "json") {
                             if let Ok(store) = SessionStore::open(&path).await {
                                 if let Ok(rows) = store.list_sessions().await {
                                     if rows.iter().any(|r| r.id == session_id_clone) {
-                                        db_path = path;
+                                        json_path = path;
                                         break;
                                     }
                                 }
@@ -226,7 +227,7 @@ pub async fn send_message(
                 // Default registers all standard tools
                 tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
                 compaction: operon_rs::prelude::CompactionConfig::default(),
-                store_path: Some(db_path.clone()),
+                store_path: Some(json_path.clone()),
             };
 
             let (event_tx, mut event_rx) = mpsc::channel::<SessionEvent>(256);
@@ -236,9 +237,9 @@ pub async fn send_message(
                 .await
                 .map_err(|e| format!("Failed to initialize SessionRunner: {}", e))?;
 
-            // Resume history from SQLite database if resuming an existing session
-            if db_path.exists() {
-                if let Ok(store) = SessionStore::open(&db_path).await {
+            // Resume history from JSON file if resuming an existing session
+            if json_path.exists() {
+                if let Ok(store) = SessionStore::open(&json_path).await {
                     let turns = store.load_turns(&session_id_clone).await.unwrap_or_default();
                     if !turns.is_empty() {
                         let history = turns.last().cloned().unwrap_or_default();

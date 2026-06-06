@@ -104,14 +104,16 @@ impl OperonPaths {
         Ok(())
     }
 
-    /// Returns the path to the session SQLite database for a given session ID.
+    /// Returns the path to the session JSON file for a given session ID.
     ///
-    /// Example: `~/.operon/sessions/abc123def456.db`
+    /// Example: `~/.operon/sessions/abc123def456.json`
     ///
-    /// The database file is created by the session runner on first use;
-    /// this function only computes the path.
+    /// Hey buddy! Instead of using a binary SQLite database, we now store the whole
+    /// conversation and session metadata in a single JSON file. This function just
+    /// figures out the absolute file path where we'll save that JSON file.
     pub fn session_db(&self, session_id: &str) -> PathBuf {
-        self.sessions_dir.join(format!("{session_id}.db"))
+        // We append the `.json` extension to our session ID and join it with the sessions directory path.
+        self.sessions_dir.join(format!("{session_id}.json"))
     }
 
     /// Returns the path to the AGENTS.md in the default workspace.
@@ -147,10 +149,12 @@ mod tests {
 
     #[test]
     fn test_session_db_includes_session_id() {
+        // Let's verify that our helper function creates a path ending with .json
+        // and containing our specific session ID!
         let paths = OperonPaths::resolve().unwrap();
         let db = paths.session_db("abc123");
         assert!(db.to_string_lossy().contains("abc123"));
-        assert!(db.extension().unwrap() == "db");
+        assert!(db.extension().unwrap() == "json");
     }
 
     #[test]

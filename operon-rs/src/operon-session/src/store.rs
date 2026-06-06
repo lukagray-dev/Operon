@@ -1,131 +1,117 @@
-// store.rs — SQLite-backed session persistence for operon-session.
+// store.rs — JSON-backed session persistence for operon-session.
 //
-// This module provides `SessionStore`, which persists session metadata and
-// per-turn message arrays to a SQLite file using sqlx. The schema is minimal:
+// Hey there! This module provides `SessionStore`, which persists session metadata and
+// per-turn message lists directly to a local JSON file on the user's hard drive.
 //
-//   sessions — one row per agent session (id, metadata, timestamps)
-//   turns    — one row per completed turn (messages JSON, token count)
+// In the old days, we used SQLite to do this. But SQL databases are binary, hard to inspect,
+// and can lead to tricky database lock or connection issues. Moving to simple, human-readable
+// JSON files makes debugging an absolute breeze! You can just open the files in VS Code and
+// see exactly what has been saved.
 //
 // Design notes:
-//   - The database is created (including all directories) on first open.
-//   - Schema migration is idempotent via CREATE TABLE IF NOT EXISTS.
-//   - Messages are serialized as a JSON blob (serde_json::to_string).
-//   - sqlx query macros are not used here so no compile-time DB connection is
-//     needed — plain `query` / `query_as` with bind() is used instead.
-//   - All public methods are async and return SessionError on failure.
+//   - Each agent session gets its own JSON file (e.g. `~/.operon/sessions/<session_id>.json`).
+//   - The database file and any parent directories are automatically created on first open.
+//   - The JSON structure contains the session metadata (ID, workspace, model details) and a
+//     list of all conversation turns.
+//   - Reading and writing are done via standard file operations and `serde_json`.
 
-use std::path::Path;
-
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use sqlx::SqlitePool;
+use std::path::{Path, PathBuf};
 
 use operon_context_normalize_messages::ConversationMessage;
+use serde::{Deserialize, Serialize};
 
 use crate::error::SessionError;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data Schemas
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The root struct representing a session's persisted data in JSON format.
+/// Having all data in one struct makes it extremely simple to read and write
+/// in a single atomic JSON operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionJson {
+    /// Unique identifier for this session.
+    pub id: String,
+    /// Unix epoch timestamp (seconds) when the session was created.
+    pub created_at: i64,
+    /// Absolute path of the workspace folder.
+    pub workspace: String,
+    /// Identifier of the model (e.g. llama-3.1-8b-instant).
+    pub model_id: String,
+    /// Provider name (e.g. Groq, OpenAI, etc.).
+    pub provider: String,
+    /// Ordered list of all conversation turns.
+    pub turns: Vec<TurnJson>,
+}
+
+/// A single interaction turn containing the conversation messages list
+/// and the model's token count for that turn.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TurnJson {
+    /// 0-based index of this turn.
+    pub turn_index: usize,
+    /// The full conversation messages list up to this turn.
+    pub messages: Vec<ConversationMessage>,
+    /// Estimated or exact number of tokens in the context window.
+    pub token_count: Option<usize>,
+    /// Unix epoch timestamp (seconds) when this turn was recorded.
+    pub created_at: i64,
+}
+
+/// A single row representing session metadata, returned by list_sessions.
+/// Derived from SessionRow to stay fully compatible with existing callers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionRow {
+    pub id: String,
+    pub created_at: i64,
+    pub workspace: String,
+    pub model_id: String,
+    pub provider: String,
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionStore
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// SQLite-backed store for persisting session metadata and turn history.
+/// JSON-backed store for persisting session metadata and turn history.
 ///
 /// One instance per agent session. Opened by `SessionRunner::new` when
-/// `SessionConfig::store_path` is `Some`. All operations are idempotent
-/// with respect to the database schema (via `CREATE TABLE IF NOT EXISTS`).
+/// `SessionConfig::store_path` is `Some`.
 pub struct SessionStore {
-    /// The underlying connection pool. SQLite connection pools are limited to
-    /// max_connections=1 in WAL mode to avoid contention.
-    pool: SqlitePool,
+    /// Path to the JSON file where all data for this session is stored.
+    path: PathBuf,
 }
 
 impl SessionStore {
-    /// Open (or create) the SQLite database at the given path.
+    /// Open (or prepare) the JSON file store at the given path.
     ///
-    /// The file and any parent directories are created automatically.
-    /// On first open, the schema is initialized via `migrate()`.
+    /// The parent directories are created automatically.
     ///
     /// # Errors
     ///
-    /// Returns [`SessionError::Store`] on any connection or schema failure.
+    /// Returns [`SessionError::Store`] on any directory creation failure.
     pub async fn open(path: &Path) -> Result<Self, SessionError> {
-        // Ensure the parent directory exists so SQLite can create the file.
+        // Hey buddy! First we check if the parent folder of this file exists.
+        // If it doesn't, we create it recursively so that writing the file later won't fail.
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
                 SessionError::Store(format!("Failed to create store directory: {e}"))
             })?;
         }
 
-        // Build connection options — create the file if it doesn't exist yet.
-        let options = SqliteConnectOptions::new()
-            .filename(path)
-            .create_if_missing(true)
-            // WAL mode is strongly preferred for concurrent read access and
-            // crash safety. The session runner only writes, but TUI may read.
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
-
-        // Use a single connection pool (max 1) — SQLite writes are serialized
-        // by design and we never need concurrent writers.
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect_with(options)
-            .await
-            .map_err(|e| SessionError::Store(format!("Failed to open store: {e}")))?;
-
-        let store = Self { pool };
-
-        // Ensure schema is up to date (idempotent).
-        // migrate() is an associated function (takes &SqlitePool, not &self).
-        SessionStore::migrate(&store.pool).await?;
-
-        Ok(store)
+        Ok(Self {
+            path: path.to_path_buf(),
+        })
     }
 
-    /// Ensure schema exists. Idempotent — safe to call on every open.
-    ///
-    /// Creates the `sessions` and `turns` tables if they do not already exist.
-    async fn migrate(pool: &SqlitePool) -> Result<(), SessionError> {
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS sessions (
-                id          TEXT    PRIMARY KEY,
-                created_at  INTEGER NOT NULL,
-                workspace   TEXT    NOT NULL,
-                model_id    TEXT    NOT NULL,
-                provider    TEXT    NOT NULL
-            );
-            "#,
-        )
-        .execute(pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to create sessions table: {e}")))?;
-
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS turns (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id    TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                turn_index    INTEGER NOT NULL,
-                messages_json TEXT    NOT NULL,
-                token_count   INTEGER,
-                created_at    INTEGER NOT NULL
-            );
-            "#,
-        )
-        .execute(pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to create turns table: {e}")))?;
-
-        Ok(())
-    }
-
-    /// Persist a new session record in the `sessions` table.
+    /// Persist a new session record (metadata) by creating/overwriting the JSON file.
     ///
     /// Call once after `SessionRunner::new` generates a session ID.
-    /// `created_at` is stored as a Unix epoch timestamp in seconds.
     ///
     /// # Errors
     ///
-    /// Returns [`SessionError::Store`] if the INSERT fails (e.g. duplicate ID).
+    /// Returns [`SessionError::Store`] if serialization or file writing fails.
     pub async fn create_session(
         &self,
         session_id: &str,
@@ -133,34 +119,36 @@ impl SessionStore {
         model_id: &str,
         provider: &str,
     ) -> Result<(), SessionError> {
-        // Use the current wall-clock time as the creation timestamp.
-        let created_at = unix_timestamp_secs();
+        let created_at = unix_timestamp_secs() as i64;
 
-        sqlx::query(
-            "INSERT INTO sessions (id, created_at, workspace, model_id, provider) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(session_id)
-        .bind(created_at as i64)
-        .bind(workspace)
-        .bind(model_id)
-        .bind(provider)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to create session record: {e}")))?;
+        // Build the session structure with empty turns list initially.
+        let session = SessionJson {
+            id: session_id.to_string(),
+            created_at,
+            workspace: workspace.to_string(),
+            model_id: model_id.to_string(),
+            provider: provider.to_string(),
+            turns: Vec::new(),
+        };
+
+        // Convert it to a pretty JSON string. Pretty formatting is great for debugging!
+        let json_str = serde_json::to_string_pretty(&session)
+            .map_err(|e| SessionError::Store(format!("Failed to serialize session: {e}")))?;
+
+        // Write the JSON string to our file path.
+        std::fs::write(&self.path, json_str)
+            .map_err(|e| SessionError::Store(format!("Failed to write session file: {e}")))?;
 
         Ok(())
     }
 
-    /// Save the message array for one completed turn.
+    /// Save the message list for one completed turn.
     ///
-    /// `messages` is serialized to JSON and stored in the `messages_json`
-    /// column. `token_count` is optional — set to the input token count from
-    /// the API response when available, or `None` if the turn failed before
-    /// usage data was received.
+    /// If the turn already exists (same turn_index), it is updated. Otherwise, it is appended.
     ///
     /// # Errors
     ///
-    /// Returns [`SessionError::Store`] on serialization or DB write failure.
+    /// Returns [`SessionError::Store`] on serialization or file write failure.
     pub async fn save_turn(
         &self,
         session_id: &str,
@@ -168,108 +156,140 @@ impl SessionStore {
         messages: &[ConversationMessage],
         token_count: Option<usize>,
     ) -> Result<(), SessionError> {
-        // Serialize the entire message array to a compact JSON string.
-        let messages_json = serde_json::to_string(messages)
-            .map_err(|e| SessionError::Store(format!("Failed to serialize messages: {e}")))?;
+        // Hey friend! Let's read the current file. If it doesn't exist, we'll
+        // gracefully create a new empty session skeleton.
+        let mut session = if self.path.exists() {
+            let file_content = std::fs::read_to_string(&self.path)
+                .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+            serde_json::from_str::<SessionJson>(&file_content)
+                .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?
+        } else {
+            SessionJson {
+                id: session_id.to_string(),
+                created_at: unix_timestamp_secs() as i64,
+                workspace: String::new(),
+                model_id: String::new(),
+                provider: String::new(),
+                turns: Vec::new(),
+            }
+        };
 
-        let created_at = unix_timestamp_secs();
+        let turn = TurnJson {
+            turn_index,
+            messages: messages.to_vec(),
+            token_count,
+            created_at: unix_timestamp_secs() as i64,
+        };
 
-        sqlx::query(
-            "INSERT INTO turns (session_id, turn_index, messages_json, token_count, created_at)
-             VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(session_id)
-        .bind(turn_index as i64)
-        .bind(&messages_json)
-        .bind(token_count.map(|n| n as i64))
-        .bind(created_at as i64)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to save turn: {e}")))?;
+        // If a turn with the same index already exists, replace it. Otherwise, append.
+        if let Some(pos) = session.turns.iter().position(|t| t.turn_index == turn_index) {
+            session.turns[pos] = turn;
+        } else {
+            session.turns.push(turn);
+        }
+
+        // Keep turns sorted by index, just to be clean and deterministic.
+        session.turns.sort_by_key(|t| t.turn_index);
+
+        // Serialize the whole session data structure back to disk.
+        let json_str = serde_json::to_string_pretty(&session)
+            .map_err(|e| SessionError::Store(format!("Failed to serialize session: {e}")))?;
+        std::fs::write(&self.path, json_str)
+            .map_err(|e| SessionError::Store(format!("Failed to write session file: {e}")))?;
 
         Ok(())
     }
 
     /// Load all turns for a session in ascending turn_index order.
     ///
-    /// Returns a `Vec` where each element is the deserialized `Vec<ConversationMessage>`
-    /// for that turn. Empty if no turns have been saved yet.
+    /// Returns a `Vec` where each element is the `Vec<ConversationMessage>` for that turn.
     ///
     /// # Errors
     ///
-    /// Returns [`SessionError::Store`] on DB query or JSON deserialization failure.
+    /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
     pub async fn load_turns(
         &self,
-        session_id: &str,
+        _session_id: &str,
     ) -> Result<Vec<Vec<ConversationMessage>>, SessionError> {
-        // Fetch all turn rows for this session, sorted by turn_index ascending.
-        let rows: Vec<(String,)> = sqlx::query_as(
-            "SELECT messages_json FROM turns WHERE session_id = ? ORDER BY turn_index ASC",
-        )
-        .bind(session_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to load turns: {e}")))?;
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
 
-        // Deserialize each row's JSON blob back into the canonical message type.
-        rows.into_iter()
-            .map(|(json,)| {
-                serde_json::from_str::<Vec<ConversationMessage>>(&json)
-                    .map_err(|e| SessionError::Store(format!("Failed to deserialize turn: {e}")))
-            })
-            .collect()
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let mut session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        // Make sure the turns are sorted in order!
+        session.turns.sort_by_key(|t| t.turn_index);
+
+        Ok(session.turns.into_iter().map(|t| t.messages).collect())
     }
 
     /// List all sessions in the store with their metadata.
     ///
-    /// Ordered by `created_at` ascending (oldest first).
+    /// Since each JSON file represents exactly one session, this returns a single row.
     ///
     /// # Errors
     ///
-    /// Returns [`SessionError::Store`] on DB query failure.
+    /// Returns [`SessionError::Store`] on file read or parsing failure.
     pub async fn list_sessions(&self) -> Result<Vec<SessionRow>, SessionError> {
-        let rows: Vec<SessionRow> = sqlx::query_as(
-            "SELECT id, created_at, workspace, model_id, provider FROM sessions ORDER BY created_at ASC",
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to list sessions: {e}")))?;
+        // Hey buddy! If the file is not there, we can't list any session, so we return empty.
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
 
-        Ok(rows)
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        let row = SessionRow {
+            id: session.id,
+            created_at: session.created_at,
+            workspace: session.workspace,
+            model_id: session.model_id,
+            provider: session.provider,
+        };
+
+        Ok(vec![row])
     }
 
     /// Get the token count of the last recorded turn for a session.
     /// Used when resuming a session to initialize the token tracker's context estimate.
-    pub async fn get_last_token_count(&self, session_id: &str) -> Result<Option<usize>, SessionError> {
-        let row: Option<(Option<i64>,)> = sqlx::query_as(
-            "SELECT token_count FROM turns WHERE session_id = ? ORDER BY turn_index DESC LIMIT 1"
-        )
-        .bind(session_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to query last token count: {e}")))?;
+    pub async fn get_last_token_count(&self, _session_id: &str) -> Result<Option<usize>, SessionError> {
+        if !self.path.exists() {
+            return Ok(None);
+        }
 
-        Ok(row.and_then(|(tc,)| tc.map(|val| val as usize)))
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        // Find the turn with the highest turn_index to grab the token count.
+        let last_turn = session.turns.iter().max_by_key(|t| t.turn_index);
+        Ok(last_turn.and_then(|t| t.token_count))
     }
 
     /// Extract the first user message text to use as the chat title.
-    pub async fn get_first_user_message_text(&self, session_id: &str) -> Result<Option<String>, SessionError> {
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT messages_json FROM turns WHERE session_id = ? AND turn_index = 0 LIMIT 1"
-        )
-        .bind(session_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| SessionError::Store(format!("Failed to query first turn: {e}")))?;
+    pub async fn get_first_user_message_text(&self, _session_id: &str) -> Result<Option<String>, SessionError> {
+        if !self.path.exists() {
+            return Ok(None);
+        }
 
-        if let Some((json,)) = row {
-            if let Ok(messages) = serde_json::from_str::<Vec<ConversationMessage>>(&json) {
-                for msg in messages {
-                    if msg.role == operon_context_normalize_messages::MessageRole::User {
-                        for block in msg.content {
-                            if let operon_context_normalize_messages::ContentBlock::Text(text) = block {
-                                return Ok(Some(text));
-                            }
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        // Let's find turn 0 and search for the first user message block in it.
+        if let Some(first_turn) = session.turns.iter().find(|t| t.turn_index == 0) {
+            for msg in &first_turn.messages {
+                if msg.role == operon_context_normalize_messages::MessageRole::User {
+                    for block in &msg.content {
+                        if let operon_context_normalize_messages::ContentBlock::Text(text) = block {
+                            return Ok(Some(text.clone()));
                         }
                     }
                 }
@@ -277,23 +297,6 @@ impl SessionStore {
         }
         Ok(None)
     }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SessionRow
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A single row from the `sessions` table.
-///
-/// Used by [`SessionStore::list_sessions`] to enumerate persisted sessions.
-#[derive(Debug, sqlx::FromRow)]
-pub struct SessionRow {
-    pub id: String,
-    /// Unix epoch timestamp (seconds) when the session was created.
-    pub created_at: i64,
-    pub workspace: String,
-    pub model_id: String,
-    pub provider: String,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -317,14 +320,22 @@ fn unix_timestamp_secs() -> u64 {
 mod tests {
     use super::*;
     use operon_context_normalize_messages::{ContentBlock, ConversationMessage};
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-    /// Open an in-memory SQLite store for testing.
-    /// sqlx supports the ":memory:" path for ephemeral databases.
-    async fn memory_store() -> SessionStore {
-        let path = std::path::Path::new(":memory:");
-        SessionStore::open(path)
-            .await
-            .expect("Failed to open in-memory store")
+    // Hey buddy! Since unit tests in Rust run concurrently on multiple threads,
+    // we use this static atomic counter to generate a unique suffix for each test's
+    // temporary file. This completely prevents different tests from writing to the
+    // same file at the same time!
+    static TEST_FILE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    /// Build a temporary file path for tests.
+    async fn temp_store_path() -> PathBuf {
+        let temp_dir = std::env::temp_dir();
+        // Increment the counter atomically. Ordering::SeqCst ensures sequential consistency
+        // across all processor cores.
+        let count = TEST_FILE_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let session_id = format!("test-session-{}-{}", unix_timestamp_secs(), count);
+        temp_dir.join(format!("{}.json", session_id))
     }
 
     /// Build a minimal conversation for testing.
@@ -336,8 +347,9 @@ mod tests {
 
     #[tokio::test]
     async fn create_session_and_list_it() {
-        // Verify that a session created via create_session appears in list_sessions.
-        let store = memory_store().await;
+        // Let's test that creating a session writes the correct metadata and lists it correctly.
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path).await.expect("Failed to open store");
 
         store
             .create_session("session-1", "/workspace", "claude-sonnet-4", "Anthropic")
@@ -354,12 +366,16 @@ mod tests {
         assert_eq!(sessions[0].workspace, "/workspace");
         assert_eq!(sessions[0].model_id, "claude-sonnet-4");
         assert_eq!(sessions[0].provider, "Anthropic");
+
+        // Clean up our temporary file!
+        let _ = std::fs::remove_file(path);
     }
 
     #[tokio::test]
     async fn save_turn_and_load_it_back() {
         // Full round-trip: save a turn's messages and verify they deserialize correctly.
-        let store = memory_store().await;
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path).await.expect("Failed to open store");
 
         store
             .create_session("session-rt", "/ws", "model", "provider")
@@ -379,12 +395,18 @@ mod tests {
             loaded[0], messages,
             "Loaded messages must match saved messages"
         );
+
+        let last_token = store.get_last_token_count("session-rt").await.unwrap();
+        assert_eq!(last_token, Some(512));
+
+        let _ = std::fs::remove_file(path);
     }
 
     #[tokio::test]
     async fn load_turns_returns_empty_for_new_session() {
         // A freshly created session with no saved turns should return an empty vec.
-        let store = memory_store().await;
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path).await.expect("Failed to open store");
 
         store
             .create_session("session-empty", "/ws", "model", "provider")
@@ -396,12 +418,15 @@ mod tests {
             loaded.is_empty(),
             "No turns saved — should return empty vec"
         );
+
+        let _ = std::fs::remove_file(path);
     }
 
     #[tokio::test]
     async fn multiple_turns_are_ordered_correctly() {
         // Turns must come back in turn_index ascending order, regardless of insertion order.
-        let store = memory_store().await;
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path).await.expect("Failed to open store");
 
         store
             .create_session("session-order", "/ws", "model", "provider")
@@ -412,6 +437,11 @@ mod tests {
         let turn1 = make_messages("Turn one");
         let turn2 = make_messages("Turn two");
 
+        // Save in non-sequential order to test sorting
+        store
+            .save_turn("session-order", 2, &turn2, None)
+            .await
+            .unwrap();
         store
             .save_turn("session-order", 0, &turn0, None)
             .await
@@ -420,36 +450,13 @@ mod tests {
             .save_turn("session-order", 1, &turn1, None)
             .await
             .unwrap();
-        store
-            .save_turn("session-order", 2, &turn2, None)
-            .await
-            .unwrap();
 
         let loaded = store.load_turns("session-order").await.unwrap();
         assert_eq!(loaded.len(), 3);
         assert_eq!(loaded[0], turn0, "Turn 0 should be first");
         assert_eq!(loaded[1], turn1, "Turn 1 should be second");
         assert_eq!(loaded[2], turn2, "Turn 2 should be third");
-    }
 
-    #[tokio::test]
-    async fn save_turn_with_none_token_count() {
-        // token_count is optional — persisting None should not cause an error.
-        let store = memory_store().await;
-
-        store
-            .create_session("session-no-tokens", "/ws", "model", "provider")
-            .await
-            .expect("create_session");
-
-        let messages = make_messages("No token count here");
-        store
-            .save_turn("session-no-tokens", 0, &messages, None)
-            .await
-            .expect("save_turn with None token_count should succeed");
-
-        let loaded = store.load_turns("session-no-tokens").await.unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0], messages);
+        let _ = std::fs::remove_file(path);
     }
 }

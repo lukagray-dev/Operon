@@ -53,6 +53,11 @@ async fn test_malformed_args_marks_tool_degraded() {
 async fn test_degraded_tool_uses_detailed_definition() {
     let mut d = Dispatcher::new();
     d.register_fs_tools();
+    
+    // Since we've enabled lazy tool loading, the "read" tool (which is in the "fs" group)
+    // is not exposed in definitions() by default. We must explicitly mark the "fs" group
+    // as loaded for its definitions to show up!
+    d.mark_group_loaded("fs");
 
     // Short description is used initially
     let short_desc = d
@@ -78,6 +83,43 @@ async fn test_degraded_tool_uses_detailed_definition() {
     assert!(
         detailed_desc.len() > short_desc.len(),
         "detailed description should be longer than short"
+    );
+}
+
+#[tokio::test]
+async fn test_lazy_loading_tools() {
+    let mut d = Dispatcher::new();
+    
+    // We register the load_tools meta-tool (belongs to the "core" group)
+    // and the filesystem tools (belong to the "fs" group).
+    d.register_load_tool();
+    d.register_fs_tools();
+
+    // 1. Initially, only the bootstrap tools (in the "core" group) should be returned
+    //    by definitions(). Other tool groups (like "fs") are hidden to save token size!
+    let defs: Vec<_> = d.definitions().collect();
+    assert_eq!(defs.len(), 1, "Initially, only load_tools should be visible to the AI model");
+    assert_eq!(defs[0].name, "load_tools", "The visible tool must be load_tools");
+
+    // 2. The AI model requests loading the "fs" group.
+    let result = d.dispatch(make_call("load_tools", json!({ "group": "fs" }))).await;
+    assert!(!result.is_error, "The load_tools execution should complete successfully");
+
+    // 3. Verify that the dispatcher successfully tracked that the "fs" group is now loaded.
+    assert!(d.loaded_groups().contains("fs"), "The 'fs' group should be marked as loaded in the dispatcher");
+
+    // 4. Now, the next time definitions() is called, it should yield load_tools AND all the fs tools.
+    let defs_after: Vec<_> = d.definitions().collect();
+    // The "fs" group has 7 tools (read, grep, ls, edit, write, append, delete).
+    // Plus the 1 bootstrap tool (load_tools). Total is 8 tools.
+    assert_eq!(
+        defs_after.len(),
+        8,
+        "We expect 8 tools to be visible now that the fs group is unlocked (7 fs + 1 core)"
+    );
+    assert!(
+        defs_after.iter().any(|def| def.name == "read"),
+        "The definitions must now contain the 'read' tool"
     );
 }
 

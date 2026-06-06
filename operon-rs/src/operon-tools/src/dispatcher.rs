@@ -1,14 +1,24 @@
 //! Tool dispatcher — routes tool calls to implementations, manages tiered
-//! descriptions per session, and handles malformed call recovery.
+//! descriptions per session, handles malformed call recovery, and implements
+//! lazy-loading of tool definitions to minimize token payload sizes.
 //!
 //! # Session lifecycle
 //!
 //! Create one `Dispatcher` per agent session. It holds:
 //! - The registry of all tools available in the session.
 //! - A `HashSet` of tool names currently in "degraded" mode (detailed description active).
+//! - A `HashSet` of tool group names that have been loaded by the model in this session.
 //!
 //! On session end, drop the `Dispatcher`. A new session gets a fresh one with all tools
-//! back in short-description mode.
+//! back in short-description mode and loaded tool groups reset.
+//!
+//! # Lazy Loading of Tools
+//!
+//! To avoid 413 "Payload Too Large" errors on models with smaller context limits,
+//! the dispatcher exposes only the `load_tools` tool definition initially. The model
+//! must call `load_tools { group: "group_name" }` to retrieve the definitions for a
+//! specific tool group (like "fs"). Once loaded, those tools are unlocked and will
+//! be returned in all subsequent `definitions()` calls for the rest of the session.
 //!
 //! # Dispatch flow
 //!
@@ -26,8 +36,11 @@
 //! ```text
 //! dispatcher.definitions()
 //!   → for each registered tool:
-//!       if tool name is in degraded set → return detailed ToolDefinition
-//!       else                            → return short ToolDefinition
+//!       if tool group is "core" OR tool group has been loaded:
+//!           if tool name is in degraded set → return detailed ToolDefinition
+//!           else                            → return short ToolDefinition
+//!       else:
+//!           skip tool (not exposed to model)
 //! ```
 
 use operon_context_normalize_tools::{
@@ -114,6 +127,12 @@ pub struct Dispatcher {
     read_ledger: ReadLedger,
     /// In-memory todo list for the current agent session.
     todo_store: operon_tools_core::TodoStore,
+    /// Tool groups that the AI model has requested and loaded in this session.
+    /// By default, the AI only knows about basic/bootstrap tools (the "core" group).
+    /// If the model needs to do file operations, it calls `load_tools` for the "fs" group,
+    /// which unlocks those tools and stores "fs" here. Only tools belonging to groups
+    /// in this set (plus the bootstrap "core" group) are sent to the provider.
+    loaded_groups: HashSet<String>,
 }
 
 impl Dispatcher {
@@ -124,6 +143,9 @@ impl Dispatcher {
             degraded: HashSet::new(),
             read_ledger: ReadLedger::new(),
             todo_store: operon_tools_core::TodoStore::new(),
+            // When starting a new session, the model hasn't loaded any tool groups yet.
+            // So we start with an empty set. The model will request groups like "fs" on demand!
+            loaded_groups: HashSet::new(),
         }
     }
 
@@ -349,10 +371,20 @@ impl Dispatcher {
     /// Each tool gets its `short` definition unless it is degraded (had a malformed
     /// call earlier in this session), in which case it gets `detailed`.
     pub fn definitions(&self) -> impl Iterator<Item = &ToolDefinition> {
-        self.tools.values().map(|entry| {
-            let degraded = self.degraded.contains(entry.tiered.name());
-            entry.tiered.for_mode(degraded)
-        })
+        self.tools
+            .values()
+            .filter(|entry| {
+                // Here, we restrict what tools are visible to the model to save context tokens.
+                // 1. The "core" group (e.g. `load_tools`) is ALWAYS exposed so the model can
+                //    actually load other groups when it needs them.
+                // 2. Other tool groups (like "fs", "web", "shell") are only exposed if the model
+                //    has explicitly loaded them using the `load_tools` tool in this session.
+                entry.group == "core" || self.loaded_groups.contains(entry.group)
+            })
+            .map(|entry| {
+                let degraded = self.degraded.contains(entry.tiered.name());
+                entry.tiered.for_mode(degraded)
+            })
     }
 
     /// Returns the short-tier `ToolDefinition` for every tool in the given group.
@@ -455,6 +487,15 @@ impl Dispatcher {
                     progress.clone(),
                 )
             };
+
+            // If the model successfully called `load_tools` for a specific group (result is not an error),
+            // we record that group as "loaded". This means that starting from the NEXT turn, all tools in
+            // this group will be appended to the model's available tools array so it can call them.
+            if !result.is_error {
+                if let Some(group) = &group_arg {
+                    self.loaded_groups.insert(group.clone());
+                }
+            }
 
             emit_tool_progress(
                 progress.as_ref(),
@@ -800,6 +841,20 @@ impl Dispatcher {
     /// Primarily for testing — allows asserting ledger state after tool calls.
     pub fn read_ledger(&self) -> &ReadLedger {
         &self.read_ledger
+    }
+
+    /// Returns the set of group names the model has explicitly loaded this session.
+    /// This is helpful for serialization, testing, and debugging.
+    pub fn loaded_groups(&self) -> &HashSet<String> {
+        &self.loaded_groups
+    }
+
+    /// Mark a group as loaded — used when resuming a session that had previously
+    /// loaded tool groups (inferred from conversation history).
+    /// Since the model already knows the tool definitions from earlier in the chat,
+    /// we ensure we continue sending those tool schemas in subsequent API requests.
+    pub fn mark_group_loaded(&mut self, group: &str) {
+        self.loaded_groups.insert(group.to_string());
     }
 
     /// Returns a mutable reference to the todo store.

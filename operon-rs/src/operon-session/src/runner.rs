@@ -246,6 +246,30 @@ impl SessionRunner {
 
     /// Load conversation history, turn index, and last token count to resume a session.
     pub fn set_history(&mut self, messages: Vec<ConversationMessage>, turn_index: usize, last_token_count: Option<usize>) {
+        // When resuming an existing session, we need to inspect the conversation history
+        // to find any tool groups (like "fs") that the AI model previously requested to load.
+        // Restoring this state ensures we include those tools in the `tools` array of the very first
+        // API request of this resumed session, so the AI model can continue using them immediately.
+        for msg in &messages {
+            for block in &msg.content {
+                // We are looking for tool results in the conversation history...
+                if let ContentBlock::ToolResult(result) = block {
+                    // ...specifically, successful executions of the "load_tools" tool.
+                    if result.name == "load_tools" && !result.is_error {
+                        // The output content of load_tools is returned as a JSON structure.
+                        if let ToolContent::Json(ref json) = result.content {
+                            // Inside that JSON, the "group" key specifies which group was loaded
+                            // (for example: { "group": "fs", "tool_count": 7, "tools": [...] }).
+                            if let Some(group) = json.get("group").and_then(|v| v.as_str()) {
+                                // Mark this group as loaded in the dispatcher!
+                                self.dispatcher.mark_group_loaded(group);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         self.messages = messages;
         self.turn_index = turn_index;
         if let Some(tokens) = last_token_count {
