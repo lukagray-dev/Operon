@@ -145,14 +145,14 @@ jobs:
           $tag = "${{ steps.bump.outputs.NEW_TAG }}"
           $nsis = Get-ChildItem "target/release/bundle/nsis/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($nsis) {
-              $dest = "target/release/bundle/nsis/operon-gui-$tag.exe"
+              $dest = "operon-gui-$tag.exe"
               Copy-Item $nsis.FullName $dest
               echo "ARTIFACT_PATH=$dest" >> $env:GITHUB_ENV
               echo "Renamed NSIS installer to $dest"
           } else {
               $msi = Get-ChildItem "target/release/bundle/msi/*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
               if ($msi) {
-                  $dest = "target/release/bundle/msi/operon-gui-$tag.exe"
+                  $dest = "operon-gui-$tag.msi"
                   Copy-Item $msi.FullName $dest
                   echo "ARTIFACT_PATH=$dest" >> $env:GITHUB_ENV
                   echo "Renamed MSI installer fallback to $dest"
