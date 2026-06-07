@@ -219,21 +219,43 @@ class InputPanelController {
      * Handle keydown events in textarea
      * 
      * Keyboard shortcuts:
-     * - Enter: Send message (if not empty)
-     * - Shift+Enter: New line
+     * - If behavior is 'send' (default): Enter sends message, Shift+Enter inserts new line.
+     * - If behavior is 'newline': Ctrl+Enter (or Cmd+Enter) sends message, Enter inserts new line.
      * 
      * @param {KeyboardEvent} e - The keyboard event
      */
     handleKeyDown(e) {
-        // Enter key without Shift - send message
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (!this.isGenerating) {
-                this.sendMessage();
+        let enterBehavior = 'send';
+        try {
+            const stored = localStorage.getItem('operon-settings-general');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed.enterBehavior) {
+                    enterBehavior = parsed.enterBehavior;
+                }
+            }
+        } catch (err) {
+            console.error('Failed to read enterBehavior setting:', err);
+        }
+
+        if (enterBehavior === 'send') {
+            // Enter key without Shift - send message
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!this.isGenerating) {
+                    this.sendMessage();
+                }
+            }
+        } else {
+            // Ctrl+Enter or Cmd+Enter - send message
+            // Enter key on its own will insert a new line naturally
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (!this.isGenerating) {
+                    this.sendMessage();
+                }
             }
         }
-        
-        // Shift+Enter - allow default (new line)
     }
 
     /* ========================================================================

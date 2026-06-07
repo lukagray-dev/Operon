@@ -42,7 +42,7 @@ import { buildAboutPageContent, hydrateAboutPage } from './settings-main-content
  * (e.g., "only render if activeCategory === 'models'").
  * @type {string}
  */
-let activeCategory = 'general';
+let activeCategory = 'models';
 
 /**
  * Whether the settings dialog is currently open.
@@ -172,6 +172,10 @@ function buildCloseIconSvg() {
  * @param {string} [category='general'] - Optional: jump directly to a category.
  */
 function openSettings(category = activeCategory) {
+  const disabledCategories = ['general', 'appearance', 'channels', 'skills', 'extensions', 'about'];
+  if (disabledCategories.includes(category)) {
+    category = 'models';
+  }
   if (isOpen) {
     // If already open, just switch category if needed
     if (category !== activeCategory) {
@@ -234,8 +238,8 @@ function resetAllCategoryStates() {
  * @param {string} key - Category key (e.g. 'general', 'models').
  */
 function switchCategory(key) {
-  // Normalize the key — fall back to 'general' if unknown
-  const resolved = CATEGORIES.find(c => c.key === key) ? key : 'general';
+  // Normalize the key — fall back to 'models' if unknown
+  const resolved = CATEGORIES.find(c => c.key === key) ? key : 'models';
   activeCategory = resolved;
 
   // Update nav highlight
@@ -351,6 +355,30 @@ function handleSidebarClick(event) {
   if (!btn) return;
 
   const key = btn.getAttribute('data-settings-category');
+  if (key === 'general') {
+    alert('General settings coming soon!');
+    return;
+  }
+  if (key === 'appearance') {
+    alert('Appearance settings coming soon!');
+    return;
+  }
+  if (key === 'channels') {
+    alert('Channels settings coming soon!');
+    return;
+  }
+  if (key === 'skills') {
+    alert('Skills settings coming soon!');
+    return;
+  }
+  if (key === 'extensions') {
+    alert('Extensions settings coming soon!');
+    return;
+  }
+  if (key === 'about') {
+    alert('About settings coming soon!');
+    return;
+  }
   if (key && key !== activeCategory) {
     switchCategory(key);
   }

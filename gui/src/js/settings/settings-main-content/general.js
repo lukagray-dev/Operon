@@ -6,34 +6,39 @@
  * General settings page for the Operon settings panel.
  *
  * Covers:
- *  - App update check button
- *  - Launch at startup toggle
+ *  - App update check button (disabled / coming soon)
+ *  - Launch at startup toggle (disabled / coming soon)
  *  - Enter key behavior selector
- *  - Auto-scroll toggle
  *  - Code wrap toggle
- *  - Language selector
- *  - Keyboard shortcuts button (placeholder)
  *  - Reset to defaults button
  *  - About section at the bottom
  *
- * All settings are read from / saved to the central store.
+ * All settings are read from / saved to localStorage.
  */
 
-import { showSuccess, showError } from '../../shared/toast.js';
-import { buildSettingRow, escapeHtml } from '../settings-panel.js';
+import { showSuccess } from '../../shared/toast.js';
+import { buildSettingRow } from '../settings-panel.js';
 
-// ── Local Settings State (Placeholder UI) ────────────────────────────────────
+// ── Local Settings State (localStorage Persistent) ───────────────────────────
 
-/**
- * In-memory settings for the placeholder UI.
- */
-const localSettings = {
+const DEFAULT_SETTINGS = {
   launchAtStartup: false,
   enterBehavior: 'send',
   autoScroll: true,
   codeWrap: false,
-  language: 'en',
 };
+
+let localSettings = { ...DEFAULT_SETTINGS };
+
+// Load initially from localStorage
+try {
+  const stored = localStorage.getItem('operon-settings-general');
+  if (stored) {
+    Object.assign(localSettings, JSON.parse(stored));
+  }
+} catch (e) {
+  console.error('Failed to load general settings:', e);
+}
 
 // ── Page Builder ─────────────────────────────────────────────────────────────
 
@@ -41,16 +46,11 @@ const localSettings = {
  * Builds the full HTML for the General settings page.
  *
  * @param {Object} settings - User settings object from the store.
- * @param {Object} state    - Full app state.
  * @returns {string} HTML string.
  */
 function buildGeneralPage(settings) {
-  // Read current setting values from local settings with safe defaults
-  const launchAtStartup = Boolean(localSettings.launchAtStartup);
-  const enterBehavior   = localSettings.enterBehavior || 'send';
-  const autoScroll      = localSettings.autoScroll !== false;    // default true
-  const codeWrap        = Boolean(localSettings.codeWrap);
-  const language        = localSettings.language || 'en';
+  const enterBehavior = localSettings.enterBehavior || 'send';
+  const codeWrap      = Boolean(localSettings.codeWrap);
 
   return `
     <div class="settings-page settings-general">
@@ -70,8 +70,8 @@ function buildGeneralPage(settings) {
       ${buildSettingRow(
         'Launch at startup',
         'Start Operon automatically when you log in',
-        `<label class="setting-toggle">
-           <input type="checkbox" id="setting-launch-startup" ${launchAtStartup ? 'checked' : ''}>
+        `<label class="setting-toggle" style="opacity: 0.6; cursor: not-allowed;">
+           <input type="checkbox" id="setting-launch-startup" disabled>
            <span class="setting-toggle__slider"></span>
          </label>`
       )}
@@ -86,16 +86,6 @@ function buildGeneralPage(settings) {
          </select>`
       )}
 
-      <!-- ── Auto-Scroll ───────────────────────────────────────────────── -->
-      ${buildSettingRow(
-        'Auto-scroll',
-        'Automatically scroll to the latest message',
-        `<label class="setting-toggle">
-           <input type="checkbox" id="setting-auto-scroll" ${autoScroll ? 'checked' : ''}>
-           <span class="setting-toggle__slider"></span>
-         </label>`
-      )}
-
       <!-- ── Code Wrap ─────────────────────────────────────────────────── -->
       ${buildSettingRow(
         'Code wrap',
@@ -104,21 +94,6 @@ function buildGeneralPage(settings) {
            <input type="checkbox" id="setting-code-wrap" ${codeWrap ? 'checked' : ''}>
            <span class="setting-toggle__slider"></span>
          </label>`
-      )}
-
-      <!-- ── Language ──────────────────────────────────────────────────── -->
-      ${buildSettingRow(
-        'Language',
-        'Select your preferred display language',
-        `<select class="setting-select" id="setting-language">
-           <option value="en" ${language === 'en' ? 'selected' : ''}>English</option>
-           <option value="es" ${language === 'es' ? 'selected' : ''}>Spanish</option>
-           <option value="fr" ${language === 'fr' ? 'selected' : ''}>French</option>
-           <option value="de" ${language === 'de' ? 'selected' : ''}>German</option>
-           <option value="zh" ${language === 'zh' ? 'selected' : ''}>Chinese</option>
-           <option value="ja" ${language === 'ja' ? 'selected' : ''}>Japanese</option>
-           <option value="pt" ${language === 'pt' ? 'selected' : ''}>Portuguese</option>
-         </select>`
       )}
 
       <!-- ── Reset to Defaults ─────────────────────────────────────────── -->
@@ -137,23 +112,19 @@ function buildGeneralPage(settings) {
 
 /**
  * Reads all General settings controls from the DOM and saves them to the store.
- * Called when the user interacts with controls that have immediate effect,
- * or from the "Check for updates" button handler in settings-panel.js.
  */
 function saveSettings() {
-  // Read each control's current value from the DOM
-  const autoScrollEl     = /** @type {HTMLInputElement|null}  */ (document.getElementById('setting-auto-scroll'));
-  const codeWrapEl       = /** @type {HTMLInputElement|null}  */ (document.getElementById('setting-code-wrap'));
-  const launchStartupEl  = /** @type {HTMLInputElement|null}  */ (document.getElementById('setting-launch-startup'));
-  const enterBehaviorEl  = /** @type {HTMLSelectElement|null} */ (document.getElementById('setting-enter-behavior'));
-  const languageEl       = /** @type {HTMLSelectElement|null} */ (document.getElementById('setting-language'));
+  const codeWrapEl      = /** @type {HTMLInputElement|null}  */ (document.getElementById('setting-code-wrap'));
+  const enterBehaviorEl = /** @type {HTMLSelectElement|null} */ (document.getElementById('setting-enter-behavior'));
 
-  // Merge new values into local settings
-  if (autoScrollEl)    localSettings.autoScroll      = autoScrollEl.checked;
-  if (codeWrapEl)      localSettings.codeWrap         = codeWrapEl.checked;
-  if (launchStartupEl) localSettings.launchAtStartup  = launchStartupEl.checked;
-  if (enterBehaviorEl) localSettings.enterBehavior    = enterBehaviorEl.value;
-  if (languageEl)      localSettings.language         = languageEl.value;
+  if (codeWrapEl)      localSettings.codeWrap      = codeWrapEl.checked;
+  if (enterBehaviorEl) localSettings.enterBehavior = enterBehaviorEl.value;
+
+  try {
+    localStorage.setItem('operon-settings-general', JSON.stringify(localSettings));
+  } catch (e) {
+    console.error('Failed to save general settings:', e);
+  }
 
   showSuccess('Settings saved');
 }
@@ -162,16 +133,20 @@ function saveSettings() {
  * Resets all General settings to their default values and shows a toast.
  */
 function resetToDefaults() {
-  const defaults = {
-    launchAtStartup: false,
-    enterBehavior: 'send',
-    autoScroll: true,
-    codeWrap: false,
-    language: 'en',
-  };
+  localSettings = { ...DEFAULT_SETTINGS };
+  try {
+    localStorage.setItem('operon-settings-general', JSON.stringify(localSettings));
+  } catch (e) {
+    console.error('Failed to save general settings:', e);
+  }
 
-  // Reset to defaults
-  Object.assign(localSettings, defaults);
+  // Update UI values immediately if they exist in DOM
+  const codeWrapEl      = /** @type {HTMLInputElement|null}  */ (document.getElementById('setting-code-wrap'));
+  const enterBehaviorEl = /** @type {HTMLSelectElement|null} */ (document.getElementById('setting-enter-behavior'));
+  
+  if (codeWrapEl)      codeWrapEl.checked = localSettings.codeWrap;
+  if (enterBehaviorEl) enterBehaviorEl.value = localSettings.enterBehavior;
+
   showSuccess('Settings reset to defaults');
 }
 
@@ -179,32 +154,41 @@ function resetToDefaults() {
 
 /**
  * Attaches DOM event listeners to the General settings page controls.
- * Call this after injecting the page HTML into the DOM.
  *
  * @param {HTMLElement} container - The settings main content element.
  */
 function hydrateGeneralPage(container) {
   if (!container) return;
 
-  // Auto-save on each control change — no explicit Save button needed
+  // Auto-save on each control change
   const autoSaveInputs = [
-    '#setting-auto-scroll',
     '#setting-code-wrap',
-    '#setting-launch-startup',
     '#setting-enter-behavior',
-    '#setting-language',
   ];
 
   autoSaveInputs.forEach(selector => {
     container.querySelector(selector)?.addEventListener('change', saveSettings);
   });
 
-  // "Check for updates" — wired externally by settings-panel.js but
-  // bind here too as a safety net
-  container.querySelector('#btn-check-updates')?.addEventListener('click', () => {
-    // TODO: call ipc.checkForUpdates() when available
-    showSuccess('Checking for updates...');
+  // "Check for updates" dialogue
+  container.querySelector('#btn-check-updates')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    alert('This functionality is coming soon.');
   });
+
+  // "Launch at startup" dialogue
+  const launchStartupEl = container.querySelector('#setting-launch-startup');
+  if (launchStartupEl) {
+    const parentToggle = launchStartupEl.closest('.setting-toggle');
+    if (parentToggle) {
+      parentToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        alert('Launch at startup feature is coming soon!');
+      });
+    }
+  }
 
   // Reset all settings to defaults
   container.querySelector('#btn-reset-defaults')?.addEventListener('click', () => {

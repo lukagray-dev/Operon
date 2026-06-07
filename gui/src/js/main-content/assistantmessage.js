@@ -276,12 +276,27 @@ class AssistantMessageController {
     }
 
     /**
-     * Scroll messages container to bottom
+     * Scroll messages container to bottom if auto-scroll is enabled
      */
     scrollToBottom() {
         if (!this.messagesContainer) return;
 
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        let autoScroll = true;
+        try {
+            const stored = localStorage.getItem('operon-settings-general');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed.autoScroll === false) {
+                    autoScroll = false;
+                }
+            }
+        } catch (err) {
+            console.error('Failed to read autoScroll setting:', err);
+        }
+
+        if (autoScroll) {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
     }
 
     /* ========================================================================
