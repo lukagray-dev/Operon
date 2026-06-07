@@ -143,23 +143,15 @@ jobs:
         shell: powershell
         run: |
           $tag = "${{ steps.bump.outputs.NEW_TAG }}"
-          $nsis = Get-ChildItem "target/release/bundle/nsis/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($nsis) {
+          $bin = "target/release/operon-gui.exe"
+          if (Test-Path $bin) {
               $dest = "operon-gui-$tag.exe"
-              Copy-Item $nsis.FullName $dest
+              Copy-Item $bin $dest
               echo "ARTIFACT_PATH=$dest" >> $env:GITHUB_ENV
-              echo "Renamed NSIS installer to $dest"
+              echo "Renamed standalone binary to $dest"
           } else {
-              $msi = Get-ChildItem "target/release/bundle/msi/*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($msi) {
-                  $dest = "operon-gui-$tag.msi"
-                  Copy-Item $msi.FullName $dest
-                  echo "ARTIFACT_PATH=$dest" >> $env:GITHUB_ENV
-                  echo "Renamed MSI installer fallback to $dest"
-              } else {
-                  Write-Error "No NSIS (.exe) or MSI (.msi) installer bundle found!"
-                  exit 1
-              }
+              Write-Error "Standalone binary not found at $bin!"
+              exit 1
           }
 
       # Upload the renamed installer so it is accessible to the release job.
