@@ -53,6 +53,8 @@ fn main() {
             commands::session_commands::answer_ask,
             commands::session_commands::open_project_folder,
             commands::session_commands::get_default_workspace,
+            commands::session_commands::delete_session,
+            commands::session_commands::delete_project,
         ])
         // Setup window and app configuration
         .setup(|app| {

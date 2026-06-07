@@ -118,9 +118,17 @@ class SessionManager {
     /**
      * Start a brand new, empty chat session.
      * Clears messages, hides empty state, and updates the title.
+     *
+     * Hey friend! We've updated this function to accept an optional `projectDir` parameter.
+     * When starting a new chat:
+     * - If `projectDir` is provided, we bind the new chat session to that project path.
+     * - If `projectDir` is null/omitted, it will be a normal standalone chat session.
+     *
+     * @param {string|null} [projectDir=null] - Optional project path to create a project-specific chat
      */
-    startNewChat() {
+    startNewChat(projectDir = null) {
         this.activeSessionId = null;
+        this.currentProjectDir = projectDir;
         this.resetStreamingState();
         
         // Clear diagnostics bar if visible
@@ -223,11 +231,33 @@ class SessionManager {
                 chatText.className = 'left-sidebar__chat-text';
                 chatText.textContent = chat.title;
                 
+                // Hey friend! We create a delete button for this individual standalone chat session.
+                // It utilizes the delete.svg icon and triggers the deleteSession API when clicked.
+                const deleteBtn = document.createElement('span');
+                deleteBtn.className = 'left-sidebar__chat-delete';
+                deleteBtn.setAttribute('role', 'button');
+                deleteBtn.setAttribute('aria-label', `Delete chat: ${chat.title}`);
+                
+                const deleteImg = document.createElement('img');
+                deleteImg.src = './assets/icons/sidebar/delete.svg';
+                deleteImg.alt = 'Delete Chat';
+                deleteImg.className = 'left-sidebar__chat-delete-icon';
+                deleteBtn.appendChild(deleteImg);
+                
                 chatBtn.appendChild(chatText);
+                chatBtn.appendChild(deleteBtn);
                 
                 chatBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.selectSession(chat.id);
+                });
+                
+                // Hey friend! We prevent click event propagation so that selecting/opening the session isn't triggered
+                // when the user is trying to delete the session.
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    this.deleteSession(chat.id);
                 });
                 
                 chatsContent.appendChild(chatBtn);
@@ -289,7 +319,9 @@ class SessionManager {
             const history = await IPC.getSessionHistory(sessionId);
             
             if (history.length === 0) {
-                this.startNewChat();
+                // Hey friend! Since the history is empty, we start a new chat, but preserve
+                // the current project directory configuration so the user stays in the project context.
+                this.startNewChat(this.currentProjectDir);
                 return;
             }
             
@@ -351,8 +383,9 @@ class SessionManager {
         try {
             const projectPath = await IPC.openProjectFolder();
             if (projectPath) {
-                this.currentProjectDir = projectPath;
-                this.startNewChat();
+                // Hey friend! We pass the project path to startNewChat so the newly initialized
+                // session is correctly bound as a project-specific chat.
+                this.startNewChat(projectPath);
                 
                 // Show a toast or success notification
                 showSuccess(`Opened project: ${projectPath.split(/[/\\]/).pop() || projectPath}`);
@@ -367,6 +400,61 @@ class SessionManager {
             console.error('Failed to open project:', error);
             showError(`Failed to open project: ${error.message || error}`);
             throw error;
+        }
+    }
+
+    /**
+     * Delete a specific chat session.
+     *
+     * Hey friend! This method triggers the deleteSession IPC command. If the deleted session
+     * was the currently active one, we start a new empty chat. Finally, we reload the sessions list
+     * to refresh the sidebar.
+     *
+     * @param {string} sessionId - The session ID to delete
+     */
+    async deleteSession(sessionId) {
+        try {
+            // Hey friend! The backend now shows a native confirmation dialog and returns true/false.
+            const confirmed = await IPC.deleteSession(sessionId);
+            if (confirmed) {
+                showSuccess('Chat session deleted.');
+                if (this.activeSessionId === sessionId) {
+                    this.startNewChat();
+                }
+                await this.loadSessionsList();
+            }
+        } catch (error) {
+            console.error('Failed to delete session:', error);
+            showError('Failed to delete chat session.');
+        }
+    }
+
+    /**
+     * Delete a project and all its nested chat sessions.
+     *
+     * Hey friend! This method triggers the deleteProject IPC command. If the active session's workspace
+     * belongs to the deleted project, we start a new empty chat. Finally, we reload the sessions list.
+     *
+     * @param {string} projectPath - The project path to delete
+     */
+    async deleteProject(projectPath) {
+        try {
+            // Hey friend! The backend shows a native confirmation dialog and returns true/false.
+            const confirmed = await IPC.deleteProject(projectPath);
+            if (confirmed) {
+                showSuccess('Project deleted.');
+                
+                // Check if active session was in this project
+                const activeSession = this.sessions?.find(s => s.id === this.activeSessionId);
+                if (activeSession && activeSession.workspace === projectPath) {
+                    this.startNewChat();
+                }
+                
+                await this.loadSessionsList();
+            }
+        } catch (error) {
+            console.error('Failed to delete project:', error);
+            showError('Failed to delete project.');
         }
     }
 

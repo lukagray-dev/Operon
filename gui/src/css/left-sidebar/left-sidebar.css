@@ -398,7 +398,7 @@ body.sidebar-closed .input-panel {
     width: var(--sidebar-project-chevron-size);
     height: var(--sidebar-project-chevron-size);
     flex-shrink: 0;
-    margin-left: auto;
+    margin-left: 3px; /* Hey friend! We decreased this to 3px to keep it closer to the delete button */
     pointer-events: none;
     filter: var(--filter-sidebar-muted);
     transition: transform var(--sidebar-transition-normal) var(--sidebar-ease-out);
@@ -410,6 +410,128 @@ body.sidebar-closed .input-panel {
 
 .left-sidebar__project-toggle.collapsed .left-sidebar__project-chevron {
     transform: rotate(-90deg);
+}
+
+/**
+ * Hey friend! These are the styles for the new chat icon in each project.
+ * It is positioned to the left of the project expansion chevron.
+ * We hide it by default (opacity: 0) and fade it in when the project row is hovered.
+ */
+.left-sidebar__project-new-chat {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--sidebar-radius-sm);
+    margin-left: auto; /* Push the new-chat button and chevron to the right */
+    transition: background-color var(--sidebar-transition-fast) var(--sidebar-ease-in-out),
+                opacity var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+/* Show the icon when the user hovers over the project row */
+.left-sidebar__project-toggle:hover .left-sidebar__project-new-chat {
+    opacity: 0.6;
+}
+
+/* Make it brighter when hovered directly */
+.left-sidebar__project-new-chat:hover {
+    opacity: 1 !important;
+}
+
+.left-sidebar__project-new-chat-icon {
+    width: 12px;
+    height: 12px;
+    filter: var(--filter-sidebar-muted);
+    transition: filter var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+}
+
+.left-sidebar__project-new-chat:hover .left-sidebar__project-new-chat-icon {
+    filter: var(--filter-sidebar-hover);
+}
+
+/**
+ * Hey friend! These are the styles for the delete button next to each project.
+ * It appears right after the project new chat button.
+ */
+.left-sidebar__project-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--sidebar-radius-sm);
+    margin-left: 3px; /* Hey friend! Decreased to 3px to bring it closer to the new chat button */
+    transition: opacity var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+/* Show the project delete icon when hovering over the project row */
+.left-sidebar__project-toggle:hover .left-sidebar__project-delete {
+    opacity: 0.6;
+}
+
+/* Make it brighter when hovered directly */
+.left-sidebar__project-delete:hover {
+    opacity: 1 !important;
+}
+
+.left-sidebar__project-delete-icon {
+    width: 12px;
+    height: 12px;
+    filter: var(--filter-sidebar-muted);
+    transition: filter var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+}
+
+/* We transition to a red color on hover to represent the destructive delete operation */
+.left-sidebar__project-delete:hover .left-sidebar__project-delete-icon {
+    filter: invert(36%) sepia(85%) saturate(1900%) hue-rotate(340deg) brightness(85%) contrast(90%);
+}
+
+/**
+ * Hey friend! These are the styles for the delete button inside individual session items.
+ * It is pushed to the far right end of the item.
+ */
+.left-sidebar__chat-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--sidebar-radius-sm);
+    margin-left: auto; /* Push to the right end */
+    margin-right: 4px; /* Hey friend! We added 4px margin-right to pull the button slightly left of the far edge */
+    transition: opacity var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+/* Show the chat delete icon when hovering over the chat item row */
+.left-sidebar__chat-item:hover .left-sidebar__chat-delete {
+    opacity: 0.6;
+}
+
+/* Make it brighter when hovered directly */
+.left-sidebar__chat-delete:hover {
+    opacity: 1 !important;
+}
+
+.left-sidebar__chat-delete-icon {
+    width: 11px;
+    height: 11px;
+    filter: var(--filter-sidebar-muted);
+    transition: filter var(--sidebar-transition-fast) var(--sidebar-ease-in-out);
+}
+
+/* Red color on hover to indicate destructive action */
+.left-sidebar__chat-delete:hover .left-sidebar__chat-delete-icon {
+    filter: invert(36%) sepia(85%) saturate(1900%) hue-rotate(340deg) brightness(85%) contrast(90%);
 }
 
 .left-sidebar__project-name {

@@ -324,3 +324,21 @@ export async function renderMarkdown(markdown) {
     return await invoke('render_markdown', { markdown });
 }
 
+/**
+ * Delete a specific session by its ID.
+ * @param {string} sessionId - The session ID to delete.
+ * @returns {Promise<void>}
+ */
+export async function deleteSession(sessionId) {
+    return await invoke('delete_session', { sessionId: normalizeString(sessionId) });
+}
+
+/**
+ * Delete a project and all its associated session databases.
+ * @param {string} projectPath - The project workspace path to delete.
+ * @returns {Promise<void>}
+ */
+export async function deleteProject(projectPath) {
+    return await invoke('delete_project', { projectPath: normalizeString(projectPath) });
+}
+

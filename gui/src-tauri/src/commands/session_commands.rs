@@ -436,3 +436,136 @@ pub async fn get_default_workspace() -> Result<String, String> {
         .map_err(|e| e.to_string())?;
     Ok(paths.workspace_dir.to_string_lossy().to_string())
 }
+
+/// Delete a specific chat session by deleting its JSON file and terminating its runner if active.
+///
+/// Hey friend! This command resolves the session's JSON storage file path and deletes it from
+/// the ~/.operon/sessions directory. If the session is currently active/running, we send a cancel
+/// signal to the running agent thread to terminate it safely.
+/// We show a native confirmation dialog before deletion.
+#[tauri::command]
+pub async fn delete_session(
+    app: tauri::AppHandle,
+    session_id: String,
+    state: State<'_, SharedState>
+) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    // Hey buddy! We show a native message confirmation dialog.
+    let confirmed = app.dialog()
+        .message("Are you sure you want to delete this chat session?")
+        .title("Delete Chat Session")
+        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancel)
+        .blocking_show();
+
+    if !confirmed {
+        return Ok(false);
+    }
+
+    let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
+    let json_path = paths.session_db(&session_id);
+    
+    // If the session is currently active/running, cancel it first
+    let tx = {
+        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+        state_guard.active_sessions.get(&session_id).cloned()
+    };
+    if let Some(tx) = tx {
+        let _ = tx.send(SessionCommand::Cancel).await;
+        // Remove it from active sessions list
+        if let Ok(mut lock) = state.lock() {
+            lock.active_sessions.remove(&session_id);
+        }
+    }
+
+    if json_path.exists() {
+        std::fs::remove_file(json_path).map_err(|e| format!("Failed to delete session file: {}", e))?;
+    }
+    Ok(true)
+}
+
+/// Delete a project and all its associated chat sessions.
+///
+/// Hey friend! This command scans the sessions folder, reads every session file, and deletes any
+/// file whose workspace matches the target project path. It also terminates any active runners
+/// running for those sessions, and finally removes the project from the allowed list in config.toml.
+/// We show a native confirmation dialog before deletion.
+#[tauri::command]
+pub async fn delete_project(
+    app: tauri::AppHandle,
+    project_path: String,
+    state: State<'_, SharedState>
+) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let project_name = std::path::Path::new(&project_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Project");
+
+    // Hey buddy! We show a native message confirmation dialog.
+    let confirmed = app.dialog()
+        .message(format!(
+            "Are you sure you want to delete project \"{}\"? This will delete all its chat sessions and remove it from the sidebar.",
+            project_name
+        ))
+        .title("Delete Project")
+        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancel)
+        .blocking_show();
+
+    if !confirmed {
+        return Ok(false);
+    }
+
+    let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
+    let sessions_dir = paths.sessions_dir;
+
+    let target_canon = std::path::PathBuf::from(&project_path)
+        .canonicalize()
+        .unwrap_or_else(|_| std::path::PathBuf::from(&project_path))
+        .to_string_lossy()
+        .to_string();
+
+    if sessions_dir.exists() {
+        let entries = std::fs::read_dir(sessions_dir).map_err(|e| e.to_string())?;
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.extension().map_or(false, |ext| ext == "json") {
+                    if let Ok(store) = SessionStore::open(&path).await {
+                        if let Ok(rows) = store.list_sessions().await {
+                            if let Some(row) = rows.first() {
+                                let row_canon = std::path::PathBuf::from(&row.workspace)
+                                    .canonicalize()
+                                    .unwrap_or_else(|_| std::path::PathBuf::from(&row.workspace))
+                                    .to_string_lossy()
+                                    .to_string();
+
+                                if row_canon == target_canon {
+                                    // Cancel if active
+                                    let tx = {
+                                        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+                                        state_guard.active_sessions.get(&row.id).cloned()
+                                    };
+                                    if let Some(tx) = tx {
+                                        let _ = tx.send(SessionCommand::Cancel).await;
+                                        if let Ok(mut lock) = state.lock() {
+                                            lock.active_sessions.remove(&row.id);
+                                        }
+                                    }
+                                    // Delete the session JSON file
+                                    let _ = std::fs::remove_file(path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove the project path from allowed directories in config.toml
+    let _ = operon_rs::config::remove_allowed_directory(&project_path);
+
+    Ok(true)
+}

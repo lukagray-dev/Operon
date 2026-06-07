@@ -330,18 +330,67 @@ class LeftSidebarController {
         nameSpan.className = 'left-sidebar__project-name';
         nameSpan.textContent = project.name;
 
+        // Hey friend! We create a project-specific "New chat" button next to each project.
+        // It uses the new-chat.svg icon and triggers a project-specific session.
+        const newChatBtn = document.createElement('span');
+        newChatBtn.className = 'left-sidebar__project-new-chat';
+        newChatBtn.setAttribute('role', 'button');
+        newChatBtn.setAttribute('aria-label', `Start new chat in ${project.name}`);
+
+        const newChatImg = document.createElement('img');
+        newChatImg.src = './assets/icons/sidebar/new-chat.svg';
+        newChatImg.alt = 'New Chat';
+        newChatImg.className = 'left-sidebar__project-new-chat-icon';
+        newChatBtn.appendChild(newChatImg);
+
+        // Hey friend! We create a project-specific "Delete" button next to each project (after new chat).
+        // It uses the delete.svg icon and deletes the project and all its session databases.
+        const deleteBtn = document.createElement('span');
+        deleteBtn.className = 'left-sidebar__project-delete';
+        deleteBtn.setAttribute('role', 'button');
+        deleteBtn.setAttribute('aria-label', `Delete project ${project.name}`);
+
+        const deleteImg = document.createElement('img');
+        deleteImg.src = './assets/icons/sidebar/delete.svg';
+        deleteImg.alt = 'Delete Project';
+        deleteImg.className = 'left-sidebar__project-delete-icon';
+        deleteBtn.appendChild(deleteImg);
+
         // Chevron icon (on the right)
         const chevronImg = document.createElement('img');
         chevronImg.src = './assets/icons/sidebar/chevron-down.svg';
         chevronImg.alt = 'Toggle';
         chevronImg.className = 'left-sidebar__project-chevron';
 
-        // Assemble toggle button (icon, name, then chevron on right)
+        // Assemble toggle button (icon, name, new chat button, delete button, then chevron on right)
         toggleBtn.appendChild(folderImg);
         toggleBtn.appendChild(nameSpan);
+        toggleBtn.appendChild(newChatBtn);
+        toggleBtn.appendChild(deleteBtn);
         toggleBtn.appendChild(chevronImg);
         headerDiv.appendChild(toggleBtn);
         projectDiv.appendChild(headerDiv);
+
+        // Hey friend! Here we hook up the click event listener to the new chat button.
+        // We stop propagation so that clicking it doesn't collapse or expand the project folder tree!
+        newChatBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log(`Creating new chat for project: ${project.id}`);
+            if (window.sessionManager) {
+                window.sessionManager.startNewChat(project.id);
+            }
+        });
+
+        // Hey friend! Hook up the click event listener to the project delete button.
+        // We stop propagation so clicking it doesn't toggle folder expansion. The backend handles the native dialog confirmation!
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (window.sessionManager) {
+                window.sessionManager.deleteProject(project.id);
+            }
+        });
 
         // Create project chats container
         const chatsDiv = document.createElement('div');
@@ -436,12 +485,34 @@ class LeftSidebarController {
         chatText.className = 'left-sidebar__chat-text';
         chatText.textContent = chat.title;
 
+        // Hey friend! We create a delete button for this individual project chat session.
+        const deleteBtn = document.createElement('span');
+        deleteBtn.className = 'left-sidebar__chat-delete';
+        deleteBtn.setAttribute('role', 'button');
+        deleteBtn.setAttribute('aria-label', `Delete chat: ${chat.title}`);
+
+        const deleteImg = document.createElement('img');
+        deleteImg.src = './assets/icons/sidebar/delete.svg';
+        deleteImg.alt = 'Delete Chat';
+        deleteImg.className = 'left-sidebar__chat-delete-icon';
+        deleteBtn.appendChild(deleteImg);
+
         chatBtn.appendChild(chatText);
+        chatBtn.appendChild(deleteBtn);
 
         // Add click listener for chat selection
         chatBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.selectChat(chat.id);
+        });
+
+        // Add click listener for individual session deletion. The backend handles the native dialog confirmation!
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (window.sessionManager) {
+                window.sessionManager.deleteSession(chat.id);
+            }
         });
 
         return chatBtn;
