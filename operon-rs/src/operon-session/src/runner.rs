@@ -448,6 +448,8 @@ impl SessionRunner {
                 &api_key,
                 body,
                 &self.event_tx,
+                &mut self.cmd_rx,
+                &mut self.pending_commands,
             )
             .await
             .map_err(|e| {

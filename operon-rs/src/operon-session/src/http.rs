@@ -17,6 +17,7 @@
 // SessionError::Http, because reqwest::Error does not expose a constructor for
 // status-level errors. See PROMPT.md §Implementation Notes #2.
 
+use std::collections::VecDeque;
 use futures::StreamExt;
 use reqwest::Client;
 use serde_json::Value;
@@ -26,10 +27,11 @@ use operon_context_normalize_messages::StopReason;
 use operon_context_normalize_stream::types::StreamEvent;
 use operon_context_normalize_stream::{new_assembler, parse_line, AssemblerOutput};
 use operon_context_normalize_tools::ToolCall;
-use operon_events::SessionEvent;
+use operon_events::{SessionCommand, SessionEvent};
 use operon_providers::Provider;
 
 use crate::error::SessionError;
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StreamResult
@@ -128,6 +130,8 @@ pub async fn send_streaming(
     api_key: &str,
     body: Value,
     event_tx: &mpsc::Sender<SessionEvent>,
+    cmd_rx: &mut mpsc::Receiver<SessionCommand>,
+    pending_commands: &mut VecDeque<SessionCommand>,
 ) -> Result<StreamResult, SessionError> {
     // Build provider-specific headers.
     let headers = build_headers(provider, api_key);
@@ -171,99 +175,138 @@ pub async fn send_streaming(
     let mut line_buf = String::new();
 
     // Process the byte stream chunk by chunk.
-    while let Some(chunk) = byte_stream.next().await {
-        // Propagate network errors (dropped connection, TLS error, etc.).
-        let chunk = chunk?; // reqwest::Error → SessionError::Http
-        let chunk_str = String::from_utf8_lossy(&chunk);
+    loop {
+        // Drain any immediately available commands to check if we received a Cancel command
+        // before we block on stream data.
+        while let Ok(cmd) = cmd_rx.try_recv() {
+            pending_commands.push_back(cmd);
+        }
 
-        // Walk through the chunk character by character to split on newlines.
-        for ch in chunk_str.chars() {
-            if ch == '\n' {
-                // Complete line ready — trim trailing whitespace (carriage return, spaces).
-                let line = line_buf.trim().to_string();
-                line_buf.clear();
+        if pending_commands.iter().any(|cmd| matches!(cmd, SessionCommand::Cancel)) {
+            tracing::info!("Cancellation detected during stream init or progress; stopping stream.");
+            result.stop_reason = Some(StopReason::Stop);
+            break;
+        }
 
-                // SSE protocol: lines not starting with "data: " are either
-                // event type lines ("event: ..."), keepalive pings (":"), or
-                // empty separators. We only care about data lines.
-                let payload = match line.strip_prefix("data: ") {
-                    Some(p) => p,
-                    None => continue,
+        tokio::select! {
+            chunk_opt = byte_stream.next() => {
+                let chunk = match chunk_opt {
+                    Some(chunk) => chunk,
+                    None => break, // Stream ended normally
                 };
 
-                // Parse the SSE payload into canonical stream events.
-                // parse_line handles "[DONE]" and empty payloads gracefully.
-                let events = parse_line(payload, provider)
-                    .map_err(|e| SessionError::Stream(e.to_string()))?;
+                // Propagate network errors (dropped connection, TLS error, etc.).
+                let chunk = chunk?; // reqwest::Error → SessionError::Http
+                let chunk_str = String::from_utf8_lossy(&chunk);
 
-                for event in events {
-                    // Capture usage metadata before pushing to assembler — the
-                    // assembler returns Pending for UsageMeta events.
-                    if let StreamEvent::UsageMeta { raw } = &event {
-                        result.usage_raw = Some(raw.clone());
-                    }
+                // Walk through the chunk character by character to split on newlines.
+                for ch in chunk_str.chars() {
+                    if ch == '\n' {
+                        // Complete line ready — trim trailing whitespace (carriage return, spaces).
+                        let line = line_buf.trim().to_string();
+                        line_buf.clear();
 
-                    // Feed the event into the assembler. The assembler converts
-                    // fragmented events into complete output items.
-                    match assembler
-                        .push(event)
-                        .map_err(|e| SessionError::Stream(e.to_string()))?
-                    {
-                        // Complete text delta — send to UI immediately and accumulate.
-                        AssemblerOutput::Text(text) => {
-                            result.text.push_str(&text);
-                            // Best-effort send — we don't care if the receiver is closed.
-                            let _ = event_tx.send(SessionEvent::TextDelta { text }).await;
+                        // SSE protocol: lines not starting with "data: " are either
+                        // event type lines ("event: ..."), keepalive pings (":"), or
+                        // empty separators. We only care about data lines.
+                        let payload = match line.strip_prefix("data: ") {
+                            Some(p) => p,
+                            None => continue,
+                        };
+
+                        // Parse the SSE payload into canonical stream events.
+                        // parse_line handles "[DONE]" and empty payloads gracefully.
+                        let events = parse_line(payload, provider)
+                            .map_err(|e| SessionError::Stream(e.to_string()))?;
+
+                        for event in events {
+                            // Capture usage metadata before pushing to assembler — the
+                            // assembler returns Pending for UsageMeta events.
+                            if let StreamEvent::UsageMeta { raw } = &event {
+                                result.usage_raw = Some(raw.clone());
+                            }
+
+                            // Feed the event into the assembler. The assembler converts
+                            // fragmented events into complete output items.
+                            match assembler
+                                .push(event)
+                                .map_err(|e| SessionError::Stream(e.to_string()))?
+                            {
+                                // Complete text delta — send to UI immediately and accumulate.
+                                AssemblerOutput::Text(text) => {
+                                    result.text.push_str(&text);
+                                    // Best-effort send — we don't care if the receiver is closed.
+                                    let _ = event_tx.send(SessionEvent::TextDelta { text }).await;
+                                }
+
+                                // Reasoning block flushed — send to UI for display.
+                                AssemblerOutput::Reasoning { text, .. } => {
+                                    let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
+                                }
+
+                                // Complete tool call — notify UI with start then args.
+                                AssemblerOutput::ToolCall(call) => {
+                                    // Serialize the call arguments for the ToolCallArgsReady event.
+                                    // unwrap_or_default is safe — serde_json::to_string only fails on
+                                    // non-serializable types, and ToolCall.arguments is a serde_json::Value.
+                                    let args_json =
+                                        serde_json::to_string(&call.arguments).unwrap_or_default();
+
+                                    // Fire ToolCallStart FIRST — tells the TUI a dispatch is imminent.
+                                    let _ = event_tx
+                                        .send(SessionEvent::ToolCallStart {
+                                            call_id: call.id.0.clone(),
+                                            name: call.name.clone(),
+                                        })
+                                        .await;
+
+                                    // Fire ToolCallArgsReady SECOND — full args are now available.
+                                    // The TUI can show an expandable "Arguments" section.
+                                    let _ = event_tx
+                                        .send(SessionEvent::ToolCallArgsReady {
+                                            call_id: call.id.0.clone(),
+                                            name: call.name.clone(),
+                                            args_json,
+                                        })
+                                        .await;
+                                    result.tool_calls.push(call);
+                                }
+
+                                // Stream ended — record the stop reason.
+                                AssemblerOutput::StreamEnded { stop_reason } => {
+                                    result.stop_reason = stop_reason;
+                                }
+
+                                // Assembler buffered state internally — no external output yet.
+                                AssemblerOutput::Pending => {}
+                            }
                         }
-
-                        // Reasoning block flushed — send to UI for display.
-                        AssemblerOutput::Reasoning { text, .. } => {
-                            let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
-                        }
-
-                        // Complete tool call — notify UI with start then args.
-                        AssemblerOutput::ToolCall(call) => {
-                            // Serialize the call arguments for the ToolCallArgsReady event.
-                            // unwrap_or_default is safe — serde_json::to_string only fails on
-                            // non-serializable types, and ToolCall.arguments is a serde_json::Value.
-                            let args_json =
-                                serde_json::to_string(&call.arguments).unwrap_or_default();
-
-                            // Fire ToolCallStart FIRST — tells the TUI a dispatch is imminent.
-                            let _ = event_tx
-                                .send(SessionEvent::ToolCallStart {
-                                    call_id: call.id.0.clone(),
-                                    name: call.name.clone(),
-                                })
-                                .await;
-
-                            // Fire ToolCallArgsReady SECOND — full args are now available.
-                            // The TUI can show an expandable "Arguments" section.
-                            let _ = event_tx
-                                .send(SessionEvent::ToolCallArgsReady {
-                                    call_id: call.id.0.clone(),
-                                    name: call.name.clone(),
-                                    args_json,
-                                })
-                                .await;
-                            result.tool_calls.push(call);
-                        }
-
-                        // Stream ended — record the stop reason.
-                        AssemblerOutput::StreamEnded { stop_reason } => {
-                            result.stop_reason = stop_reason;
-                        }
-
-                        // Assembler buffered state internally — no external output yet.
-                        AssemblerOutput::Pending => {}
+                    } else {
+                        // Not a newline — accumulate into the current line buffer.
+                        line_buf.push(ch);
                     }
                 }
-            } else {
-                // Not a newline — accumulate into the current line buffer.
-                line_buf.push(ch);
+            }
+            cmd_opt = cmd_rx.recv() => {
+                match cmd_opt {
+                    Some(cmd) => {
+                        let is_cancel = matches!(cmd, SessionCommand::Cancel);
+                        pending_commands.push_back(cmd);
+                        if is_cancel {
+                            tracing::info!("Cancellation received mid-stream; breaking stream select loop.");
+                            result.stop_reason = Some(StopReason::Stop);
+                            break;
+                        }
+                    }
+                    None => {
+                        // Command channel closed (e.g. frontend crashed).
+                        break;
+                    }
+                }
             }
         }
     }
+
 
     // Signal the assembler that the stream is complete.
     // The assembler will now flush any final buffered outputs. Since finish() returns a Vec,

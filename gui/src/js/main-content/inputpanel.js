@@ -42,6 +42,7 @@ class InputPanelController {
         this.isFocused = false;
         this.autoApproveEnabled = false;
         this._activeDropdown = null;
+        this.isGenerating = false;
         
         // Textarea settings
         this.lineHeight = 20; // Must match CSS --input-panel-textarea-line-height
@@ -227,7 +228,9 @@ class InputPanelController {
         // Enter key without Shift - send message
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            this.sendMessage();
+            if (!this.isGenerating) {
+                this.sendMessage();
+            }
         }
         
         // Shift+Enter - allow default (new line)
@@ -301,7 +304,11 @@ class InputPanelController {
         const sendBtn = document.getElementById('input-send');
         if (sendBtn) {
             sendBtn.addEventListener('click', () => {
-                this.sendMessage();
+                if (this.isGenerating) {
+                    this.cancelGeneration();
+                } else {
+                    this.sendMessage();
+                }
             });
         }
     }
@@ -696,6 +703,61 @@ class InputPanelController {
             sendBtn.classList.remove('active');
         }
     }
+
+    /**
+     * Set generating state for the input panel
+     * 
+     * Toggles the Send button to a Stop button during response generation
+     * and updates classes and icon accordingly.
+     * 
+     * @param {boolean} isGenerating - Whether generation is active
+     */
+    setGeneratingState(isGenerating) {
+        this.isGenerating = isGenerating;
+        const sendBtn = document.getElementById('input-send');
+        if (!sendBtn) return;
+
+        const iconEl = sendBtn.querySelector('.input-panel__action-icon');
+        if (isGenerating) {
+            // Change to Stop button
+            sendBtn.setAttribute('title', 'Stop');
+            sendBtn.setAttribute('aria-label', 'Stop message response');
+            sendBtn.classList.add('stop-active');
+            sendBtn.classList.remove('active'); // Remove normal blue active class
+            if (iconEl) {
+                iconEl.setAttribute('src', './assets/icons/main-content/input/stop.svg');
+                iconEl.setAttribute('alt', 'Stop');
+            }
+        } else {
+            // Change back to Send button
+            sendBtn.setAttribute('title', 'Send');
+            sendBtn.setAttribute('aria-label', 'Send message');
+            sendBtn.classList.remove('stop-active');
+            if (iconEl) {
+                iconEl.setAttribute('src', './assets/icons/main-content/input/send.svg');
+                iconEl.setAttribute('alt', 'Send');
+            }
+            // Re-evaluate normal active state based on textarea content
+            this.updateSendButtonState();
+        }
+    }
+
+    /**
+     * Cancel the active session response generation
+     */
+    async cancelGeneration() {
+        console.log('Stopping/Cancelling generation...');
+        if (window.sessionManager && window.sessionManager.activeSessionId) {
+            try {
+                const IPC = await import('../shared/ipc.js');
+                await IPC.cancelSession(window.sessionManager.activeSessionId);
+                console.log('Cancel command sent successfully');
+            } catch (error) {
+                console.error('Failed to cancel session:', error);
+            }
+        }
+    }
+
 
     /* ========================================================================
        MESSAGE SENDING

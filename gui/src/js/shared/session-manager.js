@@ -133,6 +133,7 @@ class SessionManager {
         
         // Clear diagnostics bar if visible
         if (window.inputPanelController) {
+            window.inputPanelController.setGeneratingState(false);
             window.inputPanelController.clearDiagnostics();
             // Reset context usage display back to default placeholder values when starting a fresh session
             window.inputPanelController.updateContextUsage(0, 0, 0);
@@ -287,6 +288,7 @@ class SessionManager {
         
         // Clear diagnostics bar if visible
         if (window.inputPanelController) {
+            window.inputPanelController.setGeneratingState(false);
             window.inputPanelController.clearDiagnostics();
             // Reset context usage display back to default placeholder values when changing the active chat session
             window.inputPanelController.updateContextUsage(0, 0, 0);
@@ -633,6 +635,9 @@ class SessionManager {
         try {
             // Show typing indicator while waiting for the background response
             this.showTypingIndicator();
+            if (window.inputPanelController) {
+                window.inputPanelController.setGeneratingState(true);
+            }
             
             // Invoke background send_message command
             await IPC.sendMessage(this.activeSessionId, text, this.currentProjectDir);
@@ -640,6 +645,9 @@ class SessionManager {
             console.error('Failed to send message:', error);
             showError(error.toString());
             
+            if (window.inputPanelController) {
+                window.inputPanelController.setGeneratingState(false);
+            }
             // If failed to launch, clean up state
             this.resetStreamingState();
         }
@@ -743,6 +751,7 @@ class SessionManager {
             const { turn_index, step, reason } = event.PreTurnFailed;
             if (window.inputPanelController) {
                 window.inputPanelController.showDiagnosticsFailed(turn_index, step, reason);
+                window.inputPanelController.setGeneratingState(false);
             }
         }
         else if (event.ContextUsageUpdated) {
@@ -753,7 +762,7 @@ class SessionManager {
                 window.inputPanelController.updateContextUsage(current_context_tokens, context_window, utilization);
             }
         }
-        else if (event.Done) {
+        else if (event === 'Done' || event.Done) {
             // Turn completed successfully!
             // Collapse thinking block if finished
             if (this.currentThinkingEl) {
@@ -763,10 +772,16 @@ class SessionManager {
             if (this.currentAssistantContentEl && window.highlightCodeBlocks) {
                 window.highlightCodeBlocks(this.currentAssistantContentEl);
             }
+            if (window.inputPanelController) {
+                window.inputPanelController.setGeneratingState(false);
+            }
             this.resetStreamingState();
             this.loadSessionsList();
         } 
         else if (event.Error) {
+            if (window.inputPanelController) {
+                window.inputPanelController.setGeneratingState(false);
+            }
             showError(`Session Error: ${event.Error.message}`);
             this.resetStreamingState();
         }

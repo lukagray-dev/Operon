@@ -22,6 +22,8 @@ pub enum StopReason {
     StopSequence,
     /// Content was filtered/blocked by safety policy.
     ContentFilter,
+    /// The user manually cancelled/stopped the response.
+    Stop,
     /// Provider-specific stop reason not mapped by this crate.
     Other(String),
 }
@@ -88,6 +90,7 @@ pub fn denormalize_stop_reason(reason: &StopReason, provider: &Provider) -> &'st
             StopReason::MaxTokens => "max_tokens",
             StopReason::StopSequence => "stop_sequence",
             StopReason::ContentFilter => "unknown",
+            StopReason::Stop => "unknown",
             StopReason::Other(_) => "unknown",
         },
         Provider::OpenAI
@@ -102,6 +105,7 @@ pub fn denormalize_stop_reason(reason: &StopReason, provider: &Provider) -> &'st
             StopReason::MaxTokens => "length",
             StopReason::StopSequence => "stop",
             StopReason::ContentFilter => "content_filter",
+            StopReason::Stop => "unknown",
             StopReason::Other(_) => "unknown",
         },
         Provider::Gemini => match reason {
@@ -110,6 +114,7 @@ pub fn denormalize_stop_reason(reason: &StopReason, provider: &Provider) -> &'st
             StopReason::MaxTokens => "MAX_TOKENS",
             StopReason::StopSequence => "STOP",
             StopReason::ContentFilter => "SAFETY",
+            StopReason::Stop => "unknown",
             StopReason::Other(_) => "unknown",
         },
         Provider::Cohere => match reason {
@@ -118,6 +123,7 @@ pub fn denormalize_stop_reason(reason: &StopReason, provider: &Provider) -> &'st
             StopReason::MaxTokens => "MAX_TOKENS",
             StopReason::StopSequence => "COMPLETE",
             StopReason::ContentFilter => "ERROR_TOXIC",
+            StopReason::Stop => "unknown",
             StopReason::Other(_) => "unknown",
         },
         Provider::Ollama => match reason {
@@ -126,6 +132,7 @@ pub fn denormalize_stop_reason(reason: &StopReason, provider: &Provider) -> &'st
             StopReason::MaxTokens => "length",
             StopReason::StopSequence => "stop",
             StopReason::ContentFilter => "content_filter",
+            StopReason::Stop => "unknown",
             StopReason::Other(_) => "unknown",
         },
     }
