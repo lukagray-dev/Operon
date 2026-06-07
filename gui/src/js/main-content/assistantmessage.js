@@ -164,15 +164,11 @@ class AssistantMessageController {
         const dislikeBtn = this.createActionButton('dislike', 'Dislike', messageId, content);
         actionsDiv.appendChild(dislikeBtn);
 
-        // 5. Regenerate button
-        const regenerateBtn = this.createActionButton('regenerate', 'Regenerate', messageId, content);
-        actionsDiv.appendChild(regenerateBtn);
-
-        // 6. Fork button
+        // 5. Fork button
         const forkBtn = this.createActionButton('fork', 'Fork', messageId, content);
         actionsDiv.appendChild(forkBtn);
 
-        // 7. Time (if provided)
+        // 6. Time (if provided)
         if (timestamp) {
             const timeSpan = document.createElement('span');
             timeSpan.className = 'assistant-message__time';
@@ -231,7 +227,6 @@ class AssistantMessageController {
             'copy': 'copy.svg',
             'like': 'like.svg',
             'dislike': 'dislike.svg',
-            'regenerate': 'redo.svg',
             'fork': 'fork.svg'
         };
 
@@ -329,16 +324,13 @@ class AssistantMessageController {
 
         switch (action) {
             case 'copy':
-                this.handleCopy(actualContent);
+                this.handleCopy(actualContent, button);
                 break;
             case 'like':
                 this.handleLike(messageId, button);
                 break;
             case 'dislike':
                 this.handleDislike(messageId, button);
-                break;
-            case 'regenerate':
-                this.handleRegenerate(messageId);
                 break;
             case 'fork':
                 this.handleFork(messageId, actualContent);
@@ -348,23 +340,17 @@ class AssistantMessageController {
         }
     }
 
-    /**
-     * Handle copy action
-     * 
-     * @param {string} content - The message content
-     */
-    async handleCopy(content) {
+    async handleCopy(content, button) {
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(content);
                 console.log('Message copied to clipboard');
-                alert('Message copied to clipboard!');
+                this.showCopyDoneIcon(button);
             } else {
-                this.fallbackCopyToClipboard(content);
+                this.fallbackCopyToClipboard(content, button);
             }
         } catch (error) {
             console.error('Failed to copy message:', error);
-            alert('Failed to copy message');
         }
     }
 
@@ -372,8 +358,9 @@ class AssistantMessageController {
      * Fallback copy to clipboard method
      * 
      * @param {string} text - The text to copy
+     * @param {HTMLElement} button - The copy button element
      */
-    fallbackCopyToClipboard(text) {
+    fallbackCopyToClipboard(text, button) {
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
@@ -384,10 +371,9 @@ class AssistantMessageController {
         try {
             document.execCommand('copy');
             console.log('Message copied to clipboard (fallback)');
-            alert('Message copied to clipboard!');
+            this.showCopyDoneIcon(button);
         } catch (error) {
             console.error('Fallback copy failed:', error);
-            alert('Failed to copy message');
         }
         
         document.body.removeChild(textArea);
@@ -452,16 +438,35 @@ class AssistantMessageController {
     }
 
     /**
-     * Handle regenerate action
-     * 
-     * @param {string} messageId - The message ID
+     * Show a copy-done SVG checkmark icon on the copy button for 5 seconds.
+     *
+     * Hey friend! This method temporarily swaps the copy button's icon source to copy-done.svg
+     * and sets a timeout to change it back to copy.svg after 5 seconds. This provides a sleek,
+     * modern micro-interaction feedback.
+     *
+     * @param {HTMLElement} button - The copy button element
      */
-    handleRegenerate(messageId) {
-        console.log('Regenerate message:', messageId);
-        // TODO: Implement regeneration
-        // - Send request to backend to regenerate response
-        // - Replace current message with new response
-        alert('Regenerate functionality will be implemented here');
+    showCopyDoneIcon(button) {
+        if (!button) return;
+        const img = button.querySelector('img');
+        if (!img) return;
+
+        // Save original source
+        const originalSrc = img.src;
+        
+        // Swap to copy-done
+        img.src = './assets/icons/main-content/messages/assistant/copy-done.svg';
+
+        // Clear any existing timeout on this button to avoid overlapping swaps
+        if (button.copyTimeout) {
+            clearTimeout(button.copyTimeout);
+        }
+
+        // Revert back after 5 seconds (5000 milliseconds)
+        button.copyTimeout = setTimeout(() => {
+            img.src = './assets/icons/main-content/messages/assistant/copy.svg';
+            button.copyTimeout = null;
+        }, 5000);
     }
 
     /**

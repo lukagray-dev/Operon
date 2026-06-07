@@ -122,11 +122,19 @@ function highlightCodeBlocks(container) {
                 const codeText = codeEl.textContent;
                 navigator.clipboard.writeText(codeText)
                     .then(() => {
-                        // Apply 'copied' class to show micro-interaction feedback (visual checkmark/copied text)
+                        // Apply 'copied' class and swap to copy-done icon for 5 seconds (5000 milliseconds)
                         copyBtn.classList.add('copied');
-                        setTimeout(() => {
+                        copyIcon.src = './assets/icons/main-content/messages/assistant/copy-done.svg';
+                        
+                        if (copyBtn.copyTimeout) {
+                            clearTimeout(copyBtn.copyTimeout);
+                        }
+                        
+                        copyBtn.copyTimeout = setTimeout(() => {
                             copyBtn.classList.remove('copied');
-                        }, 2000);
+                            copyIcon.src = './assets/icons/main-content/messages/assistant/copy.svg';
+                            copyBtn.copyTimeout = null;
+                        }, 5000);
                     })
                     .catch(err => {
                         console.error('Failed to copy code block:', err);
