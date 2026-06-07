@@ -88,7 +88,7 @@ class AssistantMessageController {
         // and we will append text blocks, thinking blocks, and tool cards on the fly.
         if (content !== null) {
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'assistant-message__content';
+            contentDiv.className = 'assistant-message__content markdown-content';
             
             // If content is not empty, render it asynchronously as markdown.
             // This prevents the page from freezing up for long messages.

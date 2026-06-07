@@ -96,7 +96,6 @@
     font-size: var(--user-message-font-size);
     font-weight: var(--user-message-font-weight);
     line-height: var(--user-message-line-height);
-    white-space: pre-wrap;
 }
 
 .user-message__content.truncated {

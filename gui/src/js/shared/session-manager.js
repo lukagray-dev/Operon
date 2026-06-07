@@ -400,7 +400,7 @@ class SessionManager {
             if (blockText !== null) {
                 // Render text block sequentially
                 const contentDiv = document.createElement('div');
-                contentDiv.className = 'assistant-message__content';
+                contentDiv.className = 'assistant-message__content markdown-content';
                 contentDiv.rawMarkdown = blockText;
                 
                 IPC.renderMarkdown(blockText)
@@ -721,7 +721,7 @@ class SessionManager {
 
         if (!this.currentAssistantContentEl) {
             const contentDiv = document.createElement('div');
-            contentDiv.className = 'assistant-message__content';
+            contentDiv.className = 'assistant-message__content markdown-content';
             contentDiv.textContent = "";
             contentDiv.rawMarkdown = "";
             

@@ -14,6 +14,8 @@
 
 'use strict';
 
+import { renderMarkdown } from '../shared/ipc.js';
+
 /**
  * UserMessageController class
  * 
@@ -95,8 +97,38 @@ class UserMessageController {
 
         // Create content wrapper
         const contentDiv = document.createElement('div');
-        contentDiv.className = 'user-message__content';
-        contentDiv.textContent = content;
+        contentDiv.className = 'user-message__content markdown-content';
+        contentDiv.rawMarkdown = content;
+
+        // Render markdown asynchronously
+        if (content && content.trim() !== "") {
+            renderMarkdown(content)
+                .then(html => {
+                    contentDiv.innerHTML = html;
+                    // Auto-typeset math equations if KaTeX is available
+                    if (window.renderMathInElement) {
+                        window.renderMathInElement(contentDiv, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false},
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '\\[', right: '\\]', display: true}
+                            ],
+                            throwOnError: false
+                        });
+                    }
+                    // Apply syntax highlighting to code blocks in user messages
+                    if (window.highlightCodeBlocks) {
+                        window.highlightCodeBlocks(contentDiv);
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to render markdown for user message:", err);
+                    contentDiv.textContent = content;
+                });
+        } else {
+            contentDiv.textContent = content;
+        }
 
         // Check if message needs truncation
         const needsTruncation = this.checkIfTruncationNeeded(content);
