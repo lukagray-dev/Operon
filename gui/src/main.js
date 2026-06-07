@@ -49,8 +49,100 @@ import { initSettingsPanel } from './js/settings/settings-panel.js';
  */
 function highlightCodeBlocks(container) {
     if (typeof hljs !== 'undefined' && container) {
-        container.querySelectorAll('pre code:not([data-highlighted])').forEach(block => {
-            hljs.highlightElement(block);
+        // Query all pre elements inside the container to see if they need formatting
+        container.querySelectorAll('pre').forEach(preEl => {
+            const codeEl = preEl.querySelector('code');
+            if (!codeEl) return;
+
+            // Highlight the code block using Highlight.js if it hasn't been highlighted yet
+            if (!codeEl.hasAttribute('data-highlighted')) {
+                hljs.highlightElement(codeEl);
+            }
+
+            // Check if this pre block is already wrapped inside a code-block-wrapper.
+            // If it is, we don't need to re-wrap or re-add headers.
+            if (preEl.parentElement && preEl.parentElement.classList.contains('code-block-wrapper')) {
+                return;
+            }
+
+            // Extract the programming language from classes (e.g., "language-javascript")
+            let language = 'code';
+            const classes = Array.from(codeEl.classList);
+            const langClass = classes.find(cls => cls.startsWith('language-'));
+            if (langClass) {
+                language = langClass.replace('language-', '').toLowerCase();
+                // Map common shortcuts to clean user-friendly labels
+                const langMap = {
+                    'js': 'javascript',
+                    'ts': 'typescript',
+                    'py': 'python',
+                    'rs': 'rust',
+                    'sh': 'shell',
+                    'bash': 'shell',
+                    'json': 'json',
+                    'css': 'css',
+                    'html': 'html',
+                    'cpp': 'c++',
+                    'cs': 'c#',
+                    'go': 'go',
+                    'rb': 'ruby'
+                };
+                if (langMap[language]) {
+                    language = langMap[language];
+                }
+            }
+
+            // Create our custom wrapper container to group the header bar and pre element
+            const wrapper = document.createElement('div');
+            wrapper.className = 'code-block-wrapper';
+
+            // Create the top header bar to house the language text and the copy button
+            const header = document.createElement('div');
+            header.className = 'code-block-header';
+
+            // Language name label
+            const langSpan = document.createElement('span');
+            langSpan.className = 'code-block-language';
+            langSpan.textContent = language;
+
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'code-block-copy-btn';
+            copyBtn.setAttribute('title', 'Copy code');
+            copyBtn.setAttribute('aria-label', 'Copy code');
+
+            // Copy icon using the provided SVG path
+            const copyIcon = document.createElement('img');
+            copyIcon.src = './assets/icons/main-content/messages/assistant/copy.svg';
+            copyIcon.className = 'code-block-copy-icon';
+            copyBtn.appendChild(copyIcon);
+
+            // Bind click handler to copy code block contents to clipboard
+            copyBtn.addEventListener('click', () => {
+                const codeText = codeEl.textContent;
+                navigator.clipboard.writeText(codeText)
+                    .then(() => {
+                        // Apply 'copied' class to show micro-interaction feedback (visual checkmark/copied text)
+                        copyBtn.classList.add('copied');
+                        setTimeout(() => {
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy code block:', err);
+                    });
+            });
+
+            header.appendChild(langSpan);
+            header.appendChild(copyBtn);
+
+            // Re-organize the DOM by placing the wrapper right before the pre element,
+            // then moving both the header and the pre element inside it.
+            if (preEl.parentNode) {
+                preEl.parentNode.insertBefore(wrapper, preEl);
+                wrapper.appendChild(header);
+                wrapper.appendChild(preEl);
+            }
         });
     }
 }
