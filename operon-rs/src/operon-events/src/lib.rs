@@ -44,6 +44,7 @@
 //!     SessionCommand::Cancel        => { /* stop the loop */ }
 //!     SessionCommand::Approve { id } => { /* unblock Ask-mode tool */ }
 //!     SessionCommand::Deny { id }    => { /* reject Ask-mode tool */ }
+//!     SessionCommand::AskResponse { id, answer } => { /* submit ask response */ }
 //! }
 //! ```
 

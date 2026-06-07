@@ -55,6 +55,9 @@ members = [
     # Load tools
     "operon-rs/src/operon-tools/src/load",
 
+    # Ask tool
+    "operon-rs/src/operon-tools/src/ask",
+
     # Events bus — pure types, no async
     "operon-rs/src/operon-events",
 
@@ -140,6 +143,7 @@ operon-tools-todo-list                = { path = "operon-rs/src/operon-tools/src
 operon-tools-todo-update              = { path = "operon-rs/src/operon-tools/src/todo/src/todo_update" }
 operon-tools-todo-delete              = { path = "operon-rs/src/operon-tools/src/todo/src/todo_delete" }
 operon-tools-load                     = { path = "operon-rs/src/operon-tools/src/load" }
+operon-tools-ask                      = { path = "operon-rs/src/operon-tools/src/ask" }
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
 

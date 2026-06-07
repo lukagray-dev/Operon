@@ -50,6 +50,7 @@ use operon_tools_core::{
     emit_tool_progress, ReadLedger, ToolDispatchError, ToolProgress, ToolProgressEmitter,
 };
 use operon_tools_load;
+use operon_tools_ask;
 use operon_tools_todo_create;
 use operon_tools_todo_delete;
 use operon_tools_todo_list;
@@ -351,6 +352,36 @@ impl Dispatcher {
                     // Never reached — load_tools is intercepted in dispatch().
                     let n = name.clone();
                     Box::pin(async move { Err(format!("'{}' should have been intercepted", n)) })
+                }),
+            },
+        );
+    }
+
+    /// Registers the `ask` tool.
+    ///
+    /// The `ask` tool is in the "ask" group — loaded by the model via
+    /// `load_tools { group: "ask" }`. It is NOT intercepted by the dispatcher;
+    /// the session runner intercepts it before dispatch and handles the pause
+    /// on the command channel. This registration is for definition purposes only.
+    pub fn register_ask_tool(&mut self) {
+        // Hey friend! We register the `ask` tool here. It belongs to the "ask" group.
+        // It's not actually dispatched through here (the session runner intercepts it
+        // beforehand to block and wait for the user response), but we register it so
+        // that its definition schemas are known and can be loaded/lazy-loaded.
+        let name = "ask".to_string();
+        self.tools.insert(
+            name.clone(),
+            ToolEntry {
+                tiered: operon_tools_ask::definition(),
+                group: "ask",
+                execute: Box::new(move |_call_id, _args, _progress| {
+                    // Hey friend! This execute function is never reached because the session
+                    // runner intercepts the tool call before dispatching. If it does run,
+                    // we return an error indicating it should have been intercepted.
+                    let n = name.clone();
+                    Box::pin(async move {
+                        Err(format!("'{}' must be intercepted by the runner, not dispatched", n))
+                    })
                 }),
             },
         );

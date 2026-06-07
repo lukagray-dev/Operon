@@ -56,6 +56,8 @@ use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::{CallerRole, PolicyDecision, PolicyResolver};
 use operon_providers::Provider;
 use operon_tools::{dispatcher::Dispatcher, ToolProgressEmitter};
+// Hey friend! We import AskArgs and AskOutput so we can parse input arguments and format tool outputs.
+use operon_tools_ask::{AskArgs, AskOutput};
 
 use crate::config::SessionConfig;
 use crate::error::SessionError;
@@ -188,6 +190,7 @@ impl SessionRunner {
                 "shell" => dispatcher.register_shell_tools(),
                 "web" => dispatcher.register_web_tools(),
                 "todo" => dispatcher.register_todo_tools(),
+                "ask" => dispatcher.register_ask_tool(),
                 other => tracing::warn!("Unknown tool group: {other}"),
             }
         }
@@ -539,6 +542,84 @@ impl SessionRunner {
                     tracing::info!("Session cancelled by user command");
                     should_stop = true;
                     break;
+                }
+
+                // ── ask tool: intercept before policy check ──────────────────────────
+                // Hey friend! The ask tool is unique. It suspends the loop and waits for the
+                // user's answer on the command channel, bypassing the dispatcher entirely.
+                if call.name == "ask" {
+                    let ask_id = call.id.0.clone();
+
+                    // Hey friend! We parse and validate the arguments before suspending the loop.
+                    // If parsing fails (for example, if the options count is incorrect), we return
+                    // an error ToolResult immediately without suspending.
+                    let ask_result = match AskArgs::from_json(&call.arguments) {
+                        Err(reason) => {
+                            let result = ToolResult {
+                                call_id: call.id.clone(),
+                                name: "ask".to_string(),
+                                content: ToolContent::Text(reason.to_string()),
+                                is_error: true,
+                            };
+                            let _ = self.event_tx.send(SessionEvent::ToolCallResult {
+                                call_id: ask_id.clone(),
+                                name: "ask".to_string(),
+                                is_error: true,
+                                content_json: tool_result_content_json(&result),
+                            }).await;
+                            tool_results.push(ContentBlock::ToolResult(result));
+                            continue;
+                        }
+                        Ok(args) => args,
+                    };
+
+                    // Emit AskQuestion event. The frontend UI will receive this and render
+                    // the multiple-choice question widget to the user.
+                    let _ = self.event_tx.send(SessionEvent::AskQuestion {
+                        id: ask_id.clone(),
+                        question: ask_result.question.clone(),
+                        options: ask_result.options.to_vec(),
+                    }).await;
+
+                    // Suspend the loop and block here until we receive the answer command or a cancel command.
+                    let answer = loop {
+                        match self.wait_for_relevant_command(Some(&ask_id)).await {
+                            SessionCommand::AskResponse { id, answer } if id == ask_id => {
+                                break answer;
+                            }
+                            SessionCommand::Cancel => {
+                                should_stop = true;
+                                break String::new();
+                            }
+                            _ => continue,
+                        }
+                    };
+
+                    if should_stop {
+                        break;
+                    }
+
+                    // Hey friend! We pack the user's answer into a structured AskOutput,
+                    // serialize it to a JSON value, and build the ToolResult which will
+                    // be passed back to the AI model.
+                    let content = ToolContent::Json(
+                        serde_json::to_value(AskOutput { answer })
+                            .expect("AskOutput serialization should never fail")
+                    );
+                    let result = ToolResult {
+                        call_id: call.id.clone(),
+                        name: "ask".to_string(),
+                        content: content.clone(),
+                        is_error: false,
+                    };
+                    let _ = self.event_tx.send(SessionEvent::ToolCallResult {
+                        call_id: ask_id.clone(),
+                        name: "ask".to_string(),
+                        is_error: false,
+                        content_json: tool_result_content_json(&result),
+                    }).await;
+                    tool_results.push(ContentBlock::ToolResult(result));
+                    continue; // Skip the rest of the loop body (no dispatcher call needed)
                 }
 
                 // Policy gate: Ask / Deny / Allow are handled before dispatch.
@@ -995,9 +1076,14 @@ impl SessionRunner {
 
 /// Return true if a buffered command should be consumed for the current state.
 fn command_matches(command: &SessionCommand, approval_id: Option<&str>) -> bool {
+    // Hey friend! Here we check if the command matches the expected command type.
+    // A Cancel command is always matches. Approve, Deny, and AskResponse commands
+    // match only if they carry the expected ID.
     match command {
         SessionCommand::Cancel => true,
-        SessionCommand::Approve { id } | SessionCommand::Deny { id } => {
+        SessionCommand::Approve { id }
+        | SessionCommand::Deny { id }
+        | SessionCommand::AskResponse { id, .. } => {
             approval_id.is_some_and(|expected| expected == id)
         }
     }

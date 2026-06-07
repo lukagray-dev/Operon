@@ -257,7 +257,7 @@ pub async fn send_message(
                 workspace_root,
                 role: Role::Owner,
                 // Default registers all standard tools
-                tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
+                tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into(), "ask".into()],
                 compaction: operon_rs::prelude::CompactionConfig::default(),
                 store_path: Some(json_path.clone()),
             };
@@ -356,6 +356,32 @@ pub async fn deny_tool_call(session_id: String, id: String, state: State<'_, Sha
     };
     if let Some(tx) = tx {
         tx.send(SessionCommand::Deny { id }).await.map_err(|e| format!("Failed to send deny: {}", e))?;
+        Ok(())
+    } else {
+        Err("Session is not active or running".to_string())
+    }
+}
+
+/// Send the user's answer to a suspended `ask` tool call.
+///
+/// Hey friend! This is called by the UI when the user picks one of the 3 MCQ
+/// options or submits their own free-text answer. The `id` must match the
+/// `AskQuestion` event's `id` field that the frontend received earlier.
+#[tauri::command]
+pub async fn answer_ask(
+    session_id: String,
+    id: String,
+    answer: String,
+    state: State<'_, SharedState>,
+) -> Result<(), String> {
+    let tx = {
+        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+        state_guard.active_sessions.get(&session_id).cloned()
+    };
+    if let Some(tx) = tx {
+        tx.send(SessionCommand::AskResponse { id, answer })
+            .await
+            .map_err(|e| format!("Failed to send ask response: {}", e))?;
         Ok(())
     } else {
         Err("Session is not active or running".to_string())

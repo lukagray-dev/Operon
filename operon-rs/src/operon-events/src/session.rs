@@ -193,6 +193,20 @@ pub enum SessionEvent {
         path: Option<String>,
     },
 
+    /// The model called the `ask` tool — present a multiple-choice question to the user.
+    ///
+    /// Hey friend! When this event is emitted, the agent loop suspends and waits.
+    /// The UI must respond with `SessionCommand::AskResponse { id, answer }` using the same `id`.
+    /// Until a response arrives, the loop will not advance.
+    AskQuestion {
+        /// Unique ID for this ask request. Used to correlate with SessionCommand::AskResponse.
+        id: String,
+        /// The question text to display.
+        question: String,
+        /// Exactly 3 pre-defined answer options. The UI adds a free-text field as a 4th.
+        options: Vec<String>,
+    },
+
     // ── Turn lifecycle ────────────────────────────────────────────────────────
     /// One full agent turn completed (model responded; all tool calls dispatched).
     ///
@@ -340,6 +354,19 @@ pub enum SessionCommand {
     /// `id` must match the `id` field in the corresponding `ApprovalRequired` event.
     /// The runner will return a permission-denied `ToolResult` to the model.
     Deny { id: String },
+
+    /// Respond to a pending `ask` tool call with the user's chosen or typed answer.
+    ///
+    /// Hey friend! This command is sent from the UI back to the runner containing the
+    /// user's answer. `id` must match the `id` field in the corresponding `AskQuestion` event.
+    /// `answer` is either one of the 3 pre-defined options verbatim, or the user's
+    /// free-text input from the 4th field.
+    AskResponse {
+        /// Matches the `id` in the corresponding `AskQuestion` event.
+        id: String,
+        /// The user's answer — one of the 3 options or free-text input.
+        answer: String,
+    },
 
     /// Cancel the running session immediately.
     ///

@@ -1,0 +1,15 @@
+[package]
+name        = "operon-tools-ask"
+description = "The `ask` tool — lets the model ask the user a multiple-choice question and wait for their response."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-tools-core.workspace              = true
+operon-context-normalize-tools.workspace = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+thiserror.workspace                      = true

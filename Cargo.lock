@@ -3800,6 +3800,7 @@ dependencies = [
  "operon-policy",
  "operon-providers",
  "operon-tools",
+ "operon-tools-ask",
  "reqwest",
  "serde",
  "serde_json",
@@ -3814,6 +3815,7 @@ name = "operon-tools"
 version = "0.1.0"
 dependencies = [
  "operon-context-normalize-tools",
+ "operon-tools-ask",
  "operon-tools-core",
  "operon-tools-fs",
  "operon-tools-fs-append",
@@ -3837,6 +3839,17 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "operon-tools-ask"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize-tools",
+ "operon-tools-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

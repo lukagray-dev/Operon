@@ -284,6 +284,22 @@ export async function denyToolCall(sessionId, id) {
 }
 
 /**
+ * Send the user's answer to a suspended `ask` tool call
+ * @param {string} sessionId - The session ID
+ * @param {string} id - The ask request ID
+ * @param {string} answer - The user's answer
+ * @returns {Promise<void>}
+ */
+export async function answerAsk(sessionId, id, answer) {
+    return await invoke('answer_ask', {
+        sessionId: normalizeString(sessionId),
+        id: normalizeString(id),
+        answer: normalizeString(answer),
+    });
+}
+
+
+/**
  * Open native OS folder picker and register project directory.
  * @returns {Promise<string|null>} - Selected path or null if cancelled
  */

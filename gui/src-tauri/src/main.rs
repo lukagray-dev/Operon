@@ -50,6 +50,7 @@ fn main() {
             commands::session_commands::cancel_session,
             commands::session_commands::approve_tool_call,
             commands::session_commands::deny_tool_call,
+            commands::session_commands::answer_ask,
             commands::session_commands::open_project_folder,
             commands::session_commands::get_default_workspace,
         ])

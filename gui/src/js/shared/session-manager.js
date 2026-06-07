@@ -31,6 +31,7 @@ class SessionManager {
         // Maps to track active inline components by ID
         this.activeToolCalls = new Map();         // call_id -> card DOM element
         this.activePermissionPrompts = new Map(); // approval_id -> card DOM element
+        this.activeAskPrompts = new Map();        // ask_id -> card DOM element
         
         // Tauri unlisten handle
         this.unlistenSessionEvents = null;
@@ -79,6 +80,7 @@ class SessionManager {
         this.currentThinkingContentEl = null;
         this.activeToolCalls.clear();
         this.activePermissionPrompts.clear();
+        this.activeAskPrompts.clear();
     }
 
     /**
@@ -629,6 +631,11 @@ class SessionManager {
         else if (event.ApprovalGranted) {
             const { id } = event.ApprovalGranted;
             this.resolvePermissionPrompt(id, true);
+        }
+        else if (event.AskQuestion) {
+            this.ensureAssistantMessageCreated();
+            const { id, question, options } = event.AskQuestion;
+            this.createAskPromptCard(id, question, options);
         } 
         else if (event.PreTurnReady) {
             const { turn_index, message_count, tool_count, estimated_tokens } = event.PreTurnReady;
@@ -947,6 +954,115 @@ class SessionManager {
                         </span>
                     `;
                 }
+            }
+        }
+    }
+
+    /**
+     * Create inline ask question / MCQ card
+     */
+    createAskPromptCard(id, question, options) {
+        // Collapse active thinking block when prompt appears.
+        if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.add('collapsed');
+            this.currentThinkingEl = null;
+        }
+        // Force new text/thinking blocks after this card.
+        this.currentAssistantContentEl = null;
+
+        const askCard = document.createElement('div');
+        askCard.className = 'assistant-message__ask-card';
+        askCard.id = `ask-${id}`;
+        
+        let optionsHtml = options.map((opt, index) => {
+            return `<button class="btn-ask-option" data-option="${opt}">${opt}</button>`;
+        }).join('');
+
+        askCard.innerHTML = `
+            <div class="assistant-message__ask-header">
+                <img class="assistant-message__ask-icon" src="./assets/icons/sidebar/new-chat.svg" style="filter: invert(0.6) sepia(1) saturate(5) hue-rotate(180deg); width:18px; height:18px;">
+                <span class="assistant-message__ask-title">Question Prompt</span>
+            </div>
+            <div class="assistant-message__ask-body">
+                <div class="assistant-message__ask-question">${question}</div>
+                <div class="assistant-message__ask-options">
+                    ${optionsHtml}
+                </div>
+                <div class="assistant-message__ask-custom">
+                    <input type="text" class="input-ask-custom" placeholder="Or type a custom answer..." />
+                    <button class="btn-ask-submit">Submit</button>
+                </div>
+            </div>
+        `;
+
+        // Bind options buttons
+        askCard.querySelectorAll('.btn-ask-option').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const answer = btn.getAttribute('data-option');
+                this.submitAskAnswer(id, answer, askCard);
+            });
+        });
+
+        // Bind custom submit button
+        const submitBtn = askCard.querySelector('.btn-ask-submit');
+        const inputEl = askCard.querySelector('.input-ask-custom');
+        
+        const doCustomSubmit = () => {
+            const answer = inputEl.value.trim();
+            if (answer) {
+                this.submitAskAnswer(id, answer, askCard);
+            }
+        };
+
+        submitBtn.addEventListener('click', doCustomSubmit);
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                doCustomSubmit();
+            }
+        });
+
+        const separator = this.currentAssistantMsgEl.querySelector('.assistant-message__separator');
+        this.currentAssistantMsgEl.insertBefore(askCard, separator);
+        
+        this.activeAskPrompts.set(id, askCard);
+        window.assistantMessageController.scrollToBottom();
+    }
+
+    /**
+     * Submit user's answer to Tauri backend and resolve UI card
+     */
+    async submitAskAnswer(id, answer, askCard) {
+        // Disable all inputs
+        askCard.querySelectorAll('.btn-ask-option, .btn-ask-submit, .input-ask-custom').forEach(el => {
+            el.disabled = true;
+        });
+
+        try {
+            await IPC.answerAsk(this.activeSessionId, id, answer);
+            this.resolveAskPrompt(id, answer);
+        } catch (err) {
+            showError(err.toString());
+            // Re-enable inputs on error
+            askCard.querySelectorAll('.btn-ask-option, .btn-ask-submit, .input-ask-custom').forEach(el => {
+                el.disabled = false;
+            });
+        }
+    }
+
+    /**
+     * Resolve ask prompt card in the UI
+     */
+    resolveAskPrompt(id, answer) {
+        const askCard = this.activeAskPrompts.get(id);
+        if (askCard) {
+            const bodyEl = askCard.querySelector('.assistant-message__ask-body');
+            if (bodyEl) {
+                bodyEl.innerHTML = `
+                    <div class="assistant-message__ask-status" style="color: #4caf50; font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 8px;">
+                        ✓ Answered: <strong>${answer}</strong>
+                    </div>
+                `;
             }
         }
     }
