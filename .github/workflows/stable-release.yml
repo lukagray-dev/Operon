@@ -131,15 +131,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       # Download the installer compiled in the build job
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
           name: operon-gui-installer
           path: dist
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       # Explicitly tag the current HEAD with the manually provided version and push to remote.
       - name: Create Git Tag

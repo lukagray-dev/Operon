@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <img src="assets/logo.svg" width="80" alt="Operon" />
 
@@ -222,3 +222,4 @@ Built by **Soumo Mukherjee (aka Luka Gray)** • West Bengal, India • 2026
 <br/>
 
 </div>
+<!-- build trigger -->
