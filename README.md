@@ -1,10 +1,10 @@
 ﻿<div align="center">
 
+<img src="assets/logo.svg" width="80" alt="Operon" />
+
 # **Operon**
 
 ***The autonomous AI agent built for everyone — not just developers.***
-
-![Operon](assets/logo.svg)
 
 <br/>
 
@@ -15,7 +15,7 @@
 
 ## What is Operon?
 
-Operon is a **consumer-first** AI agent similar to OpenClaw but with a clean GUI. It does everything that OpenClaw do — but without requiring you to know what a terminal is.
+Operon is a **consumer-first** AI agent similar to OpenClaw but with a clean GUI. It does everything that OpenClaw does — but without requiring you to know what a terminal is.
 
 > **You open Operon → type what you need.** *That's it. ✓*
 
@@ -41,138 +41,168 @@ So in early 2026, I started building **Operon**. 🎉
 <br>
 
 1. 🗣️ **Chat-First Interface**
-   - Operon works through a ChatGPT-like interface, because billions already know how messaging works.
-   - Also available in **TUI**, **VS Code** (in development), **JetBrains** (in development), and **Mobile**.
+   - Operon's primary interface is a clean, familiar chat UI — because billions of people already know how messaging works.
+   - Will be available in **TUI**, **VS Code** (in development), **JetBrains** (in development), and **Mobile** soon.
+
 2. ⚡ **Lightweight by Design**
-   - Operon’s backend is written in Rust, because wasting RAM with Node.js became strangely normal.
+   - The backend is written in Rust, delivering a small memory footprint and fast startup without sacrificing reliability.
+
 3. 📱 **Mobile-Ready Architecture**
-   - Built to run beyond desktops with shared core runtime and portable frontends.
+   - Built to run beyond desktops, with a shared core runtime and portable frontends designed for mobile from the ground up.
+
 4. 🔌 **Multi-Provider LLM Support**
-   - Use OpenAI, Anthropic, local models, OpenAI-compatible APIs, and more.
+   - Use OpenAI, Anthropic, local models, OpenAI-compatible APIs, and more — without changing how you work.
+
 5. 📡 **Connector Channels**
-   - Connect through WhatsApp, Telegram, Gmail, and other external channels.
-   - Work with your agent remotely.
+   - Connect Operon to WhatsApp, Telegram, Gmail, and other external channels.
+   - Your agent stays reachable and operational even when you're away from your desk.
+
 6. 🌐 **Multi-Format Patch Engine**
-   - Supports Codex patches, unified diffs, and SEARCH/REPLACE blocks.
-   - Because models disagree on formatting with remarkable confidence.
+   - Supports Codex patches, unified diffs, and SEARCH/REPLACE blocks for broad compatibility across model providers.
+
 7. 📋 **Tasks & Memory**
-    - Operon remembers what it was doing, unlike most meetings.
-    - It keeps structured memory across sessions, tracks ongoing tasks, supports scheduled actions, and brings relevant context forward so you don’t have to repeat yourself every morning.
+   - Operon maintains structured memory across sessions, tracks ongoing tasks, supports scheduled actions, and surfaces relevant context automatically — so nothing gets lost between conversations.
 
 </details>
 
-## 🛡️ **Permission Model (Here Operon Becomes Useful for Real Business)**
+---
 
-Most AI agent tools were built for developers talking to themselves. That works fine for devs but not for business.
+## ⚡ Performance
 
-1. **If you're a Doctor**:
-    - You want patients to book appointments, ask timings, and receive follow-ups, but doing all these manually feels frustating on daily basis.
-    - So, you had to hire an assistant for that. But that requires you to pay his salary.
-2. **If you're a business owner**:
-    - You want leads to ask product questions, request quotes, and book services, but you do **not** want every WhatsApp/Telegram stranger getting owner-level access because software had a lazy afternoon.
+Operon's backend is written in Rust. No Electron. No V8 heap. No garbage collector.
 
-> This is exactly where **Operon** is different.
+| | Operon | Claude Code | Codex | OpenClaw |
+|---|---|---|---|---|
+| **Runtime** | Rust + Tauri | Node.js + Electron | Node.js + Electron | Node.js |
+| **Idle RAM** | **4 MB** | ~300 MB | ~1 GB | ~512 MB |
+| **Under load** | **< 15 MB** | 500 MB – 2+ GB | 2+ GB | 512 MB – 7 GB |
+| **Known memory leaks** | None (under development) | [Yes](https://github.com/anthropics/claude-code/issues/33211) | [Yes](https://github.com/openai/codex/issues/20740) | — |
 
-Every interaction is classified as:
+Claude Code and Codex app are built on Electron, their memory floor is the Node.js runtime plus a full Chromium renderer, regardless of what the agent is doing.  
+Operon uses the OS-native WebView for its UI (WebView2 on Windows, WebKit on macOS/Linux), which runs in a separate system process and is not counted in Operon's footprint.  
+The Rust backend itself, session runner, tool dispatcher, snapshot watcher, async runtime, idles at **4 MB** and stays under **15 MB** even during active tool use.
 
-- **Owner** → you, staff, trusted people  
-- **External** → customers, leads, public users, and other adventurous strangers
-
-External users get **zero access by default**.
-
-Only you decide what they can use:
-
-$$
-\text{Per tool → Per directory → Per connector channel}
-$$
-
-### Real Examples
-
-- A patient can book appointments on WhatsApp, but cannot access anything else.
-- A customer can ask pricing and availability, but cannot touch local files.
-- A staff member can manage one folder, but not your full system.
-- A lead can message your agent at midnight while you sleep, because exhaustion is not a business strategy.
-
-### Why This Matters?
-
-Some tools like **OpenClaw** rely on a simpler allowlist model. That sounds fine until you open public access. (Everyone is treated as owner)
-
-Because once everyone is treated like a trusted user, you are trusting strangers on the internet to behave responsibly, which has never been a winning business model.  
-Convenient, in the same way leaving your clinic unlocked is convenient.
-
-🚨 **That creates obvious risks**:
-
-- **Prompt injection** → users try to manipulate the agent into ignoring instructions.
-- **Data leakage** → internal notes, files, customer data, or private context can be exposed.
-- **Tool abuse** → outsiders triggering actions they were never meant to access.
-- **System compromise** → broad permissions turn small mistakes into expensive ones.
-- **Operational chaos** → one bad prompt can waste time, money, or trust.
+> *Idle numbers for Claude Code and Codex are sourced from their respective GitHub issue trackers. OpenClaw minimum from official deployment docs.*
 
 ---
 
-> > ✅ **Operon prevents this by separating public users from trusted owners at the permission layer itself.**  
-> > You define permissions **globally, per directory**.
+## 🛡️ Permission Model
 
-That means:
+Operon is built to talk to anyone — your customers on WhatsApp, your team on Telegram, or just you from your own device. That openness is the whole point. But it immediately raises a question:
 
-- Public users can interact safely with limited tools only  
-- Sensitive folders remain blocked unless explicitly trusted  
-- Internal workflows keep full power without exposing the system  
-- One bad prompt cannot magically inherit global access  
+> ***If anyone can message Operon, what can Operon do on their behalf?***  
+> The answer is: exactly what you decided in advance. Nothing more.
 
-Access is segmented by design, not by hope.  
-They do **not** get a backstage pass to your business.
+### Two Roles, One Clear Boundary
 
-***Built for trust, not just capability.***
+Every sender is classified as one of two roles:
 
----
+- **Owner** — you, your staff, and people you explicitly trust.
+- **External** — customers, leads, patients, the public. Anyone else.
 
-## 🧠 OHub — Skills & Extensions Marketplace
+This classification happens at the channel level. A message from your own device is Owner. A message arriving through a public WhatsApp number is External — unless you've explicitly marked that contact as trusted.
 
-OHub is Operon’s built-in marketplace for skills, extensions, and integrations.
+Once the role is known, Operon checks what it's permitted to do for that role. If the permission isn't explicitly granted, the answer is no.
 
-Install new capabilities when needed, from business workflows to external services. Packages are verified before installation, because blindly trusting downloads has always been a bold strategy.
+### Tools and Permissions
 
----
+Operon's capabilities are delivered through **tools** — discrete actions like reading a file, running a shell command, or searching the web. Permissions are set per tool, per role, across two scopes:
 
-## Roadmap
+**Global Tools** — don't touch your file system. Permissions are set once, globally.
 
-```readmap
-Desktop v1
-↓
-Mobile
-↓
-VSCode
-↓
-JetBrains
-↓
-Enterprise deployment
+| Tool | What it does |
+|---|---|
+| Web | Search the web and fetch URLs |
+| Sub-agents | Spin up child agents to handle subtasks |
+| Ask Question | Request clarification from the user |
+| Task Management | Create, track, and manage ongoing tasks |
+| Load Tools | Load available tool groups |
+
+**Directory-Scoped Tools** — interact with your files and system. Permissions are tied to specific directories you choose to add. Anything outside an added directory is completely inaccessible.
+
+| Tool Group | What it does |
+|---|---|
+| File System | Read, write, list, create, and delete files |
+| Shell | Run commands and scripts |
+
+### The Three Permission Modes
+
+Every tool permission is set to one of three modes:
+
+| Mode | Meaning |
+|---|---|
+| **Allow** | Operon may use this tool freely for this role |
+| **Ask** | Operon must request your confirmation before acting |
+| **Deny** | Operon cannot use this tool for this role under any circumstances |
+
+**Ask** is the practical middle ground. It lets external users initiate actions without giving them unsupervised access — Operon pauses and checks with you before proceeding.
+
+### A Concrete Example
+
+Say you're a doctor. You've added two directories:
+
 ```
+~/clinic/appointments
+~/clinic/patient-records
+```
+
+You configure them like this:
+
+| Directory | Tool | Owner | External |
+|---|---|---|---|
+| `appointments` | File System | Allow | Ask |
+| `appointments` | Shell | Allow | Deny |
+| `patient-records` | File System | Allow | Deny |
+| `patient-records` | Shell | Deny | Deny |
+
+A patient messages Operon on WhatsApp asking to book an appointment. Operon can act on `appointments` — but only after your confirmation. It cannot touch `patient-records` at all. It cannot run any shell commands on their behalf.
+
+When *you* send the same request, Operon has full access and can act immediately.
+
+Same agent. Same prompt. Different role → different outcome.
+
+### Why This Matters
+
+Most agent tools were built for a single user — the developer running them locally. Permissions weren't a design consideration because there was only one person involved.
+
+Operon is built for deployment. Without a clear permission boundary, opening your agent to external users creates real risk:
+
+- **Prompt injection** — users attempt to manipulate the agent into bypassing its instructions.
+- **Data exposure** — internal files, notes, or customer data become reachable by accident.
+- **Tool abuse** — external users trigger actions they were never meant to initiate.
+- **Operational damage** — broad permissions turn a single bad prompt into an expensive problem.
+
+Operon prevents this by enforcing role separation at the permission layer itself. External users get zero access by default. You define exactly what they can reach, in which directories, using which tools, and whether confirmation is required.
+
+> **Access is segmented by design. Not by hope.**
+
+---
 
 ## Getting Started
 
-> **Operon is currently in active development. Pre-built binaries are not yet available.**
+> *Operon is currently in active development.*  
+> **Pre-built binaries are available in the releases page.**
 
 ---
 
-### Contributing
+## Contributing
 
-Contributions are welcome. If you're planning a large feature or architectural change, open an issue first so we can avoid two people solving the same problem in different and equally dramatic ways.
+Contributions are welcome. If you're planning a large feature or architectural change, open an issue first to align before implementation begins.
 
-For bug reports, include:
+For bug reports, please include:
 
-- OS / distro  
-- Rust version  
-- Operon version / commit hash  
-- Model provider used  
-- Logs or error output  
-- Minimal reproduction steps  
+- OS / distro
+- Rust version
+- Operon version / commit hash
+- Model provider used
+- Logs or error output
+- Minimal reproduction steps
 
-The more precise the report, the faster the fix. “It broke” is emotionally honest, technically useless.
+The more precise the report, the faster the fix.
 
 ---
 
-### License
+## License
 
 Operon is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**. See [LICENSE](./LICENSE) for full terms.
 
