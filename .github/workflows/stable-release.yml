@@ -141,6 +141,14 @@ jobs:
           name: operon-gui-installer
           path: dist
 
+      # Delete any existing GitHub release and tag associated with this version.
+      # This cleans up duplicate drafts and prevents the GitHub API from throwing "already_exists".
+      - name: Delete existing GitHub release and tag
+        run: |
+          gh release delete ${{ inputs.version }} --yes --cleanup-tag || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Explicitly tag the current HEAD with the manually provided version and push to remote.
       - name: Create Git Tag
         run: |
