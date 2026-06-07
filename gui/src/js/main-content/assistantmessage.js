@@ -109,6 +109,10 @@ class AssistantMessageController {
                                 throwOnError: false
                             });
                         }
+                        // Apply syntax highlighting to code blocks in the loaded message
+                        if (window.highlightCodeBlocks) {
+                            window.highlightCodeBlocks(contentDiv);
+                        }
                     })
                     .catch(err => {
                         console.error("Failed to render markdown on history load:", err);

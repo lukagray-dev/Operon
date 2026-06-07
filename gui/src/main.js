@@ -41,6 +41,24 @@ import './js/shared/session-manager.js';
 import { initSettingsPanel } from './js/settings/settings-panel.js';
 
 /**
+ * Run highlight.js on all unhighlighted code blocks inside a container element.
+ * Called after each assistant message chunk is fully rendered.
+ * Uses the 'data-highlighted' attribute set by hljs to avoid double-processing.
+ *
+ * @param {HTMLElement} container - The .assistant-message__content element
+ */
+function highlightCodeBlocks(container) {
+    if (typeof hljs !== 'undefined' && container) {
+        container.querySelectorAll('pre code:not([data-highlighted])').forEach(block => {
+            hljs.highlightElement(block);
+        });
+    }
+}
+
+// Make the helper globally accessible so it can be invoked by the message controllers
+window.highlightCodeBlocks = highlightCodeBlocks;
+
+/**
  * Main application class
  * 
  * Coordinates all components and manages the application lifecycle.

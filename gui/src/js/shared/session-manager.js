@@ -417,6 +417,10 @@ class SessionManager {
                                 throwOnError: false
                             });
                         }
+                        // Apply syntax highlighting to code blocks in the loaded historical message block
+                        if (window.highlightCodeBlocks) {
+                            window.highlightCodeBlocks(contentDiv);
+                        }
                     })
                     .catch(err => {
                         console.error("Failed to render historical markdown:", err);
@@ -588,6 +592,10 @@ class SessionManager {
                             throwOnError: false
                         });
                     }
+                    // Apply syntax highlighting as the content streams in
+                    if (window.highlightCodeBlocks) {
+                        window.highlightCodeBlocks(activeEl);
+                    }
                 })
                 .catch(err => {
                     console.error("Failed to render markdown delta:", err);
@@ -662,6 +670,10 @@ class SessionManager {
             // Collapse thinking block if finished
             if (this.currentThinkingEl) {
                 this.currentThinkingEl.classList.add('collapsed');
+            }
+            // Highlight the code blocks in the finished streaming message
+            if (this.currentAssistantContentEl && window.highlightCodeBlocks) {
+                window.highlightCodeBlocks(this.currentAssistantContentEl);
             }
             this.resetStreamingState();
             this.loadSessionsList();
