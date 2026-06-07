@@ -76,6 +76,4 @@ env/
 
 landing/
 DATA.md
-vendor/
 target_tests/
-github-markdown-css/
