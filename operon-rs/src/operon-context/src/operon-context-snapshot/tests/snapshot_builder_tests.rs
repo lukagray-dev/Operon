@@ -7,8 +7,16 @@ use git2::{Repository, Signature};
 use operon_context_snapshot::{Role, SnapshotBuilder, SnapshotConfig};
 
 fn unique_temp_dir(label: &str) -> PathBuf {
-    let base = PathBuf::from(r"D:\tmp");
-    fs::create_dir_all(&base).expect("create D:\\tmp test base");
+    let base = if cfg!(windows) {
+        if Path::new("D:\\").exists() {
+            PathBuf::from(r"D:\tmp")
+        } else {
+            PathBuf::from(r"C:\tmp")
+        }
+    } else {
+        std::env::temp_dir()
+    };
+    fs::create_dir_all(&base).expect("create test base dir");
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
