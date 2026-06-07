@@ -207,7 +207,7 @@ Result: Two items with ids \"1\" and \"2\", different priorities"
 ///     }),
 ///     &mut store
 /// ).await;
-/// assert!(!result.is_error);
+/// assert!(!result.unwrap().is_error);
 /// # }
 /// ```
 pub async fn execute(
