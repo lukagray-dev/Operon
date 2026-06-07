@@ -13,6 +13,9 @@
 
 'use strict';
 
+// Let's import the openSettings function from our settings-panel module so we can trigger the settings overlay.
+import { openSettings } from '../settings/settings-panel.js';
+
 // External URLs used in the application
 const URLS = {
     DOCUMENTATION: 'https://github.com/lukagray-dev/Operon/tree/main/docs',
@@ -267,9 +270,10 @@ class TitlebarController {
 
         if (settings) {
             settings.addEventListener('click', () => {
-                console.log('Settings - not implemented yet');
+                // First, let's close all open menus in the titlebar for a clean UX
                 this.closeAllMenus();
-                // TODO: Open settings dialog
+                // Then, trigger the settings panel to slide open!
+                openSettings();
             });
         }
 

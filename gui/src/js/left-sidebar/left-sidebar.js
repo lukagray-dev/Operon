@@ -374,10 +374,13 @@ class LeftSidebarController {
     /**
      * Toggle project collapse/expand
      * 
-     * @param {string} projectId - The ID of the project to toggle
+     * @param {string} projectId - The ID of the project to toggle (usually a folder path)
      */
     toggleProject(projectId) {
-        const projectElement = document.querySelector(`[data-project-id="${projectId}"]`);
+        // Hey friend! Because project paths on Windows contain backslashes ('\') and spaces,
+        // using them directly inside document.querySelector causes syntax or lookup errors in CSS selector engines.
+        // We use CSS.escape() to safely escape any special characters so the query works perfectly!
+        const projectElement = document.querySelector(`[data-project-id="${CSS.escape(projectId)}"]`);
         if (!projectElement) return;
 
         const toggle = projectElement.querySelector('.left-sidebar__project-toggle');
@@ -453,16 +456,18 @@ class LeftSidebarController {
      * @param {string} chatId - The ID of the chat to select
      */
     selectChat(chatId) {
-        // Deselect previous active chat
+        // Hey friend! We deselect the previous active chat item. 
+        // Just in case the ID contains any special characters, we escape it using CSS.escape().
         if (this.activeChatId) {
-            const prevActive = document.querySelector(`[data-chat-id="${this.activeChatId}"]`);
+            const prevActive = document.querySelector(`[data-chat-id="${CSS.escape(this.activeChatId)}"]`);
             if (prevActive) {
                 prevActive.classList.remove('active');
             }
         }
 
-        // Select new chat
-        const newActive = document.querySelector(`[data-chat-id="${chatId}"]`);
+        // Now we find the new active chat button and select it.
+        // Again, we escape the chatId for safety.
+        const newActive = document.querySelector(`[data-chat-id="${CSS.escape(chatId)}"]`);
         if (newActive) {
             newActive.classList.add('active');
             this.activeChatId = chatId;
