@@ -9,13 +9,7 @@ repository.workspace = true
 
 [dependencies]
 operon-config                = { workspace = true }
-operon-context-compaction    = { workspace = true, features = ["http-client"] }
-operon-context-normalize-messages = { workspace = true }
-operon-context-normalize-stream   = { workspace = true }
-operon-context-normalize-tools    = { workspace = true }
-operon-context-sanitizer     = { workspace = true }
-operon-context-snapshot      = { workspace = true }
-operon-context-token-tracker = { workspace = true }
+operon-context               = { workspace = true, features = ["http-client"] }
 operon-events                = { workspace = true }
 operon-policy                = { workspace = true }
 operon-providers             = { workspace = true }

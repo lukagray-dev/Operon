@@ -46,12 +46,11 @@ use reqwest::Client;
 use tokio::sync::mpsc;
 
 use operon_config::PolicyConfig;
-use operon_context_compaction::{compact, AnthropicCompactionClient};
-use operon_context_normalize_messages::{ContentBlock, ConversationMessage, MessageRole};
-use operon_context_normalize_tools::{ToolCall, ToolContent, ToolResult};
-use operon_context_sanitizer::sanitize;
-use operon_context_snapshot::{Role, SnapshotBuilder};
-use operon_context_token_tracker::{SessionTokenState, TokenBudget, UsageRecord};
+use operon_context::{
+    compact, sanitize, AnthropicCompactionClient, ContentBlock, ConversationMessage, MessageRole,
+    Role, SnapshotBuilder, SessionTokenState, TokenBudget, UsageRecord, ToolCall, ToolContent,
+    ToolResult,
+};
 use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::{CallerRole, PolicyDecision, PolicyResolver};
 use operon_providers::Provider;
@@ -260,7 +259,7 @@ impl SessionRunner {
         self.messages = messages;
         self.turn_index = turn_index;
         if let Some(tokens) = last_token_count {
-            self.token_state.apply_estimate(tokens, operon_context_token_tracker::EstimationTier::Exact);
+            self.token_state.apply_estimate(tokens, operon_context::EstimationTier::Exact);
         }
     }
 
@@ -312,12 +311,12 @@ impl SessionRunner {
                 match self.run_compaction().await {
                     Ok(()) => {}
                     Err(SessionError::Compaction(
-                        operon_context_compaction::CompactionError::ThresholdNotReached,
+                        operon_context::CompactionError::ThresholdNotReached,
                     )) => {
                         tracing::warn!("Compaction triggered but threshold not reached — skipping");
                     }
                     Err(SessionError::Compaction(
-                        operon_context_compaction::CompactionError::InsufficientHistory,
+                        operon_context::CompactionError::InsufficientHistory,
                     )) => {
                         let _ = self
                             .event_tx
@@ -916,6 +915,13 @@ impl SessionRunner {
 /// Build a `ConversationMessage` from a fully assembled `StreamResult`.
 fn build_assistant_message(result: &StreamResult) -> ConversationMessage {
     let mut blocks: Vec<ContentBlock> = Vec::new();
+
+    // Hey friend! If the model did some reasoning/thinking during this turn, we prepend it as the
+    // very first block in the message. This ensures the thinking block resides before the text or tool
+    // blocks, which matches the model's actual execution flow and keeps providers like Anthropic happy!
+    if let Some(reasoning) = &result.reasoning {
+        blocks.push(ContentBlock::Reasoning(reasoning.clone()));
+    }
 
     if !result.text.is_empty() {
         blocks.push(ContentBlock::Text(result.text.clone()));

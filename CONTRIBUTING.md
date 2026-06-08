@@ -28,13 +28,13 @@ By participating in this project, you agree to abide by our [Code of Conduct](./
 
 Operon is structured as a Rust-centric workspace with decoupled frontend clients. Understanding where components live will help you locate the files you need to modify:
 
-*   **[`operon-rs/`](file:///d:/Project%20Operon/Operon/operon-rs)**: The core engine. It manages configuration, provider models, session runners, token estimation, and diagnostic tools.
-*   **[`gui/`](file:///d:/Project%20Operon/Operon/gui)**: The desktop GUI built on **Tauri v2**.
+*   **`operon-rs/`**: The core engine. It manages configuration, provider models, session runners, token estimation, and diagnostic tools.
+*   **`gui/`**: The desktop GUI built on **Tauri v2**.
     *   `gui/src`: The frontend UI assets (HTML, vanilla CSS, and JavaScript).
     *   `gui/src-tauri`: The Tauri rust backend wrapper, handling window commands, filesystem checks, and communication with the core `operon-rs` engine.
-*   **[`tui/`](file:///d:/Project%20Operon/Operon/tui)**: The terminal user interface (TUI) client built on **Ratatui** for developers who prefer running the agent within their terminal.
-*   **[`landing/`](file:///d:/Project%20Operon/Operon/landing)**: The project's marketing and informational landing page.
-*   **[`scripts/`](file:///d:/Project%20Operon/Operon/scripts)**: Collection of utility runner scripts for Windows and cross-platform environments.
+*   **`tui/`**: The terminal user interface (TUI) client built on **Ratatui** for developers who prefer running the agent within their terminal.
+*   **`landing/`**: The project's marketing and informational landing page.
+*   **`scripts/`**: Collection of utility runner scripts for Windows and cross-platform environments.
 
 ---
 
@@ -75,9 +75,9 @@ The GUI runs on Tauri, which hot-reloads the UI when frontend or Rust files are 
     cd gui
     npm install
     ```
-2.  Start the Tauri development server:
+2.  Start the Tauri development:
     ```bash
-    npm run dev
+    cargo tauri dev
     ```
     *This compiles the Tauri Rust core and spawns the native application window.*
 

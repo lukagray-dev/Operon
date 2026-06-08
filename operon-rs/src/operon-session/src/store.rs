@@ -17,7 +17,7 @@
 
 use std::path::{Path, PathBuf};
 
-use operon_context_normalize_messages::ConversationMessage;
+use operon_context::ConversationMessage;
 use serde::{Deserialize, Serialize};
 
 use crate::error::SessionError;
@@ -286,9 +286,9 @@ impl SessionStore {
         // Let's find turn 0 and search for the first user message block in it.
         if let Some(first_turn) = session.turns.iter().find(|t| t.turn_index == 0) {
             for msg in &first_turn.messages {
-                if msg.role == operon_context_normalize_messages::MessageRole::User {
+                if msg.role == operon_context::MessageRole::User {
                     for block in &msg.content {
-                        if let operon_context_normalize_messages::ContentBlock::Text(text) = block {
+                        if let operon_context::ContentBlock::Text(text) = block {
                             return Ok(Some(text.clone()));
                         }
                     }
@@ -319,7 +319,7 @@ fn unix_timestamp_secs() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use operon_context_normalize_messages::{ContentBlock, ConversationMessage};
+    use operon_context::{ContentBlock, ConversationMessage};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     // Hey buddy! Since unit tests in Rust run concurrently on multiple threads,

@@ -35,15 +35,15 @@ pub enum SessionError {
 
     /// Failure returned by the context sanitizer before building the request.
     #[error("Sanitizer error: {0}")]
-    Sanitizer(#[from] operon_context_sanitizer::SanitizerError),
+    Sanitizer(#[from] operon_context::SanitizerError),
 
     /// Failure returned by the snapshot builder.
     #[error("Snapshot error: {0}")]
-    Snapshot(#[from] operon_context_snapshot::SnapshotError),
+    Snapshot(#[from] operon_context::SnapshotError),
 
     /// Failure returned by the compaction pipeline.
     #[error("Compaction error: {0}")]
-    Compaction(#[from] operon_context_compaction::CompactionError),
+    Compaction(#[from] operon_context::CompactionError),
 
     /// SQLite store failure during session creation or turn persistence.
     #[error("Store error: {0}")]

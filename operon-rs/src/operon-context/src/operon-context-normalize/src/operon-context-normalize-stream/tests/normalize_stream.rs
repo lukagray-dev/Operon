@@ -92,10 +92,10 @@ fn anthropic_thinking_and_signature_finish_to_reasoning() {
     )
     .unwrap();
     assert_eq!(reasoning_events.len(), 1);
-    assert!(matches!(
+    assert_eq!(
         assembler.push(reasoning_events[0].clone()).unwrap(),
-        AssemblerOutput::Pending
-    ));
+        AssemblerOutput::ReasoningDelta("step by step".to_string())
+    );
 
     let signature_events = parse_line(
         r#"{"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"sig_1"}}"#,

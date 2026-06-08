@@ -74,6 +74,9 @@ pub enum AssemblerOutput {
     /// A complete text segment ready for immediate rendering.
     Text(String),
 
+    /// A reasoning/thinking delta fragment.
+    ReasoningDelta(String),
+
     /// A complete reasoning block emitted on finish/drain boundaries.
     Reasoning {
         /// Reasoning text content.

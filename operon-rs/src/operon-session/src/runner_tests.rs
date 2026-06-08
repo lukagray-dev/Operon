@@ -1,6 +1,6 @@
 use super::*;
 
-use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+use operon_context::{ToolCall, ToolCallId, ToolContent, ToolResult};
 use serde_json::json;
 
 // Build a tiny ToolCall fixture so the helper tests stay focused and readable.
@@ -149,8 +149,7 @@ fn test_set_history_restores_loaded_groups() {
     use tokio::sync::mpsc;
     use reqwest::Client;
     use operon_providers::{Provider, ProviderConfig, ApiCredentials, ModelConfig};
-    use operon_context_compaction::CompactionConfig;
-    use operon_context_snapshot::SnapshotConfig;
+    use operon_context::{CompactionConfig, SnapshotConfig};
 
     // Create a SnapshotBuilder with a dummy configuration pointing to the temp directory.
     let snapshot_builder = SnapshotBuilder::new(SnapshotConfig {
@@ -301,5 +300,39 @@ fn test_heuristic_token_estimator() {
     assert_eq!(estimate(&text_block), 2, "Text block token estimation mismatch");
     assert_eq!(estimate(&tool_call_block), 13, "Tool call token estimation mismatch");
     assert_eq!(estimate(&tool_result_block), 11, "Tool result token estimation mismatch");
+}
+
+#[test]
+fn test_build_assistant_message_includes_reasoning() {
+    use operon_context::ReasoningBlock;
+
+    let result = StreamResult {
+        text: "hello".to_string(),
+        tool_calls: Vec::new(),
+        stop_reason: Some(StopReason::EndTurn),
+        usage_raw: None,
+        reasoning: Some(ReasoningBlock::new("I am thinking")),
+    };
+
+    let msg = build_assistant_message(&result);
+    assert_eq!(msg.role, MessageRole::Assistant);
+    assert_eq!(msg.content.len(), 2);
+    
+    // First block should be the reasoning block
+    match &msg.content[0] {
+        ContentBlock::Reasoning(rb) => {
+            assert_eq!(rb.thinking, "I am thinking");
+            assert!(rb.signature.is_none());
+        }
+        other => panic!("expected ContentBlock::Reasoning, got {:?}", other),
+    }
+
+    // Second block should be the text block
+    match &msg.content[1] {
+        ContentBlock::Text(t) => {
+            assert_eq!(t, "hello");
+        }
+        other => panic!("expected ContentBlock::Text, got {:?}", other),
+    }
 }
 

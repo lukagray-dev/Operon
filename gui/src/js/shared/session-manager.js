@@ -527,7 +527,7 @@ class SessionManager {
                         <img class="assistant-message__thinking-icon" src="./assets/icons/sidebar/new-chat.svg" style="filter: invert(1); width:14px; height:14px;">
                         <span>Thinking Process</span>
                     </div>
-                    <div class="assistant-message__thinking-content">${block.Reasoning.signature || block.Reasoning.thinking || ''}</div>
+                    <div class="assistant-message__thinking-content">${block.Reasoning.thinking || block.Reasoning.signature || ''}</div>
                 `;
                 
                 // Toggle collapse on click

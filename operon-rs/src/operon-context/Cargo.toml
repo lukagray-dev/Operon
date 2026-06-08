@@ -15,6 +15,7 @@ operon-context-normalize.workspace     = true
 
 [features]
 default = []
+http-client = ["operon-context-compaction/http-client"]
 test-utils = ["operon-context-compaction/test-utils"]
 
 [dev-dependencies]

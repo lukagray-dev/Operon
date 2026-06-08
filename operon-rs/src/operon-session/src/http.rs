@@ -23,10 +23,8 @@ use reqwest::Client;
 use serde_json::Value;
 use tokio::sync::mpsc;
 
-use operon_context_normalize_messages::StopReason;
-use operon_context_normalize_stream::types::StreamEvent;
-use operon_context_normalize_stream::{new_assembler, parse_line, AssemblerOutput};
-use operon_context_normalize_tools::ToolCall;
+use operon_context::{StopReason, ToolCall};
+use operon_context::normalize::stream::{new_assembler, parse_line, AssemblerOutput, StreamEvent};
 use operon_events::{SessionCommand, SessionEvent};
 use operon_providers::Provider;
 
@@ -54,6 +52,9 @@ pub struct StreamResult {
     /// Raw usage metadata from the stream (if the provider emitted it).
     /// Used by the runner to record exact token counts via the token tracker.
     pub usage_raw: Option<Value>,
+
+    /// The complete reasoning block accumulated during the stream.
+    pub reasoning: Option<operon_context::ReasoningBlock>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,6 +169,7 @@ pub async fn send_streaming(
         tool_calls: Vec::new(),
         stop_reason: None,
         usage_raw: None,
+        reasoning: None,
     };
 
     // Buffer for building complete lines character by character.
@@ -239,9 +241,19 @@ pub async fn send_streaming(
                                     let _ = event_tx.send(SessionEvent::TextDelta { text }).await;
                                 }
 
-                                // Reasoning block flushed — send to UI for display.
-                                AssemblerOutput::Reasoning { text, .. } => {
+                                // Hey friend! When we get a ReasoningDelta, it means the model is actively thinking.
+                                // We send it to the UI immediately via event_tx so the user sees the thinking stream!
+                                AssemblerOutput::ReasoningDelta(text) => {
                                     let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
+                                }
+
+                                // Hey friend! A Reasoning block was flushed or completed. We wrap it and store it in
+                                // our StreamResult so we can add it to the final message block structure later.
+                                AssemblerOutput::Reasoning { text, signature } => {
+                                    result.reasoning = Some(operon_context::ReasoningBlock {
+                                        thinking: text,
+                                        signature: signature.map(operon_context::ReasoningSignature),
+                                    });
                                 }
 
                                 // Complete tool call — notify UI with start then args.
@@ -318,9 +330,13 @@ pub async fn send_streaming(
 
     for output in final_outputs {
         match output {
-            // Flush any remaining buffered reasoning/thinking text.
-            AssemblerOutput::Reasoning { text, .. } => {
-                let _ = event_tx.send(SessionEvent::ThinkingDelta { text }).await;
+            // Hey friend! Any leftover reasoning text in the assembler buffer is flushed at the end of the stream.
+            // We store it in StreamResult so it's captured and saved as part of the assistant's message block.
+            AssemblerOutput::Reasoning { text, signature } => {
+                result.reasoning = Some(operon_context::ReasoningBlock {
+                    thinking: text,
+                    signature: signature.map(operon_context::ReasoningSignature),
+                });
             }
 
             // If a tool call was finalized at the end (e.g. for OpenAI-compatible providers

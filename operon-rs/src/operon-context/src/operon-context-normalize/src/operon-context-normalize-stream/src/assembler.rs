@@ -43,9 +43,9 @@ impl StreamAssembler {
             StreamEvent::TextDelta { text } => Ok(AssemblerOutput::Text(text)),
 
             StreamEvent::ReasoningDelta { text } => {
-                // If a signature already exists for buffered reasoning and a new
-                // delta arrives, treat this as the start of a fresh reasoning
-                // block and flush the prior one first.
+                // If a signature already exists for our buffered reasoning and a new
+                // delta arrives, it means the model is transitioning to a fresh/new reasoning
+                // block. We take the current accumulated reasoning text and flush it first.
                 if self.reasoning_signature.is_some() && !self.reasoning_text.is_empty() {
                     let flushed = AssemblerOutput::Reasoning {
                         text: std::mem::take(&mut self.reasoning_text),
@@ -55,8 +55,11 @@ impl StreamAssembler {
                     return Ok(flushed);
                 }
 
+                // We append the reasoning text to our internal reasoning accumulator
+                // so we can build the complete ReasoningBlock at the end. But we ALSO yield the
+                // delta immediately so the UI/TUI can stream it to the user in real-time!
                 self.reasoning_text.push_str(&text);
-                Ok(AssemblerOutput::Pending)
+                Ok(AssemblerOutput::ReasoningDelta(text))
             }
 
             StreamEvent::ReasoningSignature { signature } => {
