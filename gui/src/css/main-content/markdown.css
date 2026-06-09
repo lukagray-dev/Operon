@@ -1,0 +1,425 @@
+/**
+ * Markdown Rendered Elements Styles
+ * 
+ * This file contains styles for rendering markdown-generated HTML elements
+ * including paragraphs, headings, lists, blockquotes, code blocks, tables,
+ * links, and horizontal rules. All styles maintain the semantic HTML structure
+ * output by pulldown-cmark without imposing pre-wrap or additional white-space
+ * constraints that would cause double spacing.
+ */
+
+/* ============================================================================
+   MARKDOWN RENDERED ELEMENTS
+   ============================================================================ */
+
+/* 
+ * Container Child Spacing Rules
+ * 
+ * These rules ensure that the first block inside our content doesn't push
+ * down the container unnecessarily, and the last block doesn't add extra bottom
+ * spacing. This is crucial for maintaining tight, clean layouts inside message bubbles.
+ */
+.markdown-content>*:first-child {
+    margin-top: 0 !important;
+}
+
+.markdown-content>*:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* 
+ * Markdown Paragraphs and Spacing
+ * 
+ * We use 1em bottom margin for paragraphs to match GitHub style,
+ * and we remove white-space: pre-wrap to prevent double line breaks from source HTML.
+ */
+.markdown-content p {
+    margin-top: 0;
+    margin-bottom: 1em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.markdown-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* 
+ * Headings (H1 to H6)
+ * 
+ * Styled with GitHub's type scale, line height (1.25), and proportional margin ratios.
+ * - margin-top: 1.5em gives a clean breathing space before new sections.
+ * - margin-bottom: 0.5em anchors headings closer to their succeeding text.
+ * - We also apply border-bottoms to h1 and h2 for structure.
+ * - If a heading is the first child of the message container, we remove its top margin.
+ */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #ffffff;
+    font-family: var(--font-family-primary, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+}
+
+.markdown-content h1 {
+    font-size: 2em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.markdown-content h2 {
+    font-size: 1.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.markdown-content h3 {
+    font-size: 1.25em;
+}
+
+.markdown-content h4 {
+    font-size: 1em;
+}
+
+.markdown-content h5 {
+    font-size: 0.875em;
+}
+
+.markdown-content h6 {
+    font-size: 0.85em;
+    color: #8b949e;
+}
+
+/* If a heading is the first element in the content container, eliminate its top margin */
+.markdown-content>h1:first-child,
+.markdown-content>h2:first-child,
+.markdown-content>h3:first-child,
+.markdown-content>h4:first-child,
+.markdown-content>h5:first-child,
+.markdown-content>h6:first-child {
+    margin-top: 0;
+}
+
+/* 
+ * Lists (ul, ol, li)
+ * 
+ * - We enforce 'list-style-type: disc !important' and 'list-style-type: decimal !important' 
+ *   using !important to explicitly override the global resets found in tokens.css.
+ * - Spacing: margin-bottom is 1em, padding-left is 2em (standard indentation).
+ * - Nested lists have their margin-top and margin-bottom cleared to prevent double spacing.
+ * - Items get 0.25em bottom spacing for a tight, readable layout, and a unitless line-height of 1.5.
+ */
+.markdown-content ul,
+.markdown-content ol {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding-left: 2em;
+}
+
+.markdown-content ul {
+    list-style-type: disc !important;
+}
+
+.markdown-content ol {
+    list-style-type: decimal !important;
+}
+
+.markdown-content li {
+    margin-bottom: 0.25em;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Prevent double-spacing for nested list items */
+.markdown-content ul ul,
+.markdown-content ul ol,
+.markdown-content ol ol,
+.markdown-content ol ul {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* Sub-list bullet hierarchies matching GitHub style */
+.markdown-content ol ol,
+.markdown-content ul ol {
+    list-style-type: lower-roman !important;
+}
+
+.markdown-content ul ul ol,
+.markdown-content ul ol ol,
+.markdown-content ol ul ol,
+.markdown-content ol ol ol {
+    list-style-type: lower-alpha !important;
+}
+
+/* 
+ * Blockquotes
+ * 
+ * - A 0.25em solid border with 20% white opacity matches GitHub's dark border feel on #1a1a1a.
+ * - Left padding of 1em and a muted text color (#8b949e) distinguishes the quote from normal text.
+ * - Margin is 0 0 1em to flow naturally with other markdown paragraphs.
+ */
+.markdown-content blockquote {
+    border-left: 0.25em solid rgba(255, 255, 255, 0.2);
+    padding: 0 1em;
+    color: #8b949e;
+    margin: 0 0 1em;
+}
+
+.markdown-content blockquote> :first-child {
+    margin-top: 0;
+}
+
+.markdown-content blockquote> :last-child {
+    margin-bottom: 0;
+}
+
+/* 
+ * Code Blocks (pre)
+ * 
+ * Pre-formatted text containers.
+ * - Font: monospace with a 1.45 line height and 85% font-size for compact layout.
+ * - Border-radius is 6px, and background is translucent dark matching Operon's feel.
+ * - We keep scrollbar customization rules for a premium, custom appearance.
+ */
+.markdown-content pre {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    color: #f0f6fc;
+    background-color: rgba(30, 30, 30, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    font-family: 'Kode Mono', 'Fira Code', Consolas, Monaco, monospace;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* Webkit custom scrollbars for pre-formatted blocks */
+.markdown-content pre::-webkit-scrollbar {
+    height: 6px;
+}
+
+.markdown-content pre::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+/* 
+ * Code Block Wrapper and Header Bar
+ * 
+ * - Wraps code blocks to show a language label and a copy button.
+ * - Flexbox layout with a dark theme top header matching GitHub's code block style.
+ */
+.code-block-wrapper {
+    margin-top: 0;
+    margin-bottom: 1em;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: rgba(30, 30, 30, 0.4);
+}
+
+/* Override pre margins, borders, and border-radius inside the code block wrapper */
+.markdown-content .code-block-wrapper pre {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    padding: 16px;
+}
+
+.code-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.04);
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.code-block-language {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #8b949e;
+}
+
+.code-block-copy-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+    opacity: 0.7;
+}
+
+.code-block-copy-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    opacity: 1;
+}
+
+.code-block-copy-icon {
+    width: 14px;
+    height: 14px;
+    filter: invert(1);
+    /* Invert to make the copy button white/light on dark theme */
+}
+
+/* Copied state micro-animation / visual feedback */
+.code-block-copy-btn.copied {
+    background-color: rgba(76, 175, 80, 0.2);
+    opacity: 1;
+}
+
+/* Prevent highlight.js from overriding our pre background and padding */
+.markdown-content pre code.hljs {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+    color: inherit;
+}
+
+/* 
+ * Code Elements (code)
+ * 
+ * - Inline code gets a soft red accent color (#e06c75) or GitHub's neutral dark code feel, 
+ *   with a semi-transparent gray background (rgba(110,118,129,0.4)) and 6px border-radius.
+ * - Inside pre tags (block code), background/padding/border-radius are cleared, 
+ *   and we force white-space: pre to keep formatted indentation intact.
+ */
+.markdown-content code {
+    padding: 0.25em 0.45em;
+    margin: 0;
+    font-size: 85%;
+    font-family: 'Kode Mono', 'Fira Code', Consolas, Monaco, monospace;
+    color: #e06c75;
+    background-color: rgba(110, 118, 129, 0.4);
+    border-radius: 6px;
+    word-break: break-word;
+}
+
+.markdown-content pre code {
+    padding: 0;
+    margin: 0;
+    font-size: inherit;
+    color: inherit;
+    background-color: transparent;
+    border-radius: 0;
+    white-space: pre;
+    word-break: normal;
+}
+
+/* 
+ * Tables (table, th, td)
+ * 
+ * - Configured with 1em bottom margin.
+ * - Table cells get 6px 13px padding and thin border lines of 15% opacity white.
+ * - Headers are styled with 8% opacity white background and 600 font weight.
+ * - Even rows get a subtle 2% white background for table readability.
+ */
+.markdown-content table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin-top: 0;
+    margin-bottom: 1em;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.markdown-content table::-webkit-scrollbar {
+    height: 6px;
+}
+
+.markdown-content table::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.markdown-content table::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.markdown-content table::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.markdown-content table th,
+.markdown-content table td {
+    padding: 6px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    text-align: left;
+    font-family: var(--font-family-primary, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+    font-size: 13px;
+}
+
+.markdown-content table th {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.markdown-content table tr {
+    background-color: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.markdown-content table tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 
+ * Links (a)
+ * 
+ * - Styled as bright blue links (#58a6ff) matching GitHub dark's default link behavior.
+ * - Underline appears on hover to make it feel responsive and interactive.
+ */
+.markdown-content a {
+    color: #58a6ff;
+    text-decoration: none;
+    background-color: transparent;
+    transition: color 0.15s ease;
+}
+
+.markdown-content a:hover {
+    color: #58a6ff;
+    text-decoration: underline;
+}
+
+/* 
+ * Horizontal Rule (hr)
+ * 
+ * A subtle divider with a height of 0.25em and a semi-translucent background,
+ * separating content segments cleanly.
+ */
+.markdown-content hr {
+    height: 0.25em;
+    padding: 0;
+    margin: 1.5rem 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    border: 0;
+}
