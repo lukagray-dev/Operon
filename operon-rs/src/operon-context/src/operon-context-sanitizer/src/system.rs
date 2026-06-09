@@ -28,6 +28,7 @@ mod tests {
                 timestamp: "2026-01-01T00:00:00Z".to_string(),
                 session_id: "session".to_string(),
                 role: Role::Owner,
+                system_prompt: "test prompt",
             },
             agents_md: None,
             tree: DirectoryTree {

@@ -27,12 +27,50 @@ impl fmt::Display for Role {
 }
 
 /// Fast-changing bootstrap values that are always refreshed per build.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct BootstrapBlock {
     pub agent_name: String,
     pub timestamp: String,
     pub session_id: String,
     pub role: Role,
+    /// Detailed guidelines, principles, and identity instructions for the agent.
+    pub system_prompt: &'static str,
+}
+
+/// A helper structure that owns the system_prompt as an owned String during deserialization.
+/// This allows us to deserialize the struct without forcing the deserialization input `'de` to outlive `'static`.
+#[derive(Deserialize)]
+struct BootstrapBlockHelper {
+    agent_name: String,
+    timestamp: String,
+    session_id: String,
+    role: Role,
+    system_prompt: String,
+}
+
+// Manual implementation of Deserialize for BootstrapBlock.
+// This is done to prevent Serde's derive macro from automatically generating a `'de: 'static` lifetime bound,
+// which would break compilation of parent structs that contain BootstrapBlock.
+impl<'de> Deserialize<'de> for BootstrapBlock {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // 1. Deserialize into the helper struct first, which owns the strings.
+        let helper = BootstrapBlockHelper::deserialize(deserializer)?;
+        
+        // 2. Leak the owned system prompt String to obtain a &'static str reference.
+        // This is safe because snapshots are built or loaded once per turn.
+        let system_prompt = Box::leak(helper.system_prompt.into_boxed_str());
+        
+        Ok(BootstrapBlock {
+            agent_name: helper.agent_name,
+            timestamp: helper.timestamp,
+            session_id: helper.session_id,
+            role: helper.role,
+            system_prompt,
+        })
+    }
 }
 
 /// Compact git summary appended to the rendered snapshot when a repo is present.
@@ -68,6 +106,11 @@ impl SessionSnapshot {
     /// Renders all snapshot blocks into a single plain-text system message.
     pub fn render(&self) -> String {
         let mut output = String::new();
+
+        // Prepend the system prompt at the very beginning of the rendered output.
+        // It is followed by two newlines, then the "=== OPERON SESSION ===" header.
+        output.push_str(self.bootstrap.system_prompt);
+        output.push_str("\n\n");
 
         output.push_str("=== OPERON SESSION ===\n");
         output.push_str("Agent: ");
