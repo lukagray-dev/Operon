@@ -343,8 +343,12 @@ class SessionManager {
             });
             
             // 2. Render user and assistant turns
+            let currentAssistantMsgEl = null;
             history.forEach(msg => {
                 if (msg.role === 'User') {
+                    // Reset reference when transitioning to a new User message turn
+                    currentAssistantMsgEl = null;
+                    
                     // Extract text
                     let text = '';
                     msg.content.forEach(block => {
@@ -357,11 +361,21 @@ class SessionManager {
                     }
                     if (title === 'Chat Session') {
                         title = text.replace('\n', ' ').trim();
-                        if (title.len > 40) title = title.substring(0, 40) + '...';
+                        if (title.length > 40) title = title.substring(0, 40) + '...';
                     }
                 } else if (msg.role === 'Assistant') {
-                    // Render assistant message block with nested thinking / tool calls
-                    this.renderHistoricalAssistantMessage(msg, toolResultsMap);
+                    // Render assistant message block with nested thinking / tool calls.
+                    // Hey friend! We group consecutive assistant message blocks into a single message element,
+                    // which prevents redundant separator lines and feedback action rows under each individual block/tool call.
+                    if (!currentAssistantMsgEl) {
+                        currentAssistantMsgEl = window.assistantMessageController.createMessage(null, "Just now");
+                        if (currentAssistantMsgEl) {
+                            window.assistantMessageController.messagesContainer.appendChild(currentAssistantMsgEl);
+                        }
+                    }
+                    if (currentAssistantMsgEl) {
+                        this.renderHistoricalAssistantMessage(currentAssistantMsgEl, msg, toolResultsMap);
+                    }
                 }
             });
             
@@ -467,16 +481,18 @@ class SessionManager {
      * Helper to render a historical assistant message including tool calls and results
      * in the sequential order they were executed.
      */
-    renderHistoricalAssistantMessage(msg, toolResultsMap) {
-        if (!window.assistantMessageController) return;
-        
-        // Create an empty assistant message wrapper (passing null for the content)
-        // so that we can append text, thinking, and tool blocks in their exact execution order.
-        const msgEl = window.assistantMessageController.createMessage(null, "Just now");
+    /**
+     * Helper to render a historical assistant message including tool calls and results
+     * in the sequential order they were executed.
+     * 
+     * Hey friend! This method now takes the existing message wrapper element (msgEl)
+     * as its first parameter and inserts the sequential flow of blocks (text, thinking, tool calls)
+     * right before the separator element.
+     */
+    renderHistoricalAssistantMessage(msgEl, msg, toolResultsMap) {
         if (!msgEl) return;
-        
-        window.assistantMessageController.messagesContainer.appendChild(msgEl);
         const separator = msgEl.querySelector('.assistant-message__separator');
+        if (!separator) return;
         
         // Loop through all blocks in sequence to build the sequential flow
         msg.content.forEach(block => {
@@ -524,7 +540,7 @@ class SessionManager {
                 thinkingCard.className = 'assistant-message__thinking collapsed';
                 thinkingCard.innerHTML = `
                     <div class="assistant-message__thinking-header">
-                        <img class="assistant-message__thinking-icon" src="./assets/icons/sidebar/new-chat.svg" style="filter: invert(1); width:14px; height:14px;">
+                        <img class="assistant-message__thinking-icon" src="./assets/icons/main-content/messages/assistant/thinking.svg" style="filter: invert(0.6); width:14px; height:14px;">
                         <span>Thinking Process</span>
                     </div>
                     <div class="assistant-message__thinking-content">${block.Reasoning.thinking || block.Reasoning.signature || ''}</div>
@@ -543,7 +559,7 @@ class SessionManager {
                 const result = toolResultsMap.get(callId);
                 
                 let statusClass = 'assistant-message__tool-status--completed';
-                let statusText = 'Completed';
+                let statusText = '<img class="assistant-message__tool-status-icon assistant-message__tool-status-icon--completed" src="./assets/icons/main-content/messages/assistant/circle-check.svg">';
                 let resultText = 'No result returned.';
                 
                 if (result) {
@@ -572,11 +588,14 @@ class SessionManager {
                     <div class="assistant-message__tool-header">
                         <div class="assistant-message__tool-title-wrapper">
                             <span class="assistant-message__tool-icon">
-                                <img src="./assets/icons/sidebar/plugins.svg" style="filter: invert(1); width:16px; height:16px;">
+                                <img src="./assets/icons/main-content/messages/assistant/tool.svg" style="filter: invert(0.7); width:14px; height:14px;">
                             </span>
                             <span class="assistant-message__tool-name">${call.name}</span>
                         </div>
-                        <span class="assistant-message__tool-status ${statusClass}">${statusText}</span>
+                        <div class="assistant-message__tool-status-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                            <span class="assistant-message__tool-status ${statusClass}">${statusText}</span>
+                            <img class="assistant-message__tool-chevron" src="./assets/icons/sidebar/chevron-down.svg" style="filter: invert(0.6); width: 14px; height: 14px;">
+                        </div>
                     </div>
                     <div class="assistant-message__tool-details">
                         <div class="assistant-message__tool-section">
@@ -766,6 +785,7 @@ class SessionManager {
             // Turn completed successfully!
             // Collapse thinking block if finished
             if (this.currentThinkingEl) {
+                this.currentThinkingEl.classList.remove('thinking-active');
                 this.currentThinkingEl.classList.add('collapsed');
             }
             // Highlight the code blocks in the finished streaming message
@@ -818,6 +838,7 @@ class SessionManager {
     ensureAssistantContentElCreated() {
         // If we were thinking, collapse that thinking block as we are now transitioning to text response.
         if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.remove('thinking-active');
             this.currentThinkingEl.classList.add('collapsed');
             this.currentThinkingEl = null;
         }
@@ -845,10 +866,10 @@ class SessionManager {
 
         if (!this.currentThinkingEl) {
             const thinkingCard = document.createElement('div');
-            thinkingCard.className = 'assistant-message__thinking';
+            thinkingCard.className = 'assistant-message__thinking thinking-active';
             thinkingCard.innerHTML = `
                 <div class="assistant-message__thinking-header">
-                    <img class="assistant-message__thinking-icon" src="./assets/icons/sidebar/new-chat.svg" style="filter: invert(0.6); width:14px; height:14px;">
+                    <img class="assistant-message__thinking-icon" src="./assets/icons/main-content/messages/assistant/thinking.svg" style="filter: invert(0.6); width:14px; height:14px;">
                     <span>Thinking Process</span>
                 </div>
                 <div class="assistant-message__thinking-content"></div>
@@ -877,6 +898,7 @@ class SessionManager {
     createToolCallCard(callId, name) {
         // If we were thinking, collapse that thinking block.
         if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.remove('thinking-active');
             this.currentThinkingEl.classList.add('collapsed');
             this.currentThinkingEl = null;
         }
@@ -890,13 +912,21 @@ class SessionManager {
             <div class="assistant-message__tool-header">
                 <div class="assistant-message__tool-title-wrapper">
                     <span class="assistant-message__tool-icon">
-                        <img src="./assets/icons/sidebar/plugins.svg" style="filter: invert(1); width:16px; height:16px;">
+                        <img src="./assets/icons/main-content/messages/assistant/tool.svg" style="filter: invert(0.7); width:14px; height:14px;">
                     </span>
                     <span class="assistant-message__tool-name">tool: ${name}</span>
                 </div>
-                <span class="assistant-message__tool-status assistant-message__tool-status--running">
-                    <span class="tool-spinner"></span>Running
-                </span>
+                <div class="assistant-message__tool-status-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                    <span class="assistant-message__tool-status assistant-message__tool-status--running">
+                        <svg class="tool-spinner-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.4 31.4" opacity="0.25"/>
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.4 31.4" stroke-dashoffset="10">
+                                <animateTransform attributeName="transform" type="rotate" dur="0.8s" from="0 12 12" to="360 12 12" repeatCount="indefinite" />
+                            </circle>
+                        </svg>
+                    </span>
+                    <img class="assistant-message__tool-chevron" src="./assets/icons/sidebar/chevron-down.svg" style="filter: invert(0.6); width: 14px; height: 14px;">
+                </div>
             </div>
             <div class="assistant-message__tool-details">
                 <div class="assistant-message__tool-section">
@@ -950,7 +980,7 @@ class SessionManager {
                     statusEl.textContent = 'Failed';
                 } else {
                     statusEl.className = 'assistant-message__tool-status assistant-message__tool-status--completed';
-                    statusEl.textContent = 'Completed';
+                    statusEl.innerHTML = '<img class="assistant-message__tool-status-icon assistant-message__tool-status-icon--completed" src="./assets/icons/main-content/messages/assistant/circle-check.svg">';
                 }
             }
             
@@ -987,6 +1017,7 @@ class SessionManager {
     createPermissionPromptCard(id, tool, path, reason, argsJson) {
         // Collapse active thinking block when prompt appears.
         if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.remove('thinking-active');
             this.currentThinkingEl.classList.add('collapsed');
             this.currentThinkingEl = null;
         }
@@ -1079,6 +1110,7 @@ class SessionManager {
     createAskPromptCard(id, question, options) {
         // Collapse active thinking block when prompt appears.
         if (this.currentThinkingEl) {
+            this.currentThinkingEl.classList.remove('thinking-active');
             this.currentThinkingEl.classList.add('collapsed');
             this.currentThinkingEl = null;
         }

@@ -143,11 +143,11 @@
  * down the container unnecessarily, and the last block doesn't add extra bottom
  * spacing. This is crucial for maintaining tight, clean layouts inside message bubbles.
  */
-.markdown-content > *:first-child {
+.markdown-content>*:first-child {
     margin-top: 0 !important;
 }
 
-.markdown-content > *:last-child {
+.markdown-content>*:last-child {
     margin-bottom: 0 !important;
 }
 
@@ -221,12 +221,12 @@
 }
 
 /* If a heading is the first element in the content container, eliminate its top margin */
-.markdown-content > h1:first-child,
-.markdown-content > h2:first-child,
-.markdown-content > h3:first-child,
-.markdown-content > h4:first-child,
-.markdown-content > h5:first-child,
-.markdown-content > h6:first-child {
+.markdown-content>h1:first-child,
+.markdown-content>h2:first-child,
+.markdown-content>h3:first-child,
+.markdown-content>h4:first-child,
+.markdown-content>h5:first-child,
+.markdown-content>h6:first-child {
     margin-top: 0;
 }
 
@@ -297,11 +297,11 @@
     margin: 0 0 1em;
 }
 
-.markdown-content blockquote > :first-child {
+.markdown-content blockquote> :first-child {
     margin-top: 0;
 }
 
-.markdown-content blockquote > :last-child {
+.markdown-content blockquote> :last-child {
     margin-bottom: 0;
 }
 
@@ -406,7 +406,8 @@
 .code-block-copy-icon {
     width: 14px;
     height: 14px;
-    filter: invert(1); /* Invert to make the copy button white/light on dark theme */
+    filter: invert(1);
+    /* Invert to make the copy button white/light on dark theme */
 }
 
 /* Copied state micro-animation / visual feedback */
@@ -686,46 +687,53 @@
 .assistant-message__thinking,
 .assistant-message__tool-card,
 .assistant-message__permission-card {
-    background: rgba(30, 30, 30, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
-    margin-top: 8px;
-    margin-bottom: 8px;
+    margin-top: 6px;
+    margin-bottom: 6px;
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: all 0.15s ease;
 }
 
-/* Hover glow for premium feel */
-.assistant-message__tool-card:hover,
+/* Hover glow for permission card */
 .assistant-message__permission-card:hover {
     border-color: rgba(255, 255, 255, 0.15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Thinking Block */
+.assistant-message__thinking {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.assistant-message__thinking:hover {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+}
+
 .assistant-message__thinking-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.02);
+    background: transparent;
     user-select: none;
-    color: #888888;
-    font-size: 13px;
+    color: #777777;
+    font-size: 12.5px;
     font-weight: 500;
+    transition: color 0.15s ease;
 }
 
 .assistant-message__thinking-header:hover {
-    color: #bbbbbb;
-    background: rgba(255, 255, 255, 0.04);
+    color: #999999;
 }
 
 .assistant-message__thinking-icon {
     width: 14px;
     height: 14px;
-    opacity: 0.7;
+    opacity: 0.6;
     transition: transform 0.2s ease;
 }
 
@@ -734,17 +742,39 @@
 }
 
 .assistant-message__thinking-content {
-    padding: 12px 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    color: #aaaaaa;
-    font-size: 13px;
-    line-height: 20px;
+    padding: 10px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    color: #999999;
+    font-size: 12.5px;
+    line-height: 18px;
     white-space: pre-wrap;
     background: rgba(0, 0, 0, 0.1);
     word-wrap: break-word;
-    /* Wrap long words to avoid layout breakage */
     overflow-wrap: break-word;
-    /* Ensure word breaks occur on long tokens */
+    max-height: 180px;
+    /* Limit visible height to ~10 lines */
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Webkit custom scrollbars for thinking content */
+.assistant-message__thinking-content::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.assistant-message__thinking-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.assistant-message__thinking-content::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.assistant-message__thinking-content::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 .assistant-message__thinking.collapsed .assistant-message__thinking-content {
@@ -752,69 +782,82 @@
 }
 
 /* Tool Card */
+.assistant-message__tool-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.assistant-message__tool-card:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.035);
+}
+
 .assistant-message__tool-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.02);
+    padding: 8px 12px;
+    background: transparent;
     cursor: pointer;
     user-select: none;
-}
-
-.assistant-message__tool-header:hover {
-    background: rgba(255, 255, 255, 0.04);
 }
 
 .assistant-message__tool-title-wrapper {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .assistant-message__tool-icon {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+}
+
+.assistant-message__tool-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #cccccc;
+}
+
+.assistant-message__tool-status {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.assistant-message__tool-status--running {
+    background: transparent;
+    border: none;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.assistant-message__tool-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: #e0e0e0;
-}
-
-.assistant-message__tool-status {
-    font-size: 12px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-weight: 500;
-}
-
-.assistant-message__tool-status--running {
-    background: rgba(25, 118, 210, 0.15);
-    color: #64b5f6;
-    border: 1px solid rgba(25, 118, 210, 0.3);
-}
-
 .assistant-message__tool-status--completed {
-    background: rgba(76, 175, 80, 0.15);
-    color: #81c784;
-    border: 1px solid rgba(76, 175, 80, 0.3);
+    background: transparent;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .assistant-message__tool-status--failed {
-    background: rgba(244, 67, 54, 0.15);
-    color: #e57373;
-    border: 1px solid rgba(244, 67, 54, 0.3);
+    background: rgba(239, 154, 154, 0.08);
+    color: #ef9a9a;
+    border: 1px solid rgba(239, 154, 154, 0.2);
 }
 
 .assistant-message__tool-chevron {
-    width: 14px;
-    height: 14px;
-    opacity: 0.6;
+    width: 12px;
+    height: 12px;
+    opacity: 0.5;
     transition: transform 0.2s ease;
 }
 
@@ -823,8 +866,8 @@
 }
 
 .assistant-message__tool-details {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(0, 0, 0, 0.15);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .assistant-message__tool-card.collapsed .assistant-message__tool-details {
@@ -832,34 +875,58 @@
 }
 
 .assistant-message__tool-section {
-    padding: 12px 16px;
+    padding: 10px 12px;
 }
 
 .assistant-message__tool-section:not(:last-child) {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .assistant-message__tool-section-title {
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #777777;
-    margin-bottom: 6px;
+    color: #666666;
+    margin-bottom: 4px;
     font-weight: 600;
 }
 
 .assistant-message__tool-code {
     font-family: "Fira Code", Consolas, Monaco, monospace;
-    font-size: 12px;
-    color: #dddddd;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 8px 12px;
+    font-size: 11.5px;
+    color: #cccccc;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px 10px;
     border-radius: 4px;
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 180px;
+    /* Limit visible height to ~10 lines of code */
     white-space: pre-wrap;
     word-break: break-all;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.03);
     margin: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Webkit custom scrollbars for tool code blocks */
+.assistant-message__tool-code::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.assistant-message__tool-code::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.assistant-message__tool-code::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.assistant-message__tool-code::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Spinner Animation */
@@ -883,79 +950,83 @@
 
 /* Permission Card */
 .assistant-message__permission-card {
-    border: 1px solid rgba(251, 192, 45, 0.2);
-    background: rgba(251, 192, 45, 0.03);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .assistant-message__permission-card:hover {
-    border-color: rgba(251, 192, 45, 0.35);
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.035);
 }
 
 .assistant-message__permission-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    background: rgba(251, 192, 45, 0.02);
-    border-bottom: 1px solid rgba(251, 192, 45, 0.1);
+    gap: 8px;
+    padding: 8px 12px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .assistant-message__permission-warning-icon {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
 }
 
 .assistant-message__permission-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #fbc02d;
+    font-size: 13px;
+    font-weight: 500;
+    color: #cccccc;
 }
 
 .assistant-message__permission-body {
-    padding: 16px 18px;
+    padding: 10px 12px;
 }
 
 .assistant-message__permission-reason {
-    font-size: 13px;
-    color: #e0e0e0;
-    margin-bottom: 14px;
-    line-height: 20px;
+    font-size: 12.5px;
+    color: #999999;
+    margin-bottom: 10px;
+    line-height: 18px;
 }
 
 .assistant-message__permission-actions {
     display: flex;
-    gap: 12px;
+    gap: 8px;
 }
 
 .btn-permission {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     border: none;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .btn-permission--allow {
-    background: #4caf50;
-    color: #ffffff;
+    background: rgba(76, 175, 80, 0.08);
+    color: #a5d6a7;
+    border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
 .btn-permission--allow:hover {
-    background: #43a047;
-    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+    background: rgba(76, 175, 80, 0.15);
+    border-color: rgba(76, 175, 80, 0.3);
 }
 
 .btn-permission--deny {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e0e0e0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: #cccccc;
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .btn-permission--deny:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
     color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .btn-permission:disabled {
@@ -965,19 +1036,19 @@
 }
 
 .assistant-message__permission-status {
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .assistant-message__permission-status--approved {
-    color: #4caf50;
+    color: #008204;
 }
 
 .assistant-message__permission-status--denied {
-    color: #f44336;
+    color: #770000;
 }
 
 /* ============================================================================
@@ -1029,117 +1100,119 @@
    ASK / MCQ CARD PROMPT STYLE
    ============================================================================ */
 .assistant-message__ask-card {
-    border: 1px solid rgba(25, 118, 210, 0.2);
-    background: rgba(25, 118, 210, 0.03);
-    border-radius: 8px;
-    margin-top: 12px;
-    margin-bottom: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    margin-top: 6px;
+    margin-bottom: 6px;
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .assistant-message__ask-card:hover {
-    border-color: rgba(25, 118, 210, 0.35);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.035);
 }
 
 .assistant-message__ask-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    background: rgba(25, 118, 210, 0.02);
-    border-bottom: 1px solid rgba(25, 118, 210, 0.1);
+    gap: 8px;
+    padding: 8px 12px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .assistant-message__ask-icon {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
 }
 
 .assistant-message__ask-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #64b5f6;
+    font-size: 13px;
+    font-weight: 500;
+    color: #cccccc;
 }
 
 .assistant-message__ask-body {
-    padding: 16px 18px;
+    padding: 10px 12px;
 }
 
 .assistant-message__ask-question {
-    font-size: 13.5px;
+    font-size: 13px;
     color: #e0e0e0;
-    margin-bottom: 14px;
-    line-height: 20px;
+    margin-bottom: 10px;
+    line-height: 18px;
 }
 
 .assistant-message__ask-options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 6px;
+    margin-bottom: 10px;
 }
 
 .btn-ask-option {
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12.5px;
     font-weight: 500;
     text-align: left;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.04);
-    color: #e0e0e0;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.03);
+    color: #cccccc;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.15s ease;
 }
 
 .btn-ask-option:hover:not(:disabled) {
-    background: rgba(25, 118, 210, 0.15);
-    color: #64b5f6;
-    border-color: rgba(25, 118, 210, 0.3);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .assistant-message__ask-custom {
     display: flex;
     gap: 8px;
-    margin-top: 12px;
-    border-top: 1px dashed rgba(255, 255, 255, 0.08);
-    padding-top: 14px;
+    margin-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.06);
+    padding-top: 10px;
 }
 
 .input-ask-custom {
     flex: 1;
     background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    padding: 6px 10px;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 12.5px;
     outline: none;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.15s ease;
 }
 
 .input-ask-custom:focus {
-    border-color: rgba(25, 118, 210, 0.5);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .btn-ask-submit {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
-    background: rgba(25, 118, 210, 0.2);
-    color: #64b5f6;
-    border: 1px solid rgba(25, 118, 210, 0.3);
-    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.04);
+    color: #cccccc;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.15s ease;
 }
 
 .btn-ask-submit:hover:not(:disabled) {
-    background: rgba(25, 118, 210, 0.3);
+    background: rgba(255, 255, 255, 0.08);
     color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .btn-ask-submit:disabled,
@@ -1147,4 +1220,50 @@
 .input-ask-custom:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Animations for checking and thinking states */
+@keyframes check-pop {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.assistant-message__tool-status-icon--completed {
+    width: 14px;
+    height: 14px;
+    display: block;
+    animation: check-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    filter: invert(88%) sepia(21%) saturate(620%) hue-rotate(72deg) brightness(96%) contrast(92%);
+}
+
+@keyframes thinking-pulse {
+    0% {
+        opacity: 0.4;
+        transform: scale(0.96);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.04);
+    }
+
+    100% {
+        opacity: 0.4;
+        transform: scale(0.96);
+    }
+}
+
+.assistant-message__thinking:not(.collapsed) .assistant-message__thinking-icon {
+    animation: thinking-pulse 1.8s ease-in-out infinite;
 }
