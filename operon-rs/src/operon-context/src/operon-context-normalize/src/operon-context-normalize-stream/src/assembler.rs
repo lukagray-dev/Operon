@@ -162,7 +162,8 @@ impl StreamAssembler {
         match self.provider {
             Provider::Anthropic | Provider::Cohere => {
                 if !self.tool_call_buffers.is_empty() {
-                    let mut pending_indices = self.tool_call_buffers.keys().copied().collect::<Vec<_>>();
+                    let mut pending_indices =
+                        self.tool_call_buffers.keys().copied().collect::<Vec<_>>();
                     pending_indices.sort_unstable();
                     return Err(StreamNormalizeError::AssemblerIncomplete {
                         provider: provider_label(&self.provider),
@@ -177,7 +178,8 @@ impl StreamAssembler {
                 // For OpenAI-compatible endpoints, any tool call buffers still present
                 // are completed, as the provider has stopped sending argument deltas.
                 if !self.tool_call_buffers.is_empty() {
-                    let mut pending_indices = self.tool_call_buffers.keys().copied().collect::<Vec<_>>();
+                    let mut pending_indices =
+                        self.tool_call_buffers.keys().copied().collect::<Vec<_>>();
                     pending_indices.sort_unstable();
                     for index in pending_indices {
                         match self.finalize_tool_call(index) {

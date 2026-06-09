@@ -1,7 +1,7 @@
 //! # operon-markdown
 //!
 //! This crate provides the markdown parsing and HTML rendering logic for the Operon application.
-//! It uses the high-performance `pulldown-cmark` library to parse and render Markdown, 
+//! It uses the high-performance `pulldown-cmark` library to parse and render Markdown,
 //! automatically handling GitHub Flavored Markdown (GFM) extensions such as tables, strikethroughs,
 //! task lists, and footnotes.
 //!
@@ -60,14 +60,20 @@ pub fn render(markdown: &str) -> String {
         Event::InlineMath(code) => {
             // Escape any HTML characters in the LaTeX math block for security,
             // then format it in a custom span.
-            let safe_code = code.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+            let safe_code = code
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;");
             let html_content = format!(r#"<span class="math-inline">\({}\)</span>"#, safe_code);
             Event::Html(html_content.into())
         }
         Event::DisplayMath(code) => {
             // Do the same HTML escaping for block equations,
             // then format it inside a block level div.
-            let safe_code = code.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+            let safe_code = code
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;");
             let html_content = format!(r#"<div class="math-display">\[{}\]</div>"#, safe_code);
             Event::Html(html_content.into())
         }
@@ -116,7 +122,8 @@ mod tests {
     fn test_display_math() {
         let md = "Here is display math:\n\n$$\\sum_{i=1}^n i = \\frac{n(n+1)}{2}$$";
         let html = render(md);
-        assert!(html.contains(r#"<div class="math-display">\[\sum_{i=1}^n i = \frac{n(n+1)}{2}\]</div>"#));
+        assert!(html
+            .contains(r#"<div class="math-display">\[\sum_{i=1}^n i = \frac{n(n+1)}{2}\]</div>"#));
     }
 
     #[test]

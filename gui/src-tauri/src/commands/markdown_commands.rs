@@ -7,7 +7,7 @@
 
 /// Converts a raw markdown string into safe HTML representation.
 ///
-/// This is called by the frontend (Tauri IPC invoke) during message streaming and 
+/// This is called by the frontend (Tauri IPC invoke) during message streaming and
 /// chat history loading to ensure all formatting is rendered properly.
 ///
 /// # Arguments

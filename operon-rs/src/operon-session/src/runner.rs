@@ -48,8 +48,8 @@ use tokio::sync::mpsc;
 use operon_config::PolicyConfig;
 use operon_context::{
     compact, sanitize, AnthropicCompactionClient, ContentBlock, ConversationMessage, MessageRole,
-    Role, SnapshotBuilder, SessionTokenState, TokenBudget, UsageRecord, ToolCall, ToolContent,
-    ToolResult,
+    Role, SessionTokenState, SnapshotBuilder, TokenBudget, ToolCall, ToolContent, ToolResult,
+    UsageRecord,
 };
 use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::{CallerRole, PolicyDecision, PolicyResolver};
@@ -140,8 +140,6 @@ impl SessionRunner {
         event_tx: mpsc::Sender<SessionEvent>,
         cmd_rx: mpsc::Receiver<SessionCommand>,
     ) -> Result<Self, SessionError> {
-
-
         // Determine the session ID:
         // 1. If a database path is provided, check if it contains an existing session ID in its record.
         // 2. If it is a new database, use the file stem name as the session ID.
@@ -231,7 +229,12 @@ impl SessionRunner {
     }
 
     /// Load conversation history, turn index, and last token count to resume a session.
-    pub fn set_history(&mut self, messages: Vec<ConversationMessage>, turn_index: usize, last_token_count: Option<usize>) {
+    pub fn set_history(
+        &mut self,
+        messages: Vec<ConversationMessage>,
+        turn_index: usize,
+        last_token_count: Option<usize>,
+    ) {
         // When resuming an existing session, we need to inspect the conversation history
         // to find any tool groups (like "fs") that the AI model previously requested to load.
         // Restoring this state ensures we include those tools in the `tools` array of the very first
@@ -259,7 +262,8 @@ impl SessionRunner {
         self.messages = messages;
         self.turn_index = turn_index;
         if let Some(tokens) = last_token_count {
-            self.token_state.apply_estimate(tokens, operon_context::EstimationTier::Exact);
+            self.token_state
+                .apply_estimate(tokens, operon_context::EstimationTier::Exact);
         }
     }
 
@@ -329,11 +333,14 @@ impl SessionRunner {
                     Err(e) => {
                         // If compaction encounters a fatal error, emit PreTurnFailed,
                         // transition session lifecycle state to Failed, and return the error.
-                        let _ = self.event_tx.send(SessionEvent::PreTurnFailed {
-                            turn_index: self.turn_index,
-                            step: operon_events::PreTurnStep::Compaction,
-                            reason: e.to_string(),
-                        }).await;
+                        let _ = self
+                            .event_tx
+                            .send(SessionEvent::PreTurnFailed {
+                                turn_index: self.turn_index,
+                                step: operon_events::PreTurnStep::Compaction,
+                                reason: e.to_string(),
+                            })
+                            .await;
                         self.lifecycle = LifecycleState::Failed;
                         return Err(e);
                     }
@@ -348,11 +355,14 @@ impl SessionRunner {
             let snapshot = match self.snapshot_builder.build() {
                 Ok(s) => s,
                 Err(e) => {
-                    let _ = self.event_tx.send(SessionEvent::PreTurnFailed {
-                        turn_index: self.turn_index,
-                        step: operon_events::PreTurnStep::Snapshot,
-                        reason: e.to_string(),
-                    }).await;
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::PreTurnFailed {
+                            turn_index: self.turn_index,
+                            step: operon_events::PreTurnStep::Snapshot,
+                            reason: e.to_string(),
+                        })
+                        .await;
                     self.lifecycle = LifecycleState::Failed;
                     return Err(e.into());
                 }
@@ -362,14 +372,18 @@ impl SessionRunner {
             // We sanitize the conversation messages to strip out any invalid blocks,
             // inject the system prompt snapshot, and prepare the history for the provider.
             // If sanitization fails, we emit PreTurnFailed, set session state to Failed, and exit.
-            let clean_messages = match sanitize(self.messages.clone(), &snapshot, self.config.role) {
+            let clean_messages = match sanitize(self.messages.clone(), &snapshot, self.config.role)
+            {
                 Ok(m) => m,
                 Err(e) => {
-                    let _ = self.event_tx.send(SessionEvent::PreTurnFailed {
-                        turn_index: self.turn_index,
-                        step: operon_events::PreTurnStep::Sanitizer,
-                        reason: e.to_string(),
-                    }).await;
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::PreTurnFailed {
+                            turn_index: self.turn_index,
+                            step: operon_events::PreTurnStep::Sanitizer,
+                            reason: e.to_string(),
+                        })
+                        .await;
                     self.lifecycle = LifecycleState::Failed;
                     return Err(e.into());
                 }
@@ -383,13 +397,12 @@ impl SessionRunner {
             // Estimate the number of tokens to be sent in the prompt request.
             // We use a simple heuristic where 4 characters roughly equal 1 token.
             // This is useful for detecting and debugging context window overflow issues.
-            let estimated_tokens = clean_messages.iter()
+            let estimated_tokens = clean_messages
+                .iter()
                 .flat_map(|m| m.content.iter())
                 .map(|block| match block {
                     ContentBlock::Text(t) => t.len() / 4,
-                    ContentBlock::ToolCall(c) => {
-                        c.arguments.to_string().len() / 4 + 10
-                    }
+                    ContentBlock::ToolCall(c) => c.arguments.to_string().len() / 4 + 10,
                     ContentBlock::ToolResult(r) => {
                         let content_len = match &r.content {
                             ToolContent::Text(t) => t.len(),
@@ -403,12 +416,15 @@ impl SessionRunner {
 
             // Let the frontend know that all pre-turn processing succeeded and we are
             // about to dispatch the API request to the model provider.
-            let _ = self.event_tx.send(SessionEvent::PreTurnReady {
-                turn_index: self.turn_index,
-                message_count: clean_messages.len(),
-                tool_count: tool_defs.len(),
-                estimated_tokens,
-            }).await;
+            let _ = self
+                .event_tx
+                .send(SessionEvent::PreTurnReady {
+                    turn_index: self.turn_index,
+                    message_count: clean_messages.len(),
+                    tool_count: tool_defs.len(),
+                    estimated_tokens,
+                })
+                .await;
 
             // ── 4. Build request body ────────────────────────────────────────
             // Construct the payload for the model provider request.
@@ -420,7 +436,6 @@ impl SessionRunner {
                 &tool_defs,
                 true, // streaming = true
             )?;
-
 
             // ── 5. Send + consume SSE stream ─────────────────────────────────
             // Clone to String so there's no borrow of self across the await.
@@ -562,12 +577,15 @@ impl SessionRunner {
                                 content: ToolContent::Text(reason.to_string()),
                                 is_error: true,
                             };
-                            let _ = self.event_tx.send(SessionEvent::ToolCallResult {
-                                call_id: ask_id.clone(),
-                                name: "ask".to_string(),
-                                is_error: true,
-                                content_json: tool_result_content_json(&result),
-                            }).await;
+                            let _ = self
+                                .event_tx
+                                .send(SessionEvent::ToolCallResult {
+                                    call_id: ask_id.clone(),
+                                    name: "ask".to_string(),
+                                    is_error: true,
+                                    content_json: tool_result_content_json(&result),
+                                })
+                                .await;
                             tool_results.push(ContentBlock::ToolResult(result));
                             continue;
                         }
@@ -576,11 +594,14 @@ impl SessionRunner {
 
                     // Emit AskQuestion event. The frontend UI will receive this and render
                     // the multiple-choice question widget to the user.
-                    let _ = self.event_tx.send(SessionEvent::AskQuestion {
-                        id: ask_id.clone(),
-                        question: ask_result.question.clone(),
-                        options: ask_result.options.to_vec(),
-                    }).await;
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::AskQuestion {
+                            id: ask_id.clone(),
+                            question: ask_result.question.clone(),
+                            options: ask_result.options.to_vec(),
+                        })
+                        .await;
 
                     // Suspend the loop and block here until we receive the answer command or a cancel command.
                     let answer = loop {
@@ -605,7 +626,7 @@ impl SessionRunner {
                     // be passed back to the AI model.
                     let content = ToolContent::Json(
                         serde_json::to_value(AskOutput { answer })
-                            .expect("AskOutput serialization should never fail")
+                            .expect("AskOutput serialization should never fail"),
                     );
                     let result = ToolResult {
                         call_id: call.id.clone(),
@@ -613,12 +634,15 @@ impl SessionRunner {
                         content: content.clone(),
                         is_error: false,
                     };
-                    let _ = self.event_tx.send(SessionEvent::ToolCallResult {
-                        call_id: ask_id.clone(),
-                        name: "ask".to_string(),
-                        is_error: false,
-                        content_json: tool_result_content_json(&result),
-                    }).await;
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::ToolCallResult {
+                            call_id: ask_id.clone(),
+                            name: "ask".to_string(),
+                            is_error: false,
+                            content_json: tool_result_content_json(&result),
+                        })
+                        .await;
                     tool_results.push(ContentBlock::ToolResult(result));
                     continue; // Skip the rest of the loop body (no dispatcher call needed)
                 }
@@ -1113,7 +1137,7 @@ fn policy_path_for_call(call: &ToolCall) -> Option<String> {
             .and_then(|arr| arr.first())
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
-        
+
         // The "bash" tool executes commands within a specific directory. We extract the "cwd" (current working directory)
         // argument to check whether shell execution is permitted in that directory.
         "bash" => call
@@ -1121,7 +1145,7 @@ fn policy_path_for_call(call: &ToolCall) -> Option<String> {
             .get("cwd")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
-        
+
         // Filesystem modification or lookup tools (write, edit, append, ls, delete) operate on a single path.
         // We look for a singular "path" argument (e.g. path: "dir/file.txt") and extract its value as a string.
         "write" | "edit" | "append" | "ls" | "delete" => call
@@ -1140,7 +1164,7 @@ fn policy_path_for_call(call: &ToolCall) -> Option<String> {
             .and_then(|arr| arr.first())
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
-        
+
         // Any other tool is considered global or doesn't target specific filesystem paths,
         // so we return None and bypass directory-specific policy check gates.
         _ => None,

@@ -72,4 +72,3 @@ pub use session::SessionCommand;
 /// Consumers can write `use operon_events::PreTurnStep;` rather than
 /// `use operon_events::session::PreTurnStep;`.
 pub use session::PreTurnStep;
-

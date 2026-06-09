@@ -1,14 +1,13 @@
 // permission_commands.rs — Tauri IPC command handlers for permissions.
 
-use serde::Serialize;
 use operon_rs::{
     add_allowed_directory as backend_add_allowed_directory,
-    remove_allowed_directory as backend_remove_allowed_directory,
-    update_permission as backend_update_permission,
-    get_permission_rows as backend_get_permission_rows,
     get_allowed_directories_list as backend_get_allowed_directories_list,
-    PermissionRow,
+    get_permission_rows as backend_get_permission_rows,
+    remove_allowed_directory as backend_remove_allowed_directory,
+    update_permission as backend_update_permission, PermissionRow,
 };
+use serde::Serialize;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data Transfer Objects (DTOs)
@@ -38,10 +37,14 @@ fn clean_windows_path(path: &str) -> String {
 /// List allowed directories and identify the default workspace directory.
 #[tauri::command]
 pub async fn get_allowed_directories() -> Result<AllowedDirectoriesResponse, String> {
-    let (directories, workspace_directory) = backend_get_allowed_directories_list().map_err(|e| e.to_string())?;
+    let (directories, workspace_directory) =
+        backend_get_allowed_directories_list().map_err(|e| e.to_string())?;
 
     let cleaned_workspace = clean_windows_path(&workspace_directory);
-    let cleaned_directories = directories.into_iter().map(|d| clean_windows_path(&d)).collect();
+    let cleaned_directories = directories
+        .into_iter()
+        .map(|d| clean_windows_path(&d))
+        .collect();
 
     Ok(AllowedDirectoriesResponse {
         workspace_directory: cleaned_workspace,
@@ -51,7 +54,9 @@ pub async fn get_allowed_directories() -> Result<AllowedDirectoriesResponse, Str
 
 /// Add a new allowed directory.
 #[tauri::command]
-pub async fn add_allowed_directory(directory: String) -> Result<AllowedDirectoriesResponse, String> {
+pub async fn add_allowed_directory(
+    directory: String,
+) -> Result<AllowedDirectoriesResponse, String> {
     let path_str = directory.trim();
     if path_str.is_empty() {
         return Err("Directory path cannot be empty".to_string());
@@ -64,7 +69,9 @@ pub async fn add_allowed_directory(directory: String) -> Result<AllowedDirectori
 
 /// Remove an allowed directory.
 #[tauri::command]
-pub async fn remove_allowed_directory(directory: String) -> Result<AllowedDirectoriesResponse, String> {
+pub async fn remove_allowed_directory(
+    directory: String,
+) -> Result<AllowedDirectoriesResponse, String> {
     let path_str = directory.trim();
     if path_str.is_empty() {
         return Err("Directory path cannot be empty".to_string());

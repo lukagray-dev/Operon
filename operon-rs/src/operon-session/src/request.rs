@@ -18,9 +18,9 @@
 // re-export `Provider` from `operon_providers`. They are the same type — no
 // conversion function is needed. We import directly from operon_providers here.
 
-use operon_context::{ConversationMessage, ToolDefinition};
 use operon_context::normalize::messages::denormalize_messages;
 use operon_context::normalize::tools::denormalize_definition;
+use operon_context::{ConversationMessage, ToolDefinition};
 use operon_providers::Provider;
 use serde_json::{json, Value};
 

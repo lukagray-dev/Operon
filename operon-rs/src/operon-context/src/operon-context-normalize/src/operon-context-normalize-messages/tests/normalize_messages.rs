@@ -454,8 +454,11 @@ fn groq_delegate_basic_paths() {
 
 #[test]
 fn nvidia_nim_delegate_basic_paths() {
-    let user =
-        normalize_message(json!({"role":"user","content":"hello"}), &Provider::NvidiaNim).unwrap();
+    let user = normalize_message(
+        json!({"role":"user","content":"hello"}),
+        &Provider::NvidiaNim,
+    )
+    .unwrap();
     assert_eq!(user.role, MessageRole::User);
 
     let assistant = normalize_message(

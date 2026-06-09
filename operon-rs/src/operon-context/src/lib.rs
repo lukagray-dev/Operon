@@ -34,10 +34,10 @@ pub use operon_context_snapshot::{
 
 pub use operon_context_sanitizer::{sanitize, SanitizerError};
 
-#[cfg(any(test, feature = "test-utils"))]
-pub use operon_context_compaction::MockCompactionClient;
 #[cfg(feature = "http-client")]
 pub use operon_context_compaction::AnthropicCompactionClient;
+#[cfg(any(test, feature = "test-utils"))]
+pub use operon_context_compaction::MockCompactionClient;
 pub use operon_context_compaction::{
     compact, CompactionClient, CompactionConfig, CompactionError, CompactionResult,
 };

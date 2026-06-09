@@ -9,16 +9,16 @@
 //   - Start/resume a session, forwarding all `SessionEvent`s to the webview.
 //   - Send Approve/Deny/Cancel signals back to the running agent loop.
 
-use std::path::PathBuf;
-use tokio::sync::mpsc;
-use tauri::{State, WebviewWindow, Emitter};
+use crate::commands::model_commands::SharedState;
 use operon_rs::{
     config::OperonPaths,
     events::{SessionCommand, SessionEvent},
-    session::{SessionConfig, SessionRunner, store::SessionStore},
     prelude::Role,
+    session::{store::SessionStore, SessionConfig, SessionRunner},
 };
-use crate::commands::model_commands::SharedState;
+use std::path::PathBuf;
+use tauri::{Emitter, State, WebviewWindow};
+use tokio::sync::mpsc;
 
 /// Data Transfer Object (DTO) for listing sessions in the sidebar.
 /// This matches the shape expected by the frontend.
@@ -50,7 +50,8 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
     let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
     let sessions_dir = paths.sessions_dir;
 
-    let default_workspace = paths.workspace_dir
+    let default_workspace = paths
+        .workspace_dir
         .canonicalize()
         .unwrap_or_else(|_| paths.workspace_dir.clone())
         .to_string_lossy()
@@ -82,11 +83,14 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
                                     _ => "Untitled Chat".to_string(),
                                 };
 
-                                let session_workspace_canon = std::path::PathBuf::from(&row.workspace)
-                                    .canonicalize()
-                                    .unwrap_or_else(|_| std::path::PathBuf::from(&row.workspace))
-                                    .to_string_lossy()
-                                    .to_string();
+                                let session_workspace_canon =
+                                    std::path::PathBuf::from(&row.workspace)
+                                        .canonicalize()
+                                        .unwrap_or_else(|_| {
+                                            std::path::PathBuf::from(&row.workspace)
+                                        })
+                                        .to_string_lossy()
+                                        .to_string();
 
                                 let is_project = session_workspace_canon != default_workspace;
                                 let project_name = if is_project {
@@ -128,7 +132,9 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
 /// loads all turns from the JSON file and returns the final turn's complete
 /// messages list (which contains the full conversation history up to that point).
 #[tauri::command]
-pub async fn get_session_history(session_id: String) -> Result<Vec<operon_rs::prelude::ConversationMessage>, String> {
+pub async fn get_session_history(
+    session_id: String,
+) -> Result<Vec<operon_rs::prelude::ConversationMessage>, String> {
     let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
     let mut json_path = paths.session_db(&session_id);
 
@@ -161,7 +167,10 @@ pub async fn get_session_history(session_id: String) -> Result<Vec<operon_rs::pr
         .await
         .map_err(|e| e.to_string())?;
 
-    let turns = store.load_turns(&session_id).await.map_err(|e| e.to_string())?;
+    let turns = store
+        .load_turns(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     if turns.is_empty() {
         return Ok(Vec::new());
@@ -196,12 +205,16 @@ pub async fn send_message(
         format!("Failed to load configuration. Please configure your provider/credentials in settings: {}", e)
     })?;
 
-    if app_config.provider.credentials.api_key.is_empty() && app_config.provider.provider != operon_rs::prelude::Provider::Ollama {
+    if app_config.provider.credentials.api_key.is_empty()
+        && app_config.provider.provider != operon_rs::prelude::Provider::Ollama
+    {
         return Err("API key is missing. Please configure a provider in settings.".to_string());
     }
 
     // Lock global AppState to manage active runner sessions
-    let mut state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+    let mut state_guard = state
+        .lock()
+        .map_err(|e| format!("Failed to lock state: {}", e))?;
 
     if state_guard.active_sessions.contains_key(&session_id) {
         return Err("This session is already running a request.".to_string());
@@ -209,7 +222,9 @@ pub async fn send_message(
 
     // Create the command channel for other endpoints to interact with this runner (Approve/Deny/Cancel)
     let (cmd_tx, cmd_rx) = mpsc::channel::<SessionCommand>(16);
-    state_guard.active_sessions.insert(session_id.clone(), cmd_tx);
+    state_guard
+        .active_sessions
+        .insert(session_id.clone(), cmd_tx);
     drop(state_guard); // Release state lock immediately
 
     let session_id_clone = session_id.clone();
@@ -257,7 +272,13 @@ pub async fn send_message(
                 workspace_root,
                 role: Role::Owner,
                 // Default registers all standard tools
-                tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into(), "ask".into()],
+                tool_groups: vec![
+                    "fs".into(),
+                    "shell".into(),
+                    "web".into(),
+                    "todo".into(),
+                    "ask".into(),
+                ],
                 compaction: operon_rs::prelude::CompactionConfig::default(),
                 store_path: Some(json_path.clone()),
             };
@@ -272,11 +293,17 @@ pub async fn send_message(
             // Resume history from JSON file if resuming an existing session
             if json_path.exists() {
                 if let Ok(store) = SessionStore::open(&json_path).await {
-                    let turns = store.load_turns(&session_id_clone).await.unwrap_or_default();
+                    let turns = store
+                        .load_turns(&session_id_clone)
+                        .await
+                        .unwrap_or_default();
                     if !turns.is_empty() {
                         let history = turns.last().cloned().unwrap_or_default();
                         let turn_index = turns.len();
-                        let last_token_count = store.get_last_token_count(&session_id_clone).await.unwrap_or_default();
+                        let last_token_count = store
+                            .get_last_token_count(&session_id_clone)
+                            .await
+                            .unwrap_or_default();
                         runner.set_history(history, turn_index, last_token_count);
                     }
                 }
@@ -301,7 +328,8 @@ pub async fn send_message(
             let _ = forward_task.await;
 
             run_outcome.map_err(|e| format!("Agent execution error: {}", e))
-        }.await;
+        }
+        .await;
 
         if let Err(err_msg) = run_result {
             // Forward runtime failures as session error events
@@ -319,13 +347,20 @@ pub async fn send_message(
 
 /// Send a graceful Cancel command to the running session.
 #[tauri::command]
-pub async fn cancel_session(session_id: String, state: State<'_, SharedState>) -> Result<(), String> {
+pub async fn cancel_session(
+    session_id: String,
+    state: State<'_, SharedState>,
+) -> Result<(), String> {
     let tx = {
-        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+        let state_guard = state
+            .lock()
+            .map_err(|e| format!("Failed to lock state: {}", e))?;
         state_guard.active_sessions.get(&session_id).cloned()
     };
     if let Some(tx) = tx {
-        tx.send(SessionCommand::Cancel).await.map_err(|e| format!("Failed to send cancel: {}", e))?;
+        tx.send(SessionCommand::Cancel)
+            .await
+            .map_err(|e| format!("Failed to send cancel: {}", e))?;
         Ok(())
     } else {
         Err("Session is not active or running".to_string())
@@ -334,13 +369,21 @@ pub async fn cancel_session(session_id: String, state: State<'_, SharedState>) -
 
 /// Send an Approve command to the running session's pending approval tool call.
 #[tauri::command]
-pub async fn approve_tool_call(session_id: String, id: String, state: State<'_, SharedState>) -> Result<(), String> {
+pub async fn approve_tool_call(
+    session_id: String,
+    id: String,
+    state: State<'_, SharedState>,
+) -> Result<(), String> {
     let tx = {
-        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+        let state_guard = state
+            .lock()
+            .map_err(|e| format!("Failed to lock state: {}", e))?;
         state_guard.active_sessions.get(&session_id).cloned()
     };
     if let Some(tx) = tx {
-        tx.send(SessionCommand::Approve { id }).await.map_err(|e| format!("Failed to send approve: {}", e))?;
+        tx.send(SessionCommand::Approve { id })
+            .await
+            .map_err(|e| format!("Failed to send approve: {}", e))?;
         Ok(())
     } else {
         Err("Session is not active or running".to_string())
@@ -349,13 +392,21 @@ pub async fn approve_tool_call(session_id: String, id: String, state: State<'_, 
 
 /// Send a Deny command to the running session's pending approval tool call.
 #[tauri::command]
-pub async fn deny_tool_call(session_id: String, id: String, state: State<'_, SharedState>) -> Result<(), String> {
+pub async fn deny_tool_call(
+    session_id: String,
+    id: String,
+    state: State<'_, SharedState>,
+) -> Result<(), String> {
     let tx = {
-        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+        let state_guard = state
+            .lock()
+            .map_err(|e| format!("Failed to lock state: {}", e))?;
         state_guard.active_sessions.get(&session_id).cloned()
     };
     if let Some(tx) = tx {
-        tx.send(SessionCommand::Deny { id }).await.map_err(|e| format!("Failed to send deny: {}", e))?;
+        tx.send(SessionCommand::Deny { id })
+            .await
+            .map_err(|e| format!("Failed to send deny: {}", e))?;
         Ok(())
     } else {
         Err("Session is not active or running".to_string())
@@ -375,7 +426,9 @@ pub async fn answer_ask(
     state: State<'_, SharedState>,
 ) -> Result<(), String> {
     let tx = {
-        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+        let state_guard = state
+            .lock()
+            .map_err(|e| format!("Failed to lock state: {}", e))?;
         state_guard.active_sessions.get(&session_id).cloned()
     };
     if let Some(tx) = tx {
@@ -403,10 +456,7 @@ pub async fn open_project_folder(app: tauri::AppHandle) -> Result<Option<String>
     use tauri_plugin_dialog::DialogExt;
 
     // Show the native OS folder picker and block until the user picks or cancels.
-    let folder = app
-        .dialog()
-        .file()
-        .blocking_pick_folder();
+    let folder = app.dialog().file().blocking_pick_folder();
 
     let path = match folder {
         Some(p) => p
@@ -432,8 +482,7 @@ pub async fn open_project_folder(app: tauri::AppHandle) -> Result<Option<String>
 /// whose stored workspace path differs are grouped under "Projects" in the sidebar.
 #[tauri::command]
 pub async fn get_default_workspace() -> Result<String, String> {
-    let paths = operon_rs::config::OperonPaths::resolve()
-        .map_err(|e| e.to_string())?;
+    let paths = operon_rs::config::OperonPaths::resolve().map_err(|e| e.to_string())?;
     Ok(paths.workspace_dir.to_string_lossy().to_string())
 }
 
@@ -447,12 +496,13 @@ pub async fn get_default_workspace() -> Result<String, String> {
 pub async fn delete_session(
     app: tauri::AppHandle,
     session_id: String,
-    state: State<'_, SharedState>
+    state: State<'_, SharedState>,
 ) -> Result<bool, String> {
     use tauri_plugin_dialog::DialogExt;
 
     // Hey buddy! We show a native message confirmation dialog.
-    let confirmed = app.dialog()
+    let confirmed = app
+        .dialog()
         .message("Are you sure you want to delete this chat session?")
         .title("Delete Chat Session")
         .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancel)
@@ -464,10 +514,12 @@ pub async fn delete_session(
 
     let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
     let json_path = paths.session_db(&session_id);
-    
+
     // If the session is currently active/running, cancel it first
     let tx = {
-        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+        let state_guard = state
+            .lock()
+            .map_err(|e| format!("Failed to lock state: {}", e))?;
         state_guard.active_sessions.get(&session_id).cloned()
     };
     if let Some(tx) = tx {
@@ -479,7 +531,8 @@ pub async fn delete_session(
     }
 
     if json_path.exists() {
-        std::fs::remove_file(json_path).map_err(|e| format!("Failed to delete session file: {}", e))?;
+        std::fs::remove_file(json_path)
+            .map_err(|e| format!("Failed to delete session file: {}", e))?;
     }
     Ok(true)
 }
@@ -494,7 +547,7 @@ pub async fn delete_session(
 pub async fn delete_project(
     app: tauri::AppHandle,
     project_path: String,
-    state: State<'_, SharedState>
+    state: State<'_, SharedState>,
 ) -> Result<bool, String> {
     use tauri_plugin_dialog::DialogExt;
 
@@ -544,7 +597,9 @@ pub async fn delete_project(
                                 if row_canon == target_canon {
                                     // Cancel if active
                                     let tx = {
-                                        let state_guard = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+                                        let state_guard = state
+                                            .lock()
+                                            .map_err(|e| format!("Failed to lock state: {}", e))?;
                                         state_guard.active_sessions.get(&row.id).cloned()
                                     };
                                     if let Some(tx) = tx {

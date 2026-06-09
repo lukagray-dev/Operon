@@ -148,7 +148,7 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                 let mut obj = serde_json::Map::new();
                 obj.insert("role".to_string(), Value::String("user".to_string()));
                 obj.insert("content".to_string(), content_value);
-                
+
                 // NOTE: We do not serialize stop_reason / finish_reason back into the messages list
                 // for the API request payload because providers only accept those fields in model outputs,
                 // and passing them in input messages leads to HTTP 400 Bad Request.

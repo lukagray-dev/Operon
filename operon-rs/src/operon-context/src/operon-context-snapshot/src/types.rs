@@ -58,11 +58,11 @@ impl<'de> Deserialize<'de> for BootstrapBlock {
     {
         // 1. Deserialize into the helper struct first, which owns the strings.
         let helper = BootstrapBlockHelper::deserialize(deserializer)?;
-        
+
         // 2. Leak the owned system prompt String to obtain a &'static str reference.
         // This is safe because snapshots are built or loaded once per turn.
         let system_prompt = Box::leak(helper.system_prompt.into_boxed_str());
-        
+
         Ok(BootstrapBlock {
             agent_name: helper.agent_name,
             timestamp: helper.timestamp,

@@ -182,7 +182,11 @@ impl SessionStore {
         };
 
         // If a turn with the same index already exists, replace it. Otherwise, append.
-        if let Some(pos) = session.turns.iter().position(|t| t.turn_index == turn_index) {
+        if let Some(pos) = session
+            .turns
+            .iter()
+            .position(|t| t.turn_index == turn_index)
+        {
             session.turns[pos] = turn;
         } else {
             session.turns.push(turn);
@@ -257,7 +261,10 @@ impl SessionStore {
 
     /// Get the token count of the last recorded turn for a session.
     /// Used when resuming a session to initialize the token tracker's context estimate.
-    pub async fn get_last_token_count(&self, _session_id: &str) -> Result<Option<usize>, SessionError> {
+    pub async fn get_last_token_count(
+        &self,
+        _session_id: &str,
+    ) -> Result<Option<usize>, SessionError> {
         if !self.path.exists() {
             return Ok(None);
         }
@@ -273,7 +280,10 @@ impl SessionStore {
     }
 
     /// Extract the first user message text to use as the chat title.
-    pub async fn get_first_user_message_text(&self, _session_id: &str) -> Result<Option<String>, SessionError> {
+    pub async fn get_first_user_message_text(
+        &self,
+        _session_id: &str,
+    ) -> Result<Option<String>, SessionError> {
         if !self.path.exists() {
             return Ok(None);
         }
@@ -349,7 +359,9 @@ mod tests {
     async fn create_session_and_list_it() {
         // Let's test that creating a session writes the correct metadata and lists it correctly.
         let path = temp_store_path().await;
-        let store = SessionStore::open(&path).await.expect("Failed to open store");
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
 
         store
             .create_session("session-1", "/workspace", "claude-sonnet-4", "Anthropic")
@@ -375,7 +387,9 @@ mod tests {
     async fn save_turn_and_load_it_back() {
         // Full round-trip: save a turn's messages and verify they deserialize correctly.
         let path = temp_store_path().await;
-        let store = SessionStore::open(&path).await.expect("Failed to open store");
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
 
         store
             .create_session("session-rt", "/ws", "model", "provider")
@@ -406,7 +420,9 @@ mod tests {
     async fn load_turns_returns_empty_for_new_session() {
         // A freshly created session with no saved turns should return an empty vec.
         let path = temp_store_path().await;
-        let store = SessionStore::open(&path).await.expect("Failed to open store");
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
 
         store
             .create_session("session-empty", "/ws", "model", "provider")
@@ -426,7 +442,9 @@ mod tests {
     async fn multiple_turns_are_ordered_correctly() {
         // Turns must come back in turn_index ascending order, regardless of insertion order.
         let path = temp_store_path().await;
-        let store = SessionStore::open(&path).await.expect("Failed to open store");
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
 
         store
             .create_session("session-order", "/ws", "model", "provider")

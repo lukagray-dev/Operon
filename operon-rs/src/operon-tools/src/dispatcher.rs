@@ -46,11 +46,11 @@
 use operon_context_normalize_tools::{
     ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
 };
+use operon_tools_ask;
 use operon_tools_core::{
     emit_tool_progress, ReadLedger, ToolDispatchError, ToolProgress, ToolProgressEmitter,
 };
 use operon_tools_load;
-use operon_tools_ask;
 use operon_tools_todo_create;
 use operon_tools_todo_delete;
 use operon_tools_todo_list;
@@ -380,7 +380,10 @@ impl Dispatcher {
                     // we return an error indicating it should have been intercepted.
                     let n = name.clone();
                     Box::pin(async move {
-                        Err(format!("'{}' must be intercepted by the runner, not dispatched", n))
+                        Err(format!(
+                            "'{}' must be intercepted by the runner, not dispatched",
+                            n
+                        ))
                     })
                 }),
             },

@@ -20,7 +20,8 @@ pub struct AppState {
     pub discovered_models: HashMap<String, Vec<ModelInfo>>,
 
     /// Active session control channels, keyed by session_id.
-    pub active_sessions: HashMap<String, tokio::sync::mpsc::Sender<operon_rs::events::SessionCommand>>,
+    pub active_sessions:
+        HashMap<String, tokio::sync::mpsc::Sender<operon_rs::events::SessionCommand>>,
 }
 
 pub type SharedState = Arc<Mutex<AppState>>;

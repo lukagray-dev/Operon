@@ -16,7 +16,11 @@ pub use operon_session as session;
 pub use operon_tools as tools;
 pub use operon_tools_core as tools_core;
 
-pub use config::{load, save_provider, add_allowed_directory, remove_allowed_directory, update_permission, get_permission_rows, PermissionRow, get_allowed_directories_list, AppConfig, ConfigError, OperonPaths};
+pub use config::{
+    add_allowed_directory, get_allowed_directories_list, get_permission_rows, load,
+    remove_allowed_directory, save_provider, update_permission, AppConfig, ConfigError,
+    OperonPaths, PermissionRow,
+};
 pub use context::{
     compact, sanitize, CompactionClient, CompactionConfig, CompactionError, CompactionResult,
     ContentBlock, ConversationMessage, DocumentBlock, DocumentSource, EstimationTier, ImageBlock,

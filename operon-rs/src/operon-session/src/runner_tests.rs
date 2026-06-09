@@ -145,11 +145,11 @@ fn tool_result_content_json_serializes_text_and_json_cleanly() {
 
 #[test]
 fn test_set_history_restores_loaded_groups() {
+    use operon_context::{CompactionConfig, SnapshotConfig};
+    use operon_providers::{ApiCredentials, ModelConfig, Provider, ProviderConfig};
+    use reqwest::Client;
     use std::collections::VecDeque;
     use tokio::sync::mpsc;
-    use reqwest::Client;
-    use operon_providers::{Provider, ProviderConfig, ApiCredentials, ModelConfig};
-    use operon_context::{CompactionConfig, SnapshotConfig};
 
     // Create a SnapshotBuilder with a dummy configuration pointing to the temp directory.
     let snapshot_builder = SnapshotBuilder::new(SnapshotConfig {
@@ -206,56 +206,66 @@ fn test_set_history_restores_loaded_groups() {
     // 1. A successful load_tools call for "fs"
     // 2. A failed load_tools call for "web"
     // 3. A read tool call (should not affect groups)
-    let history = vec![
-        ConversationMessage {
-            role: MessageRole::Tool,
-            content: vec![
-                // Successful load_tools for "fs": should be recovered!
-                ContentBlock::ToolResult(ToolResult {
-                    call_id: ToolCallId("call_load_fs".to_string()),
-                    name: "load_tools".to_string(),
-                    content: ToolContent::Json(json!({
-                        "group": "fs",
-                        "tool_count": 7,
-                        "tools": []
-                    })),
-                    is_error: false,
-                }),
-                // Failed load_tools for "web": should NOT be recovered because is_error is true!
-                ContentBlock::ToolResult(ToolResult {
-                    call_id: ToolCallId("call_load_web".to_string()),
-                    name: "load_tools".to_string(),
-                    content: ToolContent::Json(json!({
-                        "group": "web",
-                        "tool_count": 2,
-                        "tools": []
-                    })),
-                    is_error: true,
-                }),
-                // Standard tool result: should NOT affect any loaded groups!
-                ContentBlock::ToolResult(ToolResult {
-                    call_id: ToolCallId("call_read_file".to_string()),
-                    name: "read".to_string(),
-                    content: ToolContent::Text("some file content".to_string()),
-                    is_error: false,
-                }),
-            ],
-            stop_reason: None,
-        }
-    ];
+    let history = vec![ConversationMessage {
+        role: MessageRole::Tool,
+        content: vec![
+            // Successful load_tools for "fs": should be recovered!
+            ContentBlock::ToolResult(ToolResult {
+                call_id: ToolCallId("call_load_fs".to_string()),
+                name: "load_tools".to_string(),
+                content: ToolContent::Json(json!({
+                    "group": "fs",
+                    "tool_count": 7,
+                    "tools": []
+                })),
+                is_error: false,
+            }),
+            // Failed load_tools for "web": should NOT be recovered because is_error is true!
+            ContentBlock::ToolResult(ToolResult {
+                call_id: ToolCallId("call_load_web".to_string()),
+                name: "load_tools".to_string(),
+                content: ToolContent::Json(json!({
+                    "group": "web",
+                    "tool_count": 2,
+                    "tools": []
+                })),
+                is_error: true,
+            }),
+            // Standard tool result: should NOT affect any loaded groups!
+            ContentBlock::ToolResult(ToolResult {
+                call_id: ToolCallId("call_read_file".to_string()),
+                name: "read".to_string(),
+                content: ToolContent::Text("some file content".to_string()),
+                is_error: false,
+            }),
+        ],
+        stop_reason: None,
+    }];
 
     // Invoke set_history to simulate session resume.
     runner.set_history(history, 4, Some(800));
 
     // Verify turn index and token states are correctly recovered.
     assert_eq!(runner.turn_index, 4, "Turn index must be set to 4");
-    assert_eq!(runner.token_state.current_context_tokens, 800, "Context tokens must be set to 800");
+    assert_eq!(
+        runner.token_state.current_context_tokens, 800,
+        "Context tokens must be set to 800"
+    );
 
     // Verify that the dispatcher has marked "fs" as loaded, but not "web" or "read".
     let loaded = runner.dispatcher.loaded_groups();
-    assert!(loaded.contains("fs"), "The successfully loaded 'fs' group must be recovered");
-    assert!(!loaded.contains("web"), "The failed 'web' group must NOT be marked loaded");
-    assert!(!loaded.contains("read"), "Individual tool calls must not affect loaded groups");
+    assert!(
+        loaded.contains("fs"),
+        "The successfully loaded 'fs' group must be recovered"
+    );
+    assert!(
+        !loaded.contains("web"),
+        "The failed 'web' group must NOT be marked loaded"
+    );
+    assert!(
+        !loaded.contains("read"),
+        "Individual tool calls must not affect loaded groups"
+    );
 }
 
 #[test]
@@ -265,14 +275,14 @@ fn test_heuristic_token_estimator() {
 
     // 1. Text content block: estimated at length of string / 4
     let text_block = ContentBlock::Text("hello world".to_string()); // 11 chars -> 2 tokens
-    
+
     // 2. Tool call content block: estimated at length of arguments JSON string / 4 + 10
     let tool_call_block = ContentBlock::ToolCall(ToolCall {
         id: ToolCallId("call_1".to_string()),
         name: "test_tool".to_string(),
         arguments: json!({ "arg": "value" }), // {"arg":"value"} is 15 chars -> 3 tokens + 10 = 13 tokens
     });
-    
+
     // 3. Tool result content block: estimated at length of result payload / 4 + 10
     let tool_result_block = ContentBlock::ToolResult(ToolResult {
         call_id: ToolCallId("call_1".to_string()),
@@ -284,9 +294,7 @@ fn test_heuristic_token_estimator() {
     // Run the same match heuristic used in runner.rs
     let estimate = |block: &ContentBlock| match block {
         ContentBlock::Text(t) => t.len() / 4,
-        ContentBlock::ToolCall(c) => {
-            c.arguments.to_string().len() / 4 + 10
-        }
+        ContentBlock::ToolCall(c) => c.arguments.to_string().len() / 4 + 10,
         ContentBlock::ToolResult(r) => {
             let content_len = match &r.content {
                 ToolContent::Text(t) => t.len(),
@@ -297,9 +305,21 @@ fn test_heuristic_token_estimator() {
         _ => 5,
     };
 
-    assert_eq!(estimate(&text_block), 2, "Text block token estimation mismatch");
-    assert_eq!(estimate(&tool_call_block), 13, "Tool call token estimation mismatch");
-    assert_eq!(estimate(&tool_result_block), 11, "Tool result token estimation mismatch");
+    assert_eq!(
+        estimate(&text_block),
+        2,
+        "Text block token estimation mismatch"
+    );
+    assert_eq!(
+        estimate(&tool_call_block),
+        13,
+        "Tool call token estimation mismatch"
+    );
+    assert_eq!(
+        estimate(&tool_result_block),
+        11,
+        "Tool result token estimation mismatch"
+    );
 }
 
 #[test]
@@ -317,7 +337,7 @@ fn test_build_assistant_message_includes_reasoning() {
     let msg = build_assistant_message(&result);
     assert_eq!(msg.role, MessageRole::Assistant);
     assert_eq!(msg.content.len(), 2);
-    
+
     // First block should be the reasoning block
     match &msg.content[0] {
         ContentBlock::Reasoning(rb) => {
@@ -335,4 +355,3 @@ fn test_build_assistant_message_includes_reasoning() {
         other => panic!("expected ContentBlock::Text, got {:?}", other),
     }
 }
-

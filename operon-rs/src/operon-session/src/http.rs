@@ -17,19 +17,18 @@
 // SessionError::Http, because reqwest::Error does not expose a constructor for
 // status-level errors. See PROMPT.md §Implementation Notes #2.
 
-use std::collections::VecDeque;
 use futures::StreamExt;
 use reqwest::Client;
 use serde_json::Value;
+use std::collections::VecDeque;
 use tokio::sync::mpsc;
 
-use operon_context::{StopReason, ToolCall};
 use operon_context::normalize::stream::{new_assembler, parse_line, AssemblerOutput, StreamEvent};
+use operon_context::{StopReason, ToolCall};
 use operon_events::{SessionCommand, SessionEvent};
 use operon_providers::Provider;
 
 use crate::error::SessionError;
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StreamResult
@@ -184,8 +183,13 @@ pub async fn send_streaming(
             pending_commands.push_back(cmd);
         }
 
-        if pending_commands.iter().any(|cmd| matches!(cmd, SessionCommand::Cancel)) {
-            tracing::info!("Cancellation detected during stream init or progress; stopping stream.");
+        if pending_commands
+            .iter()
+            .any(|cmd| matches!(cmd, SessionCommand::Cancel))
+        {
+            tracing::info!(
+                "Cancellation detected during stream init or progress; stopping stream."
+            );
             result.stop_reason = Some(StopReason::Stop);
             break;
         }
@@ -318,7 +322,6 @@ pub async fn send_streaming(
             }
         }
     }
-
 
     // Signal the assembler that the stream is complete.
     // The assembler will now flush any final buffered outputs. Since finish() returns a Vec,

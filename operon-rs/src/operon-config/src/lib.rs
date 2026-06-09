@@ -82,7 +82,10 @@ pub mod schema;
 ///
 /// This is the primary entry point. Call once at startup.
 /// See [`crate`] module docs for full behavior description.
-pub use loader::{load, save_provider, add_allowed_directory, remove_allowed_directory, update_permission, get_permission_rows, PermissionRow, get_allowed_directories_list};
+pub use loader::{
+    add_allowed_directory, get_allowed_directories_list, get_permission_rows, load,
+    remove_allowed_directory, save_provider, update_permission, PermissionRow,
+};
 
 /// All error variants that can occur during config loading.
 pub use error::ConfigError;

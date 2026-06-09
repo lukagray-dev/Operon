@@ -48,7 +48,10 @@ mod tests {
             "options": ["A", "B"]
         });
         let result = AskArgs::from_json(&args);
-        assert!(result.is_err(), "2 options should fail — exactly 3 required");
+        assert!(
+            result.is_err(),
+            "2 options should fail — exactly 3 required"
+        );
     }
 
     #[test]
@@ -58,7 +61,10 @@ mod tests {
             "options": ["A", "B", "C", "D"]
         });
         let result = AskArgs::from_json(&args);
-        assert!(result.is_err(), "4 options should fail — exactly 3 required");
+        assert!(
+            result.is_err(),
+            "4 options should fail — exactly 3 required"
+        );
     }
 
     #[test]
@@ -69,7 +75,10 @@ mod tests {
             "options": ["Yes", "No", "Maybe"]
         });
         let result = AskArgs::from_json(&args);
-        assert!(result.is_ok(), "empty question string is structurally valid");
+        assert!(
+            result.is_ok(),
+            "empty question string is structurally valid"
+        );
     }
 
     // ── AskOutput serialization ────────────────────────────────────────────────

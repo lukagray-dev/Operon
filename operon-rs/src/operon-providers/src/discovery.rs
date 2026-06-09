@@ -171,10 +171,14 @@ async fn discover_anthropic(api_key: &str, base_url: &str) -> Result<DiscoveryRe
         .data
         .into_iter()
         .map(|m| {
-            let context_window = m.context_window
-                .or(m.context_length)
-                .ok_or_else(|| format!("Anthropic API did not return context window/length for model {}", m.id))?;
-            let max_tokens = m.max_tokens
+            let context_window = m.context_window.or(m.context_length).ok_or_else(|| {
+                format!(
+                    "Anthropic API did not return context window/length for model {}",
+                    m.id
+                )
+            })?;
+            let max_tokens = m
+                .max_tokens
                 .or(m.max_output_tokens)
                 .unwrap_or_else(|| std::cmp::min(4_096, context_window));
             Ok(DiscoveredModel {
@@ -232,13 +236,12 @@ async fn discover_openai_compatible(
         .into_iter()
         .map(|m| {
             // Fall back to a sensible default context window (e.g. 8192) if the provider
-            // API doesn't expose it. Many OpenAI-compatible providers do not return 
+            // API doesn't expose it. Many OpenAI-compatible providers do not return
             // metadata fields like context window or length, so we fall back rather
             // than failing the entire discovery process.
-            let context_window = m.context_window
-                .or(m.context_length)
-                .unwrap_or(8192);
-            let max_tokens = m.max_tokens
+            let context_window = m.context_window.or(m.context_length).unwrap_or(8192);
+            let max_tokens = m
+                .max_tokens
                 .or(m.max_output_tokens)
                 .unwrap_or_else(|| std::cmp::min(4_096, context_window));
             Ok(DiscoveredModel {
@@ -335,16 +338,14 @@ async fn discover_ollama(base_url: &str) -> Result<DiscoveryResult, String> {
 
     for m in api_response.models {
         let show_payload = serde_json::json!({ "model": m.name });
-        let show_resp = client
-            .post(&show_url)
-            .json(&show_payload)
-            .send()
-            .await;
+        let show_resp = client.post(&show_url).json(&show_payload).send().await;
 
         if let Ok(resp) = show_resp {
             if resp.status().is_success() {
                 if let Ok(show_data) = resp.json::<OllamaShowResponse>().await {
-                    let context_window = show_data.model_info.iter()
+                    let context_window = show_data
+                        .model_info
+                        .iter()
                         .find(|(k, _)| k.ends_with(".context_length"))
                         .and_then(|(_, v)| v.as_u64())
                         .map(|v| v as usize);

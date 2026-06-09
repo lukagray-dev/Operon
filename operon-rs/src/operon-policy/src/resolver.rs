@@ -691,7 +691,7 @@ mod tests {
         // We create a temporary directory to act as the allowed directory in our policy config.
         let tmp = TempDir::new().unwrap();
         let canonical_dir = std::fs::canonicalize(tmp.path()).unwrap();
-        
+
         // We build a directory policy configuration that allows the "grep" tool inside this temporary directory.
         let config = make_dir_config(
             canonical_dir,

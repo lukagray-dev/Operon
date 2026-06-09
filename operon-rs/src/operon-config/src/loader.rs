@@ -505,27 +505,45 @@ web = "allow"
         std::fs::create_dir_all(&new_dir).unwrap();
         let new_dir_str = new_dir.to_string_lossy().to_string();
 
-        add_allowed_directory_at_paths(&fake_paths, &new_dir_str).expect("adding allowed directory should succeed");
+        add_allowed_directory_at_paths(&fake_paths, &new_dir_str)
+            .expect("adding allowed directory should succeed");
 
         // Reload to check if it's there
         let content = std::fs::read_to_string(&fake_paths.config_file).unwrap();
-        assert!(content.contains("my-cool-project"), "TOML should contain new directory");
+        assert!(
+            content.contains("my-cool-project"),
+            "TOML should contain new directory"
+        );
 
         // Test update permission
-        update_permission_at_paths(&fake_paths, "owner", Some(&new_dir_str), "fs_delete", Some("allow"))
-            .expect("updating permission should succeed");
+        update_permission_at_paths(
+            &fake_paths,
+            "owner",
+            Some(&new_dir_str),
+            "fs_delete",
+            Some("allow"),
+        )
+        .expect("updating permission should succeed");
 
         let content_after_update = std::fs::read_to_string(&fake_paths.config_file).unwrap();
         assert!(content_after_update.contains("fs_delete = \"allow\""));
 
         // Test remove directory
-        remove_allowed_directory_at_paths(&fake_paths, &new_dir_str).expect("removing allowed directory should succeed");
+        remove_allowed_directory_at_paths(&fake_paths, &new_dir_str)
+            .expect("removing allowed directory should succeed");
         let content_after_remove = std::fs::read_to_string(&fake_paths.config_file).unwrap();
-        assert!(!content_after_remove.contains("my-cool-project"), "TOML should not contain new directory anymore");
+        assert!(
+            !content_after_remove.contains("my-cool-project"),
+            "TOML should not contain new directory anymore"
+        );
 
         // Test removing default workspace is blocked
-        let remove_ws_result = remove_allowed_directory_at_paths(&fake_paths, "~/.operon/workspace");
-        assert!(remove_ws_result.is_err(), "removing default workspace should fail");
+        let remove_ws_result =
+            remove_allowed_directory_at_paths(&fake_paths, "~/.operon/workspace");
+        assert!(
+            remove_ws_result.is_err(),
+            "removing default workspace should fail"
+        );
     }
 }
 
@@ -594,11 +612,17 @@ fn save_provider_at_paths(
     let provider = doc.get_mut("provider").unwrap().as_table_mut().unwrap();
     provider.insert("name", value(provider_name));
     provider.insert("model_id", value(provider_config.model.model_id.clone()));
-    provider.insert("context_window", value(provider_config.model.context_window as i64));
+    provider.insert(
+        "context_window",
+        value(provider_config.model.context_window as i64),
+    );
     provider.insert("max_tokens", value(provider_config.model.max_tokens as i64));
 
     let credentials = doc.get_mut("credentials").unwrap().as_table_mut().unwrap();
-    credentials.insert("api_key", value(provider_config.credentials.api_key.expose().to_string()));
+    credentials.insert(
+        "api_key",
+        value(provider_config.credentials.api_key.expose().to_string()),
+    );
     if let Some(org_id) = &provider_config.credentials.org_id {
         credentials.insert("org_id", value(org_id.clone()));
     } else {
@@ -634,9 +658,10 @@ fn resolve_path(paths: &OperonPaths, raw_path: &str) -> std::path::PathBuf {
 fn path_matches(paths: &OperonPaths, toml_path: &str, target_path: &str) -> bool {
     let p1 = resolve_path(paths, toml_path);
     let p2 = resolve_path(paths, target_path);
-    
-    p1 == p2 
-        || p1.to_string_lossy().trim_end_matches(['/', '\\']) == p2.to_string_lossy().trim_end_matches(['/', '\\'])
+
+    p1 == p2
+        || p1.to_string_lossy().trim_end_matches(['/', '\\'])
+            == p2.to_string_lossy().trim_end_matches(['/', '\\'])
 }
 
 /// Add a new allowed directory to the config.toml file.
@@ -661,10 +686,17 @@ fn add_allowed_directory_at_paths(paths: &OperonPaths, path_str: &str) -> Result
         })?;
 
     if doc.get("directories").is_none() {
-        doc.insert("directories", Item::ArrayOfTables(toml_edit::ArrayOfTables::new()));
+        doc.insert(
+            "directories",
+            Item::ArrayOfTables(toml_edit::ArrayOfTables::new()),
+        );
     }
 
-    let dirs = doc.get_mut("directories").unwrap().as_array_of_tables_mut().unwrap();
+    let dirs = doc
+        .get_mut("directories")
+        .unwrap()
+        .as_array_of_tables_mut()
+        .unwrap();
 
     let already_exists = dirs.iter().any(|table| {
         if let Some(p) = table.get("path").and_then(|v| v.as_str()) {
@@ -706,17 +738,21 @@ pub fn remove_allowed_directory(path_str: &str) -> Result<(), ConfigError> {
 }
 
 /// Remove an allowed directory using pre-resolved paths.
-fn remove_allowed_directory_at_paths(paths: &OperonPaths, path_str: &str) -> Result<(), ConfigError> {
+fn remove_allowed_directory_at_paths(
+    paths: &OperonPaths,
+    path_str: &str,
+) -> Result<(), ConfigError> {
     paths.ensure_dirs_exist()?;
 
-    let is_workspace = path_matches(paths, "~/.operon/workspace", path_str) 
+    let is_workspace = path_matches(paths, "~/.operon/workspace", path_str)
         || path_matches(paths, &paths.workspace_dir.display().to_string(), path_str);
 
     if is_workspace {
         return Err(ConfigError::PolicyValidation(
             crate::policy::PolicyError::InvalidConfig {
-                reason: "The default workspace directory (~/.operon/workspace) cannot be removed.".to_string(),
-            }
+                reason: "The default workspace directory (~/.operon/workspace) cannot be removed."
+                    .to_string(),
+            },
         ));
     }
 
@@ -731,7 +767,10 @@ fn remove_allowed_directory_at_paths(paths: &OperonPaths, path_str: &str) -> Res
             )),
         })?;
 
-    if let Some(dirs) = doc.get_mut("directories").and_then(|i| i.as_array_of_tables_mut()) {
+    if let Some(dirs) = doc
+        .get_mut("directories")
+        .and_then(|i| i.as_array_of_tables_mut())
+    {
         let mut found_index = None;
         for (i, table) in dirs.iter().enumerate() {
             if let Some(p) = table.get("path").and_then(|v| v.as_str()) {
@@ -785,10 +824,17 @@ fn update_permission_at_paths(
 
     if let Some(dir_path) = directory {
         if doc.get("directories").is_none() {
-            doc.insert("directories", Item::ArrayOfTables(toml_edit::ArrayOfTables::new()));
+            doc.insert(
+                "directories",
+                Item::ArrayOfTables(toml_edit::ArrayOfTables::new()),
+            );
         }
 
-        let dirs = doc.get_mut("directories").unwrap().as_array_of_tables_mut().unwrap();
+        let dirs = doc
+            .get_mut("directories")
+            .unwrap()
+            .as_array_of_tables_mut()
+            .unwrap();
 
         let mut found_index = None;
         for (i, table) in dirs.iter().enumerate() {
@@ -815,7 +861,11 @@ fn update_permission_at_paths(
         if table.get("permissions").is_none() {
             table.insert("permissions", Item::Table(Table::new()));
         }
-        let permissions = table.get_mut("permissions").unwrap().as_table_mut().unwrap();
+        let permissions = table
+            .get_mut("permissions")
+            .unwrap()
+            .as_table_mut()
+            .unwrap();
 
         if permissions.get(scope).is_none() {
             permissions.insert(scope, Item::Table(Table::new()));
@@ -880,7 +930,7 @@ pub struct PermissionRow {
     pub mode: String,      // "allow", "ask", "deny", "custom"
     pub base_mode: String, // "allow", "ask", "deny"
     pub is_explicit: bool,
-    pub kind: String,      // "group" or "tool"
+    pub kind: String, // "group" or "tool"
     pub group_key: String,
 }
 
@@ -908,10 +958,11 @@ pub fn get_permission_rows(
     let paths = OperonPaths::resolve()?;
     // Read or create config
     let toml_text = read_or_create_config(&paths)?;
-    let toml_config: AppConfigToml = toml::from_str(&toml_text).map_err(|e| ConfigError::TomlParse {
-        path: paths.config_file.display().to_string(),
-        source: e,
-    })?;
+    let toml_config: AppConfigToml =
+        toml::from_str(&toml_text).map_err(|e| ConfigError::TomlParse {
+            path: paths.config_file.display().to_string(),
+            source: e,
+        })?;
 
     if let Some(dir_path) = directory {
         // --- Directory-scoped permissions ---
@@ -920,7 +971,7 @@ pub fn get_permission_rows(
             .iter()
             .find(|d| path_matches(&paths, &d.path, dir_path));
 
-        let (fs_shorthand, fs_read, fs_write, fs_edit, fs_append, fs_grep, fs_ls, fs_delete, bash) = 
+        let (fs_shorthand, fs_read, fs_write, fs_edit, fs_append, fs_grep, fs_ls, fs_delete, bash) =
             if let Some(entry) = toml_entry {
                 let perms = match role {
                     CallerRole::Owner => &entry.permissions.owner,
@@ -939,9 +990,9 @@ pub fn get_permission_rows(
                 )
             } else {
                 // If directory is not in TOML, default to defaults
-                let is_workspace = path_matches(&paths, "~/.operon/workspace", dir_path) 
+                let is_workspace = path_matches(&paths, "~/.operon/workspace", dir_path)
                     || path_matches(&paths, &paths.workspace_dir.to_string_lossy(), dir_path);
-                
+
                 if is_workspace && role == CallerRole::Owner {
                     (
                         Some(crate::policy::PermissionMode::Allow),
@@ -974,9 +1025,11 @@ pub fn get_permission_rows(
         let fs_explicit = fs_shorthand.is_some();
 
         // Check overrides
-        let has_child_overrides = [fs_read, fs_write, fs_edit, fs_append, fs_grep, fs_ls, fs_delete]
-            .iter()
-            .any(|opt| opt.is_some() && *opt != Some(fs_mode));
+        let has_child_overrides = [
+            fs_read, fs_write, fs_edit, fs_append, fs_grep, fs_ls, fs_delete,
+        ]
+        .iter()
+        .any(|opt| opt.is_some() && *opt != Some(fs_mode));
 
         let group_mode_display = if has_child_overrides {
             "custom".to_string()
@@ -1038,24 +1091,45 @@ pub fn get_permission_rows(
         let global_owner_map = &toml_config.policy.global.owner;
         let global_external_map = &toml_config.policy.global.external;
 
-        let get_global_val = |tool: crate::policy::GlobalTool| -> (crate::policy::PermissionMode, bool) {
-            let map = match role {
-                CallerRole::Owner => global_owner_map,
-                CallerRole::External => global_external_map,
+        let get_global_val =
+            |tool: crate::policy::GlobalTool| -> (crate::policy::PermissionMode, bool) {
+                let map = match role {
+                    CallerRole::Owner => global_owner_map,
+                    CallerRole::External => global_external_map,
+                };
+                if let Some(mode) = map.get(&tool) {
+                    (*mode, true)
+                } else {
+                    (crate::policy::PermissionMode::Deny, false)
+                }
             };
-            if let Some(mode) = map.get(&tool) {
-                (*mode, true)
-            } else {
-                (crate::policy::PermissionMode::Deny, false)
-            }
-        };
 
         let global_tools = [
-            (crate::policy::GlobalTool::Web, "web", "Web Access (Search & Fetch)"),
-            (crate::policy::GlobalTool::SubAgent, "sub_agent", "Delegate to Sub-agents"),
-            (crate::policy::GlobalTool::Ask, "ask", "Prompt User for Input"),
-            (crate::policy::GlobalTool::Todo, "todo", "Manage Tasks / Todo Lists"),
-            (crate::policy::GlobalTool::LoadTools, "load_tools", "Load Custom Dynamic Tools"),
+            (
+                crate::policy::GlobalTool::Web,
+                "web",
+                "Web Access (Search & Fetch)",
+            ),
+            (
+                crate::policy::GlobalTool::SubAgent,
+                "sub_agent",
+                "Delegate to Sub-agents",
+            ),
+            (
+                crate::policy::GlobalTool::Ask,
+                "ask",
+                "Prompt User for Input",
+            ),
+            (
+                crate::policy::GlobalTool::Todo,
+                "todo",
+                "Manage Tasks / Todo Lists",
+            ),
+            (
+                crate::policy::GlobalTool::LoadTools,
+                "load_tools",
+                "Load Custom Dynamic Tools",
+            ),
         ];
 
         let mut rows = Vec::new();
@@ -1079,7 +1153,7 @@ pub fn get_permission_rows(
 /// Retrieve the list of allowed directories and the default workspace directory, falling back to raw TOML parsing on error.
 pub fn get_allowed_directories_list() -> Result<(Vec<String>, String), ConfigError> {
     let paths = OperonPaths::resolve()?;
-    
+
     if let Ok(config) = load() {
         let dirs = config
             .policy
@@ -1087,7 +1161,10 @@ pub fn get_allowed_directories_list() -> Result<(Vec<String>, String), ConfigErr
             .iter()
             .map(|d| d.path.to_string_lossy().to_string())
             .collect();
-        Ok((dirs, config.paths.workspace_dir.to_string_lossy().to_string()))
+        Ok((
+            dirs,
+            config.paths.workspace_dir.to_string_lossy().to_string(),
+        ))
     } else {
         let config_file = &paths.config_file;
         let mut dirs = Vec::new();
@@ -1102,12 +1179,14 @@ pub fn get_allowed_directories_list() -> Result<(Vec<String>, String), ConfigErr
                 }
             }
         }
-        
-        let workspace = resolve_path(&paths, &paths.workspace_dir.to_string_lossy()).to_string_lossy().to_string();
+
+        let workspace = resolve_path(&paths, &paths.workspace_dir.to_string_lossy())
+            .to_string_lossy()
+            .to_string();
         if !dirs.iter().any(|d| path_matches(&paths, d, &workspace)) {
             dirs.insert(0, workspace.clone());
         }
-        
+
         Ok((dirs, workspace))
     }
 }
