@@ -1,23 +1,21 @@
 //! Executor for the todo_list tool — handles listing and filtering todos.
 
 use crate::args::TodoListArgs;
-use crate::output::TodoListOutput;
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 use operon_tools_core::{TodoStatus, TodoStore};
 
 /// Executes the todo_list tool with the given arguments.
 ///
 /// Retrieves all todos from the store, applies optional status and priority filters,
-/// and returns the filtered list along with status counts (always from the full unfiltered list).
+/// and returns the filtered list as plain text along with status counts.
 ///
 /// # Arguments
 /// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args`: The deserialized todo_list arguments containing optional filters.
-/// - `store`: Reference to the TodoStore (immutable — list doesn't mutate).
+/// - `args`: The parsed todo_list arguments containing optional filters.
+/// - `store`: Reference to the TodoStore.
 ///
 /// # Returns
-/// A `ToolResult` with success (JSON TodoListOutput). Never returns is_error: true —
-/// an empty list is valid, not an error.
+/// A `ToolResult` with plain-text content (ToolContent::Text).
 pub async fn execute(call_id: ToolCallId, args: TodoListArgs, store: &TodoStore) -> ToolResult {
     // Step 1: Get all items from the store.
     let all_items = store.list();
@@ -57,22 +55,46 @@ pub async fn execute(call_id: ToolCallId, args: TodoListArgs, store: &TodoStore)
         .filter(|i| i.status == TodoStatus::Completed)
         .count();
 
-    // Step 4: Construct the output.
-    let output = TodoListOutput {
-        items: filtered_items,
-        total: all_items.len(),
+    // Step 4: Construct the plain-text output.
+    if all_items.is_empty() {
+        return ToolResult {
+            call_id,
+            name: "todo_list".to_string(),
+            content: ToolContent::Text("No todos yet.".to_string()),
+            is_error: false,
+            read_paths: None,
+        };
+    }
+
+    let summary = format!(
+        "Total: {} ({} pending, {} in progress, {} completed)",
+        all_items.len(),
         pending,
         in_progress,
-        completed,
+        completed
+    );
+
+    let text = if filtered_items.is_empty() {
+        format!("No todos match the given filters.\n\n{}", summary)
+    } else {
+        let items_text = filtered_items
+            .into_iter()
+            .map(|item| {
+                format!(
+                    "#{} [{}] [{}] {}",
+                    item.id, item.status, item.priority, item.content
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!("{}\n\n{}", items_text, summary)
     };
 
-    // Step 5: Return success with JSON output. Never is_error: true — empty list is valid.
     ToolResult {
         call_id,
         name: "todo_list".to_string(),
-        content: ToolContent::Json(
-            serde_json::to_value(&output).unwrap_or_else(|_| serde_json::json!(output)),
-        ),
+        content: ToolContent::Text(text),
         is_error: false,
+        read_paths: None,
     }
 }

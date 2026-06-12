@@ -236,6 +236,10 @@ fn parse_cohere_tool_result(message: &Value) -> Result<ToolResult> {
             .to_string(),
         content,
         is_error: false,
+        // Since we are parsing a tool result from Cohere's raw wire message format,
+        // we do not have (nor do we need) the in-memory read_paths ledger data. Therefore,
+        // we default this field to None.
+        read_paths: None,
     })
 }
 

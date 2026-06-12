@@ -200,6 +200,8 @@ mod tests {
                 name: "read_file".to_string(),
                 content: ToolContent::Text("file contents".to_string()),
                 is_error: false,
+                // Set to None as this is a general test result mock.
+                read_paths: None,
             })],
             stop_reason: None,
         };

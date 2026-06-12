@@ -8,13 +8,7 @@ use operon_context_normalize_tools::{ToolCallId, ToolContent};
 use operon_tools_core::{TodoPriority, TodoStatus, TodoStore};
 use serde_json::json;
 
-/// Helper to extract error text from a ToolResult.
-fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String {
-    match &result.content {
-        ToolContent::Text(t) => t.clone(),
-        other => panic!("expected Text content, got {:?}", other),
-    }
-}
+
 
 /// Helper to extract TodoListOutput from a ToolResult.
 fn get_list_output(result: &operon_context_normalize_tools::ToolResult) -> TodoListOutput {
@@ -102,7 +96,7 @@ async fn test_list_filter_by_status_in_progress() {
     // Test: Filter by in_progress status
     let mut store = TodoStore::new();
     let item1 = store.create("Task 1".to_string(), None);
-    let item2 = store.create("Task 2".to_string(), None);
+    let _item2 = store.create("Task 2".to_string(), None);
 
     store.update(&item1.id, None, Some(TodoStatus::InProgress), None);
 
@@ -125,7 +119,7 @@ async fn test_list_filter_by_status_completed() {
     // Test: Filter by completed status
     let mut store = TodoStore::new();
     let item1 = store.create("Task 1".to_string(), None);
-    let item2 = store.create("Task 2".to_string(), None);
+    let _item2 = store.create("Task 2".to_string(), None);
 
     store.update(&item1.id, None, Some(TodoStatus::Completed), None);
 
@@ -195,7 +189,7 @@ async fn test_list_combined_filters() {
     let mut store = TodoStore::new();
     let item1 = store.create("Task 1".to_string(), Some(TodoPriority::High));
     let item2 = store.create("Task 2".to_string(), Some(TodoPriority::High));
-    let item3 = store.create("Task 3".to_string(), Some(TodoPriority::Low));
+    let _item3 = store.create("Task 3".to_string(), Some(TodoPriority::Low));
 
     store.update(&item1.id, None, Some(TodoStatus::InProgress), None);
     store.update(&item2.id, None, Some(TodoStatus::Completed), None);
@@ -248,7 +242,7 @@ async fn test_list_status_counts_mixed() {
     let item1 = store.create("Task 1".to_string(), None);
     let item2 = store.create("Task 2".to_string(), None);
     let item3 = store.create("Task 3".to_string(), None);
-    let item4 = store.create("Task 4".to_string(), None);
+    let _item4 = store.create("Task 4".to_string(), None);
 
     store.update(&item1.id, None, Some(TodoStatus::InProgress), None);
     store.update(&item2.id, None, Some(TodoStatus::InProgress), None);
@@ -272,7 +266,7 @@ async fn test_list_counts_unaffected_by_filter() {
     let mut store = TodoStore::new();
     let item1 = store.create("Task 1".to_string(), None);
     let item2 = store.create("Task 2".to_string(), None);
-    let item3 = store.create("Task 3".to_string(), None);
+    let _item3 = store.create("Task 3".to_string(), None);
 
     store.update(&item1.id, None, Some(TodoStatus::Completed), None);
     store.update(&item2.id, None, Some(TodoStatus::Completed), None);

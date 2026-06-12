@@ -912,44 +912,29 @@ fn error_result(call_id: ToolCallId, tool_name: &str, reason: &str) -> ToolResul
         name: tool_name.to_string(),
         content: ToolContent::Text(reason.to_string()),
         is_error: true,
+        // read_paths is None for error results — no files were successfully read.
+        read_paths: None,
     }
 }
 
-/// Extracts successfully-read file paths from a `read` tool result and
-/// records them in the ledger.
+/// Records successfully-read file paths from a `read` tool result into the ledger.
 ///
-/// The `read` tool returns a JSON array of `FileReadResult` objects. Each has:
-/// - `path: String` — the file path
-/// - `success: bool` — true if the file was successfully read
-/// - `error: Option<String>` — present and non-null if the file failed to read
+/// The read tool populates `result.read_paths` with every path that was successfully
+/// read. We simply iterate those paths and record each one in the ledger.
 ///
-/// Only paths with success=true (successfully read) are recorded.
-/// If the content is not JSON or doesn't match the expected shape, this is a
-/// no-op — we don't fail the dispatch over a ledger recording failure.
+/// This replaces the old approach of parsing the JSON content to find per-file
+/// `success: true` entries — now we get the paths directly from the struct field.
 fn record_read_paths(ledger: &mut ReadLedger, result: &ToolResult) {
-    // read tool returns ToolContent::Json with shape:
-    // { "files": [ { "path": "...", "success": true, "error": null }, ... ] }
-    let json = match &result.content {
-        ToolContent::Json(v) => v,
-        _ => return,
-    };
-
-    let files = match json.get("files").and_then(|f| f.as_array()) {
-        Some(arr) => arr,
+    // read_paths is Some(vec![...]) when the read tool ran. It is None for error results
+    // (malformed args, etc.) where no files were successfully read.
+    let paths = match &result.read_paths {
+        Some(p) => p,
         None => return,
     };
 
-    for file in files {
-        // Only record if success is true (file was successfully read).
-        let is_success = file
-            .get("success")
-            .and_then(|s| s.as_bool())
-            .unwrap_or(false);
-
-        if is_success {
-            if let Some(path_str) = file.get("path").and_then(|p| p.as_str()) {
-                ledger.record_read(std::path::Path::new(path_str));
-            }
-        }
+    // Record each successfully-read path in the ledger so subsequent write/edit calls
+    // on those paths are permitted (read-before-write enforcement).
+    for path_str in paths {
+        ledger.record_read(std::path::Path::new(path_str));
     }
 }

@@ -1,52 +1,54 @@
 /// Comprehensive tests for the read tool.
 ///
-/// These tests cover all major functionality:
-/// - Full-file reads
-/// - Line-range reads
-/// - Binary file detection
-/// - Size limit enforcement
-/// - Error handling (missing files, invalid ranges, etc.)
-/// - Concurrent multi-file reads
-/// - Mixed input formats (plain strings and objects)
-use crate::{execute, ReadOutput};
-use operon_context_normalize_tools::{ToolCallId, ToolContent};
+/// These tests cover all major functionality using the plain-text semicolon-delimited format:
+/// - Full-file reads (raw output for single-file, path-header prefixed for multi-file)
+/// - Line-range reads (clamped ranges, start-only, end-only, bounds checks)
+/// - Binary file detection (detecting null bytes and returning inline error)
+/// - Size limit enforcement (blocking full-file reads over 1 MB, allowing range reads)
+/// - Error handling (non-existent files, range bounds exceeded, malformed arguments)
+/// - Concurrent multi-file reads (up to 16 concurrently bounded by a semaphore)
+/// - Semicolon-delimited mixed path parsing
+/// - Ledger updating (read_paths returned correctly in ToolResult)
+use crate::execute;
+use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 use serde_json::json;
 use std::fs;
 use tempfile::TempDir;
 
-/// Helper to create a temporary directory with test files.
+/// Helper to create a temporary directory with various files for testing.
 fn setup_test_dir() -> TempDir {
     let dir = TempDir::new().unwrap();
 
-    // Create a simple text file
+    // 1. Create a simple text file with exactly 5 lines (newlines at the end of every line)
     let simple_path = dir.path().join("simple.txt");
     fs::write(&simple_path, "line 1\nline 2\nline 3\nline 4\nline 5\n").unwrap();
 
-    // Create a file without trailing newline
+    // 2. Create a text file without a trailing newline at the end of the last line
     let no_newline_path = dir.path().join("no_newline.txt");
     fs::write(&no_newline_path, "line 1\nline 2\nline 3").unwrap();
 
-    // Create a binary file (with null bytes)
+    // 3. Create a binary file (containing a null byte) to test binary safety checking
     let binary_path = dir.path().join("binary.bin");
     fs::write(&binary_path, b"hello\x00world").unwrap();
 
-    // Create a large file (over 1 MB)
+    // 4. Create a large text file exceeding the 1 MB safety limit (1 MB + 2 bytes)
     let large_path = dir.path().join("large.txt");
-    let large_content = "x".repeat(1_048_577); // 1 MB + 1 byte
+    let large_content = "x\n".repeat(524289);
     fs::write(&large_path, large_content).unwrap();
 
-    // Create an empty file
+    // 5. Create an empty file to test boundary edge cases
     let empty_path = dir.path().join("empty.txt");
     fs::write(&empty_path, "").unwrap();
 
     dir
 }
 
-/// Helper to extract ReadOutput from a ToolResult.
-fn extract_output(result: operon_context_normalize_tools::ToolResult) -> ReadOutput {
+/// Helper to extract the plain text content from a ToolResult.
+/// Panics if the content is not of type ToolContent::Text.
+fn extract_text(result: ToolResult) -> String {
     match result.content {
-        ToolContent::Json(v) => serde_json::from_value(v).unwrap(),
-        _ => panic!("Expected JSON content"),
+        ToolContent::Text(t) => t,
+        _ => panic!("Expected plain text ToolContent::Text output format"),
     }
 }
 
@@ -55,8 +57,9 @@ async fn test_read_single_file_full() {
     let dir = setup_test_dir();
     let path = dir.path().join("simple.txt");
 
+    // Single paths are passed directly as a string under the "paths" attribute
     let args = json!({
-        "paths": [path.to_str().unwrap()]
+        "paths": path.to_str().unwrap()
     });
 
     let result = execute(ToolCallId("test_1".to_string()), args)
@@ -64,18 +67,14 @@ async fn test_read_single_file_full() {
         .unwrap();
     assert!(!result.is_error);
 
-    let output = extract_output(result);
-    assert_eq!(output.files.len(), 1);
+    // Single-file full reads should return the raw file content directly (no headers)
+    let text = extract_text(result.clone());
+    assert_eq!(text, "line 1\nline 2\nline 3\nline 4\nline 5\n");
 
-    let file_result = &output.files[0];
-    assert!(file_result.success);
-    assert_eq!(
-        file_result.content.as_ref().unwrap(),
-        "line 1\nline 2\nline 3\nline 4\nline 5\n"
-    );
-    assert_eq!(file_result.total_lines, Some(5));
-    assert!(file_result.lines_returned.is_none());
-    assert!(file_result.error.is_none());
+    // The read ledger paths must be populated with the path of the successfully read file
+    let paths = result.read_paths.unwrap();
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0], path.to_str().unwrap());
 }
 
 #[tokio::test]
@@ -84,8 +83,9 @@ async fn test_read_multiple_files() {
     let path1 = dir.path().join("simple.txt");
     let path2 = dir.path().join("no_newline.txt");
 
+    // Semicolon-delimited list of files
     let args = json!({
-        "paths": [path1.to_str().unwrap(), path2.to_str().unwrap()]
+        "paths": format!("{}; {}", path1.to_str().unwrap(), path2.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_2".to_string()), args)
@@ -93,20 +93,20 @@ async fn test_read_multiple_files() {
         .unwrap();
     assert!(!result.is_error);
 
-    let output = extract_output(result);
-    assert_eq!(output.files.len(), 2);
-
-    // First file
-    assert!(output.files[0].success);
-    assert_eq!(output.files[0].total_lines, Some(5));
-
-    // Second file
-    assert!(output.files[1].success);
-    assert_eq!(output.files[1].total_lines, Some(3));
-    assert_eq!(
-        output.files[1].content.as_ref().unwrap(),
-        "line 1\nline 2\nline 3"
+    // Multi-file full reads must include path-header lines for each file
+    let text = extract_text(result.clone());
+    let expected = format!(
+        "{}\nline 1\nline 2\nline 3\nline 4\nline 5\n\n\n{}\nline 1\nline 2\nline 3",
+        path1.to_str().unwrap(),
+        path2.to_str().unwrap()
     );
+    assert_eq!(text, expected);
+
+    // Both files were successfully read, so both paths must be in the ledger
+    let paths = result.read_paths.unwrap();
+    assert_eq!(paths.len(), 2);
+    assert!(paths.contains(&path1.to_str().unwrap().to_string()));
+    assert!(paths.contains(&path2.to_str().unwrap().to_string()));
 }
 
 #[tokio::test]
@@ -114,12 +114,9 @@ async fn test_read_with_line_range() {
     let dir = setup_test_dir();
     let path = dir.path().join("simple.txt");
 
+    // Specify a line range: paths are appended with :START-END
     let args = json!({
-        "paths": [{
-            "path": path.to_str().unwrap(),
-            "start_line": 2,
-            "end_line": 4
-        }]
+        "paths": format!("{}:2-4", path.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_3".to_string()), args)
@@ -127,20 +124,16 @@ async fn test_read_with_line_range() {
         .unwrap();
     assert!(!result.is_error);
 
-    let output = extract_output(result);
-    assert_eq!(output.files.len(), 1);
+    // Range reads should include range information in the path header line
+    let text = extract_text(result.clone());
+    let expected_header = format!("{} lines 2-4 of 5\n", path.to_str().unwrap());
+    assert!(text.starts_with(&expected_header));
+    assert!(text.contains("line 2\nline 3\nline 4\n"));
 
-    let file_result = &output.files[0];
-    assert!(file_result.success);
-    assert_eq!(
-        file_result.content.as_ref().unwrap(),
-        "line 2\nline 3\nline 4\n"
-    );
-    assert_eq!(file_result.total_lines, Some(5));
-
-    let range = file_result.lines_returned.as_ref().unwrap();
-    assert_eq!(range.start, 2);
-    assert_eq!(range.end, 4);
+    // File was read successfully, so the ledger should record the path
+    let paths = result.read_paths.unwrap();
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0], path.to_str().unwrap());
 }
 
 #[tokio::test]
@@ -148,28 +141,18 @@ async fn test_read_with_start_line_only() {
     let dir = setup_test_dir();
     let path = dir.path().join("simple.txt");
 
+    // Start line only (read from start_line to EOF)
     let args = json!({
-        "paths": [{
-            "path": path.to_str().unwrap(),
-            "start_line": 3
-        }]
+        "paths": format!("{}:3-", path.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_4".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
-
-    let file_result = &output.files[0];
-    assert!(file_result.success);
-    assert_eq!(
-        file_result.content.as_ref().unwrap(),
-        "line 3\nline 4\nline 5\n"
-    );
-
-    let range = file_result.lines_returned.as_ref().unwrap();
-    assert_eq!(range.start, 3);
-    assert_eq!(range.end, 5);
+    let text = extract_text(result);
+    let expected_header = format!("{} lines 3-5 of 5\n", path.to_str().unwrap());
+    assert!(text.starts_with(&expected_header));
+    assert!(text.contains("line 3\nline 4\nline 5\n"));
 }
 
 #[tokio::test]
@@ -177,28 +160,18 @@ async fn test_read_with_end_line_only() {
     let dir = setup_test_dir();
     let path = dir.path().join("simple.txt");
 
+    // End line only (read from line 1 to end_line)
     let args = json!({
-        "paths": [{
-            "path": path.to_str().unwrap(),
-            "end_line": 3
-        }]
+        "paths": format!("{}:-3", path.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_5".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
-
-    let file_result = &output.files[0];
-    assert!(file_result.success);
-    assert_eq!(
-        file_result.content.as_ref().unwrap(),
-        "line 1\nline 2\nline 3\n"
-    );
-
-    let range = file_result.lines_returned.as_ref().unwrap();
-    assert_eq!(range.start, 1);
-    assert_eq!(range.end, 3);
+    let text = extract_text(result);
+    let expected_header = format!("{} lines 1-3 of 5\n", path.to_str().unwrap());
+    assert!(text.starts_with(&expected_header));
+    assert!(text.contains("line 1\nline 2\nline 3\n"));
 }
 
 #[tokio::test]
@@ -206,30 +179,18 @@ async fn test_read_line_range_exceeds_file() {
     let dir = setup_test_dir();
     let path = dir.path().join("simple.txt");
 
-    // Request lines 3-100, should clamp to 3-5
+    // End line beyond file length should be clamped silently to EOF (last line)
     let args = json!({
-        "paths": [{
-            "path": path.to_str().unwrap(),
-            "start_line": 3,
-            "end_line": 100
-        }]
+        "paths": format!("{}:3-100", path.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_6".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
-
-    let file_result = &output.files[0];
-    assert!(file_result.success);
-    assert_eq!(
-        file_result.content.as_ref().unwrap(),
-        "line 3\nline 4\nline 5\n"
-    );
-
-    let range = file_result.lines_returned.as_ref().unwrap();
-    assert_eq!(range.start, 3);
-    assert_eq!(range.end, 5); // Clamped to actual file length
+    let text = extract_text(result);
+    let expected_header = format!("{} lines 3-5 of 5\n", path.to_str().unwrap());
+    assert!(text.starts_with(&expected_header));
+    assert!(text.contains("line 3\nline 4\nline 5\n"));
 }
 
 #[tokio::test]
@@ -237,27 +198,27 @@ async fn test_read_start_line_exceeds_file() {
     let dir = setup_test_dir();
     let path = dir.path().join("simple.txt");
 
-    // Request starting from line 100 (file only has 5 lines)
+    // Start line exceeding file length should trigger a per-file inline error
     let args = json!({
-        "paths": [{
-            "path": path.to_str().unwrap(),
-            "start_line": 100
-        }]
+        "paths": format!("{}:100-", path.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_7".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    // The tool call does not fail overall, is_error remains false
+    assert!(!result.is_error);
 
-    let file_result = &output.files[0];
-    assert!(!file_result.success);
-    assert!(file_result
-        .error
-        .as_ref()
-        .unwrap()
-        .contains("exceeds file length"));
-    assert_eq!(file_result.total_lines, Some(5));
+    let text = extract_text(result.clone());
+    let expected_error = format!(
+        "{}\nERROR: start_line 100 exceeds file length (5 lines).",
+        path.to_str().unwrap()
+    );
+    assert_eq!(text, expected_error);
+
+    // This file read failed, so it should NOT be in the read paths list
+    let paths = result.read_paths.unwrap();
+    assert!(paths.is_empty());
 }
 
 #[tokio::test]
@@ -266,21 +227,20 @@ async fn test_read_binary_file() {
     let path = dir.path().join("binary.bin");
 
     let args = json!({
-        "paths": [path.to_str().unwrap()]
+        "paths": path.to_str().unwrap()
     });
 
     let result = execute(ToolCallId("test_8".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    assert!(!result.is_error);
 
-    let file_result = &output.files[0];
-    assert!(!file_result.success);
-    assert!(file_result
-        .error
-        .as_ref()
-        .unwrap()
-        .contains("Binary file detected"));
+    let text = extract_text(result.clone());
+    assert!(text.contains("ERROR: Binary file detected"));
+
+    // Failed read due to binary validation must not update read paths
+    let paths = result.read_paths.unwrap();
+    assert!(paths.is_empty());
 }
 
 #[tokio::test]
@@ -289,26 +249,20 @@ async fn test_read_large_file_without_range() {
     let path = dir.path().join("large.txt");
 
     let args = json!({
-        "paths": [path.to_str().unwrap()]
+        "paths": path.to_str().unwrap()
     });
 
     let result = execute(ToolCallId("test_9".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    assert!(!result.is_error);
 
-    let file_result = &output.files[0];
-    assert!(!file_result.success);
-    assert!(file_result
-        .error
-        .as_ref()
-        .unwrap()
-        .contains("exceeds 1 MB limit"));
-    assert!(file_result
-        .error
-        .as_ref()
-        .unwrap()
-        .contains("Use start_line/end_line"));
+    let text = extract_text(result.clone());
+    assert!(text.contains("ERROR: File exceeds 1 MB limit"));
+
+    // Failed read due to size check must not update read paths
+    let paths = result.read_paths.unwrap();
+    assert!(paths.is_empty());
 }
 
 #[tokio::test]
@@ -316,39 +270,41 @@ async fn test_read_large_file_with_range() {
     let dir = setup_test_dir();
     let path = dir.path().join("large.txt");
 
-    // Reading with a range should bypass the size check
+    // Range reads bypass the 1 MB size check
     let args = json!({
-        "paths": [{
-            "path": path.to_str().unwrap(),
-            "start_line": 1,
-            "end_line": 1
-        }]
+        "paths": format!("{}:1-10", path.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_10".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    assert!(!result.is_error);
 
-    let file_result = &output.files[0];
-    // Should succeed because we're using a line range (even though the file is large)
-    assert!(file_result.success);
+    let text = extract_text(result.clone());
+    assert!(text.contains("lines 1-10 of"));
+    assert!(!text.contains("ERROR"));
+
+    // Since it bypassed the check and read successfully, path is recorded
+    let paths = result.read_paths.unwrap();
+    assert_eq!(paths.len(), 1);
 }
 
 #[tokio::test]
 async fn test_read_nonexistent_file() {
     let args = json!({
-        "paths": ["/nonexistent/path/to/file.txt"]
+        "paths": "/nonexistent/path/to/file.txt"
     });
 
     let result = execute(ToolCallId("test_11".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    assert!(!result.is_error);
 
-    let file_result = &output.files[0];
-    assert!(!file_result.success);
-    assert!(file_result.error.is_some());
+    let text = extract_text(result.clone());
+    assert!(text.contains("ERROR: Failed to access file") || text.contains("ERROR: Failed to read file"));
+
+    let paths = result.read_paths.unwrap();
+    assert!(paths.is_empty());
 }
 
 #[tokio::test]
@@ -357,53 +313,47 @@ async fn test_read_empty_file() {
     let path = dir.path().join("empty.txt");
 
     let args = json!({
-        "paths": [path.to_str().unwrap()]
+        "paths": path.to_str().unwrap()
     });
 
     let result = execute(ToolCallId("test_12".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    assert!(!result.is_error);
 
-    let file_result = &output.files[0];
-    assert!(file_result.success);
-    assert_eq!(file_result.content.as_ref().unwrap(), "");
-    assert_eq!(file_result.total_lines, Some(0));
+    let text = extract_text(result.clone());
+    assert_eq!(text, ""); // Empty file has empty output
+
+    let paths = result.read_paths.unwrap();
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0], path.to_str().unwrap());
 }
 
 #[tokio::test]
-async fn test_read_mixed_input_formats() {
+async fn test_read_mixed_string_targets() {
     let dir = setup_test_dir();
     let path1 = dir.path().join("simple.txt");
     let path2 = dir.path().join("no_newline.txt");
 
-    // Mix plain strings and objects
+    // Mix full-file read path and range read path in the same paths string
     let args = json!({
-        "paths": [
-            path1.to_str().unwrap(),
-            {
-                "path": path2.to_str().unwrap(),
-                "start_line": 2,
-                "end_line": 3
-            }
-        ]
+        "paths": format!("{}; {}:2-3", path1.to_str().unwrap(), path2.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_13".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    assert!(!result.is_error);
 
-    assert_eq!(output.files.len(), 2);
+    let text = extract_text(result.clone());
+    assert!(text.contains("simple.txt"));
+    assert!(text.contains("no_newline.txt lines 2-3 of 3"));
+    assert!(text.contains("line 2\nline 3"));
 
-    // First file (plain string, full read)
-    assert!(output.files[0].success);
-    assert!(output.files[0].lines_returned.is_none());
-
-    // Second file (object with range)
-    assert!(output.files[1].success);
-    assert!(output.files[1].lines_returned.is_some());
-    assert_eq!(output.files[1].content.as_ref().unwrap(), "line 2\nline 3");
+    let paths = result.read_paths.unwrap();
+    assert_eq!(paths.len(), 2);
+    assert!(paths.contains(&path1.to_str().unwrap().to_string()));
+    assert!(paths.contains(&path2.to_str().unwrap().to_string()));
 }
 
 #[tokio::test]
@@ -414,36 +364,29 @@ async fn test_read_partial_failure() {
     let path3 = dir.path().join("no_newline.txt");
 
     let args = json!({
-        "paths": [
-            path1.to_str().unwrap(),
-            path2,
-            path3.to_str().unwrap()
-        ]
+        "paths": format!("{}; {}; {}", path1.to_str().unwrap(), path2, path3.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_14".to_string()), args)
         .await
         .unwrap();
-    // Tool call itself should succeed (is_error: false)
     assert!(!result.is_error);
 
-    let output = extract_output(result);
-    assert_eq!(output.files.len(), 3);
+    let text = extract_text(result.clone());
+    assert!(text.contains("simple.txt"));
+    assert!(text.contains("/nonexistent/file.txt\nERROR:"));
+    assert!(text.contains("no_newline.txt"));
 
-    // First file: success
-    assert!(output.files[0].success);
-
-    // Second file: failure
-    assert!(!output.files[1].success);
-    assert!(output.files[1].error.is_some());
-
-    // Third file: success
-    assert!(output.files[2].success);
+    // Successful ones are recorded in the ledger, failed one is not
+    let paths = result.read_paths.unwrap();
+    assert_eq!(paths.len(), 2);
+    assert!(paths.contains(&path1.to_str().unwrap().to_string()));
+    assert!(paths.contains(&path3.to_str().unwrap().to_string()));
 }
 
 #[tokio::test]
 async fn test_invalid_args_format() {
-    // Missing "paths" field
+    // Missing required paths key should trigger argument parsing failure
     let args = json!({
         "invalid": "field"
     });
@@ -456,7 +399,7 @@ async fn test_invalid_args_format() {
 async fn test_concurrent_reads() {
     let dir = setup_test_dir();
 
-    // Create multiple files to read concurrently
+    // Create 10 files to verify concurrent processing logic
     let mut paths = vec![];
     for i in 0..10 {
         let path = dir.path().join(format!("file_{}.txt", i));
@@ -465,22 +408,20 @@ async fn test_concurrent_reads() {
     }
 
     let args = json!({
-        "paths": paths
+        "paths": paths.join("; ")
     });
 
     let result = execute(ToolCallId("test_16".to_string()), args)
         .await
         .unwrap();
-    let output = extract_output(result);
+    assert!(!result.is_error);
 
-    assert_eq!(output.files.len(), 10);
-
-    // All reads should succeed
-    for (i, file_result) in output.files.iter().enumerate() {
-        assert!(file_result.success, "File {} failed", i);
-        assert_eq!(
-            file_result.content.as_ref().unwrap(),
-            &format!("content {}", i)
-        );
+    let text = extract_text(result.clone());
+    for i in 0..10 {
+        assert!(text.contains(&paths[i]));
+        assert!(text.contains(&format!("content {}", i)));
     }
+
+    let read_paths = result.read_paths.unwrap();
+    assert_eq!(read_paths.len(), 10);
 }

@@ -55,13 +55,11 @@ pub fn definition() -> TieredToolDefinition {
         "properties": {
             "status": {
                 "type": "string",
-                "enum": ["pending", "in_progress", "completed"],
-                "description": "Optional filter by status."
+                "description": "Optional filter by status. Valid values: 'pending', 'in_progress', 'completed'."
             },
             "priority": {
                 "type": "string",
-                "enum": ["high", "medium", "low"],
-                "description": "Optional filter by priority."
+                "description": "Optional filter by priority. Valid values: 'high', 'medium', 'low'."
             }
         }
     });
@@ -69,9 +67,8 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_list".to_string(),
-            description: "Returns the current todo list. Optionally filter by `status` (\"pending\", \
-                          \"in_progress\", \"completed\") or `priority` (\"high\", \"medium\", \"low\"). \
-                          Always call this at the start of a session to check your current task plan."
+            description: "Returns the current todo list. Call format: <todo_list status=\"pending\" priority=\"high\"> \
+                          Both status and priority filters are optional. Returns plain text list and summary counts."
                 .to_string(),
             parameters: parameters.clone(),
         },
@@ -79,110 +76,54 @@ pub fn definition() -> TieredToolDefinition {
             name: "todo_list".to_string(),
             description: "\
 Returns the current todo list with optional filtering by status or priority. Always includes \
-status counts for quick overview of work progress.
+status counts from the full unfiltered list.
 
-## Input shapes
+## Call format
 
-`status` (optional, string, enum): Filter by status. Valid values: \"pending\", \"in_progress\", \
-\"completed\". If not provided, returns all todos regardless of status.
+<todo_list status=\"pending\" priority=\"high\">
 
-`priority` (optional, string, enum): Filter by priority. Valid values: \"high\", \"medium\", \"low\". \
-If not provided, returns all todos regardless of priority.
+All attribute values are strings. The tool tag has no body.
 
-Both filters can be combined — if both are provided, only items matching both filters are returned.
+## Attributes
 
-## Output
+`status` (optional, string): Filter by status. Valid values: \"pending\", \"in_progress\", \"completed\".
 
-Returns a JSON object with:
-- `items`: Array of TodoItem objects matching the filters (or all items if no filters)
-- `total`: Total number of todos in the store (unfiltered count)
-- `pending`: Count of items with status \"pending\" (unfiltered)
-- `in_progress`: Count of items with status \"in_progress\" (unfiltered)
-- `completed`: Count of items with status \"completed\" (unfiltered)
+`priority` (optional, string): Filter by priority. Valid values: \"high\", \"medium\", \"low\".
 
-The status counts are always computed from the full unfiltered list, giving you a complete \
-overview of work progress even when filtering.
+## Output format
 
-## Empty list
+Plain text. List of matched todo items, followed by a summary:
+#{id} [{status}] [{priority}] {content}
+#{id} [{status}] [{priority}] {content}
 
-An empty list is valid, not an error. This occurs when:
-- No todos have been created yet
-- All todos have been deleted
-- Filters are applied but no items match
+Total: {total} ({pending} pending, {in_progress} in progress, {completed} completed)
 
-## Session scope
+If no todos match the filters:
+No todos match the given filters.
 
-Todos are session-scoped — they exist for the duration of the agent session only. When the session \
-ends, todos are lost. Compaction does NOT clear todos — the task plan survives summarization.
+Total: {total} ({pending} pending, {in_progress} in progress, {completed} completed)
 
-## Workflow guidance
-
-- Call this at the start of a session to check your current task plan
-- Use status filters to focus on specific work: \"pending\" for unstarted, \"in_progress\" for active
-- Use priority filters to focus on urgent work: \"high\" for critical tasks
-- Check status counts to understand overall progress
-- Mark items \"in_progress\" as you start work, \"completed\" when done
-- Use `todo_create` to add new tasks
-- Use `todo_update` to change status or priority
-- Use `todo_delete` only for items added by mistake
+If the store has no todos at all:
+No todos yet.
 
 ## Error cases
 
-- Malformed JSON: \"failed to deserialize tool arguments: ...\" — check the JSON shape
-- Invalid status/priority values: \"failed to deserialize tool arguments: ...\" — use valid enum values
-
-## Example calls
-
-### List all todos
-```json
-{}
-```
-Result: All items with status counts
-
-### List pending todos
-```json
-{
-  \"status\": \"pending\"
-}
-```
-Result: Only items with status \"pending\"
-
-### List high-priority todos
-```json
-{
-  \"priority\": \"high\"
-}
-```
-Result: Only items with priority \"high\"
-
-### List high-priority pending todos
-```json
-{
-  \"status\": \"pending\",
-  \"priority\": \"high\"
-}
-```
-Result: Only items matching both filters"
+- Malformed args: \"failed to parse tool arguments: ...\""
                 .to_string(),
             parameters,
         },
     }
 }
 
-/// Deserializes `args_json` and executes the todo_list tool.
+/// Parses `args_json` and executes the todo_list tool.
 ///
-/// Returns a `ToolResult` with success (JSON TodoListOutput). Never returns is_error: true —
-/// an empty list is valid, not an error.
-/// Returns `Err(TodoListToolError::ArgsParse)` only if the top-level JSON shape is invalid.
+/// Returns a `ToolResult` with plain-text content (ToolContent::Text).
+/// Returns `Err(TodoListToolError::ArgsParse)` if parsing attributes fails.
 ///
 /// # Arguments
-/// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args_json`: The raw JSON arguments sent by the model.
-/// - `store`: Reference to the TodoStore (immutable — list doesn't mutate).
-///
-/// # Returns
-/// - `Ok(ToolResult)` with success (both as Ok, not Err).
-/// - `Err(TodoListToolError::ArgsParse)` if the arguments are malformed.
+/// - `call_id`: The unique identifier for this tool call.
+/// - `args_json`: The raw JSON arguments.
+/// - `store`: Reference to the TodoStore.
 pub async fn execute(
     call_id: ToolCallId,
     args_json: serde_json::Value,
@@ -191,15 +132,15 @@ pub async fn execute(
     execute_with_progress(call_id, args_json, store, None).await
 }
 
-/// Deserializes `args_json` and executes the todo_list tool with optional progress reporting.
+/// Parses `args_json` and executes the todo_list tool with optional progress reporting.
 pub async fn execute_with_progress(
     call_id: ToolCallId,
     args_json: serde_json::Value,
     store: &TodoStore,
     progress: Option<ToolProgressEmitter>,
 ) -> Result<ToolResult, TodoListToolError> {
-    // Deserialize the arguments. If this fails, return an ArgsParse error.
-    let args: TodoListArgs = serde_json::from_value(args_json)?;
+    // Parse the arguments manually. If this fails, return an ArgsParse error.
+    let args = TodoListArgs::parse(&args_json).map_err(TodoListToolError::ArgsParse)?;
 
     emit_tool_progress(
         progress.as_ref(),

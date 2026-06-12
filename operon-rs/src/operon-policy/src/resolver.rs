@@ -231,21 +231,23 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
     let args = &call.arguments;
 
     match tool {
-        // The `read` tool takes a `"paths"` array. We check the first element
-        // for the policy evaluation. If the model passes multiple paths, they
-        // all need to be in the same allowed directory (or multiple calls should
-        // be used). We check the first as a representative heuristic — the tool
-        // executor will encounter the boundary violation for any out-of-scope
-        // path anyway (since it runs after policy allows the call).
-        //
-        // TODO: Consider per-element checking in a future revision. For now,
-        // first-element policy is the pragmatic trade-off.
+        // The `read` tool takes a semicolon-delimited `"paths"` string. We check the
+        // first path entry for policy evaluation. We extract the first path from the
+        // string and strip any line range suffix (e.g. ":40-90", ":50-", ":-30") if present,
+        // so that the directory containment check matches a clean path.
         DirTool::Fs(FsTool::Read) => args
             .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
             .and_then(|v| v.as_str())
-            .map(PathBuf::from),
+            .and_then(|s| s.split(';').next())
+            .map(|first| {
+                let entry = first.trim();
+                let stripped = if let Some(colon_idx) = find_range_colon(entry) {
+                    &entry[..colon_idx]
+                } else {
+                    entry
+                };
+                PathBuf::from(stripped)
+            }),
 
         // The "grep" tool accepts an array of directory paths in its `"paths"` argument
         // (similar to the "read" tool). To perform policy verification, we extract the
@@ -266,6 +268,61 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
         // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"`
         // string argument. We extract this value to verify directory containment.
         DirTool::Fs(_) => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
+    }
+}
+
+/// Find the index of the range colon in a path entry, if one exists.
+///
+/// We scan the entry from right to left. For each colon we find, we check
+/// whether the suffix (everything after the colon) matches `^\d*-\d*$`.
+/// If it does — AND the colon is NOT at index 1 (drive letter position) —
+/// we return that colon's index. The first (rightmost) match wins.
+///
+/// Returns None if no range colon is found.
+fn find_range_colon(entry: &str) -> Option<usize> {
+    let bytes = entry.as_bytes();
+
+    // Walk backwards through the string byte by byte looking for colons.
+    let mut i = bytes.len().saturating_sub(1);
+    loop {
+        if bytes[i] == b':' {
+            // Guard: drive-letter colon is at index 1, followed by a backslash or forward slash.
+            // Drive letters like "C:\" should never be treated as range separators.
+            let is_drive_letter = i == 1
+                && bytes.len() > 2
+                && (bytes[2] == b'\\' || bytes[2] == b'/');
+
+            if !is_drive_letter {
+                // Check if suffix matches \d*-\d$ (both digit groups optional, hyphen required).
+                let suffix = &entry[i + 1..];
+                if is_range_suffix(suffix) {
+                    return Some(i);
+                }
+            }
+        }
+
+        if i == 0 {
+            break;
+        }
+        i -= 1;
+    }
+    None
+}
+
+/// Returns true if `s` matches `^\d*-\d*$`:
+/// zero or more digits, a hyphen, zero or more digits.
+/// The hyphen is required.
+fn is_range_suffix(s: &str) -> bool {
+    // Must contain exactly one hyphen, nothing else besides digits.
+    match s.find('-') {
+        None => false,
+        Some(dash_idx) => {
+            let before = &s[..dash_idx];
+            let after = &s[dash_idx + 1..];
+            // Both sides must be all digits (empty strings are fine — that means None).
+            before.chars().all(|c| c.is_ascii_digit())
+                && after.chars().all(|c| c.is_ascii_digit())
+        }
     }
 }
 
@@ -465,11 +522,21 @@ mod tests {
             vec![],
         );
         let resolver = PolicyResolver::new(config);
-        let call = make_call("read", json!({ "paths": [file.to_str().unwrap()] }));
+        
+        // Plain path
+        let call = make_call("read", json!({ "paths": file.to_str().unwrap() }));
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_allow(),
             "read inside allowed dir should be allowed for owner"
+        );
+
+        // Path with line range (e.g. :40-90)
+        let call_with_range = make_call("read", json!({ "paths": format!("{}:40-90", file.to_str().unwrap()) }));
+        let decision_with_range = resolver.check(&call_with_range, CallerRole::Owner);
+        assert!(
+            decision_with_range.is_allow(),
+            "read inside allowed dir with range suffix should be allowed for owner"
         );
     }
 
@@ -491,7 +558,7 @@ mod tests {
         let outside_file = other_tmp.path().join("secret.txt");
         std::fs::write(&outside_file, "data").unwrap();
 
-        let call = make_call("read", json!({ "paths": [outside_file.to_str().unwrap()] }));
+        let call = make_call("read", json!({ "paths": outside_file.to_str().unwrap() }));
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_deny(),
@@ -631,13 +698,13 @@ mod tests {
         let resolver = PolicyResolver::new(config);
         let path_str = file.to_str().unwrap();
 
-        let owner_call = make_call("read", json!({ "paths": [path_str] }));
+        let owner_call = make_call("read", json!({ "paths": path_str }));
         assert!(
             resolver.check(&owner_call, CallerRole::Owner).is_allow(),
             "owner should be allowed to read"
         );
 
-        let ext_call = make_call("read", json!({ "paths": [path_str] }));
+        let ext_call = make_call("read", json!({ "paths": path_str }));
         assert!(
             resolver.check(&ext_call, CallerRole::External).is_deny(),
             "external should be denied from reading"
@@ -650,7 +717,7 @@ mod tests {
         let config = PolicyConfig::empty();
         let resolver = PolicyResolver::new(config);
 
-        let call = make_call("read", json!({ "paths": ["/any/path.txt"] }));
+        let call = make_call("read", json!({ "paths": "/any/path.txt" }));
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_deny(),

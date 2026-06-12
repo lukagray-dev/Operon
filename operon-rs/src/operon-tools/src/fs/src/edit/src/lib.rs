@@ -2,51 +2,42 @@
 //!
 //! Implements the `edit` tool for the Operon agent's filesystem group.
 //!
-//! Edits an existing file by replacing exact text. Supports:
-//! - Multi-hunk edits (one or more old_string→new_string replacements per call)
-//! - Exact-string matching (zero or multiple matches are errors)
+//! Edits an existing file using a diff-based body format. Supports:
+//! - Multi-hunk edits (one or more `@@`-delimited hunks per call)
+//! - Fuzzy line matching via `seek_sequence` (exact → rstrip → trim → unicode-normalised)
+//! - Optional per-hunk seek anchors (`@@ some context line`)
+//! - EOF-anchored hunks (`*** End of File` marker)
+//! - Overlap detection across hunks
 //! - Atomic writes (all hunks applied or none)
-//! - In-order hunk application (later hunks see post-edit content from earlier hunks)
 //!
-//! ## Usage
+//! ## Call format
 //!
-//! ```rust
-//! use operon_tools_fs_edit::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
-//! use serde_json::json;
-//!
-//! # async fn example() {
-//! // 1. Get the tool definition to register with the model
-//! let def = definition();
-//!
-//! // 2. When the model calls the tool, execute it
-//! let args = json!({
-//!     "path": "/path/to/file.rs",
-//!     "edits": [
-//!         {
-//!             "old_string": "fn old_name() {",
-//!             "new_string": "fn new_name() {"
-//!         }
-//!     ]
-//! });
-//! let result = execute(
-//!     ToolCallId("call_123".to_string()),
-//!     args
-//! ).await.unwrap();
-//! # }
+//! ```text
+//! <edit path="C:\absolute\path\to\file.rs">
+//! <<<<
+//! @@
+//! -old line
+//! +new line
+//! >>>>
 //! ```
+//!
+//! The dispatcher injects:
+//! - `args_json["path"]`     — the absolute file path from the `path` XML attr.
+//! - `args_json["__body__"]` — the raw diff body between `<<<<` and `>>>>`.
 
 mod args;
 mod error;
 mod executor;
 mod output;
+mod seek_sequence;
 
 #[cfg(test)]
 mod tests;
 
-pub use args::{EditArgs, EditHunk};
+// Keep EditArgs accessible to callers that construct it directly (e.g. integration tests).
+// EditHunk is internal — callers only interact with EditArgs.
+pub use args::EditArgs;
 pub use error::EditToolError;
-pub use output::EditOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
@@ -56,185 +47,182 @@ use serde_json::json;
 
 /// Returns the tiered tool definition for the `edit` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraint (exact-string matching).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and common mistakes.
+/// - `short`:    sent to the model under normal conditions. Concise summary of
+///               the tool's purpose and the diff body format.
+/// - `detailed`: sent after a malformed call. Full explanation of the call
+///               format, hunk syntax, error messages, and worked examples.
 pub fn definition() -> TieredToolDefinition {
+    // The schema only declares "path" — the diff body arrives via __body__,
+    // which is injected by the dispatcher and is not part of the JSON schema.
     let parameters = json!({
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to the file to edit. Also accepted as file_path."
-            },
-            "edits": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "old_string": {
-                            "type": "string",
-                            "description": "Exact text to replace. Must appear exactly once in the file."
-                        },
-                        "new_string": {
-                            "type": "string",
-                            "description": "Replacement text. Must differ from old_string."
-                        }
-                    },
-                    "required": ["old_string", "new_string"]
-                },
-                "description": "One or more edits to apply in order. All applied atomically."
+                "description": "Absolute path to the file to edit."
             }
         },
-        "required": ["path", "edits"]
+        "required": ["path"]
     });
 
     TieredToolDefinition {
         short: ToolDefinition {
             name: "edit".to_string(),
-            description: "Edits an existing file by replacing exact text. \
-                          Pass `path` (absolute file path) and `edits` (array of {old_string, new_string} pairs). \
-                          Each old_string must match exactly once — zero matches means the file changed (re-read and retry), \
-                          multiple matches means old_string is ambiguous (add more surrounding context). \
-                          All edits apply atomically."
+            description: "Edits an existing file using a diff-based body format. \
+                          path attr is the absolute file path. \
+                          Write the diff in the tool body using @@ hunk separators, \
+                          - for lines to remove, + for lines to add, \
+                          and a space prefix for context lines used to locate the edit position. \
+                          Multiple hunks per call are supported."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "edit".to_string(),
             description: "\
-Edits an existing file by replacing exact text. All edits are applied atomically — if any hunk fails, the file is NOT modified.
+Edits an existing file using a diff-based body format. All hunks are applied atomically — \
+if any hunk fails, the file is NOT modified.
 
-## Input shapes
+## Call format
 
-`path` (required, string): Absolute path to the file to edit. Also accepted as \"file_path\" for compatibility.
+```
+<edit path=\"C:\\\\absolute\\\\path\\\\to\\\\file.rs\">
+<<<<
+@@
+-old line one
+-old line two
++new line one
++new line two
+@@
+-another old line
++another new line
+>>>>
+```
 
-`edits` (required, array, min 1 item): One or more edits to apply in order.
-Each edit is an object with:
-  - `old_string` (required, string): Exact text to find. Must match exactly once.
-  - `new_string` (required, string): Replacement text. Must differ from old_string.
+The `path` attr is the absolute path to the file to edit.
+The body between `<<<<` and `>>>>` contains one or more hunks separated by `@@`.
+
+## Hunk syntax
+
+Each line in the body must start with one of:
+
+| Prefix | Meaning |
+|--------|---------|
+| `@@`   | Hunk separator. Optionally followed by a seek-anchor line (see below). |
+| `-`    | Line to remove. Must be found in the file exactly. |
+| `+`    | Line to add. Inserted in place of the removed lines. |
+| ` `    | Context line (leading space). Present in both old and new; used to locate the edit region. |
+
+Empty lines between hunks are silently ignored.
+
+## Seek anchor (`@@ <text>`)
+
+The text after `@@ ` is used as a single-line anchor. `seek_sequence` locates \
+that line in the file first, then searches for `old_lines` starting from there.
+
+```
+@@ def calculate_total
+-    total = 0
++    total = 0.0
+```
+
+No text after `@@` → search continues from the previous hunk's end position.
+
+## EOF anchor
+
+A line `-*** End of File` (case-insensitive) marks the hunk as end-of-file anchored. \
+`seek_sequence` will prefer matching `old_lines` at the very end of the file.
+
+## Output format
+
+- Success:  `\"{path} ({N} hunk(s) applied)\"`
+- Error:    `\"{path}\\n{error description}\"`
+
+All results use `ToolContent::Text` with `is_error = false` — the model reads the inline text.
 
 ## Worked examples
 
-### Single edit
-```json
-{
-  \"path\": \"/path/to/file.rs\",
-  \"edits\": [
-    {
-      \"old_string\": \"fn old_name() {\",
-      \"new_string\": \"fn new_name() {\"
-    }
-  ]
-}
+### Single hunk
+
+```
+<edit path=\"/path/to/file.rs\">
+<<<<
+@@
+-fn old_name() {
++fn new_name() {
+>>>>
 ```
 
-### Multi-hunk edit (three separate regions)
-```json
-{
-  \"path\": \"/path/to/file.rs\",
-  \"edits\": [
-    {
-      \"old_string\": \"import { oldFunc } from './lib';\",
-      \"new_string\": \"import { newFunc } from './lib';\"
-    },
-    {
-      \"old_string\": \"oldFunc(x, y)\",
-      \"new_string\": \"newFunc(x, y)\"
-    },
-    {
-      \"old_string\": \"// TODO: refactor oldFunc\",
-      \"new_string\": \"// TODO: refactor newFunc\"
-    }
-  ]
-}
+### Multi-hunk
+
+```
+<edit path=\"/path/to/file.rs\">
+<<<<
+@@
+-import { oldFunc } from './lib';
++import { newFunc } from './lib';
+@@
+-oldFunc(x, y)
++newFunc(x, y)
+>>>>
 ```
 
-## Exact-string matching
+### @@ with seek context
 
-Each old_string must match exactly once in the file. This ensures determinism and prevents silent partial edits.
+```
+<edit path=\"/path/to/file.py\">
+<<<<
+@@ def calculate_total
+-    return sum(x)
++    return sum(item.price for item in items)
+>>>>
+```
 
-- **Zero matches**: The file changed since you last read it. Re-read the file, then retry.
-- **Multiple matches**: old_string is ambiguous. Include more surrounding context (function signature, preceding comment, more unique lines) to make it unique.
+### Context lines for disambiguation
 
-## Hunk application order
+```
+<edit path=\"/path/to/file.rs\">
+<<<<
+@@
+ fn process() {
+-    let result = old_call();
++    let result = new_call();
+ }
+>>>>
+```
 
-Edits are applied in array order on the in-memory string. Later hunks see post-edit content from earlier hunks.
+### Pure deletion (empty + block)
 
-Example: if hunk 0 replaces \"foo\" with \"bar\", and hunk 1 searches for \"bar\", hunk 1 will find the result of hunk 0.
-
-If hunks touch overlapping regions, old_string for hunk N must match the state after hunks 0..N-1 have been applied.
-
-## Atomic writes
-
-All-or-nothing: if any hunk fails, the file is NOT modified at all. This prevents partial edits on disk.
-
-## Whitespace exactness
-
-Tabs vs spaces, trailing newlines, indentation — must match exactly as seen in read output.
-
-**Important**: The line number prefix in read output (e.g., \"  123 | \") is display-only and must NOT be included in old_string.
-
-## Common mistakes
-
-### Mistake #1: old_string is too short and matches multiple places
-Example: searching for just `}` or `return;` or a blank line.
-Fix: Include the surrounding function name, comment, or more unique context.
-
-### Mistake #2: Not re-reading after an external edit
-If the file changed on disk (e.g., another tool or editor modified it), your old_string may no longer match.
-Fix: Re-read the file with the read tool, then retry the edit.
-
-### Mistake #3: Including the line number prefix from read output
-Read output shows: \"  123 | fn foo() {\"
-The \"  123 | \" prefix is display-only. old_string should be just: \"fn foo() {\"
+```
+<edit path=\"/path/to/file.rs\">
+<<<<
+@@
+-// TODO: remove this comment
+>>>>
+```
 
 ## Error messages
 
-- \"edits array must contain at least one hunk\" → Pass at least one edit.
-- \"hunk N: old_string and new_string are identical\" → new_string must differ from old_string.
-- \"hunk N: old_string not found in file\" → File changed since last read. Re-read and retry.
-- \"hunk N: old_string matched K times — ambiguous\" → Add more context to make old_string unique.
-- \"failed to read file: ...\" → File doesn't exist or permission denied.
-- \"failed to write temp file: ...\" → Disk full or permission denied. File was not modified.
-- \"failed to rename temp file to target: ...\" → Atomic rename failed. File was not modified."
+- `hunk N: no match found` → `old_lines` not found in the file. Re-read and retry.
+- `hunk N: seek context not found: <text>` → The anchor line after `@@` was not found.
+- `hunk N and hunk M: overlapping matches` → Two hunks matched overlapping regions.
+- `failed to read file: ...` → File does not exist or permission denied."
                 .to_string(),
             parameters,
         },
     }
 }
 
-/// Deserializes `args_json` and executes the edit tool.
+/// Parses `args_json` and executes the edit tool.
 ///
-/// Returns a `ToolResult` with either success (JSON EditOutput) or failure (Text error message).
-/// Returns `Err(EditToolError::ArgsParse)` only if the top-level JSON shape is invalid.
+/// Returns a `ToolResult` with `ToolContent::Text` for both success and error.
+/// Returns `Err(EditToolError::ArgsParse)` only if the `path` attr is missing
+/// or the `__body__` diff body is absent or contains no valid hunks.
 ///
 /// # Arguments
-/// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args_json`: The raw JSON arguments sent by the model.
-///
-/// # Returns
-/// - `Ok(ToolResult)` with either success or failure (both as Ok, not Err).
-/// - `Err(EditToolError::ArgsParse)` if the arguments are malformed.
-///
-/// # Example
-/// ```rust
-/// # use operon_tools_fs_edit::execute;
-/// # use operon_context_normalize_tools::ToolCallId;
-/// # use serde_json::json;
-/// # async fn example() {
-/// let result = execute(
-///     ToolCallId("call_123".to_string()),
-///     json!({
-///         "path": "/tmp/test.txt",
-///         "edits": [{"old_string": "a", "new_string": "b"}]
-///     })
-/// ).await.unwrap();
-/// assert_eq!(result.name, "edit");
-/// # }
-/// ```
+/// - `call_id`:   The unique identifier for this tool call.
+/// - `args_json`: The raw JSON arguments injected by the dispatcher. Must contain
+///                `"path"` (String) and `"__body__"` (String with diff body).
 pub async fn execute(
     call_id: ToolCallId,
     args_json: serde_json::Value,
@@ -242,14 +230,16 @@ pub async fn execute(
     execute_with_progress(call_id, args_json, None).await
 }
 
-/// Deserializes `args_json` and executes the edit tool with optional progress reporting.
+/// Parses `args_json` and executes the edit tool with optional progress reporting.
 pub async fn execute_with_progress(
     call_id: ToolCallId,
     args_json: serde_json::Value,
     progress: Option<ToolProgressEmitter>,
 ) -> Result<ToolResult, EditToolError> {
-    // Deserialize the arguments. If this fails, return an ArgsParse error.
-    let args: EditArgs = serde_json::from_value(args_json)?;
+    // Parse arguments manually (no serde Deserialize).
+    // A missing path or unparseable body is the only hard failure — all hunk
+    // match errors are returned as Ok(ToolResult) with inline text.
+    let args = EditArgs::parse(&args_json).map_err(EditToolError::ArgsParse)?;
 
     emit_tool_progress(
         progress.as_ref(),
@@ -257,11 +247,11 @@ pub async fn execute_with_progress(
             call_id.clone(),
             "edit",
             Some(args.path.clone()),
-            format!("Editing {} ({} edit(s))", args.path, args.edits.len()),
+            format!("Editing {} ({} hunk(s))", args.path, args.hunks.len()),
         ),
     );
 
-    // Execute the tool and return the result. The executor always returns a
-    // ToolResult (never panics or returns an error), so we can unwrap safely.
+    // Execute and return. The executor always returns Ok(ToolResult) — it never
+    // panics or propagates an Err from file I/O (errors become inline text).
     Ok(executor::execute(call_id, args).await)
 }

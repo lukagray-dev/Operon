@@ -1,44 +1,51 @@
 // args.rs — Argument types for the bash tool.
 //
-// Defines the deserialization schema for the bash tool's input.
-// The tool accepts a shell command, a required working directory (cwd),
-// and an optional timeout in milliseconds.
+// Defines the parsing logic for the bash tool's input in the new body-based format.
+// The tool receives `path` as an XML attribute and `command` / `timeout` in the body.
 //
-// DESIGN NOTE — why `cwd` is required:
+// NEW CALL FORMAT:
+//   <bash path="C:\absolute\path\to\directory">
+//   <<<<
+//   command="cargo build --release"
+//   timeout="60000"
+//   >>>>
+//
+// DESIGN NOTE — why `path` is required:
 //   The bash tool is directory-scoped in the Operon permission model.
 //   Each tool call must declare the directory it operates in so the
 //   policy layer (operon-policy) can check the call against the
 //   DirectoryPolicy for that path before dispatching.
 //
-//   If `cwd` were optional or derived from the session workspace root,
+//   If `path` were optional or derived from the session workspace root,
 //   a malicious external user could omit it and escape per-directory
 //   shell restrictions. Making it required and enforced by policy
 //   closes that attack surface completely.
-
-use serde::Deserialize;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BashArgs
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Arguments for the bash tool.
+/// Arguments for the bash tool, parsed from the new body-based call format.
 ///
-/// All three fields are passed from the model as a JSON object.
-/// `command` and `cwd` are required. `timeout_ms` is optional.
+/// `path` arrives as `args_json["path"]` (the XML attribute).
+/// `command` and optional `timeout` arrive as `args_json["__body__"]` key=value lines.
 ///
 /// # Policy integration
 ///
-/// The `cwd` field is the anchor for operon-policy's directory-scope check.
+/// The `path` field is the anchor for operon-policy's directory-scope check.
 /// Before the dispatcher even calls `execute()`, the policy resolver extracts
-/// `cwd` from the raw `ToolCall.arguments` JSON and resolves it against the
-/// registered `DirectoryPolicy` entries. If no policy entry covers `cwd`,
+/// `path` from the raw `ToolCall.arguments` JSON and resolves it against the
+/// registered `DirectoryPolicy` entries. If no policy entry covers `path`,
 /// the call is denied before reaching this struct.
 ///
-/// This means by the time `BashArgs` is deserialized here, the `cwd` has
+/// This means by the time `BashArgs` is parsed here, the `path` has
 /// already been validated to be within an allowed directory for this caller role.
 /// The executor still validates it exists on disk as a defence-in-depth measure.
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct BashArgs {
+    /// Working directory for the command (was `cwd`, now from the `path` attr).
+    pub path: String,
+
     /// The shell command to execute.
     ///
     /// Runs in a fresh subprocess using the shell appropriate for the OS:
@@ -50,29 +57,89 @@ pub struct BashArgs {
     /// commands with `&&` or `;` within a single call when state is needed.
     pub command: String,
 
-    /// Absolute path to the working directory for this command.
+    /// Timeout in milliseconds. Defaults to 1_800_000 (30 minutes) if not specified.
     ///
-    /// This field is **required** — it is the policy anchor that allows the
-    /// permission layer to enforce directory-scoped shell permissions.
-    ///
-    /// Rules:
-    /// - Must be an absolute path (starts with `/` on Unix, drive letter on Windows).
-    /// - Must refer to an existing directory on disk.
-    /// - Must be within an allowed directory per the active `PolicyConfig`.
-    ///
-    /// The subprocess is spawned with this directory as its working directory.
-    /// Relative paths inside the command (e.g. `./build.sh`) resolve against it.
-    pub cwd: String,
-
-    /// Optional timeout in milliseconds.
-    ///
-    /// If provided, the subprocess is killed after this many milliseconds.
+    /// The subprocess is killed after this many milliseconds.
     /// `exit_code` becomes -1 and `timed_out` becomes true in the output.
     ///
-    /// If omitted, the command runs until it completes with no deadline.
-    /// There is no maximum — the model is responsible for setting a reasonable
-    /// value. For long-running commands (builds, installs, test suites),
-    /// always set a timeout to avoid orphaned subprocesses.
-    #[serde(default)]
-    pub timeout_ms: Option<u64>,
+    /// Always set an explicit timeout for long-running commands to avoid
+    /// orphaned subprocesses and stalled agent loops.
+    pub timeout_ms: u64,
+}
+
+impl BashArgs {
+    /// Parse arguments from the new body-based JSON format.
+    ///
+    /// `path` is taken from `args_json["path"]` (the XML attribute field).
+    /// `command` and optional `timeout` are parsed from `args_json["__body__"]`
+    /// as key=value lines (one per line, e.g. `command="cargo build"`).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(String)` with a descriptive message if:
+    /// - `path` is missing, non-string, or empty.
+    /// - `command` is missing from the body or empty.
+    /// - `timeout` is present but not a valid u64.
+    pub fn parse(args_json: &serde_json::Value) -> Result<BashArgs, String> {
+        // ── Extract the `path` XML attribute ─────────────────────────────────
+        // This is always provided as a top-level JSON field by the parser.
+        let path = args_json["path"]
+            .as_str()
+            .ok_or_else(|| "missing or non-string attr: path".to_string())?
+            .trim()
+            .to_string();
+
+        if path.is_empty() {
+            return Err("path is empty".to_string());
+        }
+
+        // ── Parse the body key=value lines ───────────────────────────────────
+        // The body is the content between <<<< and >>>> markers in the call format.
+        // It is passed as `args_json["__body__"]`. If missing, treat as empty.
+        let body = args_json["__body__"].as_str().unwrap_or("");
+
+        let mut command: Option<String> = None;
+        // Default timeout is 30 minutes (1,800,000 ms). The model may override via body.
+        let mut timeout_ms: u64 = 1_800_000;
+
+        for line in body.lines() {
+            let line = line.trim();
+            // Skip blank lines gracefully — body may have padding.
+            if line.is_empty() {
+                continue;
+            }
+
+            // Each non-empty line must be in `key=value` form.
+            // The value is the portion after the first `=`, already unquoted by the parser.
+            if let Some(eq) = line.find('=') {
+                let key = line[..eq].trim();
+                let val = line[eq + 1..].trim().to_string();
+
+                match key {
+                    "command" => command = Some(val),
+                    "timeout" => {
+                        // Timeout must be a valid non-negative integer (milliseconds).
+                        timeout_ms = val.parse::<u64>().map_err(|_| {
+                            format!("invalid timeout value: {}", val)
+                        })?;
+                    }
+                    // Unknown keys are silently ignored — forward compatibility.
+                    _ => {}
+                }
+            }
+        }
+
+        // `command` is required — missing it is always a model error.
+        let command = command.ok_or_else(|| "missing body key: command".to_string())?;
+
+        if command.trim().is_empty() {
+            return Err("command is empty".to_string());
+        }
+
+        Ok(BashArgs {
+            path,
+            command,
+            timeout_ms,
+        })
+    }
 }

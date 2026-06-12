@@ -379,6 +379,10 @@ fn parse_anthropic_tool_result(block: &Value, provider_name: &'static str) -> Re
             .to_string(),
         content,
         is_error,
+        // Since we are parsing a tool result from the provider's raw wire message format,
+        // we do not have (nor do we need) the in-memory read_paths ledger data. Therefore,
+        // we default this field to None.
+        read_paths: None,
     })
 }
 

@@ -2,35 +2,27 @@
 //!
 //! Implements the `ls` tool for the Operon agent's filesystem group.
 //!
-//! Lists files and directories at a given path (single level, not recursive).
-//! Supports:
-//! - Single-level directory listing with entry type prefixes (FILE/DIR/SYMLINK)
-//! - Metadata collection (size, last-modified time)
-//! - Glob-pattern exclusion by entry name
+//! Lists files and directories at a given path. Supports:
+//! - Recursive depth control (depth=1 default, depth=0 for unlimited)
+//! - File name glob filtering (e.g., "*.py" lists only Python files)
+//! - Entry ignore patterns (skip entries by name)
 //! - 1000 entry limit to prevent overwhelming the model
-//! - Per-entry error handling (missing metadata doesn't fail the entire listing)
+//! - Human-readable file sizes
+//! - Plain-text output with [DIR] and [FILE] prefixes
 //!
-//! ## Usage
+//! ## Call format
 //!
-//! ```rust
-//! use operon_tools_fs_ls::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
-//! use serde_json::json;
+//! ```text
+//! <!-- Simple: list immediate children -->
+//! <ls path="C:\absolute\path\to\directory">
 //!
-//! # async fn example() {
-//! // 1. Get the tool definition to register with the model
-//! let def = definition();
-//!
-//! // 2. When the model calls the tool, execute it
-//! let args = json!({
-//!     "path": "/home/user/project",
-//!     "ignore": ["*.lock", "node_modules", ".git"]
-//! });
-//! let result = execute(
-//!     ToolCallId("call_123".to_string()),
-//!     args
-//! ).await.unwrap();
-//! # }
+//! <!-- With options: -->
+//! <ls path="C:\absolute\path\to\directory">
+//! <<<<
+//! depth="2"
+//! glob="*.py"
+//! ignore="node_modules" ".git"
+//! >>>>
 //! ```
 
 mod args;
@@ -43,7 +35,6 @@ mod tests;
 
 pub use args::LsArgs;
 pub use error::LsToolError;
-pub use output::{EntryKind, LsEntry, LsOutput};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
@@ -53,22 +44,16 @@ use serde_json::json;
 
 /// Returns the tiered tool definition for the `ls` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the key constraints (1000 entry limit, single-level only).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   return format, sort order, edge cases, and common mistakes.
+/// - `short`: sent to the model under normal conditions. Concise.
+/// - `detailed`: sent after a malformed call. Full body format explanation.
 pub fn definition() -> TieredToolDefinition {
+    // Schema: only `path` is an attribute. All options live in the body.
     let parameters = json!({
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
                 "description": "Absolute path to the directory to list."
-            },
-            "ignore": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Glob patterns matched against entry names to exclude. E.g. [\"*.lock\", \"node_modules\"]."
             }
         },
         "required": ["path"]
@@ -77,119 +62,100 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "ls".to_string(),
-            description: "Lists files and directories at a given path (single level, not recursive). \
-                          Pass `path` (absolute directory path). Returns entries with type (FILE/DIR/SYMLINK), \
-                          size, and last-modified time. Use `ignore` to exclude entries by name glob \
-                          (e.g., [\"*.lock\", \"node_modules\", \".git\"]). Results capped at 1000 entries."
+            description: "Lists files and directories. path attr is the root directory. Optionally \
+                          write options in the tool body: depth=\"2\" (default 1, 0=unlimited), \
+                          glob=\"*.py\" to filter files, ignore=\"node_modules\" to skip entries. \
+                          Output includes sizes. Capped at 1000 entries."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "ls".to_string(),
             description: "\
-Lists files and directories at a given path (single level, not recursive).
+Lists files and directories at a given path. Returns plain-text output.
 
-## Input
+## Call format
 
-`path` (required, string): Absolute path to the directory to list.
-  - Must be a directory. Passing a file path returns an error result (not Err).
-  - Must be an absolute path (relative paths are not supported).
+The `path` attribute is the root directory to list. All options go in the tool body.
 
-`ignore` (optional, array of strings): Glob patterns to exclude entries by name.
-  - Patterns are matched against the entry **name only**, not the full path.
-  - Examples: [\"*.lock\", \"node_modules\", \".git\", \"target\", \".*\"]
-  - If any pattern fails to compile, the entire listing fails with an error.
-  - Default: empty (no exclusions).
+Simple (lists immediate children):
+  <ls path=\"C:\\absolute\\path\\to\\directory\">
 
-## Output
+With options:
+  <ls path=\"C:\\absolute\\path\\to\\directory\">
+  <<<<
+  depth=\"2\"
+  glob=\"*.py\"
+  ignore=\"node_modules\" \".git\"
+  >>>>
 
-Returns a JSON object with:
-- `path`: The directory that was listed (echoed back for correlation).
-- `entry_count`: Total number of entries in the listing (after exclusions).
-- `truncated`: Boolean. True if more than 1000 entries exist (results are capped).
-- `entries`: Array of directory entries, sorted: directories first (alphabetical), then files/symlinks (alphabetical).
-- `error`: Human-readable error if the path could not be listed. When populated, entries is empty.
+## Body options
 
-Each entry in `entries` contains:
-- `name`: Entry name (not full path).
-- `kind`: Entry type — one of: FILE, DIR, SYMLINK.
-- `size_bytes`: File size in bytes (only for files; None for dirs/symlinks).
-- `modified_unix`: Last modified timestamp as Unix seconds (None if unavailable).
+- `depth`: Tree depth. 1 = single level (default). 0 = unlimited recursion.
+           depth=2 means immediate children and their immediate children.
+- `glob`: Glob pattern to filter file names (not applied to directory names).
+          Only the first token is used. E.g. \"*.rs\", \"*.{ts,tsx}\".
+- `ignore`: Entry names to skip. Each token is a separate pattern.
+            Applied to both files and directories — matching dirs are also excluded from recursion.
+            E.g. ignore=\"node_modules\" \".git\" \"target\"
 
-## Behavior
+## Output format
 
-- **Single-level only**: Does not recurse into subdirectories. Use grep or read for recursive operations.
-- **Hidden files included**: Entries starting with '.' (e.g., .git, .env) ARE included by default.
-  Use `ignore: [\".*\"]` to exclude them.
-- **Symlinks**: Followed for metadata (size/modified time of the target). If the target is missing,
-  metadata is None but the symlink is still listed as SYMLINK.
-- **Metadata failures**: If metadata cannot be retrieved for an entry, the entry is still included
-  but size_bytes and modified_unix are None.
-- **Truncation**: If a directory contains more than 1000 entries, results are capped at 1000 and
-  `truncated` is set to true. Increase the limit by calling the tool multiple times with different
-  ignore patterns if needed.
-- **Sorting**: Directories come first (alphabetical, case-insensitive), then files and symlinks
-  (alphabetical, case-insensitive).
+```
+C:\\absolute\\path\\to\\directory
+[DIR]  src
+[DIR]  src/utils
+[FILE] src/utils/math.py (4.2 KB)
+[FILE] src/utils/helpers.py (9.3 KB)
+[DIR]  src/api
+[FILE] src/api/orders.py (2.1 KB)
+```
+
+- Paths are relative to the root path argument (using forward slashes).
+- Directories come before files at each level (alphabetical, case-insensitive).
+- Files are also sorted alphabetically (case-insensitive).
+- File sizes shown as human-readable (B, KB, MB). Directories show no size.
+- Header is the root path.
+- Capped at 1000 entries. \"***omitted N entries***\" appended if truncated.
+
+## Error format
+
+If the path doesn't exist or is a file:
+  {path}
+  ERROR: {reason}
+
+## Constraints
+
+- Non-existent path → ERROR inline.
+- File path instead of directory → ERROR inline.
+- Unreadable subdirectories are silently skipped during recursion.
+- Non-UTF-8 entry names are silently skipped.
 
 ## Common mistakes
 
-- Passing a file path instead of a directory → error result (not Err).
-- Using relative paths → may fail or list unexpected directory.
-- Expecting recursive output → use grep or read for recursive operations.
-- Using `ignore` patterns that match full paths → patterns match entry names only.
-  Use `ignore: [\"node_modules\"]` not `ignore: [\"**/node_modules\"]`.
-- Forgetting to exclude hidden files → use `ignore: [\".*\"]` if needed.
-
-## Examples
-
-List a directory with no exclusions:
-```json
-{\"path\": \"/home/user/project\"}
-```
-
-List with exclusions:
-```json
-{\"path\": \"/home/user/project\", \"ignore\": [\"*.lock\", \"node_modules\", \".git\", \"target\"]}
-```
-
-Exclude hidden files:
-```json
-{\"path\": \"/home/user/project\", \"ignore\": [\".*\"]}
-```"
+- Passing a file path instead of a directory.
+- Using relative paths — always use absolute paths.
+- Expecting recursive output without setting depth > 1."
                 .to_string(),
             parameters,
         },
     }
 }
 
-/// Deserializes `args_json` and executes the ls tool.
+/// Parses `args_json` and executes the ls tool.
 ///
-/// Returns a `ToolResult` with `is_error: false` even on directory listing failures —
-/// per-directory errors are embedded in the JSON content.
-/// Returns `Err(LsToolError::ArgsParse)` only if the top-level JSON shape is invalid.
+/// Returns a `ToolResult` with `is_error: false` always — directory errors are
+/// embedded inline in the text output.
+/// Returns `Err(LsToolError::ArgsParse)` only if the `path` attribute is missing
+/// or the body contains an invalid value.
 ///
 /// # Arguments
-/// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args_json`: The raw JSON arguments sent by the model.
+/// - `call_id`: The unique identifier for this tool call.
+/// - `args_json`: The raw JSON arguments sent by the parser.
 ///
 /// # Returns
-/// - `Ok(ToolResult)` with directory listing results in JSON content.
+/// - `Ok(ToolResult)` with directory listing as plain text.
 /// - `Err(LsToolError::ArgsParse)` if the arguments are malformed.
-///
-/// # Example
-/// ```rust
-/// # use operon_tools_fs_ls::execute;
-/// # use operon_context_normalize_tools::ToolCallId;
-/// # use serde_json::json;
-/// # async fn example() {
-/// let result = execute(
-///     ToolCallId("call_123".to_string()),
-///     json!({ "path": "/tmp" })
-/// ).await.unwrap();
-/// assert_eq!(result.name, "ls");
-/// assert!(!result.is_error);
-/// # }
-/// ```
 pub async fn execute(
     call_id: ToolCallId,
     args_json: serde_json::Value,
@@ -197,15 +163,16 @@ pub async fn execute(
     execute_with_progress(call_id, args_json, None).await
 }
 
-/// Deserializes `args_json` and executes the ls tool with optional progress reporting.
+/// Parses `args_json` and executes the ls tool with optional progress reporting.
 pub async fn execute_with_progress(
     call_id: ToolCallId,
     args_json: serde_json::Value,
     progress: Option<ToolProgressEmitter>,
 ) -> Result<ToolResult, LsToolError> {
-    // Deserialize the arguments. If this fails, return an ArgsParse error.
-    let args: LsArgs = serde_json::from_value(args_json)?;
+    // Parse the arguments from path attr + body.
+    let args = LsArgs::parse(&args_json).map_err(LsToolError::ArgsParse)?;
 
+    // Emit progress so the UI shows "Listing {path}" while waiting.
     emit_tool_progress(
         progress.as_ref(),
         ToolProgress::running(
@@ -216,7 +183,6 @@ pub async fn execute_with_progress(
         ),
     );
 
-    // Execute the tool and return the result. The executor always returns a
-    // ToolResult (never panics or returns an error), so we can unwrap safely.
+    // Execute the listing (always Ok — errors are inline in the text output).
     Ok(executor::execute(call_id, args).await)
 }

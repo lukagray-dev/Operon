@@ -2,35 +2,35 @@
 //!
 //! Implements the `web_search` tool for the Operon agent's web group.
 //!
-//! Queries DuckDuckGo and returns structured search results (title, URL, snippet).
+//! Queries DuckDuckGo and returns plain-text search results (rank, title, URL, snippet).
 //! No API key required. Supports:
 //! - DuckDuckGo query syntax: site:, filetype:, quotes, etc.
 //! - Configurable result count: 1–10 results (default 5)
-//! - Structured output: rank, title, URL, snippet for each result
+//! - Plain-text output: one ranked block per result, joined by blank lines
 //! - Empty results are valid (not an error)
-//! - Static content only (no JavaScript-rendered pages)
+//! - No JavaScript rendering (DuckDuckGo lite search, static content only)
 //!
-//! ## Usage
+//! ## Call format
 //!
-//! ```rust
-//! use operon_tools_web_search::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
-//! use serde_json::json;
+//! ```text
+//! <web_search query="rust async runtimes" max="10">
+//! ```
 //!
-//! # async fn example() {
-//! // 1. Get the tool definition to register with the model
-//! let def = definition();
+//! ## Output format
 //!
-//! // 2. When the model calls the tool, execute it
-//! let args = json!({
-//!     "query": "rust programming language",
-//!     "max_results": 5
-//! });
-//! let result = execute(
-//!     ToolCallId("call_123".to_string()),
-//!     args
-//! ).await.unwrap();
-//! # }
+//! ```text
+//! 1. Page Title
+//!    https://example.com/page
+//!    Short snippet from the page content.
+//!
+//! 2. Another Title
+//!    https://example.com/other
+//!    Another snippet.
+//! ```
+//!
+//! If no results are found:
+//! ```text
+//! No results for 'query'. Try different search terms.
 //! ```
 
 mod args;
@@ -43,6 +43,8 @@ mod tests;
 
 pub use args::WebSearchArgs;
 pub use error::WebSearchToolError;
+// Compatibility re-exports: kept so tests.rs compiles until it is rewritten.
+// The executor no longer produces JSON — these types are not used at runtime.
 pub use output::{SearchResult, WebSearchOutput};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
@@ -54,22 +56,23 @@ use serde_json::json;
 /// Returns the tiered tool definition for the `web_search` tool.
 ///
 /// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraints (query syntax, result cap).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and common mistakes.
+///   the tool does and the most important constraints (call format, result cap).
+/// - `detailed`: sent after a malformed call. Full explanation with input attrs,
+///   output format, error cases, worked examples, and common mistakes.
 pub fn definition() -> TieredToolDefinition {
+    // Schema uses string types for all attrs because the custom parser passes
+    // all attribute values as strings. `max` represents an integer 1–10, default 5,
+    // but is passed as a string (e.g. max="10").
     let parameters = json!({
         "type": "object",
         "properties": {
             "query": {
                 "type": "string",
-                "description": "Search query. Supports DuckDuckGo syntax: quotes, site:, filetype:, etc."
+                "description": "Search query. Supports DuckDuckGo syntax: quotes, site:, filetype:, -exclude, etc."
             },
-            "max_results": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 10,
-                "description": "Number of results to return. Default: 5. Maximum: 10."
+            "max": {
+                "type": "string",
+                "description": "Number of results to return, as a string. Represents an integer 1–10. Default: 5. Maximum: 10."
             }
         },
         "required": ["query"]
@@ -78,19 +81,26 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "web_search".to_string(),
-            description: "Searches DuckDuckGo and returns structured results. Pass `query` (search string) \
-                          and optionally `max_results` (1–10, default 5). Returns title, URL, and snippet \
-                          for each result. No API key required. Use web_fetch to read the full content of \
-                          any result URL."
+            description: "Searches DuckDuckGo and returns plain-text results. \
+                          Call format: <web_search query=\"rust async runtimes\" max=\"10\"> \
+                          `max` is optional (default 5, max 10). Returns each result as \
+                          rank, title, URL, and snippet. No API key required. \
+                          Use web_fetch to read the full content of any result URL."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "web_search".to_string(),
             description: "\
-Searches DuckDuckGo and returns structured results (title, URL, snippet). No API key required.
+Searches DuckDuckGo and returns plain-text results (rank, title, URL, snippet). No API key required.
 
-## Input shapes
+## Call format
+
+<web_search query=\"rust async runtimes\" max=\"10\">
+
+All attribute values are strings. The tool tag has no body.
+
+## Attributes
 
 `query` (required, string): Search query. Supports DuckDuckGo syntax:
 - Exact phrase: \"machine learning\"
@@ -99,31 +109,30 @@ Searches DuckDuckGo and returns structured results (title, URL, snippet). No API
 - Exclude: -keyword
 - Combine: site:github.com rust -deprecated
 
-`max_results` (optional, integer, 1–10): Number of results to return. Default: 5. Maximum: 10.
+`max` (optional, string, represents integer 1–10): Number of results to return. Default: 5. Maximum: 10.
 Capped at 10 — more results rarely improve agent outcomes and increase token usage significantly.
 
-## Output shape
+## Output format
 
-Returns a JSON object with:
-- `query`: The query that was executed (echoed back).
-- `result_count`: Number of results returned (0 if no results found).
-- `results`: Array of search results, each with:
-  - `rank`: Result rank, 1-indexed.
-  - `title`: Page title.
-  - `url`: Result URL.
-  - `snippet`: Short description/snippet from the page.
+Plain text. Each result block:
 
-## Result snippets
+1. Page Title
+   https://example.com/page
+   Short snippet from the page content.
 
-Snippets are short (typically 100–200 characters). They are NOT the full page content.
-To read the full content of a result, use the `web_fetch` tool with the result's URL.
+2. Another Title
+   https://example.com/other
+   Another snippet.
+
+Results are separated by blank lines. Snippets are 100–200 characters.
 
 ## Empty results
 
-If no results are found, `result_count` is 0 and `results` is an empty array.
-This is NOT an error — the model receives the empty results and can decide how to proceed:
+If no results are found:
+  No results for 'query'. Try different search terms.
+
+This is NOT an error — the model receives the message and can decide how to proceed:
 - Refine the query (fewer keywords, different terms)
-- Try a different search engine (web_search only uses DuckDuckGo)
 - Use web_fetch directly if you have a specific URL
 
 ## Query syntax
@@ -134,12 +143,6 @@ Same as typing into DuckDuckGo:
 - File type: filetype:pdf
 - Exclude: -keyword
 - Combine operators: site:github.com rust -deprecated
-
-## Limitations
-
-- Static content only: JavaScript-rendered pages (SPAs, dynamic content) may return empty or partial snippets.
-- No API key required: Uses DuckDuckGo's public lite search API.
-- Privacy: DuckDuckGo does not track queries.
 
 ## Common workflow
 
@@ -153,24 +156,18 @@ Same as typing into DuckDuckGo:
 ### Mistake #1: Expecting full page content in snippet
 Snippets are short (100–200 characters). If you need the full content, use web_fetch.
 
-### Mistake #2: Searching for JavaScript-rendered content
-web_search returns static HTML only. If a page is a single-page app (SPA) or heavily
-JavaScript-dependent, the snippet may be empty or incomplete. Try a different search
-or use web_fetch on a more specific URL.
+### Mistake #2: Requesting too many results
+Requesting max=\"100\" will be capped at 10. Start with 5 and increase only if needed.
 
 ### Mistake #3: Not using DuckDuckGo syntax
-You can use site:, filetype:, quotes, and other operators. Combine them for better results:
+Use site:, filetype:, quotes, and other operators for better results:
 - site:github.com rust async
 - \"machine learning\" -deprecated
 - filetype:pdf neural networks
 
-### Mistake #4: Requesting too many results
-Requesting max_results: 100 will be capped at 10. More results rarely improve outcomes
-and increase token usage. Start with 5 and increase only if needed.
-
 ## Error messages
 
-- \"query is empty\" → Provide a non-empty query.
+- \"No results for '...'\" → Refine the query or try different search terms.
 - \"search failed: ...\" → Network error or DuckDuckGo API failure. Retry or try a different query."
                 .to_string(),
             parameters,
@@ -178,56 +175,44 @@ and increase token usage. Start with 5 and increase only if needed.
     }
 }
 
-/// Deserializes `args_json` and executes the web_search tool.
+/// Parses `args_json` and executes the web_search tool.
 ///
-/// Returns a `ToolResult` with either success (JSON WebSearchOutput) or failure (Text error message).
-/// Returns `Err(WebSearchToolError::ArgsParse)` only if the top-level JSON shape is invalid.
+/// Returns a `ToolResult` with plain-text content (ToolContent::Text) on both
+/// success and failure. Returns `Err(WebSearchToolError::ArgsParse)` only if the
+/// required `query` attribute is missing or invalid.
 ///
 /// # Arguments
 /// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args_json`: The raw JSON arguments sent by the model.
+/// - `args_json`: The raw JSON attr map produced by the dispatcher.
 ///
 /// # Returns
-/// - `Ok(ToolResult)` with either success or failure (both as Ok, not Err).
-/// - `Err(WebSearchToolError::ArgsParse)` if the arguments are malformed.
-///
-/// # Example
-/// ```rust
-/// # use operon_tools_web_search::execute;
-/// # use operon_context_normalize_tools::ToolCallId;
-/// # use serde_json::json;
-/// # async fn example() {
-/// let result = execute(
-///     ToolCallId("call_123".to_string()),
-///     json!({
-///         "query": "rust programming",
-///         "max_results": 5
-///     })
-/// ).await.unwrap();
-/// assert_eq!(result.name, "web_search");
-/// # }
-/// ```
+/// - `Ok(ToolResult)` with plain-text content on either success or failure.
+/// - `Err(WebSearchToolError::ArgsParse(reason))` if arguments are malformed.
 pub async fn execute(
     call_id: ToolCallId,
     args_json: serde_json::Value,
 ) -> Result<ToolResult, WebSearchToolError> {
-    // Deserialize the arguments. If this fails, return an ArgsParse error.
-    let args: WebSearchArgs = serde_json::from_value(args_json)?;
+    // Parse the arguments — on failure, return an ArgsParse error so the dispatcher
+    // can send the detailed tool definition back to the model.
+    let args = WebSearchArgs::parse(&args_json)
+        .map_err(WebSearchToolError::ArgsParse)?;
 
-    // Execute the tool and return the result. The executor always returns a
-    // ToolResult (never panics or returns an error), so we can unwrap safely.
+    // Execute the search and return the result. The executor always returns a
+    // ToolResult (never panics or propagates an error up).
     Ok(executor::execute(call_id, args).await)
 }
 
-/// Deserializes `args_json` and executes the web_search tool with optional progress reporting.
+/// Parses `args_json` and executes the web_search tool with optional progress reporting.
 pub async fn execute_with_progress(
     call_id: ToolCallId,
     args_json: serde_json::Value,
     progress: Option<ToolProgressEmitter>,
 ) -> Result<ToolResult, WebSearchToolError> {
-    // Deserialize the arguments. If this fails, return an ArgsParse error.
-    let args: WebSearchArgs = serde_json::from_value(args_json)?;
+    // Parse the arguments first — fail fast before emitting any progress.
+    let args = WebSearchArgs::parse(&args_json)
+        .map_err(WebSearchToolError::ArgsParse)?;
 
+    // Emit a progress event so the UI can show the query being searched.
     emit_tool_progress(
         progress.as_ref(),
         ToolProgress::running(

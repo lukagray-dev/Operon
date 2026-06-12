@@ -1,53 +1,156 @@
 /// Argument types for the grep tool.
 ///
-/// This module defines the deserialization schema for the grep tool's input.
-/// The tool accepts a regex pattern, a list of paths to search, and optional
-/// filtering and context parameters.
-use serde::Deserialize;
-
-/// Top-level args the model sends when calling the `grep` tool.
+/// This module defines the manual parsing logic for the grep tool's body-based
+/// input format. The `path` attr arrives as args_json["path"]. All search options
+/// arrive in args_json["__body__"] as a multi-line key=values string.
 ///
-/// The tool searches for a regex pattern across one or more files or directories.
-/// Directories are walked recursively with gitignore rules respected by default.
-#[derive(Debug, Deserialize)]
+/// Body format:
+///   pattern="calculate_total" "Auth"
+///   glob="*.py"
+///   ignore="node_modules" ".git"
+///   context="3"
+///
+/// Each line is "key=values" where values are whitespace-separated tokens
+/// (already unquoted by the parser). Unknown keys are silently ignored.
+
+/// Parsed args for the grep tool.
+///
+/// All fields are extracted from the `path` attribute and the `__body__` field
+/// of the incoming args JSON. No serde derive — parsing is done manually.
+#[derive(Debug)]
 pub struct GrepArgs {
-    /// Regex pattern to search for. Always treated as a regex (not a literal string).
-    /// The pattern uses Rust regex syntax. Special characters must be escaped if
-    /// searching for literal strings (e.g., `\\.` to match a literal dot).
-    pub pattern: String,
+    /// Root path to search (from the `path` XML attr).
+    /// Must be an absolute path to a directory or file.
+    pub path: String,
 
-    /// Files or directories to search. Each entry is a plain path string.
-    /// Directories are walked recursively. Gitignore rules are respected.
-    /// At least one path is required.
-    ///
-    /// Accepts both singular "path" and plural "paths" for flexibility.
-    #[serde(alias = "path")]
-    pub paths: Vec<String>,
+    /// One or more regex patterns to search for.
+    /// Empty vec = glob-only mode (list matching files without searching content).
+    /// Multiple patterns are OR-combined: a line matches if ANY pattern matches.
+    pub patterns: Vec<String>,
 
-    /// Optional glob pattern to filter files by name. Applied during directory
-    /// walk. E.g. "*.rs" searches only Rust files. "*.{ts,tsx}" searches both.
-    /// Has no effect when all entries in `paths` are direct files (not directories).
-    ///
-    /// Uses standard glob syntax:
-    /// - `*` matches any sequence of characters within a path component
-    /// - `?` matches any single character
-    /// - `{a,b}` matches either `a` or `b`
-    /// - `**` matches zero or more directories (e.g., `**/*.rs` matches all Rust files recursively)
-    #[serde(default)]
-    pub include: Option<String>,
+    /// Optional glob filter applied during directory walk (e.g. "*.py", "*.{ts,tsx}").
+    /// Only affects directory walks, not direct file paths.
+    pub glob: Option<String>,
 
-    /// Case-insensitive matching. Default: false (case-sensitive).
-    ///
-    /// When true, the regex pattern matches regardless of case. For example,
-    /// pattern "error" would match "Error", "ERROR", "error", etc.
-    #[serde(default)]
-    pub case_insensitive: Option<bool>,
+    /// Directory/file names to ignore during walk.
+    /// Matched against entry names (not full paths) using globset.
+    pub ignore: Vec<String>,
 
-    /// Number of context lines to include before and after each match.
-    /// Same value applies to both before and after. Default: 0 (no context).
+    /// Number of context lines before and after each match. Default 0.
+    pub context_lines: usize,
+}
+
+impl GrepArgs {
+    /// Parse grep tool arguments from the attrs+body JSON produced by the LLM parser.
     ///
-    /// Context lines are marked with `is_match: false` in the output to distinguish
-    /// them from actual matching lines. Context lines from adjacent matches may overlap.
-    #[serde(default)]
-    pub context_lines: Option<usize>,
+    /// Extracts `path` from args_json["path"] and all body options from
+    /// args_json["__body__"]. Missing or empty body = glob-only mode with no filters.
+    ///
+    /// # Errors
+    /// Returns `Err(String)` if:
+    /// - The `path` key is missing or not a string.
+    /// - `context` value cannot be parsed as usize.
+    pub fn parse(args_json: &serde_json::Value) -> Result<GrepArgs, String> {
+        // Step 1: Extract the required "path" attribute.
+        let path = args_json
+            .get("path")
+            .ok_or_else(|| "missing required attribute 'path'".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'path' must be a string".to_string())?
+            .to_string();
+
+        // Step 2: Extract the optional body string. Empty/missing body = defaults.
+        let body = args_json
+            .get("__body__")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        // Step 3: Parse the body into fields.
+        let (patterns, glob, ignore, context_lines) = parse_body(body)?;
+
+        Ok(GrepArgs {
+            path,
+            patterns,
+            glob,
+            ignore,
+            context_lines,
+        })
+    }
+}
+
+/// Parse the body string into grep option fields.
+///
+/// Body lines have the format: `key=token1 token2 ...`
+/// The first `=` separates the key from the values. Tokens are already unquoted
+/// by the parser (quotes were stripped before the body was assembled).
+///
+/// Recognized keys:
+///   "pattern"  → push each token to patterns vec
+///   "glob"     → first token → glob = Some(token)
+///   "ignore"   → push each token to ignore vec
+///   "context"  → parse first token as usize → context_lines
+///
+/// Unknown keys are silently ignored.
+///
+/// # Errors
+/// Returns Err if "context" value is not a valid usize.
+fn parse_body(
+    body: &str,
+) -> Result<(Vec<String>, Option<String>, Vec<String>, usize), String> {
+    let mut patterns: Vec<String> = Vec::new();
+    let mut glob: Option<String> = None;
+    let mut ignore: Vec<String> = Vec::new();
+    let mut context_lines: usize = 0;
+
+    for raw_line in body.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        // Split on the FIRST '=' only. Left side is key, right side is raw values.
+        let eq_pos = match line.find('=') {
+            Some(pos) => pos,
+            None => continue, // Line with no '=' is ignored.
+        };
+
+        let key = line[..eq_pos].trim();
+        let values_str = line[eq_pos + 1..].trim();
+
+        // Tokens are whitespace-separated, already unquoted by the parser.
+        let tokens: Vec<&str> = values_str.split_whitespace().collect();
+
+        match key {
+            "pattern" => {
+                // Each token is a separate pattern (OR-combined during search).
+                for token in tokens {
+                    patterns.push(token.to_string());
+                }
+            }
+            "glob" => {
+                // Only the first token is used.
+                if let Some(first) = tokens.first() {
+                    glob = Some(first.to_string());
+                }
+            }
+            "ignore" => {
+                // Each token is a separate ignore pattern.
+                for token in tokens {
+                    ignore.push(token.to_string());
+                }
+            }
+            "context" => {
+                // Parse the first token as a usize.
+                if let Some(first) = tokens.first() {
+                    context_lines = first.parse::<usize>().map_err(|_| {
+                        format!("invalid context value '{}': must be a non-negative integer", first)
+                    })?;
+                }
+            }
+            // All other keys are silently ignored for forward-compatibility.
+            _ => {}
+        }
+    }
+
+    Ok((patterns, glob, ignore, context_lines))
 }

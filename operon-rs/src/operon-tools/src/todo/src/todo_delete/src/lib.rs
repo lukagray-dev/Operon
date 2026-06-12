@@ -64,86 +64,49 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_delete".to_string(),
-            description: "Deletes a todo item by id. Pass `id` (from todo_create or todo_list output). \
-                          Returns the id that was deleted and the remaining count. Prefer marking items \
-                          \"completed\" over deleting them — deletion is for items added by mistake."
+            description: "Deletes a todo item by id. Call format: <todo_delete id=\"1\">"
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "todo_delete".to_string(),
             description: "\
-Deletes a todo item by ID. Returns the deleted ID and the remaining count. Prefer marking items \
-\"completed\" over deleting them — deletion is for items added by mistake.
+Deletes a todo item by ID. Returns a confirmation of deletion and the remaining count.
 
-## Input shapes
+## Call format
 
-`id` (required, string): The ID of the item to delete. Must match an existing item ID (as a string: \
-\"1\", \"2\", \"3\", ...). If the ID is not found, the tool returns an error.
+<todo_delete id=\"1\">
 
-## Output
+All attribute values are strings. The tool tag has no body.
 
-Returns a JSON object with:
-- `id`: The ID that was deleted
-- `remaining`: Total number of todos remaining after deletion
+## Attributes
 
-## When to delete vs mark completed
+`id` (required, string): The ID of the item to delete. Must match an existing item ID.
 
-Prefer marking items \"completed\" over deleting them. Deletion is for items added by mistake.
+## Output format
 
-- **Mark completed**: Use `todo_update` with `status: \"completed\"` for tasks that were done. \
-  This preserves task history and visibility into what was accomplished.
-- **Delete**: Use `todo_delete` only for items added by mistake or that are no longer relevant. \
-  Deletion removes the item entirely.
+Plain text:
+Deleted #{id}. {remaining} todo(s) remaining.
 
 ## Error cases
 
-- ID not found: \"todo not found: id 'X'\" — use `todo_list` to find valid IDs
-- Malformed JSON: \"failed to deserialize tool arguments: ...\" — check the JSON shape
-
-## Example calls
-
-### Delete an item added by mistake
-```json
-{
-  \"id\": \"3\"
-}
-```
-Result: Item with id \"3\" is deleted, remaining count is updated
-
-### Delete multiple items
-First call:
-```json
-{
-  \"id\": \"1\"
-}
-```
-Then:
-```json
-{
-  \"id\": \"2\"
-}
-```
-Result: Both items deleted, remaining count decremented each time"
+- ID not found: \"todo not found: id 'X'\"
+- Malformed args: \"failed to parse tool arguments: ...\""
                 .to_string(),
             parameters,
         },
     }
 }
 
-/// Deserializes `args_json` and executes the todo_delete tool.
+/// Parses `args_json` and executes the todo_delete tool.
 ///
-/// Returns a `ToolResult` with either success (JSON TodoDeleteOutput) or failure (Text error message).
-/// Returns `Err(TodoDeleteToolError::ArgsParse)` only if the top-level JSON shape is invalid.
+/// Returns a `ToolResult` with plain-text content (ToolContent::Text) on success.
+/// Returns `Err(TodoDeleteToolError::ArgsParse)` if parsing attributes fails.
 ///
 /// # Arguments
-/// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args_json`: The raw JSON arguments sent by the model.
-/// - `store`: Mutable reference to the TodoStore where the item will be deleted.
-///
-/// # Returns
-/// - `Ok(ToolResult)` with either success or failure (both as Ok, not Err).
-/// - `Err(TodoDeleteToolError::ArgsParse)` if the arguments are malformed.
+/// - `call_id`: The unique identifier for this tool call.
+/// - `args_json`: The raw JSON arguments.
+/// - `store`: Mutable reference to the TodoStore.
 pub async fn execute(
     call_id: ToolCallId,
     args_json: serde_json::Value,
@@ -152,15 +115,15 @@ pub async fn execute(
     execute_with_progress(call_id, args_json, store, None).await
 }
 
-/// Deserializes `args_json` and executes the todo_delete tool with optional progress reporting.
+/// Parses `args_json` and executes the todo_delete tool with optional progress reporting.
 pub async fn execute_with_progress(
     call_id: ToolCallId,
     args_json: serde_json::Value,
     store: &mut TodoStore,
     progress: Option<ToolProgressEmitter>,
 ) -> Result<ToolResult, TodoDeleteToolError> {
-    // Deserialize the arguments. If this fails, return an ArgsParse error.
-    let args: TodoDeleteArgs = serde_json::from_value(args_json)?;
+    // Parse the arguments manually. If this fails, return an ArgsParse error.
+    let args = TodoDeleteArgs::parse(&args_json).map_err(TodoDeleteToolError::ArgsParse)?;
 
     emit_tool_progress(
         progress.as_ref(),

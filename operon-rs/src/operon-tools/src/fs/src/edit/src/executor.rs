@@ -1,107 +1,234 @@
-//! Executor for the edit tool — handles all file I/O, hunk application, and atomic writes.
+//! Executor for the edit tool — file I/O, hunk application, and atomic writes.
 //!
-//! This module contains the core logic for validating hunks, reading files, applying
-//! exact-string replacements in order, and atomically writing the result to disk.
+//! This module contains the core logic for:
+//!   1. Reading the target file and normalising line endings.
+//!   2. Applying each hunk using `seek_sequence` to locate the region.
+//!   3. Collecting and validating replacements (overlap check).
+//!   4. Applying replacements in reverse-index order (avoids index shift).
+//!   5. Atomically writing the result to disk (temp file + rename).
+//!
 //! All file I/O is async via tokio::fs.
+//! All error conditions are returned as Ok(ToolResult) with is_error=false —
+//! the inline text carries the error message for the model to read.
 
 use crate::args::EditArgs;
-use crate::output::EditOutput;
+use crate::seek_sequence::seek_sequence;
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 
-/// Executes the edit tool with the given arguments.
+// ── Helper ─────────────────────────────────────────────────────────────────────
+
+/// Build a plain-text ToolResult that signals an inline error to the model.
 ///
-/// Validates hunks, reads the file, applies all edits in order on the in-memory content,
-/// and atomically writes the result to disk. If any hunk fails, the file is NOT modified.
+/// is_error is intentionally false — the model reads the inline text rather
+/// than relying on the is_error flag. This mirrors the write/append pattern.
+fn error_result(call_id: ToolCallId, msg: &str) -> ToolResult {
+    ToolResult {
+        call_id,
+        name: "edit".to_string(),
+        content: ToolContent::Text(msg.to_string()),
+        is_error: false,
+        read_paths: None,
+    }
+}
+
+// ── Pending replacement record ─────────────────────────────────────────────────
+
+/// A replacement to apply to the in-memory line buffer.
+///
+/// Collected during the hunk-application phase, then sorted and validated
+/// before being applied in reverse order to avoid index shifting.
+struct Replacement {
+    /// 0-based index of the first line to replace in the original line buffer.
+    start_idx: usize,
+
+    /// Number of lines in the original buffer to remove (old_lines.len()).
+    old_len: usize,
+
+    /// New lines to insert at `start_idx` (may be empty for pure deletion).
+    new_lines: Vec<String>,
+
+    /// 1-based hunk index (for error messages).
+    hunk_number: usize,
+}
+
+// ── Executor ───────────────────────────────────────────────────────────────────
+
+/// Execute the edit tool: parse the file, apply all hunks, write atomically.
 ///
 /// # Arguments
-/// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args`: The deserialized edit arguments containing the path and hunks.
+/// - `call_id`: The unique identifier for this tool call.
+/// - `args`:    The parsed EditArgs containing the path and hunks.
 ///
 /// # Returns
-/// A `ToolResult` with either success (JSON EditOutput) or failure (Text error message).
+/// A `ToolResult` with ToolContent::Text for both success and error.
+/// is_error is always false — the model reads inline text.
 pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
-    // Step 1: Validate that edits array is non-empty (fast fail, before reading file).
-    if args.edits.is_empty() {
-        return ToolResult {
-            call_id,
-            name: "edit".to_string(),
-            content: ToolContent::Text("edits array must contain at least one hunk".to_string()),
-            is_error: true,
-        };
-    }
+    let path = &args.path;
 
-    // Step 2: Pre-validate that no hunk has old_string == new_string (fast fail).
-    for (i, hunk) in args.edits.iter().enumerate() {
-        if hunk.old_string == hunk.new_string {
-            return ToolResult {
-                call_id,
-                name: "edit".to_string(),
-                content: ToolContent::Text(format!(
-                    "hunk {}: old_string and new_string are identical — no change would be made",
-                    i
-                )),
-                is_error: true,
-            };
-        }
-    }
-
-    // Step 3: Read the file.
-    let content = match tokio::fs::read_to_string(&args.path).await {
+    // ── Step 1: Read the file ──────────────────────────────────────────────
+    let raw_content = match tokio::fs::read_to_string(path).await {
         Ok(c) => c,
         Err(e) => {
-            return ToolResult {
+            return error_result(
                 call_id,
-                name: "edit".to_string(),
-                content: ToolContent::Text(format!("failed to read file: {}: {}", args.path, e)),
-                is_error: true,
-            };
+                &format!("{}\nfailed to read file: {}", path, e),
+            );
         }
     };
 
-    // Step 4: Apply hunks in order on a working string.
-    let mut working = content;
+    // ── Step 2: Normalise CRLF → LF ───────────────────────────────────────
+    // Work on a unified LF-only representation so the seek and replacement
+    // logic is not confused by mixed line endings (common on Windows).
+    let had_trailing_newline = raw_content.ends_with('\n');
+    let content = raw_content.replace("\r\n", "\n").replace('\r', "\n");
 
-    for (i, hunk) in args.edits.iter().enumerate() {
-        let match_count = count_occurrences(&working, &hunk.old_string);
-        match match_count {
-            0 => {
-                return ToolResult {
-                    call_id,
-                    name: "edit".to_string(),
-                    content: ToolContent::Text(format!(
-                        "hunk {}: old_string not found in file. \
-                         The file may have changed since it was last read. \
-                         Re-read the file and retry.\n\
-                         old_string was:\n{}",
-                        i, hunk.old_string
-                    )),
-                    is_error: true,
-                };
-            }
-            1 => {
-                // Exactly one match — apply the replacement.
-                working = working.replacen(&hunk.old_string, &hunk.new_string, 1);
-            }
-            n => {
-                return ToolResult {
-                    call_id,
-                    name: "edit".to_string(),
-                    content: ToolContent::Text(format!(
-                        "hunk {}: old_string matched {} times — ambiguous. \
-                         Include more surrounding context lines in old_string \
-                         to make it unique.\n\
-                         old_string was:\n{}",
-                        i, n, hunk.old_string
-                    )),
-                    is_error: true,
-                };
+    // ── Step 3: Split into lines ───────────────────────────────────────────
+    // Split on '\n'. After normalisation, `content.split('\n')` will produce
+    // one trailing empty string if the file ended with a newline — drop it
+    // so line indices match visual line numbers.
+    let mut lines: Vec<String> = content.split('\n').map(String::from).collect();
+
+    // Drop the trailing empty element produced by a file-ending newline.
+    if had_trailing_newline {
+        if let Some(last) = lines.last() {
+            if last.is_empty() {
+                lines.pop();
             }
         }
     }
 
-    // Step 5: Atomic write — only reached if ALL hunks applied successfully.
-    // Create a temp file in the same directory as the target to ensure same filesystem.
-    let parent = std::path::Path::new(&args.path)
+    // ── Step 4: Process hunks and collect replacements ─────────────────────
+    // We scan through the hunks in order, advancing `line_index` as each hunk
+    // is located. The replacements are NOT applied yet — we collect them all
+    // first so we can check for overlaps before touching the buffer.
+
+    let mut line_index: usize = 0; // cursor: next search starts from here
+    let mut replacements: Vec<Replacement> = Vec::with_capacity(args.hunks.len());
+
+    for (hunk_idx, hunk) in args.hunks.iter().enumerate() {
+        // 1-based for human-readable error messages.
+        let hunk_number = hunk_idx + 1;
+
+        // ── 4a: Seek anchor ───────────────────────────────────────────────
+        // If the hunk carries a seek_context, locate that anchor line first
+        // and advance line_index past it. This lets the model guide the
+        // search to a known region of the file.
+        if let Some(ref ctx) = hunk.seek_context {
+            let anchor_pattern = vec![ctx.clone()];
+            match seek_sequence(&lines, &anchor_pattern, line_index, false) {
+                Some(found_idx) => {
+                    // Advance past the anchor line so the old_lines search
+                    // begins immediately after it.
+                    line_index = found_idx + 1;
+                }
+                None => {
+                    return error_result(
+                        call_id,
+                        &format!(
+                            "{}\nhunk {}: seek context not found: {}",
+                            path, hunk_number, ctx
+                        ),
+                    );
+                }
+            }
+        }
+
+        // ── 4b: Pure insertion (empty old_lines) ──────────────────────────
+        // When old_lines is empty the hunk is a pure insertion — it adds new
+        // lines without removing anything. This is equivalent to inserting at
+        // the current line_index position.
+        if hunk.old_lines.is_empty() {
+            // For EOF-anchored insertions, place after the last real content
+            // (before the implicit trailing newline position).
+            let insert_at = if hunk.is_end_of_file {
+                lines.len()
+            } else {
+                line_index
+            };
+            replacements.push(Replacement {
+                start_idx: insert_at,
+                old_len: 0,
+                new_lines: hunk.new_lines.clone(),
+                hunk_number,
+            });
+            continue;
+        }
+
+        // ── 4c: Seek the old_lines region ─────────────────────────────────
+        match seek_sequence(&lines, &hunk.old_lines, line_index, hunk.is_end_of_file) {
+            Some(start_idx) => {
+                // Found the region — record the replacement.
+                replacements.push(Replacement {
+                    start_idx,
+                    old_len: hunk.old_lines.len(),
+                    new_lines: hunk.new_lines.clone(),
+                    hunk_number,
+                });
+                // Advance the cursor past the matched region so the next hunk
+                // searches forward from here.
+                line_index = start_idx + hunk.old_lines.len();
+            }
+            None => {
+                return error_result(
+                    call_id,
+                    &format!(
+                        "{}\nhunk {}: no match found\nexpected:\n{}",
+                        path,
+                        hunk_number,
+                        hunk.old_lines.join("\n")
+                    ),
+                );
+            }
+        }
+    }
+
+    // ── Step 5: Sort and overlap check ────────────────────────────────────
+    // Sort by start_idx ascending so we can detect overlaps with a single
+    // linear pass. Overlapping hunks would produce undefined output — reject
+    // them explicitly rather than silently producing corrupt output.
+    replacements.sort_by_key(|r| r.start_idx);
+
+    for window in replacements.windows(2) {
+        let a = &window[0];
+        let b = &window[1];
+        // Overlap: b starts before a's region ends.
+        if b.start_idx < a.start_idx + a.old_len {
+            return error_result(
+                call_id,
+                &format!(
+                    "{}\nhunk {} and hunk {}: overlapping matches",
+                    path, a.hunk_number, b.hunk_number
+                ),
+            );
+        }
+    }
+
+    // ── Step 6: Apply replacements in reverse order ────────────────────────
+    // Processing from the end backwards means each splice does not shift the
+    // indices of earlier replacements, so all start_idx values remain valid.
+    let hunk_count = replacements.len();
+    for rep in replacements.into_iter().rev() {
+        // Remove `old_len` lines starting at `start_idx` then insert new ones.
+        // `Vec::splice` handles both the removal and the insertion atomically
+        // in the in-memory buffer.
+        lines.splice(
+            rep.start_idx..rep.start_idx + rep.old_len,
+            rep.new_lines,
+        );
+    }
+
+    // ── Step 7: Reassemble the file content ───────────────────────────────
+    // Join all lines back together. Restore the trailing newline if the
+    // original file had one.
+    let mut new_content = lines.join("\n");
+    if had_trailing_newline {
+        new_content.push('\n');
+    }
+
+    // ── Step 8: Atomic write (temp file + rename) ──────────────────────────
+    // Write to a temp file in the SAME directory as the target so the rename
+    // is guaranteed to be on the same filesystem — making it atomic.
+    let parent = std::path::Path::new(path)
         .parent()
         .unwrap_or(std::path::Path::new("."));
 
@@ -113,72 +240,39 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
             .subsec_nanos()
     ));
 
-    // Write to temp file.
-    if let Err(e) = tokio::fs::write(&tmp_path, working.as_bytes()).await {
+    // Write content to the temp file; clean up on failure.
+    if let Err(e) = tokio::fs::write(&tmp_path, new_content.as_bytes()).await {
         let _ = tokio::fs::remove_file(&tmp_path).await;
-        return ToolResult {
+        return error_result(
             call_id,
-            name: "edit".to_string(),
-            content: ToolContent::Text(format!(
-                "failed to write temp file: {}. File was not modified.",
-                e
-            )),
-            is_error: true,
-        };
+            &format!(
+                "{}\nfailed to write temp file: {}. File was not modified.",
+                path, e
+            ),
+        );
     }
 
-    // Atomically rename temp file to target.
-    if let Err(e) = tokio::fs::rename(&tmp_path, &args.path).await {
+    // Atomically rename temp file to the final target path.
+    if let Err(e) = tokio::fs::rename(&tmp_path, path).await {
         let _ = tokio::fs::remove_file(&tmp_path).await;
-        return ToolResult {
+        return error_result(
             call_id,
-            name: "edit".to_string(),
-            content: ToolContent::Text(format!(
-                "failed to rename temp file to target: {}. File was not modified.",
-                e
-            )),
-            is_error: true,
-        };
+            &format!(
+                "{}\nfailed to rename temp file to target: {}. File was not modified.",
+                path, e
+            ),
+        );
     }
 
-    // Step 6: Return success.
-    let hunks_applied = args.edits.len();
-    let output = EditOutput {
-        path: args.path.clone(),
-        hunks_applied,
-        message: format!("Applied {} edit(s) to {}", hunks_applied, args.path),
-    };
-
+    // ── Step 9: Return success ─────────────────────────────────────────────
     ToolResult {
         call_id,
         name: "edit".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
-            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        content: ToolContent::Text(format!(
+            "{} ({} hunk(s) applied)",
+            path, hunk_count
         )),
         is_error: false,
+        read_paths: None,
     }
-}
-
-/// Counts non-overlapping occurrences of `needle` in `haystack`.
-///
-/// Returns 0 for empty needle (treated as not found).
-/// Used to validate that old_string matches exactly once before applying a replacement.
-///
-/// # Arguments
-/// - `haystack`: The string to search in.
-/// - `needle`: The string to search for.
-///
-/// # Returns
-/// The number of non-overlapping occurrences of needle in haystack.
-fn count_occurrences(haystack: &str, needle: &str) -> usize {
-    if needle.is_empty() {
-        return 0;
-    }
-    let mut count = 0;
-    let mut start = 0;
-    while let Some(pos) = haystack[start..].find(needle) {
-        count += 1;
-        start += pos + needle.len();
-    }
-    count
 }

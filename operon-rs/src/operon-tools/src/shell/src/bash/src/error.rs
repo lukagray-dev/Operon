@@ -12,10 +12,11 @@ use thiserror::Error;
 /// Individual command execution failures are captured in ToolResult, not here.
 #[derive(Debug, Error)]
 pub enum BashToolError {
-    /// Failed to deserialize the tool arguments JSON into BashArgs.
+    /// Failed to parse the tool arguments from the body-based format.
     ///
-    /// This occurs when the model sends malformed JSON or a shape that doesn't
-    /// match the BashArgs schema (e.g., missing "command" field, wrong types).
-    #[error("failed to deserialize tool arguments: {0}")]
-    ArgsParse(#[from] serde_json::Error),
+    /// This occurs when the model omits a required field (e.g. `path` attr or
+    /// `command` body key), sends a non-parseable `timeout` value, or provides
+    /// an empty `path` or `command`.
+    #[error("failed to parse tool arguments: {0}")]
+    ArgsParse(String),
 }

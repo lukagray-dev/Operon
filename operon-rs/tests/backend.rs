@@ -161,7 +161,7 @@ fn facade_exports_backend_surface() {
     let _ = ToolCall {
         id: ToolCallId("call_1".to_string()),
         name: "read".to_string(),
-        arguments: json!({ "paths": ["/tmp/file.txt"] }),
+        arguments: json!({ "paths": "/tmp/file.txt" }),
     };
     let _ = ToolContent::Text("hello".to_string());
     let _ = ToolProgressStage::Running;
@@ -243,7 +243,7 @@ fn policy_resolver_enforces_directory_permissions() {
     let call = tool_call(
         "read",
         "call_read",
-        json!({ "paths": [file_path.to_string_lossy().to_string()] }),
+        json!({ "paths": file_path.to_string_lossy().to_string() }),
     );
 
     let owner_decision = resolver.check(&call, CallerRole::Owner);
@@ -289,7 +289,7 @@ async fn dispatcher_enforces_read_before_write_and_emits_progress() {
     let read_call = tool_call(
         "read",
         "call_read",
-        json!({ "paths": [file_path.to_string_lossy().to_string()] }),
+        json!({ "paths": file_path.to_string_lossy().to_string() }),
     );
     let read_outcome = dispatcher
         .dispatch_with_progress(read_call, Some(sink.clone()))

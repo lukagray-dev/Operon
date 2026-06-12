@@ -45,6 +45,9 @@ fn make_tool_result(call_id: &str, name: &str) -> ToolResult {
         name: name.to_string(),
         content: ToolContent::Text("contents of /etc/hosts".to_string()),
         is_error: false,
+        // Since this is a test helper for general tool results, and not specific to the
+        // read tool, we set read_paths to None (as only the read tool tracks read paths).
+        read_paths: None,
     }
 }
 
@@ -55,6 +58,9 @@ fn make_json_tool_result(call_id: &str, name: &str) -> ToolResult {
         name: name.to_string(),
         content: ToolContent::Json(json!({ "lines": 3, "bytes": 42 })),
         is_error: false,
+        // Similarly, this is a test helper for general tool results, so no read paths
+        // are tracked.
+        read_paths: None,
     }
 }
 

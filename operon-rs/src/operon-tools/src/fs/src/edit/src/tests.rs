@@ -3,12 +3,15 @@
 //! Tests cover success paths (single and multi-hunk edits, atomic writes),
 //! failure paths (zero/multiple matches, identical strings, missing files),
 //! and edge cases (partial failure aborts all, file_path alias).
-
+//!
+//! Note: We use `tempfile::tempdir()` and write files manually rather than using
+//! `NamedTempFile::new()`. This avoids holding open file handles/locks on Windows,
+//! which can interfere with the edit tool's atomic rename/replace implementation.
 use crate::{execute, EditOutput};
 use operon_context_normalize_tools::{ToolCallId, ToolContent};
 use serde_json::json;
 use std::fs;
-use tempfile::NamedTempFile;
+use tempfile::tempdir;
 
 /// Helper to extract error text from a ToolResult.
 fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String {
@@ -34,9 +37,10 @@ fn get_output(result: &operon_context_normalize_tools::ToolResult) -> EditOutput
 
 #[tokio::test]
 async fn test_single_edit() {
-    // Create a temp file with known content.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file with known content.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "fn old_name() {\n    println!(\"hello\");\n}\n").unwrap();
 
     // Execute a single edit.
@@ -69,9 +73,10 @@ async fn test_single_edit() {
 
 #[tokio::test]
 async fn test_multi_hunk_edit() {
-    // Create a temp file with three distinct regions.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file with three distinct regions.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(
         &path,
         "import { oldFunc } from './lib';\n\nfn main() {\n    oldFunc(1, 2);\n    // TODO: refactor oldFunc\n}\n",
@@ -117,9 +122,10 @@ async fn test_multi_hunk_edit() {
 
 #[tokio::test]
 async fn test_atomic_write() {
-    // Create a temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     let original = "line 1\nline 2\nline 3\n";
     fs::write(&path, original).unwrap();
 
@@ -149,9 +155,10 @@ async fn test_atomic_write() {
 
 #[tokio::test]
 async fn test_file_path_alias() {
-    // Create a temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "old text").unwrap();
 
     // Use "file_path" instead of "path".
@@ -181,9 +188,10 @@ async fn test_file_path_alias() {
 
 #[tokio::test]
 async fn test_zero_match_error() {
-    // Create a temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     let original = "original content";
     fs::write(&path, original).unwrap();
 
@@ -216,9 +224,10 @@ async fn test_zero_match_error() {
 
 #[tokio::test]
 async fn test_multiple_match_error() {
-    // Create a temp file with old_string appearing twice.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file with old_string appearing twice.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     let original = "foo bar\nfoo baz\n";
     fs::write(&path, original).unwrap();
 
@@ -251,9 +260,10 @@ async fn test_multiple_match_error() {
 
 #[tokio::test]
 async fn test_identical_strings_error() {
-    // Create a temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "content").unwrap();
 
     // Try to edit with identical old_string and new_string.
@@ -280,9 +290,10 @@ async fn test_identical_strings_error() {
 
 #[tokio::test]
 async fn test_partial_failure_aborts_all() {
-    // Create a temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     let original = "line 1\nline 2\nline 3\n";
     fs::write(&path, original).unwrap();
 
@@ -346,9 +357,10 @@ async fn test_nonexistent_file() {
 
 #[tokio::test]
 async fn test_empty_edits_array() {
-    // Create a temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "content").unwrap();
 
     // Try to edit with empty edits array.
@@ -374,9 +386,10 @@ async fn test_empty_edits_array() {
 
 #[tokio::test]
 async fn test_hunk_order_matters() {
-    // Create a temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "foo bar baz").unwrap();
 
     // Apply two hunks where hunk 1 depends on hunk 0's result.
@@ -408,9 +421,10 @@ async fn test_hunk_order_matters() {
 
 #[tokio::test]
 async fn test_multiline_edit() {
-    // Create a temp file with multiline content.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file with multiline content.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     let original = "fn old_func() {\n    println!(\"hello\");\n    println!(\"world\");\n}\n";
     fs::write(&path, original).unwrap();
 
@@ -438,9 +452,10 @@ async fn test_multiline_edit() {
 
 #[tokio::test]
 async fn test_whitespace_exactness() {
-    // Create a temp file with specific whitespace (4 spaces at start of line).
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file with specific whitespace (4 spaces at start of line).
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "    indented line\n").unwrap();
 
     // Verify the file content is what we expect.
@@ -498,9 +513,10 @@ async fn test_whitespace_exactness() {
 
 #[tokio::test]
 async fn test_empty_file() {
-    // Create an empty temp file.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write an empty file.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "").unwrap();
 
     // Try to edit an empty file.
@@ -526,9 +542,10 @@ async fn test_empty_file() {
 
 #[tokio::test]
 async fn test_file_with_no_trailing_newline() {
-    // Create a temp file without trailing newline.
-    let file = NamedTempFile::new().unwrap();
-    let path = file.path().to_string_lossy().to_string();
+    // Create a temp directory and write a file without trailing newline.
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
     fs::write(&path, "no trailing newline").unwrap();
 
     // Edit it.

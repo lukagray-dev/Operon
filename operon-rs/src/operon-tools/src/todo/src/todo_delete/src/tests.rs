@@ -59,7 +59,7 @@ async fn test_delete_returns_correct_id() {
     // Test: Deleted id is returned correctly
     let mut store = TodoStore::new();
     let item1 = store.create("Task 1".to_string(), None);
-    let item2 = store.create("Task 2".to_string(), None);
+    let _item2 = store.create("Task 2".to_string(), None);
 
     let result = execute(
         call_id("test_delete_returns_correct_id"),
@@ -79,8 +79,8 @@ async fn test_delete_remaining_count_decrements() {
     // Test: Remaining count decrements correctly
     let mut store = TodoStore::new();
     let item1 = store.create("Task 1".to_string(), None);
-    let item2 = store.create("Task 2".to_string(), None);
-    let item3 = store.create("Task 3".to_string(), None);
+    let _item2 = store.create("Task 2".to_string(), None);
+    let _item3 = store.create("Task 3".to_string(), None);
 
     let result = execute(
         call_id("test_delete_remaining_count_1"),

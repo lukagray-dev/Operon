@@ -2,19 +2,20 @@
 ///
 /// This module defines all error conditions that can occur during grep tool
 /// argument parsing. Per-file search failures are NOT represented here — they
-/// are embedded in the FileGrepResult structure with an error field.
+/// are embedded inline in the plain-text output returned by the executor.
 use thiserror::Error;
 
 /// Errors that can occur during grep tool execution.
 ///
 /// These are top-level errors that prevent the tool from running at all.
-/// Individual file search failures are captured in FileGrepResult, not here.
+/// Individual file search failures are formatted inline in the output text.
 #[derive(Debug, Error)]
 pub enum GrepToolError {
-    /// Failed to deserialize the tool arguments JSON into GrepArgs.
+    /// Failed to parse the tool arguments from the attrs+body map.
     ///
-    /// This occurs when the model sends malformed JSON or a shape that doesn't
-    /// match the GrepArgs schema (e.g., missing "pattern" or "paths" field, wrong types).
-    #[error("failed to deserialize tool arguments: {0}")]
-    ArgsParse(#[from] serde_json::Error),
+    /// This occurs when the `path` attribute is missing or when the body
+    /// contains an invalid value (e.g., a non-integer context value).
+    /// The inner String is a human-readable description of what went wrong.
+    #[error("failed to parse tool arguments: {0}")]
+    ArgsParse(String),
 }

@@ -25,6 +25,9 @@ fn sample_tool_result() -> ToolResult {
         name: "read_file".to_string(),
         content: ToolContent::Text("hello".to_string()),
         is_error: false,
+        // Since this is a test helper for a general tool result mock, and not specific
+        // to a real read operation in these tests, we set read_paths to None.
+        read_paths: None,
     }
 }
 

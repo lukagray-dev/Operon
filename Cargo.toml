@@ -58,6 +58,9 @@ members = [
     # Ask tool
     "operon-rs/src/operon-tools/src/ask",
 
+    # Parser tool
+    "operon-rs/src/operon-tools/src/parser",
+
     # Events bus — pure types, no async
     "operon-rs/src/operon-events",
 
@@ -104,8 +107,10 @@ notify       = "8.2.0"
 tempfile     = "3.15.0"
 globset      = "0.4"
 trash        = "5"
-duckduckgo   = "0.3"
-htmd         = "0.5"
+duckduckgo           = "0.3"
+htmd                 = "0.5"
+spider               = { version = "2.52.0", features = ["chrome"] }
+spider_transformations = "2.39.13"
 
 # Internal crates
 # features = ["bpe"] is Operon's activation of the BPE feature in the token-tracker.

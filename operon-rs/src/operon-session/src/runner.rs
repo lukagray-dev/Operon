@@ -55,8 +55,9 @@ use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::{CallerRole, PolicyDecision, PolicyResolver};
 use operon_providers::Provider;
 use operon_tools::{dispatcher::Dispatcher, ToolProgressEmitter};
-// Hey friend! We import AskArgs and AskOutput so we can parse input arguments and format tool outputs.
-use operon_tools_ask::{AskArgs, AskOutput};
+// Hey friend! We import AskArgs so we can parse input arguments from the body-based format.
+// The output is now plain text constructed directly in the runner — no AskOutput struct needed.
+use operon_tools_ask::AskArgs;
 
 use crate::config::SessionConfig;
 use crate::error::SessionError;
@@ -245,13 +246,15 @@ impl SessionRunner {
                 if let ContentBlock::ToolResult(result) = block {
                     // ...specifically, successful executions of the "load_tools" tool.
                     if result.name == "load_tools" && !result.is_error {
-                        // The output content of load_tools is returned as a JSON structure.
-                        if let ToolContent::Json(ref json) = result.content {
-                            // Inside that JSON, the "group" key specifies which group was loaded
-                            // (for example: { "group": "fs", "tool_count": 7, "tools": [...] }).
-                            if let Some(group) = json.get("group").and_then(|v| v.as_str()) {
-                                // Mark this group as loaded in the dispatcher!
-                                self.dispatcher.mark_group_loaded(group);
+                        // The output content of load_tools is now returned as a plain-text description string.
+                        // Format: "Loaded <count> tool(s) from group '<group_name>':"
+                        if let ToolContent::Text(ref text) = result.content {
+                            if let Some(start_idx) = text.find("from group '") {
+                                let start = start_idx + "from group '".len();
+                                if let Some(end_idx) = text[start..].find('\'') {
+                                    let group = &text[start..start + end_idx];
+                                    self.dispatcher.mark_group_loaded(group);
+                                }
                             }
                         }
                     }
@@ -567,15 +570,16 @@ impl SessionRunner {
                     let ask_id = call.id.0.clone();
 
                     // Hey friend! We parse and validate the arguments before suspending the loop.
-                    // If parsing fails (for example, if the options count is incorrect), we return
+                    // If parsing fails (for example, if a required body key is missing), we return
                     // an error ToolResult immediately without suspending.
-                    let ask_result = match AskArgs::from_json(&call.arguments) {
+                    let ask_result = match AskArgs::parse(&call.arguments) {
                         Err(reason) => {
                             let result = ToolResult {
                                 call_id: call.id.clone(),
                                 name: "ask".to_string(),
                                 content: ToolContent::Text(reason.to_string()),
                                 is_error: true,
+                                read_paths: None,
                             };
                             let _ = self
                                 .event_tx
@@ -594,12 +598,18 @@ impl SessionRunner {
 
                     // Emit AskQuestion event. The frontend UI will receive this and render
                     // the multiple-choice question widget to the user.
+                    // Build the options vec from the three individual body-key fields.
+                    let options_vec = vec![
+                        ask_result.option1.clone(),
+                        ask_result.option2.clone(),
+                        ask_result.option3.clone(),
+                    ];
                     let _ = self
                         .event_tx
                         .send(SessionEvent::AskQuestion {
                             id: ask_id.clone(),
                             question: ask_result.question.clone(),
-                            options: ask_result.options.to_vec(),
+                            options: options_vec.clone(),
                         })
                         .await;
 
@@ -621,18 +631,26 @@ impl SessionRunner {
                         break;
                     }
 
-                    // Hey friend! We pack the user's answer into a structured AskOutput,
-                    // serialize it to a JSON value, and build the ToolResult which will
-                    // be passed back to the AI model.
-                    let content = ToolContent::Json(
-                        serde_json::to_value(AskOutput { answer })
-                            .expect("AskOutput serialization should never fail"),
+                    // Hey friend! We build a plain-text ToolResult from the user's answer.
+                    // Format: "Question: {question}\nUser chose: option N. {content}" for numbered
+                    // options, or "Question: {question}\nUser wrote: {text}" for free-text input.
+                    let answer_line = options_vec
+                        .iter()
+                        .enumerate()
+                        .find(|(_, opt)| *opt == &answer)
+                        .map(|(i, opt)| format!("User chose: option {}. {}", i + 1, opt))
+                        .unwrap_or_else(|| format!("User wrote: {}", answer));
+                    let output_text = format!(
+                        "Question: {}\n{}",
+                        ask_result.question, answer_line
                     );
+                    let content = ToolContent::Text(output_text);
                     let result = ToolResult {
                         call_id: call.id.clone(),
                         name: "ask".to_string(),
                         content: content.clone(),
                         is_error: false,
+                        read_paths: None,
                     };
                     let _ = self
                         .event_tx
@@ -1128,15 +1146,15 @@ fn command_matches(command: &SessionCommand, approval_id: Option<&str>) -> bool 
 /// permission to access or operate on that specific path.
 fn policy_path_for_call(call: &ToolCall) -> Option<String> {
     match call.name.as_str() {
-        // The "read" tool takes an array of paths in its "paths" argument (e.g. paths: ["file1.txt", "file2.txt"]).
-        // We use the first entry of the array as the representative path for evaluating policy permissions.
+        // The "read" tool takes a whitespace-delimited string in its "paths" attr
+        // (e.g. paths="C:\\file1.txt C:\\file2.txt:40-90").
+        // We extract the first path entry as the representative path for policy checks.
         "read" => call
             .arguments
             .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+            .and_then(|s| s.split_whitespace().next())
+            .map(|first| first.trim().to_string()),
 
         // The "bash" tool executes commands within a specific directory. We extract the "cwd" (current working directory)
         // argument to check whether shell execution is permitted in that directory.
@@ -1146,22 +1164,11 @@ fn policy_path_for_call(call: &ToolCall) -> Option<String> {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
 
-        // Filesystem modification or lookup tools (write, edit, append, ls, delete) operate on a single path.
+        // Filesystem modification or lookup tools (write, edit, append, ls, delete, grep) operate on a single path.
         // We look for a singular "path" argument (e.g. path: "dir/file.txt") and extract its value as a string.
-        "write" | "edit" | "append" | "ls" | "delete" => call
+        "write" | "edit" | "append" | "ls" | "delete" | "grep" => call
             .arguments
             .get("path")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-
-        // The "grep" tool (pattern search) accepts an array of directory paths in its "paths" argument
-        // (e.g. paths: ["dir1", "dir2"]). We extract the first path from the array to act as the
-        // representative anchor path for policy checks, similar to how "read" is handled.
-        "grep" => call
-            .arguments
-            .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
 
@@ -1178,6 +1185,8 @@ fn opaque_permission_denied_result(call: &ToolCall) -> ToolResult {
         name: call.name.clone(),
         content: ToolContent::Text("Tool not available.".to_string()),
         is_error: true,
+        // read_paths is None — this is a denied call, no files were read.
+        read_paths: None,
     }
 }
 

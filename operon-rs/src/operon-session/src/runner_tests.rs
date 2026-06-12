@@ -1,6 +1,6 @@
 use super::*;
 
-use operon_context::{ToolCall, ToolCallId, ToolContent, ToolResult};
+use operon_context::{StopReason, ToolCall, ToolCallId, ToolContent, ToolResult};
 use serde_json::json;
 
 // Build a tiny ToolCall fixture so the helper tests stay focused and readable.
@@ -48,8 +48,8 @@ fn command_matches_only_accepts_cancel_or_the_matching_approval_id() {
 
 #[test]
 fn policy_path_for_call_extracts_the_correct_anchor() {
-    // 1. "read" tool uses the first entry from its "paths" array argument as the policy anchor path.
-    let read_call = make_call("read", json!({ "paths": ["/tmp/a.txt", "/tmp/b.txt"] }));
+    // 1. "read" tool uses the first entry from its semicolon-delimited "paths" string argument as the policy anchor path.
+    let read_call = make_call("read", json!({ "paths": "/tmp/a.txt /tmp/b.txt" }));
     assert_eq!(
         policy_path_for_call(&read_call).as_deref(),
         Some("/tmp/a.txt")
@@ -69,8 +69,8 @@ fn policy_path_for_call_extracts_the_correct_anchor() {
         Some("/tmp/w.txt")
     );
 
-    // 4. "grep" tool uses the first entry from its "paths" array argument as the representative anchor.
-    let grep_call = make_call("grep", json!({ "paths": ["/tmp/x.txt", "/tmp/y.txt"] }));
+    // 4. "grep" tool uses the singular "path" argument.
+    let grep_call = make_call("grep", json!({ "path": "/tmp/x.txt" }));
     assert_eq!(
         policy_path_for_call(&grep_call).as_deref(),
         Some("/tmp/x.txt")
@@ -130,6 +130,8 @@ fn tool_result_content_json_serializes_text_and_json_cleanly() {
         name: "write".to_string(),
         content: ToolContent::Text("plain text".to_string()),
         is_error: false,
+        // Mock tool result in test - no read paths tracked here.
+        read_paths: None,
     };
     assert_eq!(tool_result_content_json(&text_result), "plain text");
 
@@ -139,6 +141,8 @@ fn tool_result_content_json_serializes_text_and_json_cleanly() {
         name: "read".to_string(),
         content: ToolContent::Json(json!({ "ok": true })),
         is_error: false,
+        // Mock tool result in test - no read paths tracked here.
+        read_paths: None,
     };
     assert_eq!(tool_result_content_json(&json_result), "{\"ok\":true}");
 }
@@ -213,23 +217,19 @@ fn test_set_history_restores_loaded_groups() {
             ContentBlock::ToolResult(ToolResult {
                 call_id: ToolCallId("call_load_fs".to_string()),
                 name: "load_tools".to_string(),
-                content: ToolContent::Json(json!({
-                    "group": "fs",
-                    "tool_count": 7,
-                    "tools": []
-                })),
+                content: ToolContent::Text("Loaded 7 tool(s) from group 'fs':\n\n## read".to_string()),
                 is_error: false,
+                // Mock tool result in test - no read paths tracked here.
+                read_paths: None,
             }),
             // Failed load_tools for "web": should NOT be recovered because is_error is true!
             ContentBlock::ToolResult(ToolResult {
                 call_id: ToolCallId("call_load_web".to_string()),
                 name: "load_tools".to_string(),
-                content: ToolContent::Json(json!({
-                    "group": "web",
-                    "tool_count": 2,
-                    "tools": []
-                })),
+                content: ToolContent::Text("Loaded 2 tool(s) from group 'web':\n\n## fetch".to_string()),
                 is_error: true,
+                // Mock tool result in test - no read paths tracked here.
+                read_paths: None,
             }),
             // Standard tool result: should NOT affect any loaded groups!
             ContentBlock::ToolResult(ToolResult {
@@ -237,6 +237,8 @@ fn test_set_history_restores_loaded_groups() {
                 name: "read".to_string(),
                 content: ToolContent::Text("some file content".to_string()),
                 is_error: false,
+                // Mock tool result in test - no read paths tracked here.
+                read_paths: None,
             }),
         ],
         stop_reason: None,
@@ -289,6 +291,8 @@ fn test_heuristic_token_estimator() {
         name: "test_tool".to_string(),
         content: ToolContent::Text("success".to_string()), // "success" is 7 chars -> 1 token + 10 = 11 tokens
         is_error: false,
+        // Mock tool result in test - no read paths tracked here.
+        read_paths: None,
     });
 
     // Run the same match heuristic used in runner.rs

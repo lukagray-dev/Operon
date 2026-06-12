@@ -380,6 +380,10 @@ fn normalize_tool_role_message(
         name,
         content,
         is_error,
+        // Since we are parsing a tool result from OpenAI's raw wire message format,
+        // we do not have (nor do we need) the in-memory read_paths ledger data. Therefore,
+        // we default this field to None.
+        read_paths: None,
     };
 
     Ok(ConversationMessage {

@@ -1,0 +1,13 @@
+[package]
+name        = "operon-tools-parser"
+description = "Structural XML-like tool-call parser for Operon"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace                          = true
+serde_json.workspace                     = true
+operon-context-normalize-tools.workspace = true

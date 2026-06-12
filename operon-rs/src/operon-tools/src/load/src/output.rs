@@ -1,6 +1,13 @@
-//! Output types for the load_tools tool.
+//! Output types for the `load_tools` tool.
+//!
+//! These structs are kept for compatibility with the existing `tests.rs` (which is
+//! being rewritten separately). They are no longer used by the production execution
+//! path — `lib.rs` now formats plain-text output directly without these types.
+//!
+//! Once `tests.rs` is rewritten, this module and its re-exports from `lib.rs` can
+//! be removed entirely.
 
-/// A single tool entry returned for a group load.
+/// A single tool entry — kept for test compatibility only.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct LoadedTool {
     /// The tool's name (e.g., "read", "bash").
@@ -11,22 +18,22 @@ pub struct LoadedTool {
     pub parameters: serde_json::Value,
 }
 
-/// Output when loading a specific group.
+/// Output shape for loading a specific group — kept for test compatibility only.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct GroupLoadOutput {
     /// The group name that was loaded.
     pub group: String,
     /// Number of tools in this group.
     pub tool_count: usize,
-    /// List of tools in the group with their definitions.
+    /// List of tools in the group.
     pub tools: Vec<LoadedTool>,
 }
 
-/// Output when listing all groups (no group argument provided).
+/// Output shape for listing all groups — kept for test compatibility only.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct GroupListOutput {
-    /// List of all available tool groups.
+    /// All available tool group names.
     pub available_groups: Vec<String>,
-    /// Helpful message explaining how to use load_tools.
+    /// Helpful hint message.
     pub message: String,
 }

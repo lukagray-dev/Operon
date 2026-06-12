@@ -171,11 +171,11 @@ async fn test_successful_dispatch_does_not_degrade() {
     let result = d
         .dispatch(make_call(
             "read",
-            json!({ "paths": [file.to_str().unwrap()] }),
+            json!({ "paths": file.to_str().unwrap() }),
         ))
         .await;
 
-    assert!(!result.is_error);
+    assert!(!result.is_error, "Expected success, got error: {:?}", result.content);
     assert!(!d.is_degraded("read"));
 }
 
@@ -304,11 +304,11 @@ async fn test_read_then_edit_allowed() {
     let read_result = d
         .dispatch(make_call(
             "read",
-            json!({ "paths": [path.to_str().unwrap()] }),
+            json!({ "paths": path.to_str().unwrap() }),
         ))
         .await;
 
-    assert!(!read_result.is_error, "read should succeed");
+    assert!(!read_result.is_error, "read should succeed, but got error: {:?}", read_result.content);
 
     // Now dispatch edit — should be allowed
     let edit_result = d
@@ -359,11 +359,11 @@ async fn test_read_then_write_allowed() {
     let read_result = d
         .dispatch(make_call(
             "read",
-            json!({ "paths": [path.to_str().unwrap()] }),
+            json!({ "paths": path.to_str().unwrap() }),
         ))
         .await;
 
-    assert!(!read_result.is_error, "read should succeed");
+    assert!(!read_result.is_error, "read should succeed, but got error: {:?}", read_result.content);
 
     // Now dispatch write — should be allowed
     let write_result = d
@@ -403,11 +403,11 @@ async fn test_compaction_clears_ledger() {
     let read_result = d
         .dispatch(make_call(
             "read",
-            json!({ "paths": [path.to_str().unwrap()] }),
+            json!({ "paths": path.to_str().unwrap() }),
         ))
         .await;
 
-    assert!(!read_result.is_error);
+    assert!(!read_result.is_error, "read should succeed, but got error: {:?}", read_result.content);
     assert!(
         d.read_ledger().has_been_read(path),
         "path should be in ledger after read"
@@ -458,12 +458,12 @@ async fn test_failed_read_does_not_record() {
     let read_result = d
         .dispatch(make_call(
             "read",
-            json!({ "paths": [nonexistent_path.to_str().unwrap()] }),
+            json!({ "paths": nonexistent_path.to_str().unwrap() }),
         ))
         .await;
 
     // read returns per-file errors, not top-level errors
-    assert!(!read_result.is_error, "read tool returns per-file errors");
+    assert!(!read_result.is_error, "read tool returns per-file errors, but got error: {:?}", read_result.content);
 
     // The nonexistent path should NOT be in the ledger
     assert!(

@@ -1,6 +1,6 @@
 [package]
 name        = "operon-tools-web-search"
-description = "Web search tool: queries DuckDuckGo and returns structured results (title, URL, snippet). No API key required. Returns up to max_results results."
+description = "Web search tool: queries DuckDuckGo and returns plain-text results (rank, title, URL, snippet). No API key required. Returns up to max results."
 version.workspace    = true
 edition.workspace    = true
 authors.workspace    = true

@@ -103,6 +103,7 @@ pub struct ToolCall {
 ///     name: "read_file".to_string(),
 ///     content: ToolContent::Text("contents of /foo".to_string()),
 ///     is_error: false,
+///     read_paths: None,
 /// };
 /// let wire = denormalize_result(&result, &Provider::OpenAI).unwrap();
 /// assert_eq!(wire["role"], "tool");
@@ -124,6 +125,15 @@ pub struct ToolResult {
     /// (e.g. Anthropic) treat the result message differently, allowing the model
     /// to recover or retry.
     pub is_error: bool,
+
+    /// Paths successfully read by the read tool. Used by the dispatcher to update
+    /// the read ledger for read-before-write enforcement. None for all non-read tools.
+    ///
+    /// When the `read` tool succeeds in reading a file, the path is recorded here
+    /// so the dispatcher can update its in-memory ledger without having to parse
+    /// the tool's text output.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_paths: Option<Vec<String>>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
