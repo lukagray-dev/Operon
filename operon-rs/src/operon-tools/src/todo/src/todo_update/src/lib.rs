@@ -52,47 +52,7 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_update".to_string(),
-            description: "Updates an existing todo item. Call format: <todo_update id=\"1\" todo=\"new content\" status=\"in_progress\" priority=\"high\"> \
-                          `id` is required. Provide at least one of: `todo`, `status`, `priority`."
-                .to_string(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_update".to_string(),
-            description: "\
-Updates an existing todo item by ID. Supports partial updates — only provided fields are changed.
-
-## Call format
-
-<todo_update id=\"1\" todo=\"new content\" status=\"in_progress\" priority=\"high\">
-
-All attribute values are strings. The tool tag has no body.
-
-## Attributes
-
-`id` (required, string): The ID of the item to update. Must match an existing item ID.
-
-`todo` (optional, string): New task description. If provided, must be non-empty after trim.
-
-`status` (optional, string): New status for the task. Valid values: \"pending\", \"in_progress\", \"completed\".
-
-`priority` (optional, string): New priority for the task. Valid values: \"high\", \"medium\", \"low\".
-
-## Partial update semantics
-
-Only provided fields are updated. At least one of `todo`, `status`, or `priority` must be specified.
-
-## Output format
-
-Plain text:
-Updated #{id}: {todo} [{status}, {priority}]
-
-## Error cases
-
-- ID not found: \"todo not found: id 'X'\"
-- No fields to update: \"no fields to update — provide at least one of: todo, status, priority\"
-- Empty todo: \"todo is empty\"
-- Malformed args: \"failed to parse tool arguments: ...\""
-                .to_string(),
+            description: include_str!("description.md").to_string(),
         },
     }
 }

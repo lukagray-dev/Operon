@@ -43,17 +43,18 @@ pub struct GrepArgs {
 impl GrepArgs {
     /// Parse grep tool arguments from the attrs+body JSON produced by the LLM parser.
     ///
-    /// Extracts `path` from args_json["path"] and all body options from
-    /// args_json["__body__"]. Missing or empty body = glob-only mode with no filters.
+    /// Extracts `path` from args_json["path"] or args_json["paths"] and all options from
+    /// either attributes or args_json["__body__"].
     ///
     /// # Errors
     /// Returns `Err(String)` if:
-    /// - The `path` key is missing or not a string.
-    /// - `context` value cannot be parsed as usize.
+    /// - The `path`/`paths` key is missing or not a string.
+    /// - `context`/`context_lines` value cannot be parsed as usize.
     pub fn parse(args_json: &serde_json::Value) -> Result<GrepArgs, String> {
-        // Step 1: Extract the required "path" attribute.
+        // Step 1: Extract the required "path" (or "paths") attribute.
         let path = args_json
             .get("path")
+            .or_else(|| args_json.get("paths"))
             .ok_or_else(|| "missing required attribute 'path'".to_string())?
             .as_str()
             .ok_or_else(|| "attribute 'path' must be a string".to_string())?
@@ -66,7 +67,45 @@ impl GrepArgs {
             .unwrap_or("");
 
         // Step 3: Parse the body into fields.
-        let (patterns, glob, ignore, context_lines) = parse_body(body)?;
+        let (mut patterns, mut glob, mut ignore, mut context_lines) = parse_body(body)?;
+
+        // Step 4: Fallback to attributes if not set in the body.
+        if patterns.is_empty() {
+            if let Some(attr_pat) = args_json
+                .get("pattern")
+                .or_else(|| args_json.get("patterns"))
+                .and_then(|v| v.as_str())
+            {
+                patterns = parse_tokens(attr_pat);
+            }
+        }
+
+        if glob.is_none() {
+            if let Some(attr_glob) = args_json.get("glob").and_then(|v| v.as_str()) {
+                glob = Some(attr_glob.to_string());
+            }
+        }
+
+        if ignore.is_empty() {
+            if let Some(attr_ignore) = args_json.get("ignore").and_then(|v| v.as_str()) {
+                ignore = parse_tokens(attr_ignore);
+            }
+        }
+
+        if context_lines == 0 {
+            if let Some(attr_context) = args_json
+                .get("context")
+                .or_else(|| args_json.get("context_lines"))
+                .and_then(|v| v.as_str())
+            {
+                context_lines = attr_context.parse::<usize>().map_err(|_| {
+                    format!(
+                        "invalid context value '{}': must be a non-negative integer",
+                        attr_context
+                    )
+                })?;
+            }
+        }
 
         Ok(GrepArgs {
             path,

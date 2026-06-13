@@ -114,6 +114,7 @@ pub fn parse(text: &str) -> ParseResult {
 /// Parses a complete model response text, returning both the `ParseResult` and a list of
 /// diagnostic `ParseError`s representing any malformed tags.
 pub fn parse_with_errors(text: &str) -> (ParseResult, Vec<ParseError>) {
+    let text = preprocess_native_calls(text);
     let mut calls = Vec::new();
     let mut errors = Vec::new();
     let mut strip_ranges = Vec::new();
@@ -123,13 +124,13 @@ pub fn parse_with_errors(text: &str) -> (ParseResult, Vec<ParseError>) {
 
     while pos < len {
         // 1. Search for the next potential tag starting character '<' followed by an alphabetic char.
-        let start_pos = match find_next_tag_start(text, pos) {
+        let start_pos = match find_next_tag_start(&text, pos) {
             Some(idx) => idx,
             None => break,
         };
 
         // 2. Find the closing '>' of this tag.
-        let tag_end_pos = match find_tag_end(text, start_pos) {
+        let tag_end_pos = match find_tag_end(&text, start_pos) {
             Some(idx) => idx,
             None => {
                 // If the tag is never closed, we record an UnclosedTag error.
@@ -576,6 +577,80 @@ fn collapse_whitespace_lines(lines: &[&str]) -> String {
     result.join("\n")
 }
 
+/// Preprocesses the model response to translate native Qwen/Llama-style token tool calls
+/// (e.g. `<|tool_call_begin|> functions.load_tools:0 <|tool_call_argument_begin|> {"group": "fs"} <|tool_call_end|>`)
+/// into the standard XML tag format (e.g. `<load_tools group="fs">`).
+fn preprocess_native_calls(text: &str) -> String {
+    // If the text does not contain any native tool call markers, return it as-is.
+    if !text.contains("<|tool_call_begin|>") {
+        return text.to_string();
+    }
+
+    let mut result = text.to_string();
+    
+    // Replace section markers with space.
+    result = result.replace("<|tool_calls_section_begin|>", " ");
+    result = result.replace("<|tool_calls_section_end|>", " ");
+
+    while let Some(start_idx) = result.find("<|tool_call_begin|>") {
+        let after_begin = start_idx + "<|tool_call_begin|>".len();
+        
+        let arg_start_idx = match result[after_begin..].find("<|tool_call_argument_begin|>") {
+            Some(idx) => after_begin + idx,
+            None => break,
+        };
+        let after_arg_start = arg_start_idx + "<|tool_call_argument_begin|>".len();
+        
+        let end_idx = match result[after_arg_start..].find("<|tool_call_end|>") {
+            Some(idx) => after_arg_start + idx,
+            None => break,
+        };
+        let after_end = end_idx + "<|tool_call_end|>".len();
+
+        let raw_name = result[after_begin..arg_start_idx].trim();
+        let raw_args = result[after_arg_start..end_idx].trim();
+
+        // Extract tool name, stripping "functions." prefix and optional suffix like ":0"
+        let tool_name = raw_name.strip_prefix("functions.").unwrap_or(raw_name);
+        let tool_name = match tool_name.find(':') {
+            Some(idx) => &tool_name[..idx],
+            None => tool_name,
+        }.trim();
+
+        let xml_replacement = if let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(raw_args) {
+            let mut attrs = Vec::new();
+            let mut body = None;
+            for (k, v) in map {
+                if k == "__body__" {
+                    body = v.as_str().map(|s| s.to_string());
+                } else if let Some(s) = v.as_str() {
+                    attrs.push(format!("{}=\"{}\"", k, s.replace("\"", "\\\"")));
+                } else {
+                    attrs.push(format!("{}=\"{}\"", k, v.to_string().replace("\"", "\\\"")));
+                }
+            }
+            let attr_str = if attrs.is_empty() {
+                "".to_string()
+            } else {
+                format!(" {}", attrs.join(" "))
+            };
+
+            if let Some(body_text) = body {
+                format!("<{}{}>\n<<<<\n{}\n>>>>\n", tool_name, attr_str, body_text)
+            } else {
+                format!("<{}{}>", tool_name, attr_str)
+            }
+        } else {
+            // Keep original if JSON parsing fails to avoid infinite loops, but strip the token so we advance
+            format!("<{}>", tool_name)
+        };
+
+        result.replace_range(start_idx..after_end, &xml_replacement);
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -697,5 +772,16 @@ mod tests {
         assert_eq!(tool_call.id.0, "call_123");
         assert_eq!(tool_call.name, "write");
         assert_eq!(tool_call.arguments["path"], "C:\\src\\new.rs");
+    }
+
+    #[test]
+    fn test_native_token_calls() {
+        let text = "Prose before. <|tool_calls_section_begin|> <|tool_call_begin|> functions.load_tools:0 <|tool_call_argument_begin|> {\"group\": \"fs\"} <|tool_call_end|> <|tool_calls_section_end|> Prose after.";
+        let result = parse(text);
+        assert_eq!(result.calls.len(), 1);
+        assert_eq!(result.calls[0].name, "load_tools");
+        assert_eq!(result.calls[0].attrs.get("group").unwrap(), "fs");
+        assert!(result.text.contains("Prose before."));
+        assert!(result.text.contains("Prose after."));
     }
 }

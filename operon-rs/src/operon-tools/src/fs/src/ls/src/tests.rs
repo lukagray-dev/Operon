@@ -158,3 +158,31 @@ async fn test_sorting_case_insensitive() {
     assert!(idx_zebra < idx_alpha);
     assert!(idx_alpha < idx_zulu);
 }
+
+#[tokio::test]
+async fn test_attribute_based_listing() {
+    let temp_dir = TempDir::new().expect("failed to create temp dir");
+    fs::write(temp_dir.path().join("Cargo.lock"), "").unwrap();
+    fs::create_dir(temp_dir.path().join("node_modules")).unwrap();
+    fs::create_dir(temp_dir.path().join("src")).unwrap();
+    fs::write(temp_dir.path().join("main.rs"), "").unwrap();
+
+    let path = temp_dir.path().to_string_lossy().to_string();
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "paths": &path,
+            "ignore": "*.lock node_modules"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let text = extract_text(&result);
+    assert!(!text.contains("Cargo.lock"));
+    assert!(!text.contains("node_modules"));
+    assert!(text.contains("[DIR]  src"));
+    assert!(text.contains("[FILE] main.rs"));
+}
+

@@ -231,12 +231,13 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
     let args = &call.arguments;
 
     match tool {
-        // The `read` tool takes a semicolon-delimited `"paths"` string. We check the
+        // The `read` tool takes a semicolon-delimited `"paths"` (or `"path"`) string. We check the
         // first path entry for policy evaluation. We extract the first path from the
         // string and strip any line range suffix (e.g. ":40-90", ":50-", ":-30") if present,
         // so that the directory containment check matches a clean path.
         DirTool::Fs(FsTool::Read) => args
             .get("paths")
+            .or_else(|| args.get("path"))
             .and_then(|v| v.as_str())
             .and_then(|s| s.split(';').next())
             .map(|first| {
@@ -249,25 +250,38 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
                 PathBuf::from(stripped)
             }),
 
-        // The "grep" tool accepts an array of directory paths in its `"paths"` argument
-        // (similar to the "read" tool). To perform policy verification, we extract the
-        // first path from this array to act as the representative anchor. This allows us
-        // to verify that the pattern search is targeting a permitted directory.
+        // The "grep" tool accepts a path string, or a "paths" array/string. To perform policy verification,
+        // we extract the representative anchor. This allows us to verify that the pattern search is targeting
+        // a permitted directory.
         DirTool::Fs(FsTool::Grep) => args
-            .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|v| v.as_str())
-            .map(PathBuf::from),
+            .get("path")
+            .or_else(|| args.get("paths"))
+            .and_then(|v| {
+                if let Some(s) = v.as_str() {
+                    Some(PathBuf::from(s))
+                } else if let Some(arr) = v.as_array() {
+                    arr.first().and_then(|first| first.as_str()).map(PathBuf::from)
+                } else {
+                    None
+                }
+            }),
 
         // The `bash` tool uses `"path"` as the policy anchor.
         // If path is missing, the tool executor would also reject it — but we
         // reject it here first so the policy layer catches it before dispatch.
-        DirTool::Bash => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
+        DirTool::Bash => args
+            .get("path")
+            .or_else(|| args.get("paths"))
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from),
 
-        // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"`
+        // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"` or `"paths"`
         // string argument. We extract this value to verify directory containment.
-        DirTool::Fs(_) => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
+        DirTool::Fs(_) => args
+            .get("path")
+            .or_else(|| args.get("paths"))
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from),
     }
 }
 

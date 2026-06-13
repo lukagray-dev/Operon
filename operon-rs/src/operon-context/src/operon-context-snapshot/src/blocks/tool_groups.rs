@@ -13,10 +13,39 @@ pub fn render_tool_groups(groups: &[String]) -> Option<String> {
 
     Some(format!(
         "## Available Tool Groups\n\
-         Tools are not loaded by default — call `load_tools` with a group name \
-         to get tool names, descriptions, and call formats for that group. Pass `group` to get tool names, descriptions, and call formats for that group. Omit `group` to list all available groups.\n\
+         Tools are not loaded by default. You must call `load_tools` with a group name to load and register that group's tools.\n\
+         \n\
+         ### Tool Call Formatting Protocol\n\
+         IMPORTANT: All tool calls must be written in the custom XML tag format specified in the tool descriptions.\n\
+         - DO NOT use JSON formatting.\n\
+         - DO NOT use special tokens (like `<|tool_calls_section_begin|>`, `<|tool_call_begin|>`, etc.).\n\
+         - DO NOT prefix tool names with `functions.`.\n\
+         - ALWAYS write tool calls as plain text XML tags, e.g., `<load_tools group=\"fs\">`.\n\
          \n\
          Built-in groups: {group_list}\n\
+         \n\
+         ### `load_tools` Description\n\
+         Loads and displays tool definitions for a specific group of tools.\n\
+         \n\
+         Format (Attributes - preferred):\n\n\
+         ```example\n\
+         <load_tools group=\"fs\">\n\
+         ```\n\
+         \n\
+         Format (Body - optional):\n\n\
+         ```example\n\
+         <load_tools>\n\
+         <<<<\n\
+         group=\"fs\"\n\
+         >>>>\n\
+         ```\n\
+         \n\
+         Constraints & Usage:\n\
+         \n\
+         - Call without a group parameter (e.g., `<load_tools>`) to list all registered tool groups.\n\
+         - Specify `group` (e.g., `fs`, `shell`, `web`, `todo`, `ask`) to load and register that group's tools.\n\
+         - Newly loaded tools become available for use on all subsequent turns.\n\
+         \n\
          \n\
          For installed extensions (OHub): use `mcp_load` to discover and load \
          extension tools.",

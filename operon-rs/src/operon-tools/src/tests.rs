@@ -30,61 +30,7 @@ async fn test_unknown_tool_returns_error_result() {
     assert!(result.name == "nonexistent_tool");
 }
 
-#[tokio::test]
-async fn test_malformed_args_marks_tool_degraded() {
-    let mut d = Dispatcher::new();
-    d.register_fs_tools();
 
-    assert!(!d.is_degraded("read"));
-
-    // Send malformed args — missing required "paths" field
-    let result = d
-        .dispatch(make_call("read", json!({ "wrong_key": [] })))
-        .await;
-
-    assert!(result.is_error);
-    assert!(
-        d.is_degraded("read"),
-        "read should be degraded after malformed call"
-    );
-}
-
-#[tokio::test]
-async fn test_degraded_tool_uses_detailed_definition() {
-    let mut d = Dispatcher::new();
-    d.register_fs_tools();
-
-    // Since we've enabled lazy tool loading, the "read" tool (which is in the "fs" group)
-    // is not exposed in definitions() by default. We must explicitly mark the "fs" group
-    // as loaded for its definitions to show up!
-    d.mark_group_loaded("fs");
-
-    // Short description is used initially
-    let short_desc = d
-        .definitions()
-        .find(|def| def.name == "read")
-        .unwrap()
-        .description
-        .clone();
-
-    // Trigger degradation
-    d.dispatch(make_call("read", json!({ "bad": "args" })))
-        .await;
-
-    // Detailed description is now used
-    let detailed_desc = d
-        .definitions()
-        .find(|def| def.name == "read")
-        .unwrap()
-        .description
-        .clone();
-
-    assert_ne!(short_desc, detailed_desc);
-    assert!(
-        detailed_desc.len() > short_desc.len(),
-        "detailed description should be longer than short"
-    );
-}
 
 #[tokio::test]
 async fn test_lazy_loading_tools() {
@@ -138,23 +84,7 @@ async fn test_lazy_loading_tools() {
     );
 }
 
-#[tokio::test]
-async fn test_other_tools_unaffected_by_degradation() {
-    // Once more tools are registered this test verifies that degrading one
-    // tool does not affect the description tier of others.
-    // For now it verifies the degraded set is tool-specific (not global).
-    let mut d = Dispatcher::new();
-    d.register_fs_tools();
 
-    // Degrade "read"
-    d.dispatch(make_call("read", json!({ "bad": "args" })))
-        .await;
-
-    assert!(d.is_degraded("read"));
-    // "write" is not yet implemented but the degraded set must not contain it
-    assert!(!d.is_degraded("write"));
-    assert!(!d.is_degraded("grep"));
-}
 
 #[tokio::test]
 async fn test_successful_dispatch_does_not_degrade() {
@@ -176,7 +106,6 @@ async fn test_successful_dispatch_does_not_degrade() {
         .await;
 
     assert!(!result.is_error, "Expected success, got error: {:?}", result.content);
-    assert!(!d.is_degraded("read"));
 }
 
 // ============================================================================
@@ -508,26 +437,7 @@ async fn test_bash_tool_registration_and_dispatch() {
     }
 }
 
-#[tokio::test]
-async fn test_bash_tool_malformed_args_marks_degraded() {
-    // Test: Verify bash tool degradation on malformed args.
-    // Missing both `command` and `path` → ArgsParse → degraded.
-    let mut d = Dispatcher::new();
-    d.register_shell_tools();
 
-    assert!(!d.is_degraded("bash"));
-
-    // Send malformed args — missing both required fields.
-    let result = d
-        .dispatch(make_call("bash", json!({ "wrong_key": "value" })))
-        .await;
-
-    assert!(result.is_error);
-    assert!(
-        d.is_degraded("bash"),
-        "bash should be degraded after malformed call"
-    );
-}
 
 #[tokio::test]
 async fn test_bash_tool_empty_command_error() {

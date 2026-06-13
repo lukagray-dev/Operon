@@ -50,48 +50,7 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_list".to_string(),
-            description: "Returns the current todo list. Call format: <todo_list status=\"pending\" priority=\"high\"> \
-                          Both status and priority filters are optional. Returns plain text list and summary counts."
-                .to_string(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_list".to_string(),
-            description: "\
-Returns the current todo list with optional filtering by status or priority. Always includes \
-status counts from the full unfiltered list.
-
-## Call format
-
-<todo_list status=\"pending\" priority=\"high\">
-
-All attribute values are strings. The tool tag has no body.
-
-## Attributes
-
-`status` (optional, string): Filter by status. Valid values: \"pending\", \"in_progress\", \"completed\".
-
-`priority` (optional, string): Filter by priority. Valid values: \"high\", \"medium\", \"low\".
-
-## Output format
-
-Plain text. List of matched todo items, followed by a summary:
-#{id} [{status}] [{priority}] {content}
-#{id} [{status}] [{priority}] {content}
-
-Total: {total} ({pending} pending, {in_progress} in progress, {completed} completed)
-
-If no todos match the filters:
-No todos match the given filters.
-
-Total: {total} ({pending} pending, {in_progress} in progress, {completed} completed)
-
-If the store has no todos at all:
-No todos yet.
-
-## Error cases
-
-- Malformed args: \"failed to parse tool arguments: ...\""
-                .to_string(),
+            description: include_str!("description.md").to_string(),
         },
     }
 }

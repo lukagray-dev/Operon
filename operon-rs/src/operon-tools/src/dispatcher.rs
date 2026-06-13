@@ -121,9 +121,6 @@ pub struct DispatchOutcome {
 /// ```
 pub struct Dispatcher {
     tools: HashMap<String, ToolEntry>,
-    /// Tool names for which the model has made at least one malformed call
-    /// in this session. These tools get the detailed description.
-    degraded: HashSet<String>,
     /// Tracks paths read this session for read-before-write/edit enforcement.
     read_ledger: ReadLedger,
     /// In-memory todo list for the current agent session.
@@ -141,7 +138,6 @@ impl Dispatcher {
     pub fn new() -> Self {
         Self {
             tools: HashMap::new(),
-            degraded: HashSet::new(),
             read_ledger: ReadLedger::new(),
             todo_store: operon_tools_core::TodoStore::new(),
             // When starting a new session, the model hasn't loaded any tool groups yet.
@@ -416,8 +412,7 @@ impl Dispatcher {
                 entry.group == "core" || self.loaded_groups.contains(entry.group)
             })
             .map(|entry| {
-                let degraded = self.degraded.contains(entry.tiered.name());
-                entry.tiered.for_mode(degraded)
+                entry.tiered.for_mode(false)
             })
     }
 
@@ -792,38 +787,18 @@ impl Dispatcher {
             match (entry.execute)(call_id.clone(), call.arguments, progress.clone()).await {
                 Ok(result) => result,
                 Err(reason) => {
-                    // Track whether this is the FIRST malformed call for this tool.
-                    // The runner uses newly_degraded to emit SessionEvent::ToolDegraded.
                     let reason_text = reason.clone();
-                    let was_degraded = self.degraded.contains(&tool_name);
-                    self.degraded.insert(tool_name.clone());
-                    let newly_degraded = if was_degraded {
-                        None
-                    } else {
-                        Some(tool_name.clone())
-                    };
-
-                    emit_tool_progress(
-                        progress.as_ref(),
-                        ToolProgress::failed(
-                            call_id.clone(),
-                            tool_name.clone(),
-                            None,
-                            format!("{} malformed arguments: {}", tool_name, reason_text),
+                    let result = error_result(
+                        call_id,
+                        &tool_name,
+                        &format!(
+                            "Malformed arguments for tool '{tool_name}': {reason_text}"
                         ),
                     );
 
                     return DispatchOutcome {
-                        result: error_result(
-                            call_id.clone(),
-                            &tool_name,
-                            &ToolDispatchError::MalformedArgs {
-                                tool: tool_name.clone(),
-                                reason,
-                            }
-                            .to_string(),
-                        ),
-                        newly_degraded,
+                        result,
+                        newly_degraded: None,
                     };
                 }
             };
@@ -858,17 +833,6 @@ impl Dispatcher {
         }
     }
 
-    /// Returns the set of tool names currently in degraded mode.
-    ///
-    /// Primarily useful for testing and diagnostics.
-    pub fn degraded_tools(&self) -> &HashSet<String> {
-        &self.degraded
-    }
-
-    /// Checks whether a specific tool is currently in degraded mode.
-    pub fn is_degraded(&self, tool_name: &str) -> bool {
-        self.degraded.contains(tool_name)
-    }
 
     /// Returns a reference to the read ledger.
     ///

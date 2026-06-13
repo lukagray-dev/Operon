@@ -1,6 +1,6 @@
 [package]
 name        = "operon-tools-web-search"
-description = "Web search tool: queries DuckDuckGo and returns plain-text results (rank, title, URL, snippet). No API key required. Returns up to max results."
+description = "Web search tool: queries DuckDuckGo and returns plain-text results (rank, title, URL, snippet)."
 version.workspace    = true
 edition.workspace    = true
 authors.workspace    = true
@@ -12,6 +12,6 @@ thiserror.workspace                      = true
 serde.workspace                          = true
 serde_json.workspace                     = true
 tokio.workspace                          = true
-duckduckgo.workspace                     = true
-operon-context-normalize.workspace = true
+reqwest.workspace                        = true
+operon-context-normalize.workspace       = true
 operon-tools-core.workspace              = true

@@ -57,59 +57,7 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "load_tools".to_string(),
-            description: "Loads tool descriptions for a named group on demand. Pass `group` to get \
-                          names and descriptions (including call format) for every tool in that \
-                          group. Omit `group` to list all available groups. Always call this \
-                          before using any tool — tools are not available until loaded."
-                .to_string(),
-        },
-        detailed: ToolDefinition {
-            name: "load_tools".to_string(),
-            description: "\
-Loads tool descriptions for a named group on demand. Returns plain text — one section per tool,
-with the tool's name as a heading and its description (including call format and body protocol)
-as the body. No raw JSON schemas are returned.
-
-## Two call modes
-
-1. **List all groups** (no `group` argument):
-   Call `load_tools` with no arguments to see all available tool groups.
-   Returns: `Available groups: fs, shell, web, ...`
-             followed by an example of how to load a specific group.
-
-2. **Load a specific group** (with `group` argument):
-   Call `load_tools group=\"fs\"` to load all tools in the \"fs\" group.
-   Returns: `Loaded N tool(s) from group 'fs':` followed by one section per tool:
-   ```
-   ## tool_name
-   <short description including call format>
-
-   ## tool_name2
-   <short description including call format>
-   ```
-
-## Why tools are loaded on demand
-
-Tools are not available until explicitly loaded. This keeps context efficient —
-loading all tools upfront would bloat every request with hundreds of definitions.
-Instead, you load only the groups you need, when you need them.
-
-## Error handling
-
-If you pass an unknown group name, load_tools returns an error:
-`unknown group: 'xyz'. Call load_tools with no arguments to list available groups.`
-
-## Workflow example
-
-1. Call `load_tools` → see available groups
-2. Call `load_tools group=\"fs\"` → see fs tools with call formats
-3. Use fs tools (read, write, etc.) with confidence
-
-## For extensions (OHub)
-
-For installed extensions, use `mcp_load` instead of `load_tools`.
-`load_tools` is for built-in groups only."
-                .to_string(),
+            description: include_str!("description.md").to_string(),
         },
     }
 }

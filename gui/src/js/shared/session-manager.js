@@ -14,6 +14,22 @@
 import * as IPC from './ipc.js';
 import { showError, showSuccess } from './toast.js';
 
+// Helper to escape HTML characters in templates to prevent parser glitches & XSS
+function escapeHtml(raw) {
+    if (raw === null || raw === undefined) return '';
+    return String(raw)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Helper to escape HTML attribute values safely
+function escapeAttribute(raw) {
+    return escapeHtml(raw);
+}
+
 class SessionManager {
     constructor() {
         this.activeSessionId = null;
@@ -543,8 +559,9 @@ class SessionManager {
                         <img class="assistant-message__thinking-icon" src="./assets/icons/main-content/messages/assistant/thinking.svg" style="filter: invert(0.6); width:14px; height:14px;">
                         <span>Thinking Process</span>
                     </div>
-                    <div class="assistant-message__thinking-content">${block.Reasoning.thinking || block.Reasoning.signature || ''}</div>
+                    <div class="assistant-message__thinking-content"></div>
                 `;
+                thinkingCard.querySelector('.assistant-message__thinking-content').textContent = block.Reasoning.thinking || block.Reasoning.signature || '';
                 
                 // Toggle collapse on click
                 thinkingCard.querySelector('.assistant-message__thinking-header').addEventListener('click', () => {
@@ -590,7 +607,7 @@ class SessionManager {
                             <span class="assistant-message__tool-icon">
                                 <img src="./assets/icons/main-content/messages/assistant/tool.svg" style="filter: invert(0.7); width:14px; height:14px;">
                             </span>
-                            <span class="assistant-message__tool-name">${call.name}</span>
+                            <span class="assistant-message__tool-name">${escapeHtml(call.name)}</span>
                         </div>
                         <div class="assistant-message__tool-status-wrapper" style="display: flex; align-items: center; gap: 8px;">
                             <span class="assistant-message__tool-status ${statusClass}">${statusText}</span>
@@ -600,11 +617,11 @@ class SessionManager {
                     <div class="assistant-message__tool-details">
                         <div class="assistant-message__tool-section">
                             <div class="assistant-message__tool-section-title">Arguments</div>
-                            <pre class="assistant-message__tool-code">${formattedArgs}</pre>
+                            <pre class="assistant-message__tool-code">${escapeHtml(formattedArgs)}</pre>
                         </div>
                         <div class="assistant-message__tool-section">
                             <div class="assistant-message__tool-section-title">Result</div>
-                            <pre class="assistant-message__tool-code">${resultText}</pre>
+                            <pre class="assistant-message__tool-code">${escapeHtml(resultText)}</pre>
                         </div>
                     </div>
                 `;
@@ -998,7 +1015,7 @@ class SessionManager {
                 
                 resultSection.innerHTML = `
                     <div class="assistant-message__tool-section-title">Result</div>
-                    <pre class="assistant-message__tool-code">${cleanResult}</pre>
+                    <pre class="assistant-message__tool-code">${escapeHtml(cleanResult)}</pre>
                 `;
                 detailsEl.appendChild(resultSection);
             }
@@ -1030,7 +1047,7 @@ class SessionManager {
         
         let pathInfo = '';
         if (path) {
-            pathInfo = ` on <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;">${path}</code>`;
+            pathInfo = ` on <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;">${escapeHtml(path)}</code>`;
         }
         
         permCard.innerHTML = `
@@ -1040,8 +1057,8 @@ class SessionManager {
             </div>
             <div class="assistant-message__permission-body">
                 <div class="assistant-message__permission-reason" style="margin-bottom: 12px; font-size:13px; line-height:18px;">
-                    The model requests permission to execute <strong>${tool}</strong>${pathInfo}.<br>
-                    <span style="color: #bbbbbb; font-style: italic;">Reason: ${reason}</span>
+                    The model requests permission to execute <strong>${escapeHtml(tool)}</strong>${pathInfo}.<br>
+                    <span style="color: #bbbbbb; font-style: italic;">Reason: ${escapeHtml(reason)}</span>
                 </div>
                 <div class="assistant-message__permission-actions">
                     <button class="btn-permission btn-permission--allow">Allow</button>
@@ -1122,7 +1139,7 @@ class SessionManager {
         askCard.id = `ask-${id}`;
         
         let optionsHtml = options.map((opt, index) => {
-            return `<button class="btn-ask-option" data-option="${opt}">${opt}</button>`;
+            return `<button class="btn-ask-option" data-option="${escapeAttribute(opt)}">${escapeHtml(opt)}</button>`;
         }).join('');
 
         askCard.innerHTML = `
@@ -1131,7 +1148,7 @@ class SessionManager {
                 <span class="assistant-message__ask-title">Question Prompt</span>
             </div>
             <div class="assistant-message__ask-body">
-                <div class="assistant-message__ask-question">${question}</div>
+                <div class="assistant-message__ask-question">${escapeHtml(question)}</div>
                 <div class="assistant-message__ask-options">
                     ${optionsHtml}
                 </div>

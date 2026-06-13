@@ -52,77 +52,7 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "delete".to_string(),
-            description: "Deletes a file or directory. path attr is the absolute path. By default \
-                          moves to system trash (recoverable). Add permanent=\"true\" in the tool \
-                          body to permanently delete with no recovery possible."
-                .to_string(),
-        },
-        detailed: ToolDefinition {
-            name: "delete".to_string(),
-            description: "\
-Deletes a file or directory. The path must exist. Returns plain-text output.
-
-## Call format
-
-Simple (trash, default — recoverable):
-  <delete path=\"C:\\absolute\\path\\to\\file.txt\">
-
-Permanent (irreversible — no recovery):
-  <delete path=\"C:\\absolute\\path\\to\\file.txt\">
-  <<<<
-  permanent=\"true\"
-  >>>>
-
-## Body options
-
-- `permanent`: \"true\" = permanently delete (irreversible). \"false\" or omitted = move to system trash.
-
-## Deletion modes
-
-### Trash mode (default)
-Moves the target to the system trash. The file is NOT deleted from disk — moved to a special
-location where the user can recover it.
-- macOS: ~/Trash
-- Windows: Recycle Bin
-- Linux: ~/.local/share/Trash
-
-### Permanent mode (permanent=\"true\")
-Permanently deletes using remove_file (files) or remove_dir_all (directories).
-Irreversible. Use only when explicitly required.
-
-## Output format
-
-Success:
-  C:\\path\\to\\file.txt permanently deleted (file)
-  C:\\path\\to\\dir permanently deleted (dir)
-  C:\\path\\to\\file.txt moved to trash (file)
-  C:\\path\\to\\dir moved to trash (dir)
-
-Errors (all inline, is_error: false):
-  path does not exist: {path}
-  failed to access path: {path}: {reason}
-  failed to move to trash: {reason}
-  failed to delete file: {reason}
-  failed to delete directory: {reason}
-  internal error: delete task panicked
-
-## Files and directories
-
-- **Files**: The file is deleted (or moved to trash).
-- **Directories**: The entire directory tree is deleted recursively.
-- **Symlinks**: The symlink itself is deleted, not the target.
-
-## Safety guidance
-
-Prefer permanent=\"false\" (or omit) for all deletions. Permanent deletion is irreversible.
-Always verify the path is correct before using permanent=\"true\".
-
-## Common mistakes
-
-- Path doesn't exist → verify path before calling delete.
-- Using permanent=\"true\" when trash is sufficient → irreversible data loss risk.
-- Passing `permanent` as an attribute instead of in the body."
-                .to_string(),
+            description: include_str!("description.md").to_string(),
         },
     }
 }

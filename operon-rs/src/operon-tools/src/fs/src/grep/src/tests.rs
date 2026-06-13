@@ -132,3 +132,26 @@ async fn test_include_filter() {
     assert!(text.contains("file.rs"));
     assert!(!text.contains("file.py"));
 }
+
+#[tokio::test]
+async fn test_attribute_based_search() {
+    let temp = TempDir::new().expect("failed to create temp dir");
+    let file = create_test_file(&temp, "test.txt", "line 1\nline 2 with pattern\nline 3");
+
+    let result = execute(
+        ToolCallId("test".to_string()),
+        json!({
+            "paths": &file,
+            "pattern": "pattern",
+            "context": "1"
+        }),
+    )
+    .await
+    .expect("execute failed");
+
+    assert!(!result.is_error);
+    let text = extract_text(&result);
+    assert!(text.contains("1 match(es) in 1 file(s)"));
+    assert!(text.contains("line 2 with pattern"));
+}
+

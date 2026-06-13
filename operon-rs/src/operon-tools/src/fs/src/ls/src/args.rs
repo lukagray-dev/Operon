@@ -45,9 +45,10 @@ impl LsArgs {
     /// - The `path` key is missing or not a string.
     /// - The `depth` value cannot be parsed as usize.
     pub fn parse(args_json: &serde_json::Value) -> Result<LsArgs, String> {
-        // Step 1: Extract the required "path" attribute.
+        // Step 1: Extract the required "path" (or "paths") attribute.
         let path = args_json
             .get("path")
+            .or_else(|| args_json.get("paths"))
             .ok_or_else(|| "missing required attribute 'path'".to_string())?
             .as_str()
             .ok_or_else(|| "attribute 'path' must be a string".to_string())?
@@ -104,6 +105,30 @@ impl LsArgs {
                 }
                 // Unknown keys are silently ignored for forward-compatibility.
                 _ => {}
+            }
+        }
+
+        // Step 4: Fallback to attributes if not set in the body.
+        if depth.is_none() {
+            if let Some(attr_depth) = args_json.get("depth").and_then(|v| v.as_str()) {
+                depth = Some(attr_depth.parse::<usize>().map_err(|_| {
+                    format!(
+                        "invalid depth value '{}': must be a non-negative integer",
+                        attr_depth
+                    )
+                })?);
+            }
+        }
+
+        if glob.is_none() {
+            if let Some(attr_glob) = args_json.get("glob").and_then(|v| v.as_str()) {
+                glob = Some(attr_glob.to_string());
+            }
+        }
+
+        if ignore.is_empty() {
+            if let Some(attr_ignore) = args_json.get("ignore").and_then(|v| v.as_str()) {
+                ignore = parse_tokens(attr_ignore);
             }
         }
 

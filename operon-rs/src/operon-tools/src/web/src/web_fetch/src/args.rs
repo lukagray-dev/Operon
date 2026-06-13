@@ -7,8 +7,7 @@
 //! Call format:
 //!   <web_fetch url="https://example.com">
 //!
-//! Single required attr: `url`. No timeout attr — spider manages its own timeouts
-//! and retries internally.
+//! Single required attr: `url`. timeout is managed internally by the HTTP client.
 
 /// Arguments for the web_fetch tool.
 ///

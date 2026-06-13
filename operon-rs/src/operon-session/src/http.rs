@@ -174,6 +174,7 @@ pub async fn send_streaming(
     // Buffer for building complete lines character by character.
     // SSE chunks do not respect line boundaries, so we accumulate until '\n'.
     let mut line_buf = String::new();
+    let mut last_emitted_len = 0;
 
     // Process the byte stream chunk by chunk.
     loop {
@@ -241,8 +242,14 @@ pub async fn send_streaming(
                                 // Complete text delta — send to UI immediately and accumulate.
                                 AssemblerOutput::Text(text) => {
                                     result.text.push_str(&text);
-                                    // Best-effort send — we don't care if the receiver is closed.
-                                    let _ = event_tx.send(SessionEvent::TextDelta { text }).await;
+                                    let stripped = strip_in_progress_tool_tag(&result.text);
+                                    let emit_len = stripped.len();
+                                    if emit_len > last_emitted_len {
+                                        let delta = stripped[last_emitted_len..emit_len].to_string();
+                                        // Best-effort send — we don't care if the receiver is closed.
+                                        let _ = event_tx.send(SessionEvent::TextDelta { text: delta }).await;
+                                        last_emitted_len = emit_len;
+                                    }
                                 }
 
                                 // Hey friend! When we get a ReasoningDelta, it means the model is actively thinking.
@@ -331,4 +338,50 @@ pub async fn send_streaming(
     }
 
     Ok(result)
+}
+
+/// Strip any in-progress tool call from the tail of streamed text.
+///
+/// During streaming the model may have emitted a partial or complete tool tag
+/// that the parser will handle once the full response arrives. Until then, the
+/// raw tag syntax must not be shown as prose to the user.
+///
+/// Strategy: find the last `<` in the text that is followed by an ASCII
+/// alphabetic character (potential tag start). If found, check whether that
+/// position through the end of text looks like an in-progress tag or body block
+/// (i.e. no `>>>>` closing delimiter has appeared after it). If so, strip from
+/// that `<` to the end of the streamed text before emitting as prose.
+fn strip_in_progress_tool_tag(text: &str) -> &str {
+    // Find the last potential tag-open `<[a-zA-Z]` in the text.
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+
+    // Walk backwards to find the last `<` followed by alpha.
+    let mut last_tag_start: Option<usize> = None;
+    let mut i = len.saturating_sub(1);
+    loop {
+        if bytes[i] == b'<' && i + 1 < len && bytes[i + 1].is_ascii_alphabetic() {
+            last_tag_start = Some(i);
+            break;
+        }
+        if i == 0 { break; }
+        i -= 1;
+    }
+
+    let tag_start = match last_tag_start {
+        Some(pos) => pos,
+        None => return text, // no tag candidate found
+    };
+
+    let tail = &text[tag_start..];
+
+    // If a complete `>>>>` closing delimiter appears after the tag start,
+    // the tool call is fully emitted and the parser will handle it — don't strip.
+    if tail.contains(">>>>") {
+        return text;
+    }
+
+    // The tag (or its body) is still in progress. Strip from tag_start onward.
+    // Trim any trailing whitespace/newlines left behind.
+    text[..tag_start].trim_end()
 }

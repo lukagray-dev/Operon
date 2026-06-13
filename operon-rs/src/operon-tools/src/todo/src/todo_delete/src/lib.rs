@@ -50,34 +50,7 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_delete".to_string(),
-            description: "Deletes a todo item by id. Call format: <todo_delete id=\"1\">"
-                .to_string(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_delete".to_string(),
-            description: "\
-Deletes a todo item by ID. Returns a confirmation of deletion and the remaining count.
-
-## Call format
-
-<todo_delete id=\"1\">
-
-All attribute values are strings. The tool tag has no body.
-
-## Attributes
-
-`id` (required, string): The ID of the item to delete. Must match an existing item ID.
-
-## Output format
-
-Plain text:
-Deleted #{id}. {remaining} todo(s) remaining.
-
-## Error cases
-
-- ID not found: \"todo not found: id 'X'\"
-- Malformed args: \"failed to parse tool arguments: ...\""
-                .to_string(),
+            description: include_str!("description.md").to_string(),
         },
     }
 }

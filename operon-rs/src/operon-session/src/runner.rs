@@ -248,13 +248,12 @@ impl SessionRunner {
                     if result.name == "load_tools" && !result.is_error {
                         // The output content of load_tools is now returned as a plain-text description string.
                         // Format: "Loaded <count> tool(s) from group '<group_name>':"
-                        if let ToolContent::Text(ref text) = result.content {
-                            if let Some(start_idx) = text.find("from group '") {
-                                let start = start_idx + "from group '".len();
-                                if let Some(end_idx) = text[start..].find('\'') {
-                                    let group = &text[start..start + end_idx];
-                                    self.dispatcher.mark_group_loaded(group);
-                                }
+                        let ToolContent::Text(ref text) = result.content;
+                        if let Some(start_idx) = text.find("from group '") {
+                            let start = start_idx + "from group '".len();
+                            if let Some(end_idx) = text[start..].find('\'') {
+                                let group = &text[start..start + end_idx];
+                                self.dispatcher.mark_group_loaded(group);
                             }
                         }
                     }
@@ -489,22 +488,39 @@ impl SessionRunner {
 
             // Emit ToolCallStart and ToolCallArgsReady events so the UI updates properly.
             for call in &stream_result.tool_calls {
-                let args_json = serde_json::to_string(&call.arguments).unwrap_or_default();
-                let _ = self
-                    .event_tx
-                    .send(SessionEvent::ToolCallStart {
-                        call_id: call.id.0.clone(),
-                        name: call.name.clone(),
-                    })
-                    .await;
-                let _ = self
-                    .event_tx
-                    .send(SessionEvent::ToolCallArgsReady {
-                        call_id: call.id.0.clone(),
-                        name: call.name.clone(),
-                        args_json,
-                    })
-                    .await;
+                // Build display args: serialize everything except __body__ as JSON,
+                // then append __body__ raw with real newlines so all UIs can render it
+                // as a preformatted block without JSON-unescaping.
+                let mut display_map = call.arguments.as_object()
+                    .cloned()
+                    .unwrap_or_default();
+                let raw_body = display_map.remove("__body__")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()));
+
+                let mut args_display = if display_map.is_empty() {
+                    String::new()
+                } else {
+                    serde_json::to_string(&serde_json::Value::Object(display_map))
+                        .unwrap_or_default()
+                };
+
+                if let Some(body) = raw_body {
+                    if !args_display.is_empty() {
+                        args_display.push('\n');
+                    }
+                    args_display.push_str("__body__:\n");
+                    args_display.push_str(&body);
+                }
+
+                let _ = self.event_tx.send(SessionEvent::ToolCallStart {
+                    call_id: call.id.0.clone(),
+                    name: call.name.clone(),
+                }).await;
+                let _ = self.event_tx.send(SessionEvent::ToolCallArgsReady {
+                    call_id: call.id.0.clone(),
+                    name: call.name.clone(),
+                    args_json: args_display,
+                }).await;
             }
 
             // ── 6. Record token usage + emit TokenUsageUpdated ───────────────

@@ -5,8 +5,7 @@
 //! Fetches a URL and returns the page content as clean markdown. Strips navigation,
 //! ads, and boilerplate. Supports:
 //! - HTTP and HTTPS URLs
-//! - JS-rendered pages via headless Chrome (spider `chrome` feature)
-//! - HTML→markdown conversion via spider_transformations
+//! - HTML→markdown conversion via htmd
 //! - Title extraction from <title> tag
 //! - Content truncation at 10,000 characters
 //! - HTTP error status codes (4xx, 5xx) returned as plain-text output, not errors
@@ -68,113 +67,7 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "web_fetch".to_string(),
-            description: "Fetches a URL and returns the page content as clean markdown. \
-                          Call format: <web_fetch url=\"https://example.com\"> \
-                          Supports JS-rendered pages via headless Chrome. \
-                          Content is stripped of navigation, ads, and boilerplate. \
-                          Capped at 10,000 characters. Returns status code, page title, and content."
-                .to_string(),
-        },
-        detailed: ToolDefinition {
-            name: "web_fetch".to_string(),
-            description: "\
-Fetches a URL and returns the page content as clean markdown. Strips navigation, ads, and boilerplate.
-Supports JS-rendered pages via headless Chrome (spider chrome feature enabled).
-
-## Call format
-
-<web_fetch url=\"https://example.com\">
-
-Single required attribute. The tool tag has no body. No timeout attr — spider
-manages its own timeouts and retries internally.
-
-## Attributes
-
-`url` (required, string): URL to fetch. Must start with http:// or https://.
-Relative URLs are not supported — provide the full absolute URL.
-
-## Output format
-
-Plain text output block:
-
-  {final_url}
-  status: {status_code}
-  title: {title or \"(none)\"}
-
-  {markdown content}
-
-If the content was truncated:
-
-  [truncated — {original_length} characters total, showing first 10000]
-
-Non-2xx status (4xx, 5xx) — informational, NOT a tool error:
-
-  {url}
-  status: {status_code}
-
-  (no content — non-success status)
-
-## HTTP status codes
-
-HTTP error statuses (4xx, 5xx) are NOT tool errors. The model receives the status and can decide:
-- 404 (Not Found): Try a different URL or search for the correct page.
-- 403 (Forbidden): The page is blocked or requires authentication.
-- 500 (Server Error): The server is down — retry later or try a different source.
-- 200 (Success): The page was fetched successfully.
-
-Only network-level failures (can't connect, DNS failure, spider returned zero pages)
-use `is_error: true` with a \"fetch failed: {reason}\" message.
-
-## Content truncation
-
-If `[truncated — ...]` appears at the end, the full page content is longer than 10,000 characters.
-To get the relevant part:
-- Use a more specific URL (e.g., fetch the docs page directly, not the homepage).
-- Use web_search with a more targeted query to find a more specific page.
-- Extract the section you need from the truncated content.
-
-## JS-rendered pages
-
-spider uses headless Chrome to execute JavaScript before returning the page HTML.
-This means SPAs and dynamically-rendered pages are supported, unlike the previous
-reqwest-based implementation which returned only the initial static HTML.
-
-## HTML→markdown conversion
-
-Content is converted to markdown via spider_transformations, which:
-- Strips navigation, ads, scripts, and boilerplate
-- Converts headings, lists, links, code blocks, etc. to markdown
-- Removes inline styles
-- Preserves text content and structure
-
-## Common workflow
-
-1. Use web_search to find relevant URLs.
-2. Pick a promising result URL.
-3. Use web_fetch to read the full content of that URL.
-4. Extract the information you need from the fetched content.
-
-## Common mistakes
-
-### Mistake #1: Fetching a homepage when looking for specific docs
-Homepages are often large and generic. If you're looking for specific documentation:
-- Use web_search to find the specific docs page URL.
-- Fetch that specific URL, not the homepage.
-
-### Mistake #2: Not checking the status code
-If `status: {N}` shows a non-200 code, the content field will be empty.
-Always check the status line before processing content.
-
-### Mistake #3: Ignoring truncation
-If `[truncated ...]` appears, you're only seeing the first 10,000 characters.
-Use a more specific URL or a more targeted search to get the relevant part.
-
-## Error messages
-
-- \"fetch failed: no page returned for {url}\" → Network error (DNS failure, connection refused, timeout, etc.). Retry or try a different URL.
-- \"url is empty\" → Provide a non-empty URL.
-- \"url must start with http:// or https://\" → Use http:// or https://, not ftp:// or other schemes."
-                .to_string(),
+            description: include_str!("description.md").to_string(),
         },
     }
 }

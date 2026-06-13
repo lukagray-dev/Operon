@@ -57,55 +57,7 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_create".to_string(),
-            description: "Creates a new todo item. Call format: <todo_create todo=\"Fix the login bug\" priority=\"high\"> \
-                          `todo` (task description, imperative form) is required. `priority` is optional \
-                          (\"high\", \"medium\", \"low\" — default: \"medium\"). Returns a confirmation line and total count."
-                .to_string(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_create".to_string(),
-            description: "\
-Creates a new todo item in the agent's session-scoped task list. Each item is assigned a unique \
-auto-incrementing ID (as a string: \"1\", \"2\", \"3\", ...) and starts with status \"pending\" \
-and priority \"medium\" (or as specified).
-
-## Call format
-
-<todo_create todo=\"Fix the login bug\" priority=\"high\">
-
-All attribute values are strings. The tool tag has no body.
-
-## Attributes
-
-`todo` (required, string, non-empty): Task description. Use imperative form to describe what needs \
-to be done. Examples: \"Fix the login bug\", \"Implement the grep tool\", \"Write unit tests for the \
-parser\". Whitespace is trimmed — leading and trailing spaces are removed. If empty or whitespace-only, \
-returns an error.
-
-`priority` (optional, string): Priority level for the task. Valid values: \"high\", \"medium\", \
-\"low\". Defaults to \"medium\" if not provided.
-
-## Output format
-
-Plain text. Shows the created item and updated overall counts:
-Created #{id}: {todo} [{priority}]
-Total: {total} ({pending} pending, {in_progress} in progress, {completed} completed)
-
-## Status and lifecycle
-
-New items always start with status \"pending\". As work progresses, update the status to \
-\"in_progress\" when starting work, and \"completed\" when done. Use the `todo_update` tool to \
-change status.
-
-## Session scope
-
-Todos are session-scoped — they exist for the duration of the agent session only.
-
-## Error cases
-
-- Empty todo: \"todo is empty\" — provide a non-empty task description
-- Malformed args: \"failed to parse tool arguments: ...\""
-                .to_string(),
+            description: include_str!("description.md").to_string(),
         },
     }
 }
