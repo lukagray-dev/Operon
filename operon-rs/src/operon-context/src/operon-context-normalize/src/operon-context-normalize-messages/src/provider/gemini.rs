@@ -6,15 +6,10 @@
 //! - assistant role value `model`
 //! - typed parts for text, thought, function calls/responses, and images
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+
 
 use operon_context_normalize_reasoning::{
     denormalize_reasoning, normalize_reasoning, Provider as ReasoningProvider,
-};
-use operon_context_normalize_tools::{
-    denormalize_result as denormalize_tool_result, normalize as normalize_tool_call,
-    Provider as ToolProvider, ToolCallId, ToolContent, ToolResult,
 };
 use serde_json::{json, Value};
 
@@ -73,16 +68,11 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
             continue;
         }
 
-        if part.get("functionCall").is_some() {
-            let tool_call = normalize_tool_call(part.clone(), &ToolProvider::Gemini)
-                .map_err(|e| map_tool_err(e))?;
-            content.push(ContentBlock::ToolCall(tool_call));
-            continue;
-        }
-
-        if part.get("functionResponse").is_some() {
-            content.push(ContentBlock::ToolResult(parse_function_response(part)?));
-            continue;
+        if part.get("functionCall").is_some() || part.get("functionResponse").is_some() {
+            return Err(MessageNormalizeError::UnsupportedContentType {
+                provider: PROVIDER,
+                detail: "tool blocks are not supported under tag protocol".to_string(),
+            });
         }
 
         if part.get("inline_data").is_some() {
@@ -280,55 +270,6 @@ fn extract_system_text_from_parts(parts_value: Option<&Value>) -> Result<String>
     Ok(text.to_string())
 }
 
-fn parse_function_response(part: &Value) -> Result<ToolResult> {
-    let fr = part
-        .get("functionResponse")
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "functionResponse",
-            provider: PROVIDER,
-        })?;
-
-    let name =
-        fr.get("name")
-            .and_then(Value::as_str)
-            .ok_or(MessageNormalizeError::MissingField {
-                field: "functionResponse.name",
-                provider: PROVIDER,
-            })?;
-
-    let response = fr
-        .get("response")
-        .cloned()
-        .unwrap_or_else(|| json!({"content": ""}));
-
-    let content = if let Some(raw_content) = response.get("content") {
-        match raw_content {
-            Value::String(s) => ToolContent::Text(s.to_string()),
-            other => ToolContent::Json(other.clone()),
-        }
-    } else {
-        ToolContent::Json(response.clone())
-    };
-
-    let call_id = synthetic_function_response_call_id(name, &response);
-    Ok(ToolResult {
-        call_id: ToolCallId(call_id),
-        name: name.to_string(),
-        content,
-        is_error: false,
-        // Since we are parsing a tool result from Gemini's raw wire message format,
-        // we do not have (nor do we need) the in-memory read_paths ledger data. Therefore,
-        // we default this field to None.
-        read_paths: None,
-    })
-}
-
-fn synthetic_function_response_call_id(name: &str, response: &Value) -> String {
-    let mut hasher = DefaultHasher::new();
-    name.hash(&mut hasher);
-    response.to_string().hash(&mut hasher);
-    format!("gemini-fr-{:016x}", hasher.finish())
-}
 
 fn render_parts_for_message(msg: &ConversationMessage) -> Result<Vec<Value>> {
     let mut parts = Vec::new();
@@ -354,18 +295,11 @@ fn render_parts_for_message(msg: &ConversationMessage) -> Result<Vec<Value>> {
                     }));
                 }
             },
-            ContentBlock::ToolCall(tc) => {
-                parts.push(json!({
-                    "functionCall": {
-                        "name": tc.name,
-                        "args": tc.arguments
-                    }
-                }));
-            }
-            ContentBlock::ToolResult(tr) => {
-                let wire =
-                    denormalize_tool_result(tr, &ToolProvider::Gemini).map_err(map_tool_err)?;
-                parts.push(wire);
+            ContentBlock::ToolCall(_) | ContentBlock::ToolResult(_) => {
+                return Err(MessageNormalizeError::UnsupportedContentType {
+                    provider: PROVIDER,
+                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
+                });
             }
             ContentBlock::Reasoning(rb) => {
                 let wire =
@@ -411,20 +345,6 @@ fn render_system_text(content: &[ContentBlock]) -> Result<String> {
     Ok(text_parts.join("\n\n"))
 }
 
-fn map_tool_err(err: operon_context_normalize_tools::ToolNormalizeError) -> MessageNormalizeError {
-    match err {
-        operon_context_normalize_tools::ToolNormalizeError::MissingField { field, .. } => {
-            MessageNormalizeError::MissingField {
-                field,
-                provider: PROVIDER,
-            }
-        }
-        other => MessageNormalizeError::UnsupportedContentType {
-            provider: PROVIDER,
-            detail: other.to_string(),
-        },
-    }
-}
 
 fn map_reasoning_err(
     err: operon_context_normalize_reasoning::ReasoningNormalizeError,

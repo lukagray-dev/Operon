@@ -156,7 +156,8 @@ where
 mod tests {
     use super::*;
     use operon_context_normalize_reasoning::ReasoningBlock;
-    use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+    use operon_context_normalize::tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+
     use serde_json::json;
 
     fn text_message(role: MessageRole, text: &str) -> ConversationMessage {

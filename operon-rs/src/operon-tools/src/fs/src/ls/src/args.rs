@@ -79,8 +79,7 @@ impl LsArgs {
             let key = line[..eq_pos].trim();
             let values_str = line[eq_pos + 1..].trim();
 
-            // Tokens are whitespace-separated, already unquoted by the parser.
-            let tokens: Vec<&str> = values_str.split_whitespace().collect();
+            let tokens = parse_tokens(values_str);
 
             match key {
                 "depth" => {
@@ -95,12 +94,12 @@ impl LsArgs {
                 }
                 "glob" => {
                     if let Some(first) = tokens.first() {
-                        glob = Some(first.to_string());
+                        glob = Some(first.clone());
                     }
                 }
                 "ignore" => {
                     for token in tokens {
-                        ignore.push(token.to_string());
+                        ignore.push(token);
                     }
                 }
                 // Unknown keys are silently ignored for forward-compatibility.
@@ -116,4 +115,47 @@ impl LsArgs {
             ignore,
         })
     }
+}
+
+/// Helper to parse space-separated tokens from a line, respecting double quotes and unescaping.
+fn parse_tokens(s: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut chars = s.chars().peekable();
+    while let Some(&c) = chars.peek() {
+        if c.is_whitespace() {
+            chars.next();
+            continue;
+        }
+        if c == '"' {
+            chars.next(); // consume opening quote
+            let mut val = String::new();
+            while let Some(next_c) = chars.next() {
+                if next_c == '\\' {
+                    if let Some(&esc_c) = chars.peek() {
+                        if esc_c == '"' || esc_c == '\\' {
+                            val.push(esc_c);
+                            chars.next();
+                            continue;
+                        }
+                    }
+                }
+                if next_c == '"' {
+                    break;
+                }
+                val.push(next_c);
+            }
+            tokens.push(val);
+        } else {
+            let mut val = String::new();
+            while let Some(&next_c) = chars.peek() {
+                if next_c.is_whitespace() {
+                    break;
+                }
+                val.push(next_c);
+                chars.next();
+            }
+            tokens.push(val);
+        }
+    }
+    tokens
 }

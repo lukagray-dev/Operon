@@ -41,7 +41,6 @@
 
 mod args;
 mod error;
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -49,9 +48,8 @@ mod tests;
 pub use args::AskArgs;
 pub use error::AskToolError;
 
-use operon_context_normalize_tools::ToolDefinition;
+use operon_context_normalize::tools::ToolDefinition;
 use operon_tools_core::TieredToolDefinition;
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `ask` tool.
 ///
@@ -60,12 +58,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation with call format,
 ///   behavior, response format, and common mistakes.
 pub fn definition() -> TieredToolDefinition {
-    // No parameter fields in the schema — everything is in the body.
-    let parameters = json!({
-        "type": "object",
-        "properties": {}
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "ask".to_string(),
@@ -74,7 +66,6 @@ pub fn definition() -> TieredToolDefinition {
                           free-text field as a 4th option automatically. Execution resumes when the \
                           user responds."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "ask".to_string(),
@@ -117,11 +108,10 @@ pub fn definition() -> TieredToolDefinition {
                           - Missing any of `question`, `option1`, `option2`, `option3` → parse error.\n\
                           - Calling `ask` multiple times in one turn → only the first call \
                             suspends the loop; remaining calls execute in subsequent turns.\n\
-                          - Phrasing options as questions instead of concise answers → confuses users.\n\
-                          - Expecting a 4th option in the ToolResult → the free-text field is UI-only; \
-                            the answer arrives as a plain string regardless of which field the user used."
-                .to_string(),
-            parameters,
-        },
-    }
-}
+                            - Phrasing options as questions instead of concise answers → confuses users.\n\
+                            - Expecting a 4th option in the ToolResult → the free-text field is UI-only; \
+                              the answer arrives as a plain string regardless of which field the user used."
+                  .to_string(),
+          },
+      }
+  }

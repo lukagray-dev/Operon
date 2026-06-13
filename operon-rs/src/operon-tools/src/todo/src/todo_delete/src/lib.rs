@@ -9,7 +9,7 @@
 //!
 //! ```rust
 //! use operon_tools_todo_delete::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
+//! use operon_context_normalize::tools::ToolCallId;
 //! use operon_tools_core::TodoStore;
 //! use serde_json::json;
 //!
@@ -33,40 +33,25 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
 
 pub use args::TodoDeleteArgs;
 pub use error::TodoDeleteToolError;
-pub use output::TodoDeleteOutput;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_delete` tool.
 pub fn definition() -> TieredToolDefinition {
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "id": {
-                "type": "string",
-                "description": "Id of the todo item to delete."
-            }
-        },
-        "required": ["id"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_delete".to_string(),
             description: "Deletes a todo item by id. Call format: <todo_delete id=\"1\">"
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "todo_delete".to_string(),
@@ -93,7 +78,6 @@ Deleted #{id}. {remaining} todo(s) remaining.
 - ID not found: \"todo not found: id 'X'\"
 - Malformed args: \"failed to parse tool arguments: ...\""
                 .to_string(),
-            parameters,
         },
     }
 }

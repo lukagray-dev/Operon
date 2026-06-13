@@ -11,7 +11,7 @@
 //!
 //! ```rust
 //! use operon_tools_load::{definition, execute_list_groups, execute_with_defs};
-//! use operon_context_normalize_tools::{ToolCallId, ToolDefinition};
+//! use operon_context_normalize::tools::{ToolCallId, ToolDefinition};
 //!
 //! # fn example() {
 //! // 1. Get the tool definition to register with the model.
@@ -35,10 +35,6 @@
 //! ```
 
 mod args;
-// output.rs is kept solely for test compilation compatibility — the types
-// (GroupLoadOutput, GroupListOutput, LoadedTool) are still re-exported below
-// so that the existing tests.rs (being rewritten separately) continues to compile.
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -46,14 +42,10 @@ mod tests;
 // Re-export args type for callers that parse args externally.
 pub use args::LoadToolsArgs;
 
-// Re-export output types for test compatibility — not used in production paths.
-pub use output::{GroupListOutput, GroupLoadOutput, LoadedTool};
-
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `load_tools` tool.
 ///
@@ -62,18 +54,6 @@ use serde_json::json;
 /// - `detailed`: Sent after a malformed call. Full explanation with call modes,
 ///   output format, worked examples, and common mistakes.
 pub fn definition() -> TieredToolDefinition {
-    // The schema only declares "group". This is load_tools' OWN schema shown to
-    // the model BEFORE it calls load_tools — not the schemas of tools it returns.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "group": {
-                "type": "string",
-                "description": "Tool group to load. Omit to list all available groups."
-            }
-        }
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "load_tools".to_string(),
@@ -82,7 +62,6 @@ pub fn definition() -> TieredToolDefinition {
                           group. Omit `group` to list all available groups. Always call this \
                           before using any tool — tools are not available until loaded."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "load_tools".to_string(),
@@ -131,7 +110,6 @@ If you pass an unknown group name, load_tools returns an error:
 For installed extensions, use `mcp_load` instead of `load_tools`.
 `load_tools` is for built-in groups only."
                 .to_string(),
-            parameters,
         },
     }
 }
@@ -186,7 +164,9 @@ pub fn execute_with_progress(
     let tool_count = defs.len();
     let sections: Vec<String> = defs
         .into_iter()
-        .map(|d| format!("## {}\n{}", d.name, d.description))
+        .map(|d| {
+            format!("## {}\n{}", d.name, d.description)
+        })
         .collect();
 
     let body = sections.join("\n\n");

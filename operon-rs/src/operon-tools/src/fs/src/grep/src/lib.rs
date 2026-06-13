@@ -37,7 +37,6 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -45,29 +44,16 @@ mod tests;
 pub use args::GrepArgs;
 pub use error::GrepToolError;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `grep` tool.
 ///
 /// - `short`: sent to the model under normal conditions. Concise.
 /// - `detailed`: sent after a malformed call. Full explanation with body format.
 pub fn definition() -> TieredToolDefinition {
-    // Schema: only `path` is an attribute. All options live in the body.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Absolute path to the directory or file to search."
-            }
-        },
-        "required": ["path"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "grep".to_string(),
@@ -77,7 +63,6 @@ pub fn definition() -> TieredToolDefinition {
                           ignore=\"node_modules\" to skip directories, context=\"3\" for context lines. \
                           Omit pattern for glob-only file listing. Results capped at 300 matches."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "grep".to_string(),
@@ -164,7 +149,6 @@ File errors (binary, too large, permission denied):
 - Expecting glob to filter direct file paths — glob only affects directory walks.
 - Passing pattern as a JSON field instead of in the tool body."
                 .to_string(),
-            parameters,
         },
     }
 }

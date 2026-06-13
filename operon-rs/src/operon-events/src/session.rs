@@ -91,7 +91,7 @@ pub enum SessionEvent {
     /// Emitted when the assembler detects a complete tool call in the stream.
     /// Always followed immediately by `ToolCallArgsReady` with the full arguments.
     /// The `call_id` is a raw string — not a `ToolCallId` — to avoid a dependency
-    /// on `operon-context-normalize-tools`.
+    /// on `operon-context-normalize`.
     ToolCallStart {
         /// Provider-specific tool call identifier (e.g. `"toolu_01A"` for Anthropic).
         call_id: String,

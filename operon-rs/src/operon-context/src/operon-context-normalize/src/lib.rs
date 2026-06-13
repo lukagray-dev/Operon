@@ -10,16 +10,16 @@
 //! - [`messages`]: canonical conversation message normalization.
 //! - [`stream`]: canonical stream-event parsing and stream assembly.
 
+pub mod tools;
+
 pub use operon_context_normalize_messages as messages;
 pub use operon_context_normalize_reasoning as reasoning;
 pub use operon_context_normalize_stream as stream;
-pub use operon_context_normalize_tools as tools;
 
 pub use operon_context_normalize_messages::{
     ContentBlock, ConversationMessage, MessageRole, StopReason,
 };
 pub use operon_context_normalize_reasoning::{ReasoningBlock, ReasoningSignature};
 pub use operon_context_normalize_stream::{AssemblerOutput, StreamEvent};
-pub use operon_context_normalize_tools::{
-    Provider, ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
-};
+pub use tools::{ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult};
+

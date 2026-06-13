@@ -28,7 +28,6 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -36,29 +35,16 @@ mod tests;
 pub use args::LsArgs;
 pub use error::LsToolError;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `ls` tool.
 ///
 /// - `short`: sent to the model under normal conditions. Concise.
 /// - `detailed`: sent after a malformed call. Full body format explanation.
 pub fn definition() -> TieredToolDefinition {
-    // Schema: only `path` is an attribute. All options live in the body.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Absolute path to the directory to list."
-            }
-        },
-        "required": ["path"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "ls".to_string(),
@@ -67,7 +53,6 @@ pub fn definition() -> TieredToolDefinition {
                           glob=\"*.py\" to filter files, ignore=\"node_modules\" to skip entries. \
                           Output includes sizes. Capped at 1000 entries."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "ls".to_string(),
@@ -137,7 +122,6 @@ If the path doesn't exist or is a file:
 - Using relative paths — always use absolute paths.
 - Expecting recursive output without setting depth > 1."
                 .to_string(),
-            parameters,
         },
     }
 }

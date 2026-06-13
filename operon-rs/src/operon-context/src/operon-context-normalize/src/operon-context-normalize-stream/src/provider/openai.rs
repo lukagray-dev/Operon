@@ -52,42 +52,7 @@ pub fn parse_value_with_provider(raw: Value, provider: &'static str) -> Result<V
                 });
             }
 
-            if let Some(tool_calls) = delta.get("tool_calls").and_then(Value::as_array) {
-                for tool_call in tool_calls {
-                    let index = tool_call.get("index").and_then(Value::as_u64).ok_or(
-                        StreamNormalizeError::MissingField {
-                            field: "choices[].delta.tool_calls[].index",
-                            provider,
-                        },
-                    )? as usize;
-
-                    let id = tool_call
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .map(str::to_string);
-                    let name = tool_call
-                        .get("function")
-                        .and_then(|function| function.get("name"))
-                        .and_then(Value::as_str)
-                        .map(str::to_string);
-
-                    if id.is_some() || name.is_some() {
-                        events.push(StreamEvent::ToolCallStart { index, id, name });
-                    }
-
-                    if let Some(arguments) = tool_call
-                        .get("function")
-                        .and_then(|function| function.get("arguments"))
-                        .and_then(Value::as_str)
-                        .filter(|value| !value.is_empty())
-                    {
-                        events.push(StreamEvent::ToolCallDelta {
-                            index,
-                            arguments_fragment: arguments.to_string(),
-                        });
-                    }
-                }
-            }
+            // Under the plain-text tag protocol, we ignore tool calls on the stream.
 
             if let Some(finish_reason) = choice
                 .get("finish_reason")

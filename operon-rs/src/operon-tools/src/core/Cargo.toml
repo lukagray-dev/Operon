@@ -14,7 +14,7 @@ repository.workspace = true
 thiserror.workspace                    = true
 serde.workspace                        = true
 serde_json.workspace                   = true
-operon-context-normalize-tools.workspace = true
+operon-context-normalize.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

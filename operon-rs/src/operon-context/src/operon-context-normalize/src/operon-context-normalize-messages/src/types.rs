@@ -5,7 +5,7 @@
 //! values on input, and denormalized from these values on output.
 
 use operon_context_normalize_reasoning::ReasoningBlock;
-use operon_context_normalize_tools::{ToolCall, ToolResult};
+use crate::tools::{ToolCall, ToolResult};
 use serde::{Deserialize, Serialize};
 
 pub use crate::stop_reason::StopReason;

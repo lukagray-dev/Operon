@@ -9,7 +9,6 @@ repository.workspace = true
 
 [dependencies]
 operon-providers.workspace               = true
-operon-context-normalize-tools.workspace     = true
 operon-context-normalize-reasoning.workspace = true
 
 thiserror.workspace  = true

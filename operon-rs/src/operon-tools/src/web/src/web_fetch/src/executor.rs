@@ -13,7 +13,8 @@
 //! - Network-level failures (no page returned) → ToolContent::Text, is_error: true.
 
 use crate::args::WebFetchArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+
 use spider::website::Website;
 use spider_transformations::transformation::content::{transform_content, TransformConfig};
 

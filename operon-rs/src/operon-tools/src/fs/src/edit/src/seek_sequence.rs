@@ -9,7 +9,57 @@
 //   3. Both-sides-trimmed match
 //   4. Unicode-normalised match — normalises fancy dashes, quotes, and
 //      non-breaking spaces to their ASCII equivalents before comparing.
+/// Normalise a line: trim both ends then map fancy Unicode punctuation to
+/// ASCII equivalents so a plain-ASCII diff can still locate the region.
+/// Defined at the module level to be usable across seek operations.
+fn normalise(s: &str) -> String {
+    s.trim()
+        .chars()
+        .map(|c| match c {
+            // Various dash / hyphen codepoints → ASCII '-'
+            '\u{2010}' // HYPHEN
+            | '\u{2011}' // NON-BREAKING HYPHEN
+            | '\u{2012}' // FIGURE DASH
+            | '\u{2013}' // EN DASH
+            | '\u{2014}' // EM DASH
+            | '\u{2015}' // HORIZONTAL BAR
+            | '\u{2212}' // MINUS SIGN
+            => '-',
 
+            // Fancy single quotes → ASCII apostrophe
+            '\u{2018}' // LEFT SINGLE QUOTATION MARK
+            | '\u{2019}' // RIGHT SINGLE QUOTATION MARK
+            | '\u{201A}' // SINGLE LOW-9 QUOTATION MARK
+            | '\u{201B}' // SINGLE HIGH-REVERSED-9 QUOTATION MARK
+            => '\'',
+
+            // Fancy double quotes → ASCII double quote
+            '\u{201C}' // LEFT DOUBLE QUOTATION MARK
+            | '\u{201D}' // RIGHT DOUBLE QUOTATION MARK
+            | '\u{201E}' // DOUBLE LOW-9 QUOTATION MARK
+            | '\u{201F}' // DOUBLE HIGH-REVERSED-9 QUOTATION MARK
+            => '"',
+
+            // Non-breaking and miscellaneous odd spaces → ASCII space
+            '\u{00A0}' // NO-BREAK SPACE
+            | '\u{2002}' // EN SPACE
+            | '\u{2003}' // EM SPACE
+            | '\u{2004}' // THREE-PER-EM SPACE
+            | '\u{2005}' // FOUR-PER-EM SPACE
+            | '\u{2006}' // SIX-PER-EM SPACE
+            | '\u{2007}' // FIGURE SPACE
+            | '\u{2008}' // PUNCTUATION SPACE
+            | '\u{2009}' // THIN SPACE
+            | '\u{200A}' // HAIR SPACE
+            | '\u{202F}' // NARROW NO-BREAK SPACE
+            | '\u{205F}' // MEDIUM MATHEMATICAL SPACE
+            | '\u{3000}' // IDEOGRAPHIC SPACE
+            => ' ',
+
+            other => other,
+        })
+        .collect::<String>()
+}
 
 /// Find the first occurrence of `pattern` lines in `lines` starting at or
 /// after `start`. When `eof` is true, first attempt to match at the end of
@@ -40,14 +90,44 @@ pub(crate) fn seek_sequence(
         return None;
     }
 
-    // When `eof` is set, start the search from the last position where the
-    // pattern could still fit, so we prefer an end-of-file match. If that
-    // fails, the loops below continue scanning forward from `start`.
-    let search_start = if eof && lines.len() >= pattern.len() {
-        lines.len() - pattern.len()
-    } else {
-        start
-    };
+    // When `eof` is true, first attempt to match at the very end of `lines`
+    // across all four passes. If that succeeds, return it immediately.
+    // If not, fall back to a forward search starting from `start`.
+    if eof && lines.len() >= pattern.len() {
+        let end_idx = lines.len() - pattern.len();
+
+        // ── Pass 1: Exact match at the end ──────────────────────────────────
+        if lines[end_idx..end_idx + pattern.len()] == *pattern {
+            return Some(end_idx);
+        }
+
+        // ── Pass 2: Trailing-whitespace-ignored match at the end ────────────
+        let pass2 = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            lines[end_idx + p_idx].trim_end() == pat.trim_end()
+        });
+        if pass2 {
+            return Some(end_idx);
+        }
+
+        // ── Pass 3: Both-sides-trimmed match at the end ─────────────────────
+        let pass3 = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            lines[end_idx + p_idx].trim() == pat.trim()
+        });
+        if pass3 {
+            return Some(end_idx);
+        }
+
+        // ── Pass 4: Unicode-normalised match at the end ─────────────────────
+        let pass4 = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            normalise(&lines[end_idx + p_idx]) == normalise(pat)
+        });
+        if pass4 {
+            return Some(end_idx);
+        }
+    }
+
+    // Fall back to a forward search starting from `start`.
+    let search_start = start;
 
     // ── Pass 1: Exact match ────────────────────────────────────────────────
     // Compare line slices byte-for-byte. Cheapest pass — if it succeeds we
@@ -93,57 +173,6 @@ pub(crate) fn seek_sequence(
     //   Fancy single quotes            → '\''
     //   Fancy double quotes            → '"'
     //   Non-breaking and odd spaces    → ' '
-
-    /// Normalise a line: trim both ends then map fancy Unicode punctuation to
-    /// ASCII equivalents so a plain-ASCII diff can still locate the region.
-    fn normalise(s: &str) -> String {
-        s.trim()
-            .chars()
-            .map(|c| match c {
-                // Various dash / hyphen codepoints → ASCII '-'
-                '\u{2010}' // HYPHEN
-                | '\u{2011}' // NON-BREAKING HYPHEN
-                | '\u{2012}' // FIGURE DASH
-                | '\u{2013}' // EN DASH
-                | '\u{2014}' // EM DASH
-                | '\u{2015}' // HORIZONTAL BAR
-                | '\u{2212}' // MINUS SIGN
-                => '-',
-
-                // Fancy single quotes → ASCII apostrophe
-                '\u{2018}' // LEFT SINGLE QUOTATION MARK
-                | '\u{2019}' // RIGHT SINGLE QUOTATION MARK
-                | '\u{201A}' // SINGLE LOW-9 QUOTATION MARK
-                | '\u{201B}' // SINGLE HIGH-REVERSED-9 QUOTATION MARK
-                => '\'',
-
-                // Fancy double quotes → ASCII double quote
-                '\u{201C}' // LEFT DOUBLE QUOTATION MARK
-                | '\u{201D}' // RIGHT DOUBLE QUOTATION MARK
-                | '\u{201E}' // DOUBLE LOW-9 QUOTATION MARK
-                | '\u{201F}' // DOUBLE HIGH-REVERSED-9 QUOTATION MARK
-                => '"',
-
-                // Non-breaking and miscellaneous odd spaces → ASCII space
-                '\u{00A0}' // NO-BREAK SPACE
-                | '\u{2002}' // EN SPACE
-                | '\u{2003}' // EM SPACE
-                | '\u{2004}' // THREE-PER-EM SPACE
-                | '\u{2005}' // FOUR-PER-EM SPACE
-                | '\u{2006}' // SIX-PER-EM SPACE
-                | '\u{2007}' // FIGURE SPACE
-                | '\u{2008}' // PUNCTUATION SPACE
-                | '\u{2009}' // THIN SPACE
-                | '\u{200A}' // HAIR SPACE
-                | '\u{202F}' // NARROW NO-BREAK SPACE
-                | '\u{205F}' // MEDIUM MATHEMATICAL SPACE
-                | '\u{3000}' // IDEOGRAPHIC SPACE
-                => ' ',
-
-                other => other,
-            })
-            .collect::<String>()
-    }
 
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {

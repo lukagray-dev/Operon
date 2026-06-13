@@ -29,7 +29,7 @@
 //   responsible for using a fixed opaque message when constructing the error
 //   ToolResult (e.g. "Tool not available.").
 
-use operon_context_normalize_tools::ToolCall;
+use operon_context_normalize::tools::ToolCall;
 use std::path::PathBuf;
 
 use crate::config::PolicyConfig;
@@ -260,10 +260,10 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
             .and_then(|v| v.as_str())
             .map(PathBuf::from),
 
-        // The `bash` tool uses `"cwd"` as the policy anchor (Option C).
-        // If cwd is missing, the tool executor would also reject it — but we
+        // The `bash` tool uses `"path"` as the policy anchor.
+        // If path is missing, the tool executor would also reject it — but we
         // reject it here first so the policy layer catches it before dispatch.
-        DirTool::Bash => args.get("cwd").and_then(|v| v.as_str()).map(PathBuf::from),
+        DirTool::Bash => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
 
         // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"`
         // string argument. We extract this value to verify directory containment.
@@ -390,7 +390,7 @@ mod tests {
     use super::*;
     use crate::config::{DirectoryPolicy, GlobalPolicy};
     use crate::types::{CallerRole, DirTool, FsTool, GlobalTool, PermissionMode};
-    use operon_context_normalize_tools::{ToolCall, ToolCallId};
+    use operon_context_normalize::tools::{ToolCall, ToolCallId};
     use serde_json::json;
     use tempfile::TempDir;
 
@@ -592,8 +592,8 @@ mod tests {
     }
 
     #[test]
-    fn test_bash_uses_cwd_as_policy_anchor() {
-        // The bash tool uses `cwd` (not `path`) as the policy path argument.
+    fn test_bash_uses_path_as_policy_anchor() {
+        // The bash tool uses `path` (not `cwd` or other names) as the policy path argument.
         let tmp = TempDir::new().unwrap();
         let canonical_dir = std::fs::canonicalize(tmp.path()).unwrap();
 
@@ -604,21 +604,21 @@ mod tests {
         );
         let resolver = PolicyResolver::new(config);
 
-        // Owner calls bash with cwd inside the allowed dir → Allow.
+        // Owner calls bash with path inside the allowed dir → Allow.
         let owner_call = make_call(
             "bash",
-            json!({ "command": "ls", "cwd": tmp.path().to_str().unwrap() }),
+            json!({ "command": "ls", "path": tmp.path().to_str().unwrap() }),
         );
         let owner_decision = resolver.check(&owner_call, CallerRole::Owner);
         assert!(
             owner_decision.is_allow(),
-            "bash with valid cwd should be allowed for owner"
+            "bash with valid path should be allowed for owner"
         );
 
-        // External calls bash with same cwd → Deny (per config).
+        // External calls bash with same path → Deny (per config).
         let ext_call = make_call(
             "bash",
-            json!({ "command": "ls", "cwd": tmp.path().to_str().unwrap() }),
+            json!({ "command": "ls", "path": tmp.path().to_str().unwrap() }),
         );
         let ext_decision = resolver.check(&ext_call, CallerRole::External);
         assert!(
@@ -628,8 +628,8 @@ mod tests {
     }
 
     #[test]
-    fn test_bash_missing_cwd_is_denied() {
-        // If `cwd` is absent from the bash call args → Deny (no path anchor).
+    fn test_bash_missing_path_is_denied() {
+        // If `path` is absent from the bash call args → Deny (no path anchor).
         let tmp = TempDir::new().unwrap();
         let canonical_dir = std::fs::canonicalize(tmp.path()).unwrap();
 
@@ -640,12 +640,12 @@ mod tests {
         );
         let resolver = PolicyResolver::new(config);
 
-        // bash call WITHOUT cwd → policy can't evaluate → Deny.
-        let call = make_call("bash", json!({ "command": "ls" })); // no cwd
+        // bash call WITHOUT path → policy can't evaluate → Deny.
+        let call = make_call("bash", json!({ "command": "ls" })); // no path
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_deny(),
-            "bash without cwd should be denied — no policy anchor"
+            "bash without path should be denied — no policy anchor"
         );
     }
 

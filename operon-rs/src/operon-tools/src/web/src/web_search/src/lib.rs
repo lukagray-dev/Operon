@@ -36,22 +36,17 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
 
 pub use args::WebSearchArgs;
 pub use error::WebSearchToolError;
-// Compatibility re-exports: kept so tests.rs compiles until it is rewritten.
-// The executor no longer produces JSON — these types are not used at runtime.
-pub use output::{SearchResult, WebSearchOutput};
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `web_search` tool.
 ///
@@ -60,24 +55,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation with input attrs,
 ///   output format, error cases, worked examples, and common mistakes.
 pub fn definition() -> TieredToolDefinition {
-    // Schema uses string types for all attrs because the custom parser passes
-    // all attribute values as strings. `max` represents an integer 1–10, default 5,
-    // but is passed as a string (e.g. max="10").
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "query": {
-                "type": "string",
-                "description": "Search query. Supports DuckDuckGo syntax: quotes, site:, filetype:, -exclude, etc."
-            },
-            "max": {
-                "type": "string",
-                "description": "Number of results to return, as a string. Represents an integer 1–10. Default: 5. Maximum: 10."
-            }
-        },
-        "required": ["query"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "web_search".to_string(),
@@ -87,7 +64,6 @@ pub fn definition() -> TieredToolDefinition {
                           rank, title, URL, and snippet. No API key required. \
                           Use web_fetch to read the full content of any result URL."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "web_search".to_string(),
@@ -170,7 +146,6 @@ Use site:, filetype:, quotes, and other operators for better results:
 - \"No results for '...'\" → Refine the query or try different search terms.
 - \"search failed: ...\" → Network error or DuckDuckGo API failure. Retry or try a different query."
                 .to_string(),
-            parameters,
         },
     }
 }
@@ -179,7 +154,8 @@ Use site:, filetype:, quotes, and other operators for better results:
 ///
 /// Returns a `ToolResult` with plain-text content (ToolContent::Text) on both
 /// success and failure. Returns `Err(WebSearchToolError::ArgsParse)` only if the
-/// required `query` attribute is missing or invalid.
+/// required `query` attribute is missing. Other validation failures (e.g. empty
+/// query) return Ok with `is_error: true`.
 ///
 /// # Arguments
 /// - `call_id`: The unique identifier for this tool call (from the model's request).
@@ -193,9 +169,23 @@ pub async fn execute(
     args_json: serde_json::Value,
 ) -> Result<ToolResult, WebSearchToolError> {
     // Parse the arguments — on failure, return an ArgsParse error so the dispatcher
-    // can send the detailed tool definition back to the model.
-    let args = WebSearchArgs::parse(&args_json)
-        .map_err(WebSearchToolError::ArgsParse)?;
+    // can send the detailed tool definition back to the model, unless it is a
+    // soft validation error (empty query).
+    let args = match WebSearchArgs::parse(&args_json) {
+        Ok(a) => a,
+        Err(e) => {
+            if e.contains("missing") {
+                return Err(WebSearchToolError::ArgsParse(e));
+            }
+            return Ok(ToolResult {
+                call_id,
+                name: "web_search".to_string(),
+                content: ToolContent::Text(e),
+                is_error: true,
+                read_paths: None,
+            });
+        }
+    };
 
     // Execute the search and return the result. The executor always returns a
     // ToolResult (never panics or propagates an error up).
@@ -209,8 +199,21 @@ pub async fn execute_with_progress(
     progress: Option<ToolProgressEmitter>,
 ) -> Result<ToolResult, WebSearchToolError> {
     // Parse the arguments first — fail fast before emitting any progress.
-    let args = WebSearchArgs::parse(&args_json)
-        .map_err(WebSearchToolError::ArgsParse)?;
+    let args = match WebSearchArgs::parse(&args_json) {
+        Ok(a) => a,
+        Err(e) => {
+            if e.contains("missing") {
+                return Err(WebSearchToolError::ArgsParse(e));
+            }
+            return Ok(ToolResult {
+                call_id,
+                name: "web_search".to_string(),
+                content: ToolContent::Text(e),
+                is_error: true,
+                read_paths: None,
+            });
+        }
+    };
 
     // Emit a progress event so the UI can show the query being searched.
     emit_tool_progress(

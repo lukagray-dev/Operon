@@ -55,14 +55,14 @@ pub struct ParseResult {
 
 impl RawToolCall {
     /// Converts this `RawToolCall` into a dispatchable `ToolCall` from the
-    /// `operon-context-normalize-tools` crate.
+    /// `operon-context-normalize` crate.
     ///
     /// This assigns a unique `ToolCallId` and maps the attribute strings into a
     /// `serde_json::Value::Object`.
     pub fn into_tool_call(
         self,
-        call_id: operon_context_normalize_tools::ToolCallId,
-    ) -> operon_context_normalize_tools::ToolCall {
+        call_id: operon_context_normalize::tools::ToolCallId,
+    ) -> operon_context_normalize::tools::ToolCall {
         // We pack all flat string attributes into a serde JSON object where values are string types.
         let arguments = serde_json::Value::Object(
             self.attrs
@@ -71,7 +71,7 @@ impl RawToolCall {
                 .collect(),
         );
 
-        operon_context_normalize_tools::ToolCall {
+        operon_context_normalize::tools::ToolCall {
             id: call_id,
             name: self.name,
             arguments,
@@ -692,7 +692,7 @@ mod tests {
             attrs,
             offset: 10,
         };
-        let call_id = operon_context_normalize_tools::ToolCallId("call_123".to_string());
+        let call_id = operon_context_normalize::tools::ToolCallId("call_123".to_string());
         let tool_call = raw.into_tool_call(call_id);
         assert_eq!(tool_call.id.0, "call_123");
         assert_eq!(tool_call.name, "write");

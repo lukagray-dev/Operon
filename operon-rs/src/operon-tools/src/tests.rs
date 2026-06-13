@@ -7,7 +7,7 @@
 /// - Successful dispatch without degradation
 use crate::dispatcher::Dispatcher;
 use crate::{ToolProgress, ToolProgressEmitter, ToolProgressStage};
-use operon_context_normalize_tools::{ToolCall, ToolCallId};
+use operon_context_normalize::tools::{ToolCall, ToolCallId, ToolContent};
 use serde_json::json;
 
 /// Helper to create a ToolCall for testing.
@@ -202,14 +202,14 @@ async fn test_write_existing_file_blocked_without_read() {
             "write",
             json!({
                 "path": path.to_str().unwrap(),
-                "content": "new content\n"
+                "__body__": "new content\n"
             }),
         ))
         .await;
 
     assert!(result.is_error, "write to existing file should be blocked");
     let error_text = match &result.content {
-        operon_context_normalize_tools::ToolContent::Text(t) => t,
+        ToolContent::Text(t) => t,
         _ => panic!("expected Text content"),
     };
     assert!(
@@ -266,19 +266,14 @@ async fn test_edit_blocked_without_read() {
             "edit",
             json!({
                 "path": path.to_str().unwrap(),
-                "edits": [
-                    {
-                        "old_string": "fn foo() {}",
-                        "new_string": "fn bar() {}"
-                    }
-                ]
+                "__body__": "@@\n-fn foo() {}\n+fn bar() {}"
             }),
         ))
         .await;
 
     assert!(result.is_error, "edit should be blocked without prior read");
     let error_text = match &result.content {
-        operon_context_normalize_tools::ToolContent::Text(t) => t,
+        ToolContent::Text(t) => t,
         _ => panic!("expected Text content"),
     };
     assert!(
@@ -316,12 +311,7 @@ async fn test_read_then_edit_allowed() {
             "edit",
             json!({
                 "path": path.to_str().unwrap(),
-                "edits": [
-                    {
-                        "old_string": "fn foo() {}",
-                        "new_string": "fn bar() {}"
-                    }
-                ]
+                "__body__": "@@\n-fn foo() {}\n+fn bar() {}"
             }),
         ))
         .await;
@@ -330,7 +320,7 @@ async fn test_read_then_edit_allowed() {
         !edit_result.is_error,
         "edit should be allowed after read: {}",
         match &edit_result.content {
-            operon_context_normalize_tools::ToolContent::Text(t) => t,
+            ToolContent::Text(t) => t,
             _ => "unknown error",
         }
     );
@@ -371,7 +361,7 @@ async fn test_read_then_write_allowed() {
             "write",
             json!({
                 "path": path.to_str().unwrap(),
-                "content": "new content\n"
+                "__body__": "new content\n"
             }),
         ))
         .await;
@@ -380,7 +370,7 @@ async fn test_read_then_write_allowed() {
         !write_result.is_error,
         "write should be allowed after read: {}",
         match &write_result.content {
-            operon_context_normalize_tools::ToolContent::Text(t) => t,
+            ToolContent::Text(t) => t,
             _ => "unknown error",
         }
     );
@@ -428,12 +418,7 @@ async fn test_compaction_clears_ledger() {
             "edit",
             json!({
                 "path": path.to_str().unwrap(),
-                "edits": [
-                    {
-                        "old_string": "fn foo() {}",
-                        "new_string": "fn bar() {}"
-                    }
-                ]
+                "__body__": "@@\n-fn foo() {}\n+fn bar() {}"
             }),
         ))
         .await;
@@ -477,12 +462,7 @@ async fn test_failed_read_does_not_record() {
             "edit",
             json!({
                 "path": nonexistent_path.to_str().unwrap(),
-                "edits": [
-                    {
-                        "old_string": "anything",
-                        "new_string": "something"
-                    }
-                ]
+                "__body__": "@@\n-anything\n+something"
             }),
         ))
         .await;
@@ -500,41 +480,38 @@ async fn test_failed_read_does_not_record() {
 #[tokio::test]
 async fn test_bash_tool_registration_and_dispatch() {
     // Test: Verify bash tool can be registered and dispatched successfully.
-    // cwd is required by BashArgs (Option C policy enforcement).
+    // path is required by BashArgs (Option C policy enforcement).
     let mut d = Dispatcher::new();
     d.register_shell_tools();
 
-    // Dispatch a simple bash command with the required cwd field.
+    // Dispatch a simple bash command with the required path field.
     let result = d
         .dispatch(make_call(
             "bash",
             json!({
-                "command": "echo hello",
-                "cwd": std::env::temp_dir().to_str().unwrap()
+                "path": std::env::temp_dir().to_str().unwrap(),
+                "__body__": "command=\"echo hello\""
             }),
         ))
         .await;
 
-    assert!(!result.is_error, "bash tool should execute successfully");
+    assert!(!result.is_error, "bash tool should execute successfully: {:?}", result.content);
     assert_eq!(result.name, "bash");
 
-    // Verify the result contains JSON output with the expected fields.
+    // Verify the result contains plain-text output with exit code and hello.
     match &result.content {
-        operon_context_normalize_tools::ToolContent::Json(v) => {
-            assert!(v.get("exit_code").is_some());
-            assert!(v.get("output").is_some());
-            assert!(v.get("command").is_some());
-            // cwd should be echoed back in the output.
-            assert!(v.get("cwd").is_some());
+        ToolContent::Text(text) => {
+            assert!(text.contains("exit: 0"), "expected exit: 0, got: {}", text);
+            assert!(text.contains("hello"), "expected hello, got: {}", text);
         }
-        other => panic!("expected Json content, got {:?}", other),
+        other => panic!("expected Text content, got {:?}", other),
     }
 }
 
 #[tokio::test]
 async fn test_bash_tool_malformed_args_marks_degraded() {
     // Test: Verify bash tool degradation on malformed args.
-    // Missing both `command` and `cwd` → ArgsParse → degraded.
+    // Missing both `command` and `path` → ArgsParse → degraded.
     let mut d = Dispatcher::new();
     d.register_shell_tools();
 
@@ -554,8 +531,8 @@ async fn test_bash_tool_malformed_args_marks_degraded() {
 
 #[tokio::test]
 async fn test_bash_tool_empty_command_error() {
-    // Test: Empty command with valid cwd → tool-level error (not ArgsParse).
-    // cwd is present and valid, so deserialization succeeds. The executor
+    // Test: Empty command with valid path → tool-level error (not ArgsParse).
+    // path is present and valid, so deserialization succeeds. The executor
     // catches the empty command and returns is_error=true.
     let mut d = Dispatcher::new();
     d.register_shell_tools();
@@ -564,16 +541,16 @@ async fn test_bash_tool_empty_command_error() {
         .dispatch(make_call(
             "bash",
             json!({
-                "command": "",
-                "cwd": std::env::temp_dir().to_str().unwrap()
+                "path": std::env::temp_dir().to_str().unwrap(),
+                "__body__": "command=\"\""
             }),
         ))
         .await;
 
-    assert!(result.is_error);
+    assert!(result.is_error, "expected error, got: {:?}", result.content);
     match &result.content {
-        operon_context_normalize_tools::ToolContent::Text(t) => {
-            assert!(t.contains("empty"), "error message should mention 'empty'");
+        ToolContent::Text(t) => {
+            assert!(t.contains("empty"), "error message should mention 'empty', got: {}", t);
         }
         other => panic!("expected Text content, got {:?}", other),
     }
@@ -590,21 +567,20 @@ async fn test_bash_tool_nonzero_exit_not_error() {
         .dispatch(make_call(
             "bash",
             json!({
-                "command": "exit 42",
-                "cwd": std::env::temp_dir().to_str().unwrap()
+                "path": std::env::temp_dir().to_str().unwrap(),
+                "__body__": "command=\"exit 42\""
             }),
         ))
         .await;
 
     // Non-zero exit should NOT be a tool error.
-    assert!(!result.is_error, "non-zero exit should not be a tool error");
+    assert!(!result.is_error, "non-zero exit should not be a tool error: {:?}", result.content);
 
     match &result.content {
-        operon_context_normalize_tools::ToolContent::Json(v) => {
-            let exit_code = v.get("exit_code").and_then(|e| e.as_i64());
-            assert_eq!(exit_code, Some(42));
+        ToolContent::Text(text) => {
+            assert!(text.contains("exit: 42"), "expected exit: 42, got: {}", text);
         }
-        other => panic!("expected Json content, got {:?}", other),
+        other => panic!("expected Text content, got {:?}", other),
     }
 }
 
@@ -633,7 +609,7 @@ async fn test_progress_events_flow_through_dispatcher() {
                 "write",
                 json!({
                     "path": path.to_str().unwrap(),
-                    "content": "hello progress\n"
+                    "__body__": "hello progress\n"
                 }),
             ),
             Some(emitter),

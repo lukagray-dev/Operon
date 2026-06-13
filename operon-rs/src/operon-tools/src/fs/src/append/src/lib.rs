@@ -31,7 +31,6 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -40,11 +39,10 @@ mod tests;
 pub use args::AppendArgs;
 pub use error::AppendToolError;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `append` tool.
 ///
@@ -53,19 +51,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation with call format,
 ///   error cases, worked examples, and common mistakes.
 pub fn definition() -> TieredToolDefinition {
-    // The schema only declares "path" — body content arrives via __body__,
-    // which is injected by the dispatcher and is not part of the JSON schema.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Absolute path to an existing file to append to."
-            }
-        },
-        "required": ["path"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "append".to_string(),
@@ -73,7 +58,6 @@ pub fn definition() -> TieredToolDefinition {
                           absolute file path. Write content to append as raw text in the \
                           tool body. File must exist."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "append".to_string(),
@@ -152,7 +136,6 @@ the new content. Ideal for:
 - `ERROR: path is a directory` → Ensure the path points to a file, not a directory.
 - `ERROR: ...` → I/O error (permission denied, disk full, etc.)."
                 .to_string(),
-            parameters,
         },
     }
 }

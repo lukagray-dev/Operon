@@ -55,8 +55,8 @@ fn policy_path_for_call_extracts_the_correct_anchor() {
         Some("/tmp/a.txt")
     );
 
-    // 2. "bash" tool uses the "cwd" string argument as its policy anchor path.
-    let bash_call = make_call("bash", json!({ "command": "ls", "cwd": "/tmp/work" }));
+    // 2. "bash" tool uses the "path" string argument as its policy anchor path.
+    let bash_call = make_call("bash", json!({ "command": "ls", "path": "/tmp/work" }));
     assert_eq!(
         policy_path_for_call(&bash_call).as_deref(),
         Some("/tmp/work")
@@ -123,7 +123,7 @@ fn opaque_permission_denied_result_is_generic_and_safe_for_the_model() {
 }
 
 #[test]
-fn tool_result_content_json_serializes_text_and_json_cleanly() {
+fn tool_result_content_json_serializes_text_cleanly() {
     // Text content should be passed through unchanged.
     let text_result = ToolResult {
         call_id: ToolCallId("call_text".to_string()),
@@ -134,17 +134,6 @@ fn tool_result_content_json_serializes_text_and_json_cleanly() {
         read_paths: None,
     };
     assert_eq!(tool_result_content_json(&text_result), "plain text");
-
-    // JSON content should be rendered as a compact JSON string.
-    let json_result = ToolResult {
-        call_id: ToolCallId("call_json".to_string()),
-        name: "read".to_string(),
-        content: ToolContent::Json(json!({ "ok": true })),
-        is_error: false,
-        // Mock tool result in test - no read paths tracked here.
-        read_paths: None,
-    };
-    assert_eq!(tool_result_content_json(&json_result), "{\"ok\":true}");
 }
 
 #[test]
@@ -302,7 +291,6 @@ fn test_heuristic_token_estimator() {
         ContentBlock::ToolResult(r) => {
             let content_len = match &r.content {
                 ToolContent::Text(t) => t.len(),
-                ToolContent::Json(val) => val.to_string().len(),
             };
             content_len / 4 + 10
         }
@@ -358,4 +346,56 @@ fn test_build_assistant_message_includes_reasoning() {
         }
         other => panic!("expected ContentBlock::Text, got {:?}", other),
     }
+}
+
+#[test]
+fn test_parser_integration_extracts_calls_and_cleans_text() {
+    let raw_text = "I will read the file first.\n<read paths=\"src/lib.rs\">\nDone reading.";
+    let parse_res = operon_tools_parser::parse(raw_text);
+
+    assert_eq!(parse_res.calls.len(), 1);
+    assert_eq!(parse_res.calls[0].name, "read");
+    assert_eq!(parse_res.calls[0].attrs.get("paths").unwrap(), "src/lib.rs");
+    assert_eq!(parse_res.text.trim(), "I will read the file first.\n\nDone reading.");
+}
+
+#[test]
+fn test_denormalize_messages_outputs_xml_tags() {
+    use operon_context::normalize::messages::denormalize_messages;
+    use operon_providers::Provider;
+
+    let history = vec![
+        ConversationMessage::user(vec![ContentBlock::Text("hello".to_string())]),
+        ConversationMessage::assistant(vec![
+            ContentBlock::Text("thinking...".to_string()),
+            ContentBlock::ToolCall(ToolCall {
+                id: ToolCallId("call-1".to_string()),
+                name: "read".to_string(),
+                arguments: json!({ "paths": "src/lib.rs" }),
+            }),
+        ]),
+        ConversationMessage {
+            role: MessageRole::Tool,
+            content: vec![ContentBlock::ToolResult(ToolResult {
+                call_id: ToolCallId("call-1".to_string()),
+                name: "read".to_string(),
+                content: ToolContent::Text("file contents".to_string()),
+                is_error: false,
+                read_paths: None,
+            })],
+            stop_reason: None,
+        },
+    ];
+
+    let wire = denormalize_messages(&history, &Provider::Anthropic).unwrap();
+    let msgs = wire["messages"].as_array().unwrap();
+
+    // The tool call block is denormalized to a text block containing tag format
+    let assistant_content = msgs[1]["content"].as_array().unwrap();
+    assert_eq!(assistant_content[1]["text"].as_str().unwrap(), "<read paths=\"src/lib.rs\">");
+
+    // The tool result is denormalized to a user message block containing the result tag
+    let result_content = msgs[2]["content"].as_array().unwrap();
+    assert!(result_content[0]["text"].as_str().unwrap().contains("<tool_result name=\"read\""));
+    assert!(result_content[0]["text"].as_str().unwrap().contains("file contents"));
 }

@@ -220,7 +220,8 @@ fn deduplicate_tool_call_ids(mut messages: Vec<ConversationMessage>) -> Vec<Conv
 #[cfg(test)]
 mod tests {
     use super::*;
-    use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+    use operon_context_normalize::tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+
     use serde_json::json;
 
     fn user_text(text: &str) -> ConversationMessage {

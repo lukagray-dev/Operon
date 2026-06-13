@@ -13,7 +13,8 @@
 // All policy decisions are made upstream by operon-policy before this runs.
 
 use crate::args::BashArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+
 use std::path::Path;
 use std::process::Stdio;
 use tokio::io::AsyncReadExt;

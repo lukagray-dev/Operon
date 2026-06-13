@@ -18,7 +18,7 @@
 /// Multiple files are joined with "\n\n" between entries.
 use crate::args::{ReadArgs, ReadTarget};
 use crate::output::{FileReadResult, LineRange};
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Semaphore;

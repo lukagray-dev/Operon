@@ -1,7 +1,8 @@
 //! Executor for the todo_delete tool — handles todo item deletion.
 
 use crate::args::TodoDeleteArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+
 use operon_tools_core::TodoStore;
 
 /// Executes the todo_delete tool with the given arguments.

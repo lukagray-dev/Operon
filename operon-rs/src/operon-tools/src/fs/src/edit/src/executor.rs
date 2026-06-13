@@ -13,7 +13,7 @@
 
 use crate::args::EditArgs;
 use crate::seek_sequence::seek_sequence;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
 
 // ── Helper ─────────────────────────────────────────────────────────────────────
 
@@ -109,6 +109,19 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         // 1-based for human-readable error messages.
         let hunk_number = hunk_idx + 1;
 
+        // ── 4_ident: Identical check ──────────────────────────────────────
+        // If the hunk's old lines and new lines are identical, there is no change.
+        // Reject this early to avoid redundant operations and signal a clear error.
+        if !hunk.old_lines.is_empty() && hunk.old_lines == hunk.new_lines {
+            return error_result(
+                call_id,
+                &format!(
+                    "{}\nhunk {}: the replacement is identical to the original",
+                    path, hunk_number
+                ),
+            );
+        }
+
         // ── 4a: Seek anchor ───────────────────────────────────────────────
         // If the hunk carries a seek_context, locate that anchor line first
         // and advance line_index past it. This lets the model guide the
@@ -155,31 +168,55 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         }
 
         // ── 4c: Seek the old_lines region ─────────────────────────────────
-        match seek_sequence(&lines, &hunk.old_lines, line_index, hunk.is_end_of_file) {
-            Some(start_idx) => {
-                // Found the region — record the replacement.
-                replacements.push(Replacement {
-                    start_idx,
-                    old_len: hunk.old_lines.len(),
-                    new_lines: hunk.new_lines.clone(),
-                    hunk_number,
-                });
-                // Advance the cursor past the matched region so the next hunk
-                // searches forward from here.
-                line_index = start_idx + hunk.old_lines.len();
-            }
+        let start_idx = match seek_sequence(&lines, &hunk.old_lines, line_index, hunk.is_end_of_file) {
+            Some(idx) => idx,
             None => {
                 return error_result(
                     call_id,
                     &format!(
-                        "{}\nhunk {}: no match found\nexpected:\n{}",
+                        "{}\nhunk {}: match not found\nexpected:\n{}",
                         path,
                         hunk_number,
                         hunk.old_lines.join("\n")
                     ),
                 );
             }
+        };
+
+        // Check for multiple matches in the searchable range starting from line_index
+        // to detect ambiguity.
+        let mut matches = Vec::new();
+        let mut scan_idx = line_index;
+        while scan_idx <= lines.len().saturating_sub(hunk.old_lines.len()) {
+            if let Some(m_idx) = seek_sequence(&lines, &hunk.old_lines, scan_idx, false) {
+                matches.push(m_idx);
+                scan_idx = m_idx + 1;
+            } else {
+                break;
+            }
         }
+
+        if matches.len() > 1 {
+            return error_result(
+                call_id,
+                &format!(
+                    "{}\nhunk {}: matched {} times",
+                    path, hunk_number, matches.len()
+                ),
+            );
+        }
+
+        // Found the region and verified it is unambiguous — record the replacement.
+        replacements.push(Replacement {
+            start_idx,
+            old_len: hunk.old_lines.len(),
+            new_lines: hunk.new_lines.clone(),
+            hunk_number,
+        });
+
+        // Advance the cursor past the matched region so the next hunk
+        // searches forward from here.
+        line_index = start_idx + hunk.old_lines.len();
     }
 
     // ── Step 5: Sort and overlap check ────────────────────────────────────

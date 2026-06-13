@@ -13,7 +13,7 @@
 //!   Any crate in the workspace can depend on this without pulling in a runtime.
 //!
 //! - **No tools dependency.** Tool call IDs are plain `String` values here,
-//!   deliberately avoiding a dependency on `operon-context-normalize-tools`.
+//!   deliberately avoiding a dependency on `operon-context-normalize`.
 //!
 //! - **Serializable.** All types derive [`serde::Serialize`] / [`serde::Deserialize`]
 //!   so events can be logged, replayed, or transmitted over a network.

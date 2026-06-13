@@ -1,7 +1,8 @@
 //! Tiered tool definitions — short description for normal use,
 //! detailed description for recovery after a malformed tool call.
 
-use operon_context_normalize_tools::ToolDefinition;
+use operon_context_normalize::tools::ToolDefinition;
+
 
 /// A tool definition with two description tiers.
 ///

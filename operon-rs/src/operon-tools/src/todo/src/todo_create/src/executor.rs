@@ -4,7 +4,8 @@
 //! and returning the formatted plain-text result.
 
 use crate::args::TodoCreateArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+
 use operon_tools_core::{TodoStatus, TodoStore};
 
 /// Executes the todo_create tool with the given arguments.

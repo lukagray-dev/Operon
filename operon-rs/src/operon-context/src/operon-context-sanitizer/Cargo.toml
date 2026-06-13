@@ -8,7 +8,7 @@ license.workspace    = true
 repository.workspace = true
 
 [dependencies]
-operon-context-normalize-tools.workspace = true
+operon-context-normalize.workspace = true
 operon-context-normalize-messages.workspace = true
 operon-context-snapshot.workspace = true
 

@@ -40,7 +40,6 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -48,11 +47,10 @@ mod tests;
 pub use error::BashToolError;
 
 use args::BashArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // definition
@@ -67,19 +65,6 @@ use serde_json::json;
 /// - `detailed`: Sent after a malformed call. Full description with call format,
 ///   path semantics, timeout behavior, exit codes, common mistakes, and examples.
 pub fn definition() -> TieredToolDefinition {
-    // The JSON schema declares only the `path` attribute field.
-    // `command` and `timeout` live in the tool body, not the schema.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Absolute path to the working directory for this command."
-            }
-        },
-        "required": ["path"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "bash".to_string(),
@@ -90,7 +75,6 @@ pub fn definition() -> TieredToolDefinition {
                           Default timeout: 30 minutes; always set your own timeout for \
                           long-running commands."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "bash".to_string(),
@@ -195,7 +179,6 @@ Output will be truncated. Fix: pipe to `head`, `tail`, or `grep` to target the r
 May run for minutes. The default is 30 minutes. For known-duration commands always set an \
 explicit timeout to avoid stalling the agent loop."
                 .to_string(),
-            parameters,
         },
     }
 }

@@ -22,7 +22,7 @@ reqwest = { workspace = true, features = ["json"], optional = true }
 
 [dev-dependencies]
 operon-context-normalize-reasoning.workspace = true
-operon-context-normalize-tools.workspace     = true
+operon-context-normalize.workspace     = true
 tokio.workspace                              = true
 
 [features]

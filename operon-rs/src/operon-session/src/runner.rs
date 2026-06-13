@@ -48,7 +48,7 @@ use tokio::sync::mpsc;
 use operon_config::PolicyConfig;
 use operon_context::{
     compact, sanitize, AnthropicCompactionClient, ContentBlock, ConversationMessage, MessageRole,
-    Role, SessionTokenState, SnapshotBuilder, TokenBudget, ToolCall, ToolContent, ToolResult,
+    Role, SessionTokenState, SnapshotBuilder, TokenBudget, ToolCall, ToolCallId, ToolContent, ToolResult,
     UsageRecord,
 };
 use operon_events::{SessionCommand, SessionEvent};
@@ -409,7 +409,6 @@ impl SessionRunner {
                     ContentBlock::ToolResult(r) => {
                         let content_len = match &r.content {
                             ToolContent::Text(t) => t.len(),
-                            ToolContent::Json(val) => val.to_string().len(),
                         };
                         content_len / 4 + 10
                     }
@@ -436,7 +435,6 @@ impl SessionRunner {
                 self.config.provider_config.model_id(),
                 self.config.provider_config.max_tokens(),
                 &clean_messages,
-                &tool_defs,
                 true, // streaming = true
             )?;
 
@@ -458,7 +456,7 @@ impl SessionRunner {
                 .expose()
                 .to_string();
 
-            let stream_result = send_streaming(
+            let mut stream_result = send_streaming(
                 &self.http_client,
                 &self.config.provider_config.provider,
                 &endpoint,
@@ -473,6 +471,41 @@ impl SessionRunner {
                 self.lifecycle = LifecycleState::Failed;
                 e
             })?;
+
+            // ── Parse Plain-Text Tag Protocol ───────────────────────────────
+            // We do a hard cut away from provider-native JSON tool calling.
+            // All tool calls are parsed exactly once from the final assistant text.
+            let parse_res = operon_tools_parser::parse(&stream_result.text);
+
+            let mut parsed_calls = Vec::new();
+            for (idx, raw_call) in parse_res.calls.into_iter().enumerate() {
+                // Generate a unique ToolCallId for this session + turn + call index.
+                let call_id = ToolCallId(format!("{}-{}-{}", self.session_id, self.turn_index, idx));
+                parsed_calls.push(raw_call.into_tool_call(call_id));
+            }
+
+            stream_result.text = parse_res.text;
+            stream_result.tool_calls = parsed_calls;
+
+            // Emit ToolCallStart and ToolCallArgsReady events so the UI updates properly.
+            for call in &stream_result.tool_calls {
+                let args_json = serde_json::to_string(&call.arguments).unwrap_or_default();
+                let _ = self
+                    .event_tx
+                    .send(SessionEvent::ToolCallStart {
+                        call_id: call.id.0.clone(),
+                        name: call.name.clone(),
+                    })
+                    .await;
+                let _ = self
+                    .event_tx
+                    .send(SessionEvent::ToolCallArgsReady {
+                        call_id: call.id.0.clone(),
+                        name: call.name.clone(),
+                        args_json,
+                    })
+                    .await;
+            }
 
             // ── 6. Record token usage + emit TokenUsageUpdated ───────────────
             // Update the session token state from the usage metadata in the stream.
@@ -1156,11 +1189,11 @@ fn policy_path_for_call(call: &ToolCall) -> Option<String> {
             .and_then(|s| s.split_whitespace().next())
             .map(|first| first.trim().to_string()),
 
-        // The "bash" tool executes commands within a specific directory. We extract the "cwd" (current working directory)
+        // The "bash" tool executes commands within a specific directory. We extract the "path"
         // argument to check whether shell execution is permitted in that directory.
         "bash" => call
             .arguments
-            .get("cwd")
+            .get("path")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
 
@@ -1194,6 +1227,5 @@ fn opaque_permission_denied_result(call: &ToolCall) -> ToolResult {
 fn tool_result_content_json(result: &ToolResult) -> String {
     match &result.content {
         ToolContent::Text(text) => text.clone(),
-        ToolContent::Json(value) => value.to_string(),
     }
 }

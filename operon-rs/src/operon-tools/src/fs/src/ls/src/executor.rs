@@ -22,7 +22,7 @@
 
 use crate::args::LsArgs;
 use globset::{Glob, GlobSet, GlobSetBuilder};
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
 use std::path::Path;
 
 /// Maximum number of entries to return before truncating.

@@ -54,7 +54,7 @@ pub use operon_context_normalize::messages::{
 pub use operon_context_normalize::reasoning::{ReasoningBlock, ReasoningSignature};
 pub use operon_context_normalize::stream::{AssemblerOutput, StreamEvent};
 pub use operon_context_normalize::tools::{
-    Provider, ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
+    ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
 };
 
 pub mod prelude {

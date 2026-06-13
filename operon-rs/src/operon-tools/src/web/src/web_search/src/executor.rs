@@ -6,7 +6,8 @@
 //! the duckduckgo crate uses an embedded blocking runtime internally.
 
 use crate::args::WebSearchArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+
 
 /// Default number of results to return if `max` is not specified.
 const DEFAULT_RESULTS: usize = 5;

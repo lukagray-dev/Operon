@@ -61,7 +61,7 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
 }
 
 fn parse_parts(parts: &[Value], events: &mut Vec<StreamEvent>) -> Result<()> {
-    for (index, part) in parts.iter().enumerate() {
+    for part in parts.iter() {
         if let Some(signature) = part
             .get("thoughtSignature")
             .and_then(Value::as_str)
@@ -85,26 +85,7 @@ fn parse_parts(parts: &[Value], events: &mut Vec<StreamEvent>) -> Result<()> {
             continue;
         }
 
-        if let Some(function_call) = part.get("functionCall") {
-            let name = function_call.get("name").and_then(Value::as_str).ok_or(
-                StreamNormalizeError::MissingField {
-                    field: "parts[].functionCall.name",
-                    provider: PROVIDER,
-                },
-            )?;
-            let arguments = function_call
-                .get("args")
-                .cloned()
-                .unwrap_or_else(|| Value::Object(Default::default()));
-
-            events.push(StreamEvent::ToolCallComplete {
-                index,
-                id: None,
-                name: name.to_string(),
-                arguments,
-            });
-            continue;
-        }
+        // Under the plain-text tag protocol, we ignore functionCall events on the stream.
 
         if let Some(text) = part
             .get("text")

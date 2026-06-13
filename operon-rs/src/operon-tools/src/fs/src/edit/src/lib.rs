@@ -28,7 +28,6 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 mod seek_sequence;
 
 #[cfg(test)]
@@ -39,11 +38,10 @@ mod tests;
 pub use args::EditArgs;
 pub use error::EditToolError;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `edit` tool.
 ///
@@ -52,19 +50,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation of the call
 ///               format, hunk syntax, error messages, and worked examples.
 pub fn definition() -> TieredToolDefinition {
-    // The schema only declares "path" — the diff body arrives via __body__,
-    // which is injected by the dispatcher and is not part of the JSON schema.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Absolute path to the file to edit."
-            }
-        },
-        "required": ["path"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "edit".to_string(),
@@ -75,7 +60,6 @@ pub fn definition() -> TieredToolDefinition {
                           and a space prefix for context lines used to locate the edit position. \
                           Multiple hunks per call are supported."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "edit".to_string(),
@@ -208,7 +192,6 @@ All results use `ToolContent::Text` with `is_error = false` — the model reads 
 - `hunk N and hunk M: overlapping matches` → Two hunks matched overlapping regions.
 - `failed to read file: ...` → File does not exist or permission denied."
                 .to_string(),
-            parameters,
         },
     }
 }

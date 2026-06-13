@@ -20,7 +20,7 @@
 //!   "internal error: delete task panicked"
 
 use crate::args::DeleteArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
 
 /// Executes the delete tool with the given arguments.
 ///

@@ -1,7 +1,8 @@
 //! Executor for the todo_list tool — handles listing and filtering todos.
 
 use crate::args::TodoListArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+
 use operon_tools_core::{TodoStatus, TodoStore};
 
 /// Executes the todo_list tool with the given arguments.

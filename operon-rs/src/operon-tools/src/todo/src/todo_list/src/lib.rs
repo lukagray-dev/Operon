@@ -9,7 +9,7 @@
 //!
 //! ```rust
 //! use operon_tools_todo_list::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
+//! use operon_context_normalize::tools::ToolCallId;
 //! use operon_tools_core::TodoStore;
 //! use serde_json::json;
 //!
@@ -33,44 +33,26 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
 
 pub use args::TodoListArgs;
 pub use error::TodoListToolError;
-pub use output::TodoListOutput;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_list` tool.
 pub fn definition() -> TieredToolDefinition {
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "status": {
-                "type": "string",
-                "description": "Optional filter by status. Valid values: 'pending', 'in_progress', 'completed'."
-            },
-            "priority": {
-                "type": "string",
-                "description": "Optional filter by priority. Valid values: 'high', 'medium', 'low'."
-            }
-        }
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_list".to_string(),
             description: "Returns the current todo list. Call format: <todo_list status=\"pending\" priority=\"high\"> \
                           Both status and priority filters are optional. Returns plain text list and summary counts."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "todo_list".to_string(),
@@ -110,7 +92,6 @@ No todos yet.
 
 - Malformed args: \"failed to parse tool arguments: ...\""
                 .to_string(),
-            parameters,
         },
     }
 }

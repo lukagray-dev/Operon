@@ -12,7 +12,7 @@
 //! is_error is always false — the model reads the inline ERROR text.
 
 use crate::args::AppendArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
 use tokio::io::AsyncWriteExt;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

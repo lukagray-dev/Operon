@@ -12,10 +12,6 @@
 use operon_context_normalize_reasoning::{
     denormalize_reasoning, normalize_reasoning, Provider as ReasoningProvider,
 };
-use operon_context_normalize_tools::{
-    denormalize_result as denormalize_tool_result, normalize as normalize_tool_call,
-    Provider as ToolProvider, ToolCall, ToolCallId, ToolContent, ToolResult,
-};
 use serde_json::{json, Value};
 
 use crate::error::{MessageNormalizeError, Result};
@@ -48,6 +44,13 @@ pub fn normalize_message_with_provider_and_reasoning(
 ) -> Result<ConversationMessage> {
     let (message_value, finish_reason) = extract_message_and_finish_reason(raw, provider_name)?;
 
+    if message_value.get("tool_calls").is_some() {
+        return Err(MessageNormalizeError::UnsupportedContentType {
+            provider: provider_name,
+            detail: "tool blocks are not supported under tag protocol".to_string(),
+        });
+    }
+
     let role_str = message_value.get("role").and_then(Value::as_str).ok_or(
         MessageNormalizeError::MissingField {
             field: "role",
@@ -58,7 +61,10 @@ pub fn normalize_message_with_provider_and_reasoning(
     let role = parse_openai_role(role_str, provider_name)?;
 
     if role == MessageRole::Tool {
-        return normalize_tool_role_message(message_value, provider_name);
+        return Err(MessageNormalizeError::UnsupportedContentType {
+            provider: provider_name,
+            detail: "tool role is not supported under tag protocol".to_string(),
+        });
     }
 
     let mut content = parse_content_field(
@@ -80,15 +86,6 @@ pub fn normalize_message_with_provider_and_reasoning(
                 }
                 canonical.extend(content);
                 content = canonical;
-            }
-        }
-
-        if let Some(tool_calls) = message_value.get("tool_calls").and_then(Value::as_array) {
-            for tc in tool_calls {
-                let tool_call =
-                    normalize_tool_call(tc.clone(), &tool_provider_from_name(provider_name))
-                        .map_err(|e| map_tool_err(e, provider_name))?;
-                content.push(ContentBlock::ToolCall(tool_call));
             }
         }
     }
@@ -157,33 +154,19 @@ pub fn denormalize_messages_with_provider_and_reasoning(
             MessageRole::Assistant => {
                 let mut plain_blocks: Vec<ContentBlock> = Vec::new();
                 let mut reasoning_blocks = Vec::new();
-                let mut tool_calls: Vec<ToolCall> = Vec::new();
 
                 for block in &msg.content {
                     match block {
-                        ContentBlock::ToolCall(tc) => tool_calls.push(tc.clone()),
                         ContentBlock::Reasoning(rb) => reasoning_blocks.push(rb.clone()),
                         other => plain_blocks.push(other.clone()),
                     }
                 }
 
-                let content_value = if plain_blocks.is_empty() && !tool_calls.is_empty() {
-                    Value::Null
-                } else {
-                    render_openai_text_image_content(&plain_blocks, provider_name, false)?
-                };
+                let content_value = render_openai_text_image_content(&plain_blocks, provider_name, false)?;
 
                 let mut obj = serde_json::Map::new();
                 obj.insert("role".to_string(), Value::String("assistant".to_string()));
                 obj.insert("content".to_string(), content_value);
-
-                if !tool_calls.is_empty() {
-                    let mut calls = Vec::with_capacity(tool_calls.len());
-                    for tc in tool_calls {
-                        calls.push(tool_call_to_openai_wire(&tc));
-                    }
-                    obj.insert("tool_calls".to_string(), Value::Array(calls));
-                }
 
                 if let (Some(field), Some(rp)) = (reasoning_field, reasoning_provider.clone()) {
                     if !reasoning_blocks.is_empty() {
@@ -204,12 +187,10 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                 wire_messages.push(Value::Object(obj));
             }
             MessageRole::Tool => {
-                let tool_results = extract_tool_results(&msg.content, provider_name)?;
-                for tr in tool_results {
-                    let wire = denormalize_tool_result(tr, &tool_provider_from_name(provider_name))
-                        .map_err(|e| map_tool_err(e, provider_name))?;
-                    wire_messages.push(wire);
-                }
+                return Err(MessageNormalizeError::UnsupportedContentType {
+                    provider: provider_name,
+                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
+                });
             }
         }
     }
@@ -350,71 +331,6 @@ fn parse_image_source_from_url(url: &str) -> ImageSource {
     ImageSource::Url(url.to_string())
 }
 
-fn normalize_tool_role_message(
-    message_value: Value,
-    provider_name: &'static str,
-) -> Result<ConversationMessage> {
-    let call_id = message_value
-        .get("tool_call_id")
-        .and_then(Value::as_str)
-        .ok_or(MessageNormalizeError::MissingField {
-            field: "tool_call_id",
-            provider: provider_name,
-        })?;
-
-    let name = message_value
-        .get("name")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_string();
-
-    let content_value = message_value.get("content").cloned().unwrap_or(Value::Null);
-    let content = parse_tool_content_from_wire(content_value);
-    let is_error = message_value
-        .get("is_error")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-
-    let tool_result = ToolResult {
-        call_id: ToolCallId(call_id.to_string()),
-        name,
-        content,
-        is_error,
-        // Since we are parsing a tool result from OpenAI's raw wire message format,
-        // we do not have (nor do we need) the in-memory read_paths ledger data. Therefore,
-        // we default this field to None.
-        read_paths: None,
-    };
-
-    Ok(ConversationMessage {
-        role: MessageRole::Tool,
-        content: vec![ContentBlock::ToolResult(tool_result)],
-        stop_reason: None,
-    })
-}
-
-fn parse_tool_content_from_wire(raw: Value) -> ToolContent {
-    match raw {
-        Value::Null => ToolContent::Text(String::new()),
-        Value::String(s) => ToolContent::Text(s),
-        Value::Array(arr) => {
-            let mut text_parts = Vec::new();
-            for item in &arr {
-                if item.get("type").and_then(Value::as_str) == Some("text") {
-                    if let Some(s) = item.get("text").and_then(Value::as_str) {
-                        text_parts.push(s.to_string());
-                    }
-                }
-            }
-            if !text_parts.is_empty() {
-                ToolContent::Text(text_parts.join("\n"))
-            } else {
-                ToolContent::Json(Value::Array(arr))
-            }
-        }
-        other => ToolContent::Json(other),
-    }
-}
 
 fn render_openai_text_image_content(
     blocks: &[ContentBlock],
@@ -447,7 +363,7 @@ fn render_openai_text_image_content(
             ContentBlock::ToolCall(_) | ContentBlock::ToolResult(_) => {
                 return Err(MessageNormalizeError::UnsupportedContentType {
                     provider: provider_name,
-                    detail: "tool blocks must be represented in `tool_calls` or `role=tool` messages for OpenAI-compatible formats".to_string(),
+                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
                 })
             }
             ContentBlock::Document(_) => {
@@ -498,60 +414,6 @@ fn render_system_content_as_string(
     Ok(text.join("\n\n"))
 }
 
-fn extract_tool_results<'a>(
-    content: &'a [ContentBlock],
-    provider_name: &'static str,
-) -> Result<Vec<&'a ToolResult>> {
-    let mut out = Vec::new();
-    for block in content {
-        match block {
-            ContentBlock::ToolResult(tr) => out.push(tr),
-            _ => {
-                return Err(MessageNormalizeError::UnsupportedContentType {
-                    provider: provider_name,
-                    detail: "role=tool messages may only contain ToolResult blocks".to_string(),
-                })
-            }
-        }
-    }
-    if out.is_empty() {
-        return Err(MessageNormalizeError::MissingField {
-            field: "tool_result",
-            provider: provider_name,
-        });
-    }
-    Ok(out)
-}
-
-fn tool_call_to_openai_wire(call: &ToolCall) -> Value {
-    json!({
-        "id": call.id.0,
-        "type": "function",
-        "function": {
-            "name": call.name,
-            "arguments": call.arguments.to_string(),
-        }
-    })
-}
-
-fn map_tool_err(
-    err: operon_context_normalize_tools::ToolNormalizeError,
-    provider_name: &'static str,
-) -> MessageNormalizeError {
-    match err {
-        operon_context_normalize_tools::ToolNormalizeError::MissingField { field, .. } => {
-            MessageNormalizeError::MissingField {
-                field,
-                provider: provider_name,
-            }
-        }
-        other => MessageNormalizeError::UnsupportedContentType {
-            provider: provider_name,
-            detail: other.to_string(),
-        },
-    }
-}
-
 fn map_reasoning_err(
     err: operon_context_normalize_reasoning::ReasoningNormalizeError,
     provider_name: &'static str,
@@ -570,22 +432,6 @@ fn map_reasoning_err(
     }
 }
 
-fn tool_provider_from_name(provider_name: &'static str) -> ToolProvider {
-    match provider_name {
-        "Anthropic" => ToolProvider::Anthropic,
-        "OpenAI" => ToolProvider::OpenAI,
-        "Gemini" => ToolProvider::Gemini,
-        "Ollama" => ToolProvider::Ollama,
-        "DeepSeek" => ToolProvider::DeepSeek,
-        "OpenRouter" => ToolProvider::OpenRouter,
-        "Groq" => ToolProvider::Groq,
-        "Mistral" => ToolProvider::Mistral,
-        "xAI" => ToolProvider::XAI,
-        "NVIDIA NIM" => ToolProvider::NvidiaNim,
-        "Cohere" => ToolProvider::Cohere,
-        _ => ToolProvider::OpenAI,
-    }
-}
 
 fn provider_from_name(provider_name: &'static str) -> crate::provider::Provider {
     match provider_name {

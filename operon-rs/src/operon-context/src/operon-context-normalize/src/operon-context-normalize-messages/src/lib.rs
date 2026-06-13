@@ -56,6 +56,7 @@ pub mod error;
 pub mod normalize;
 pub mod provider;
 pub mod stop_reason;
+pub mod tools;
 pub mod types;
 
 /// The single error type for all message normalization/denormalization operations.
@@ -71,6 +72,7 @@ pub use normalize::{denormalize_messages, normalize_message};
 pub use provider::Provider;
 
 /// Canonical message types.
+pub use tools::{ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult};
 pub use types::{
     ContentBlock, ConversationMessage, DocumentBlock, DocumentSource, ImageBlock, ImageSource,
     MessageRole, StopReason,

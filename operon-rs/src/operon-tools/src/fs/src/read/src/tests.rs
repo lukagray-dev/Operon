@@ -10,7 +10,7 @@
 /// - Semicolon-delimited mixed path parsing
 /// - Ledger updating (read_paths returned correctly in ToolResult)
 use crate::execute;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
 use serde_json::json;
 use std::fs;
 use tempfile::TempDir;
@@ -67,9 +67,13 @@ async fn test_read_single_file_full() {
         .unwrap();
     assert!(!result.is_error);
 
-    // Single-file full reads should return the raw file content directly (no headers)
+    // Reads always include the path header and line-numbered content
     let text = extract_text(result.clone());
-    assert_eq!(text, "line 1\nline 2\nline 3\nline 4\nline 5\n");
+    let expected = format!(
+        "{}\n1| line 1\n2| line 2\n3| line 3\n4| line 4\n5| line 5\n",
+        path.to_str().unwrap()
+    );
+    assert_eq!(text, expected);
 
     // The read ledger paths must be populated with the path of the successfully read file
     let paths = result.read_paths.unwrap();
@@ -85,7 +89,7 @@ async fn test_read_multiple_files() {
 
     // Semicolon-delimited list of files
     let args = json!({
-        "paths": format!("{}; {}", path1.to_str().unwrap(), path2.to_str().unwrap())
+        "paths": format!("{} {}", path1.to_str().unwrap(), path2.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_2".to_string()), args)
@@ -93,10 +97,10 @@ async fn test_read_multiple_files() {
         .unwrap();
     assert!(!result.is_error);
 
-    // Multi-file full reads must include path-header lines for each file
+    // Multi-file full reads must include path-header lines and line numbers for each file
     let text = extract_text(result.clone());
     let expected = format!(
-        "{}\nline 1\nline 2\nline 3\nline 4\nline 5\n\n\n{}\nline 1\nline 2\nline 3",
+        "{}\n1| line 1\n2| line 2\n3| line 3\n4| line 4\n5| line 5\n\n\n{}\n1| line 1\n2| line 2\n3| line 3\n",
         path1.to_str().unwrap(),
         path2.to_str().unwrap()
     );
@@ -124,11 +128,11 @@ async fn test_read_with_line_range() {
         .unwrap();
     assert!(!result.is_error);
 
-    // Range reads should include range information in the path header line
+    // Range reads should include range information in the path header line and line numbers
     let text = extract_text(result.clone());
     let expected_header = format!("{} lines 2-4 of 5\n", path.to_str().unwrap());
     assert!(text.starts_with(&expected_header));
-    assert!(text.contains("line 2\nline 3\nline 4\n"));
+    assert!(text.contains("2| line 2\n3| line 3\n4| line 4\n"));
 
     // File was read successfully, so the ledger should record the path
     let paths = result.read_paths.unwrap();
@@ -152,7 +156,7 @@ async fn test_read_with_start_line_only() {
     let text = extract_text(result);
     let expected_header = format!("{} lines 3-5 of 5\n", path.to_str().unwrap());
     assert!(text.starts_with(&expected_header));
-    assert!(text.contains("line 3\nline 4\nline 5\n"));
+    assert!(text.contains("3| line 3\n4| line 4\n5| line 5\n"));
 }
 
 #[tokio::test]
@@ -171,7 +175,7 @@ async fn test_read_with_end_line_only() {
     let text = extract_text(result);
     let expected_header = format!("{} lines 1-3 of 5\n", path.to_str().unwrap());
     assert!(text.starts_with(&expected_header));
-    assert!(text.contains("line 1\nline 2\nline 3\n"));
+    assert!(text.contains("1| line 1\n2| line 2\n3| line 3\n"));
 }
 
 #[tokio::test]
@@ -190,7 +194,7 @@ async fn test_read_line_range_exceeds_file() {
     let text = extract_text(result);
     let expected_header = format!("{} lines 3-5 of 5\n", path.to_str().unwrap());
     assert!(text.starts_with(&expected_header));
-    assert!(text.contains("line 3\nline 4\nline 5\n"));
+    assert!(text.contains("3| line 3\n4| line 4\n5| line 5\n"));
 }
 
 #[tokio::test]
@@ -322,7 +326,8 @@ async fn test_read_empty_file() {
     assert!(!result.is_error);
 
     let text = extract_text(result.clone());
-    assert_eq!(text, ""); // Empty file has empty output
+    let expected = format!("{}\n", path.to_str().unwrap());
+    assert_eq!(text, expected); // Empty file has path header output
 
     let paths = result.read_paths.unwrap();
     assert_eq!(paths.len(), 1);
@@ -337,7 +342,7 @@ async fn test_read_mixed_string_targets() {
 
     // Mix full-file read path and range read path in the same paths string
     let args = json!({
-        "paths": format!("{}; {}:2-3", path1.to_str().unwrap(), path2.to_str().unwrap())
+        "paths": format!("{} {}:2-3", path1.to_str().unwrap(), path2.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_13".to_string()), args)
@@ -348,7 +353,7 @@ async fn test_read_mixed_string_targets() {
     let text = extract_text(result.clone());
     assert!(text.contains("simple.txt"));
     assert!(text.contains("no_newline.txt lines 2-3 of 3"));
-    assert!(text.contains("line 2\nline 3"));
+    assert!(text.contains("2| line 2\n3| line 3"));
 
     let paths = result.read_paths.unwrap();
     assert_eq!(paths.len(), 2);
@@ -364,7 +369,7 @@ async fn test_read_partial_failure() {
     let path3 = dir.path().join("no_newline.txt");
 
     let args = json!({
-        "paths": format!("{}; {}; {}", path1.to_str().unwrap(), path2, path3.to_str().unwrap())
+        "paths": format!("{} {} {}", path1.to_str().unwrap(), path2, path3.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_14".to_string()), args)
@@ -408,7 +413,7 @@ async fn test_concurrent_reads() {
     }
 
     let args = json!({
-        "paths": paths.join("; ")
+        "paths": paths.join(" ")
     });
 
     let result = execute(ToolCallId("test_16".to_string()), args)

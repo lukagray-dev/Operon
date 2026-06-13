@@ -31,7 +31,6 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -40,11 +39,10 @@ mod tests;
 pub use args::WriteArgs;
 pub use error::WriteToolError;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `write` tool.
 ///
@@ -53,19 +51,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation with call format,
 ///   error cases, worked examples, and common mistakes.
 pub fn definition() -> TieredToolDefinition {
-    // The schema only declares "path" — body content arrives via __body__,
-    // which is injected by the dispatcher and is not part of the JSON schema.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Absolute path to the file to create or overwrite."
-            }
-        },
-        "required": ["path"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "write".to_string(),
@@ -74,7 +59,6 @@ pub fn definition() -> TieredToolDefinition {
                           in the tool body. Parent directories are created automatically \
                           if they don't exist."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "write".to_string(),
@@ -162,7 +146,6 @@ Use `edit` for:
 sending the entire file content, which is inefficient. Use `edit` instead — it \
 only needs the changed region."
                 .to_string(),
-            parameters,
         },
     }
 }

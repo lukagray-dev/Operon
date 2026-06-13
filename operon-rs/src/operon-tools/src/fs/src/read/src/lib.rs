@@ -28,7 +28,7 @@
 //!
 //! ```rust,ignore
 //! use operon_tools_fs_read::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
+//! use operon_context_normalize::tools::ToolCallId;
 //! use serde_json::json;
 //!
 //! # async fn example() {
@@ -59,11 +59,10 @@ pub use error::ReadToolError;
 // FileReadResult and LineRange are internal — no longer re-exported.
 // (ReadOutput has been removed; the read tool now outputs plain text.)
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `read` tool.
 ///
@@ -72,23 +71,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation with the paths attr
 ///   format, range syntax rules, output format, and error behavior.
 pub fn definition() -> TieredToolDefinition {
-    // The parameters schema reflects the new single-attr shape.
-    // `paths` is a whitespace-separated string of path entries, not a JSON array.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "paths": {
-                "type": "string",
-                "description": "Space-separated path entries. Each entry is a file path with an \
-                                optional line range (e.g. C:\\file.txt:40-90, \
-                                C:\\file.txt:50- for line 50→EOF, C:\\file.txt:-30 for line 1→30). \
-                                Multiple files: use space-separated quoted values. \
-                                Max 1 MB per full-file read. Binary files not supported."
-            }
-        },
-        "required": ["paths"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "read".to_string(),
@@ -97,7 +79,6 @@ pub fn definition() -> TieredToolDefinition {
                           C:\\file.txt:50- for 50→EOF, C:\\file.txt:-30 for 1→30). Max 1 MB per \
                           full-file read. Binary files not supported. Output includes line numbers."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "read".to_string(),
@@ -170,7 +151,6 @@ The overall tool call always returns is_error: false. Per-file failures appear i
 - Using `path` (singular) as the attr name instead of `paths` → args parse failure.
 - Forgetting that multiple paths use space-separated quoted values, not semicolons."
                 .to_string(),
-            parameters,
         },
     }
 }

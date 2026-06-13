@@ -43,7 +43,7 @@
 //!           skip tool (not exposed to model)
 //! ```
 
-use operon_context_normalize_tools::{
+use operon_context_normalize::tools::{
     ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
 };
 use operon_tools_ask;
@@ -429,7 +429,7 @@ impl Dispatcher {
     pub fn definitions_for_group(
         &self,
         group: &str,
-    ) -> Vec<&operon_context_normalize_tools::ToolDefinition> {
+    ) -> Vec<&ToolDefinition> {
         self.tools
             .values()
             .filter(|entry| entry.group == group)

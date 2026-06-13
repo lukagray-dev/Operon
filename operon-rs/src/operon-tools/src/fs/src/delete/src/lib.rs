@@ -31,7 +31,6 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
@@ -39,11 +38,10 @@ mod tests;
 pub use args::DeleteArgs;
 pub use error::DeleteToolError;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `delete` tool.
 ///
@@ -51,18 +49,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation with body format,
 ///   error cases, and safety guidance.
 pub fn definition() -> TieredToolDefinition {
-    // Schema: only `path` is an attribute. `permanent` lives in the body.
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Absolute path to the file or directory to delete."
-            }
-        },
-        "required": ["path"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "delete".to_string(),
@@ -70,7 +56,6 @@ pub fn definition() -> TieredToolDefinition {
                           moves to system trash (recoverable). Add permanent=\"true\" in the tool \
                           body to permanently delete with no recovery possible."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "delete".to_string(),
@@ -138,7 +123,6 @@ Always verify the path is correct before using permanent=\"true\".
 - Using permanent=\"true\" when trash is sufficient → irreversible data loss risk.
 - Passing `permanent` as an attribute instead of in the body."
                 .to_string(),
-            parameters,
         },
     }
 }

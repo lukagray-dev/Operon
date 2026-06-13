@@ -4244,9 +4244,9 @@ name = "operon-context-compaction"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "operon-context-normalize",
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
- "operon-context-normalize-tools",
  "operon-context-snapshot",
  "reqwest 0.13.4",
  "serde",
@@ -4262,7 +4262,6 @@ dependencies = [
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
  "operon-context-normalize-stream",
- "operon-context-normalize-tools",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -4272,7 +4271,6 @@ name = "operon-context-normalize-messages"
 version = "0.1.0"
 dependencies = [
  "operon-context-normalize-reasoning",
- "operon-context-normalize-tools",
  "operon-providers",
  "serde",
  "serde_json",
@@ -4296,17 +4294,6 @@ dependencies = [
  "futures",
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
- "operon-context-normalize-tools",
- "operon-providers",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "operon-context-normalize-tools"
-version = "0.1.0"
-dependencies = [
  "operon-providers",
  "serde",
  "serde_json",
@@ -4317,8 +4304,8 @@ dependencies = [
 name = "operon-context-sanitizer"
 version = "0.1.0"
 dependencies = [
+ "operon-context-normalize",
  "operon-context-normalize-messages",
- "operon-context-normalize-tools",
  "operon-context-snapshot",
  "serde",
  "serde_json",
@@ -4385,7 +4372,7 @@ name = "operon-policy"
 version = "0.1.0"
 dependencies = [
  "operon-config",
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "serde_json",
  "tempfile",
  "tracing",
@@ -4436,6 +4423,7 @@ dependencies = [
  "operon-providers",
  "operon-tools",
  "operon-tools-ask",
+ "operon-tools-parser",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -4449,7 +4437,7 @@ dependencies = [
 name = "operon-tools"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-ask",
  "operon-tools-core",
  "operon-tools-fs",
@@ -4480,7 +4468,7 @@ dependencies = [
 name = "operon-tools-ask"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4491,7 +4479,7 @@ dependencies = [
 name = "operon-tools-core"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "serde",
  "serde_json",
  "tempfile",
@@ -4515,7 +4503,7 @@ dependencies = [
 name = "operon-tools-fs-append"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4528,7 +4516,7 @@ dependencies = [
 name = "operon-tools-fs-delete"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4542,7 +4530,7 @@ dependencies = [
 name = "operon-tools-fs-edit"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde_json",
  "tempfile",
@@ -4559,7 +4547,7 @@ dependencies = [
  "grep-regex",
  "grep-searcher",
  "ignore",
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4573,7 +4561,7 @@ name = "operon-tools-fs-ls"
 version = "0.1.0"
 dependencies = [
  "globset",
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4587,7 +4575,7 @@ name = "operon-tools-fs-read"
 version = "0.1.0"
 dependencies = [
  "futures",
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4600,7 +4588,7 @@ dependencies = [
 name = "operon-tools-fs-write"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4613,7 +4601,7 @@ dependencies = [
 name = "operon-tools-load"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4625,7 +4613,7 @@ dependencies = [
 name = "operon-tools-parser"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "serde",
  "serde_json",
 ]
@@ -4634,7 +4622,7 @@ dependencies = [
 name = "operon-tools-shell"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "operon-tools-shell-bash",
  "serde_json",
@@ -4646,7 +4634,7 @@ dependencies = [
 name = "operon-tools-shell-bash"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4659,7 +4647,7 @@ dependencies = [
 name = "operon-tools-todo"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "operon-tools-todo-create",
  "operon-tools-todo-delete",
@@ -4674,7 +4662,7 @@ dependencies = [
 name = "operon-tools-todo-create"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4686,7 +4674,7 @@ dependencies = [
 name = "operon-tools-todo-delete"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4698,7 +4686,7 @@ dependencies = [
 name = "operon-tools-todo-list"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4710,7 +4698,7 @@ dependencies = [
 name = "operon-tools-todo-update"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4731,7 +4719,7 @@ dependencies = [
 name = "operon-tools-web-fetch"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -4746,7 +4734,7 @@ name = "operon-tools-web-search"
 version = "0.1.0"
 dependencies = [
  "duckduckgo",
- "operon-context-normalize-tools",
+ "operon-context-normalize",
  "operon-tools-core",
  "serde",
  "serde_json",

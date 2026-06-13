@@ -44,87 +44,9 @@ pub fn parse_line(line: &str) -> Result<Vec<StreamEvent>> {
             }])
         }
 
-        "tool-call-start" => {
-            let index = raw.get("index").and_then(Value::as_u64).ok_or(
-                StreamNormalizeError::MissingField {
-                    field: "index",
-                    provider: PROVIDER,
-                },
-            )? as usize;
-
-            let tool_calls = raw
-                .get("delta")
-                .and_then(|delta| delta.get("message"))
-                .and_then(|message| message.get("tool_calls"))
-                .ok_or(StreamNormalizeError::MissingField {
-                    field: "delta.message.tool_calls",
-                    provider: PROVIDER,
-                })?;
-
-            let tool_call = if let Some(array) = tool_calls.as_array() {
-                array.first().ok_or(StreamNormalizeError::MissingField {
-                    field: "delta.message.tool_calls[0]",
-                    provider: PROVIDER,
-                })?
-            } else {
-                tool_calls
-            };
-
-            let id = tool_call
-                .get("id")
-                .and_then(Value::as_str)
-                .map(str::to_string);
-            let name = tool_call
-                .get("function")
-                .and_then(|function| function.get("name"))
-                .and_then(Value::as_str)
-                .map(str::to_string);
-
-            Ok(vec![StreamEvent::ToolCallStart { index, id, name }])
-        }
-
-        "tool-call-delta" => {
-            let index = raw.get("index").and_then(Value::as_u64).ok_or(
-                StreamNormalizeError::MissingField {
-                    field: "index",
-                    provider: PROVIDER,
-                },
-            )? as usize;
-
-            let arguments = raw
-                .get("delta")
-                .and_then(|delta| delta.get("message"))
-                .and_then(|message| message.get("tool_calls"))
-                .and_then(|tool_calls| {
-                    if let Some(array) = tool_calls.as_array() {
-                        array.first().cloned()
-                    } else {
-                        Some(tool_calls.clone())
-                    }
-                })
-                .and_then(|tool_call| tool_call.get("function").cloned())
-                .and_then(|function| function.get("arguments").cloned())
-                .and_then(|value| value.as_str().map(str::to_string))
-                .ok_or(StreamNormalizeError::MissingField {
-                    field: "delta.message.tool_calls.function.arguments",
-                    provider: PROVIDER,
-                })?;
-
-            Ok(vec![StreamEvent::ToolCallDelta {
-                index,
-                arguments_fragment: arguments,
-            }])
-        }
-
-        "tool-call-end" => {
-            let index = raw.get("index").and_then(Value::as_u64).ok_or(
-                StreamNormalizeError::MissingField {
-                    field: "index",
-                    provider: PROVIDER,
-                },
-            )? as usize;
-
-            Ok(vec![StreamEvent::ToolCallEnd { index }])
+        "tool-call-start" | "tool-call-delta" | "tool-call-end" => {
+            // Under the plain-text tag protocol, we ignore tool calls on the stream.
+            Ok(Vec::new())
         }
 
         "message-end" => {

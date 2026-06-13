@@ -29,7 +29,7 @@ use grep_regex::RegexMatcherBuilder;
 use grep_searcher::{SearcherBuilder, Sink, SinkContext, SinkMatch};
 use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
 use std::path::{Path, PathBuf};
 
 /// Maximum total matches across all files before truncation.
@@ -386,6 +386,10 @@ fn search_files(
         if result.match_count > 0 || result.error.is_some() {
             results.push(result);
         }
+    }
+
+    if total_matches >= MAX_MATCHES {
+        truncated = true;
     }
 
     (results, truncated)

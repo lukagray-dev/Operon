@@ -110,10 +110,9 @@ impl BashArgs {
             }
 
             // Each non-empty line must be in `key=value` form.
-            // The value is the portion after the first `=`, already unquoted by the parser.
             if let Some(eq) = line.find('=') {
                 let key = line[..eq].trim();
-                let val = line[eq + 1..].trim().to_string();
+                let val = unquote_value(line[eq + 1..].trim());
 
                 match key {
                     "command" => command = Some(val),
@@ -141,5 +140,30 @@ impl BashArgs {
             command,
             timeout_ms,
         })
+    }
+}
+
+/// Helper to strip enclosing double quotes and unescape internal quotes/backslashes.
+fn unquote_value(s: &str) -> String {
+    let s = s.trim();
+    if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
+        let inner = &s[1..s.len() - 1];
+        let mut res = String::with_capacity(inner.len());
+        let mut chars = inner.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                if let Some(&next_c) = chars.peek() {
+                    if next_c == '"' || next_c == '\\' {
+                        res.push(next_c);
+                        chars.next();
+                        continue;
+                    }
+                }
+            }
+            res.push(c);
+        }
+        res
+    } else {
+        s.to_string()
     }
 }

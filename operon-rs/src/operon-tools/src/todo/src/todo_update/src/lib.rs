@@ -10,7 +10,7 @@
 //!
 //! ```rust
 //! use operon_tools_todo_update::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
+//! use operon_context_normalize::tools::ToolCallId;
 //! use operon_tools_core::TodoStore;
 //! use serde_json::json;
 //!
@@ -35,53 +35,26 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
 
 pub use args::TodoUpdateArgs;
 pub use error::TodoUpdateToolError;
-pub use output::TodoUpdateOutput;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_update` tool.
 pub fn definition() -> TieredToolDefinition {
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "id": {
-                "type": "string",
-                "description": "Todo item id."
-            },
-            "todo": {
-                "type": "string",
-                "description": "New task description. None = no change."
-            },
-            "status": {
-                "type": "string",
-                "description": "New status. None = no change. Valid values: 'pending', 'in_progress', 'completed'."
-            },
-            "priority": {
-                "type": "string",
-                "description": "New priority. None = no change. Valid values: 'high', 'medium', 'low'."
-            }
-        },
-        "required": ["id"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_update".to_string(),
             description: "Updates an existing todo item. Call format: <todo_update id=\"1\" todo=\"new content\" status=\"in_progress\" priority=\"high\"> \
                           `id` is required. Provide at least one of: `todo`, `status`, `priority`."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "todo_update".to_string(),
@@ -120,7 +93,6 @@ Updated #{id}: {todo} [{status}, {priority}]
 - Empty todo: \"todo is empty\"
 - Malformed args: \"failed to parse tool arguments: ...\""
                 .to_string(),
-            parameters,
         },
     }
 }

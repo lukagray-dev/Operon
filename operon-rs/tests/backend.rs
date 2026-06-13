@@ -271,7 +271,7 @@ async fn dispatcher_enforces_read_before_write_and_emits_progress() {
         "call_write_denied",
         json!({
             "path": file_path.to_string_lossy().to_string(),
-            "content": "updated"
+            "__body__": "updated"
         }),
     );
     let denied_result = dispatcher.dispatch(denied_write).await;
@@ -301,7 +301,7 @@ async fn dispatcher_enforces_read_before_write_and_emits_progress() {
         "call_write",
         json!({
             "path": file_path.to_string_lossy().to_string(),
-            "content": "updated"
+            "__body__": "updated"
         }),
     );
     let write_outcome = dispatcher

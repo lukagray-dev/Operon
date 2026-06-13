@@ -1,7 +1,8 @@
 //! Executor for the todo_update tool — handles todo item updates.
 
 use crate::args::TodoUpdateArgs;
-use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+
 use operon_tools_core::TodoStore;
 
 /// Executes the todo_update tool with the given arguments.

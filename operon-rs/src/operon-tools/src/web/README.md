@@ -197,8 +197,8 @@ If `web_fetch` returns a non-2xx status code, the model receives the status and 
 ```rust
 let result = web_fetch::execute(...).await?;
 match result.content {
-    ToolContent::Json(json) => {
-        let output: WebFetchOutput = serde_json::from_value(json)?;
+    ToolContent::Text(text) => {
+        let output: WebFetchOutput = serde_json::from_str(&text)?;
         match output.status_code {
             200 => { /* success */ },
             404 => { /* not found — try different URL */ },
@@ -207,7 +207,6 @@ match result.content {
             _ => { /* other error */ }
         }
     }
-    _ => { /* error */ }
 }
 ```
 

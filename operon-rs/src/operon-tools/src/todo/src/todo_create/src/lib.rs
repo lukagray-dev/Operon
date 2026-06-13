@@ -10,7 +10,7 @@
 //!
 //! ```rust
 //! use operon_tools_todo_create::{definition, execute};
-//! use operon_context_normalize_tools::ToolCallId;
+//! use operon_context_normalize::tools::ToolCallId;
 //! use operon_tools_core::TodoStore;
 //! use serde_json::json;
 //!
@@ -35,20 +35,17 @@
 mod args;
 mod error;
 mod executor;
-mod output;
 
 #[cfg(test)]
 mod tests;
 
 pub use args::TodoCreateArgs;
 pub use error::TodoCreateToolError;
-pub use output::TodoCreateOutput;
 
-use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
+use operon_context_normalize::tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
     emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
 };
-use serde_json::json;
 
 /// Returns the tiered tool definition for the `todo_create` tool.
 ///
@@ -57,21 +54,6 @@ use serde_json::json;
 /// - `detailed`: sent after a malformed call. Full explanation with input attrs,
 ///   output format, error cases, and common mistakes.
 pub fn definition() -> TieredToolDefinition {
-    let parameters = json!({
-        "type": "object",
-        "properties": {
-            "todo": {
-                "type": "string",
-                "description": "Task description. Use imperative form: 'Implement the grep tool'."
-            },
-            "priority": {
-                "type": "string",
-                "description": "Priority level. Default: medium. Valid values: 'high', 'medium', 'low'."
-            }
-        },
-        "required": ["todo"]
-    });
-
     TieredToolDefinition {
         short: ToolDefinition {
             name: "todo_create".to_string(),
@@ -79,7 +61,6 @@ pub fn definition() -> TieredToolDefinition {
                           `todo` (task description, imperative form) is required. `priority` is optional \
                           (\"high\", \"medium\", \"low\" — default: \"medium\"). Returns a confirmation line and total count."
                 .to_string(),
-            parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "todo_create".to_string(),
@@ -125,7 +106,6 @@ Todos are session-scoped — they exist for the duration of the agent session on
 - Empty todo: \"todo is empty\" — provide a non-empty task description
 - Malformed args: \"failed to parse tool arguments: ...\""
                 .to_string(),
-            parameters,
         },
     }
 }

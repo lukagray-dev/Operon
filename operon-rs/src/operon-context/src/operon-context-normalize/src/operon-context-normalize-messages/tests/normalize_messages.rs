@@ -8,7 +8,7 @@ use operon_context_normalize_messages::{
     MessageNormalizeError, MessageRole, Provider, StopReason,
 };
 use operon_context_normalize_reasoning::ReasoningBlock;
-use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+use operon_context_normalize_messages::{ToolCall, ToolCallId, ToolContent, ToolResult};
 use serde_json::json;
 
 fn sample_tool_call() -> ToolCall {
@@ -60,16 +60,21 @@ fn anthropic_tool_call_and_reasoning_and_tool_result() {
             {"type":"tool_use","id":"toolu_1","name":"read_file","input":{"path":"/tmp/a.txt"}}
         ]
     });
-    let msg = normalize_message(assistant, &Provider::Anthropic).unwrap();
-    assert!(matches!(msg.content[0], ContentBlock::Reasoning(_)));
-    assert!(matches!(msg.content[1], ContentBlock::ToolCall(_)));
+    let err = normalize_message(assistant, &Provider::Anthropic).unwrap_err();
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnsupportedContentType { provider: "Anthropic", .. }
+    ));
 
     let user = json!({
         "role":"user",
         "content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"ok","is_error":false}]
     });
-    let tool_msg = normalize_message(user, &Provider::Anthropic).unwrap();
-    assert!(matches!(tool_msg.content[0], ContentBlock::ToolResult(_)));
+    let err_user = normalize_message(user, &Provider::Anthropic).unwrap_err();
+    assert!(matches!(
+        err_user,
+        MessageNormalizeError::UnsupportedContentType { provider: "Anthropic", .. }
+    ));
 }
 
 #[test]
@@ -112,14 +117,14 @@ fn anthropic_denormalize_shape() {
 #[test]
 fn anthropic_missing_required_field() {
     let raw = json!({
-        "role":"assistant",
-        "content":[{"type":"tool_use","name":"read_file","input":{}}]
+        "role":"user",
+        "content":[{"type":"image"}]
     });
     let err = normalize_message(raw, &Provider::Anthropic).unwrap_err();
     assert!(matches!(
         err,
         MessageNormalizeError::MissingField {
-            field: "id",
+            field: "content[].source",
             provider: "Anthropic"
         }
     ));
@@ -168,11 +173,11 @@ fn openai_tool_call_and_null_content() {
             {"id":"call_123","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"/tmp/a.txt\"}"}}
         ]
     });
-    let msg = normalize_message(raw, &Provider::OpenAI).unwrap();
-    assert!(msg
-        .content
-        .iter()
-        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    let err = normalize_message(raw, &Provider::OpenAI).unwrap_err();
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnsupportedContentType { provider: "OpenAI", .. }
+    ));
 }
 
 #[test]
@@ -217,14 +222,14 @@ fn openai_denormalize_shape() {
 #[test]
 fn openai_missing_required_field() {
     let raw = json!({
-        "role":"assistant",
-        "tool_calls":[{"type":"function","function":{"name":"read_file","arguments":"{}"}}]
+        "role":"user",
+        "content":[{}]
     });
     let err = normalize_message(raw, &Provider::OpenAI).unwrap_err();
     assert!(matches!(
         err,
         MessageNormalizeError::MissingField {
-            field: "id",
+            field: "content[].type",
             provider: "OpenAI"
         }
     ));
@@ -265,12 +270,11 @@ fn gemini_model_role_and_stop_reason() {
 }
 
 #[test]
-fn gemini_tool_call_reasoning_and_inline_data() {
+fn gemini_reasoning_and_inline_data() {
     let raw = json!({
         "role":"model",
         "parts":[
             {"thought":true,"text":"thinking","thoughtSignature":"sig"},
-            {"functionCall":{"name":"read_file","args":{"path":"/tmp/a.txt"}}},
             {"inline_data":{"mime_type":"image/jpeg","data":"abc"}}
         ]
     });
@@ -282,11 +286,22 @@ fn gemini_tool_call_reasoning_and_inline_data() {
     assert!(msg
         .content
         .iter()
-        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
-    assert!(msg
-        .content
-        .iter()
         .any(|b| matches!(b, ContentBlock::Image(_))));
+}
+
+#[test]
+fn gemini_tool_call_unsupported() {
+    let raw = json!({
+        "role":"model",
+        "parts":[
+            {"functionCall":{"name":"read_file","args":{"path":"/tmp/a.txt"}}}
+        ]
+    });
+    let err = normalize_message(raw, &Provider::Gemini).unwrap_err();
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnsupportedContentType { provider: "Gemini", .. }
+    ));
 }
 
 #[test]
@@ -316,12 +331,12 @@ fn gemini_denormalize_shape() {
 
 #[test]
 fn gemini_missing_required_field() {
-    let raw = json!({"role":"model","parts":[{"functionCall":{"args":{}}}]});
+    let raw = json!({"role":"user"});
     let err = normalize_message(raw, &Provider::Gemini).unwrap_err();
     assert!(matches!(
         err,
         MessageNormalizeError::MissingField {
-            field: "functionCall.name",
+            field: "parts",
             provider: "Gemini"
         }
     ));
@@ -515,21 +530,21 @@ fn openrouter_openai_and_anthropic_shape_detection() {
         "content":null,
         "tool_calls":[{"id":"call_123","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"/tmp/a.txt\"}"}}]
     });
-    let msg = normalize_message(openai_shape, &Provider::OpenRouter).unwrap();
-    assert!(msg
-        .content
-        .iter()
-        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    let err1 = normalize_message(openai_shape, &Provider::OpenRouter).unwrap_err();
+    assert!(matches!(
+        err1,
+        MessageNormalizeError::UnsupportedContentType { provider: "OpenRouter", .. }
+    ));
 
     let anthropic_shape = json!({
         "role":"assistant",
         "content":[{"type":"tool_use","id":"toolu_1","name":"read_file","input":{"path":"/tmp/a.txt"}}]
     });
-    let msg2 = normalize_message(anthropic_shape, &Provider::OpenRouter).unwrap();
-    assert!(msg2
-        .content
-        .iter()
-        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    let err2 = normalize_message(anthropic_shape, &Provider::OpenRouter).unwrap_err();
+    assert!(matches!(
+        err2,
+        MessageNormalizeError::UnsupportedContentType { provider: "OpenRouter", .. }
+    ));
 }
 
 #[test]
@@ -562,7 +577,10 @@ fn openrouter_denormalize_openai_style() {
         &Provider::OpenRouter,
     )
     .unwrap();
-    assert!(wire["messages"][0].get("tool_calls").is_some());
+    // With plain-text tool-calling migration, we expect no provider-native tool_calls
+    assert!(wire["messages"][0].get("tool_calls").is_none());
+    let content = wire["messages"][0].get("content").unwrap().as_str().unwrap();
+    assert!(content.contains("<read_file"));
 }
 
 #[test]
@@ -608,11 +626,11 @@ fn ollama_tool_call_and_system_and_denormalize_native() {
         "content":"x",
         "tool_calls":[{"id":"call_123","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"/tmp/a.txt\"}"}}]
     });
-    let msg = normalize_message(raw, &Provider::Ollama).unwrap();
-    assert!(msg
-        .content
-        .iter()
-        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    let err = normalize_message(raw, &Provider::Ollama).unwrap_err();
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnsupportedContentType { provider: "Ollama", .. }
+    ));
 
     let sys =
         normalize_message(json!({"role":"system","content":"sys"}), &Provider::Ollama).unwrap();
@@ -675,11 +693,11 @@ fn cohere_tool_call_and_system_and_denormalize() {
         "content":[{"type":"text","text":"hi"}],
         "tool_calls":[{"id":"call_123","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"/tmp/a.txt\"}"}}]
     });
-    let msg = normalize_message(raw, &Provider::Cohere).unwrap();
-    assert!(msg
-        .content
-        .iter()
-        .any(|b| matches!(b, ContentBlock::ToolCall(_))));
+    let err = normalize_message(raw, &Provider::Cohere).unwrap_err();
+    assert!(matches!(
+        err,
+        MessageNormalizeError::UnsupportedContentType { provider: "Cohere", .. }
+    ));
 
     let sys =
         normalize_message(json!({"role":"system","content":"sys"}), &Provider::Cohere).unwrap();

@@ -14,5 +14,5 @@ serde_json.workspace                     = true
 tokio.workspace                          = true
 spider.workspace                         = true
 spider_transformations.workspace         = true
-operon-context-normalize-tools.workspace = true
+operon-context-normalize.workspace = true
 operon-tools-core.workspace              = true

@@ -86,7 +86,8 @@ fn build_suffix_result_ids(messages: &[ConversationMessage]) -> Vec<HashSet<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+    use operon_context_normalize::tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
+
     use serde_json::json;
 
     fn assistant_with_call(id: &str, name: &str) -> ConversationMessage {

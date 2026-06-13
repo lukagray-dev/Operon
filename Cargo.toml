@@ -15,7 +15,6 @@ members = [
 
     # Normalize facade + sub-crates (replaces the old operon-context-tools)
     "operon-rs/src/operon-context/src/operon-context-normalize",
-    "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-tools",
     "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-reasoning",
     "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-messages",
     "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-stream",
@@ -122,7 +121,6 @@ operon-context-sanitizer              = { path = "operon-rs/src/operon-context/s
 operon-context-compaction             = { path = "operon-rs/src/operon-context/src/operon-context-compaction" }
 
 operon-context-normalize              = { path = "operon-rs/src/operon-context/src/operon-context-normalize" }
-operon-context-normalize-tools        = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-tools" }
 operon-context-normalize-reasoning    = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-reasoning" }
 operon-context-normalize-messages     = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-messages" }
 operon-context-normalize-stream       = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-stream" }
@@ -151,6 +149,7 @@ operon-tools-load                     = { path = "operon-rs/src/operon-tools/src
 operon-tools-ask                      = { path = "operon-rs/src/operon-tools/src/ask" }
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
+operon-tools-parser                   = { path = "operon-rs/src/operon-tools/src/parser" }
 
 # Events, policy, config, and session crates
 operon-events    = { path = "operon-rs/src/operon-events" }

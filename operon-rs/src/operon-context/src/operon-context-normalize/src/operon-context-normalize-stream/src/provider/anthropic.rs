@@ -39,48 +39,11 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
         }
 
         "content_block_start" => {
-            let index = raw.get("index").and_then(Value::as_u64).ok_or(
-                StreamNormalizeError::MissingField {
-                    field: "index",
-                    provider: PROVIDER,
-                },
-            )? as usize;
-
-            let block_type = raw
-                .get("content_block")
-                .and_then(|block| block.get("type"))
-                .and_then(Value::as_str)
-                .ok_or(StreamNormalizeError::MissingField {
-                    field: "content_block.type",
-                    provider: PROVIDER,
-                })?;
-
-            if block_type == "tool_use" {
-                let id = raw
-                    .get("content_block")
-                    .and_then(|block| block.get("id"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-                let name = raw
-                    .get("content_block")
-                    .and_then(|block| block.get("name"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-
-                return Ok(vec![StreamEvent::ToolCallStart { index, id, name }]);
-            }
-
+            // Under the plain-text tag protocol, we ignore tool use blocks on the stream.
             Ok(Vec::new())
         }
 
         "content_block_delta" => {
-            let index = raw.get("index").and_then(Value::as_u64).ok_or(
-                StreamNormalizeError::MissingField {
-                    field: "index",
-                    provider: PROVIDER,
-                },
-            )? as usize;
-
             let delta_type = raw
                 .get("delta")
                 .and_then(|delta| delta.get("type"))
@@ -105,18 +68,8 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
                     }])
                 }
                 "input_json_delta" => {
-                    let partial_json = raw
-                        .get("delta")
-                        .and_then(|delta| delta.get("partial_json"))
-                        .and_then(Value::as_str)
-                        .ok_or(StreamNormalizeError::MissingField {
-                            field: "delta.partial_json",
-                            provider: PROVIDER,
-                        })?;
-                    Ok(vec![StreamEvent::ToolCallDelta {
-                        index,
-                        arguments_fragment: partial_json.to_string(),
-                    }])
+                    // Ignore tool call input json deltas
+                    Ok(Vec::new())
                 }
                 "thinking_delta" => {
                     let thinking = raw
@@ -152,13 +105,8 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
         }
 
         "content_block_stop" => {
-            let index = raw.get("index").and_then(Value::as_u64).ok_or(
-                StreamNormalizeError::MissingField {
-                    field: "index",
-                    provider: PROVIDER,
-                },
-            )? as usize;
-            Ok(vec![StreamEvent::ToolCallEnd { index }])
+            // Ignore content block stop
+            Ok(Vec::new())
         }
 
         "message_delta" => {
