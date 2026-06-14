@@ -743,9 +743,46 @@ class SessionManager {
             this.currentThinkingContentEl.textContent += text;
             window.assistantMessageController.scrollToBottom();
         } 
+        else if (event.ToolCallDetected) {
+            this.ensureAssistantMessageCreated();
+            const { call_id, name, attrs } = event.ToolCallDetected;
+            this.createToolCallCard(call_id, name, attrs);
+        }
+        else if (event.ToolBodyDelta) {
+            const { call_id, text } = event.ToolBodyDelta;
+            const toolCard = this.activeToolCalls.get(call_id);
+            if (toolCard) {
+                const codeEl = toolCard.querySelector('.assistant-message__tool-code');
+                if (codeEl) {
+                    if (codeEl.textContent === 'Pending...') {
+                        codeEl.textContent = '';
+                    }
+                    codeEl.textContent += text;
+                }
+            }
+            window.assistantMessageController.scrollToBottom();
+        }
         else if (event.ToolCallStart) {
             this.ensureAssistantMessageCreated();
             const { call_id, name } = event.ToolCallStart;
+            
+            // Map the streaming tool card if it exists
+            const parts = call_id.split('-');
+            if (parts.length >= 3) {
+                const turn_index = parts[parts.length - 2];
+                const idx = parts[parts.length - 1];
+                const stream_id = `stream-${turn_index}-${idx}`;
+                const streamCard = this.activeToolCalls.get(stream_id);
+                if (streamCard) {
+                    // Re-key the active tool call card to the final call_id
+                    this.activeToolCalls.delete(stream_id);
+                    this.activeToolCalls.set(call_id, streamCard);
+                    streamCard.id = `tool-${call_id}`;
+                    
+                    // No need to create a new card
+                    return;
+                }
+            }
             this.createToolCallCard(call_id, name);
         } 
         else if (event.ToolCallArgsReady) {
@@ -912,7 +949,7 @@ class SessionManager {
     /**
      * Create inline tool card
      */
-    createToolCallCard(callId, name) {
+    createToolCallCard(callId, name, attrs = "") {
         // If we were thinking, collapse that thinking block.
         if (this.currentThinkingEl) {
             this.currentThinkingEl.classList.remove('thinking-active');
@@ -925,13 +962,14 @@ class SessionManager {
         const toolCard = document.createElement('div');
         toolCard.className = 'assistant-message__tool-card';
         toolCard.id = `tool-${callId}`;
+        const displayName = attrs ? `tool: ${name} ${attrs}` : `tool: ${name}`;
         toolCard.innerHTML = `
             <div class="assistant-message__tool-header">
                 <div class="assistant-message__tool-title-wrapper">
                     <span class="assistant-message__tool-icon">
                         <img src="./assets/icons/main-content/messages/assistant/tool.svg" style="filter: invert(0.7); width:14px; height:14px;">
                     </span>
-                    <span class="assistant-message__tool-name">tool: ${name}</span>
+                    <span class="assistant-message__tool-name">${escapeHtml(displayName)}</span>
                 </div>
                 <div class="assistant-message__tool-status-wrapper" style="display: flex; align-items: center; gap: 8px;">
                     <span class="assistant-message__tool-status assistant-message__tool-status--running">

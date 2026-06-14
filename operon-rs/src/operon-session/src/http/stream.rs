@@ -1,21 +1,8 @@
-// http.rs — Provider HTTP request sending and SSE stream consumption.
+// stream.rs — Handles consuming the Server-Sent Events (SSE) stream from the LLM provider.
 //
-// This module is responsible for:
-//   1. Building provider-specific request headers (API key, content-type, etc.)
-//   2. Sending the POST request and handling HTTP-level errors.
-//   3. Consuming the SSE byte stream line by line.
-//   4. Delegating each SSE line to the normalize-stream pipeline for parsing.
-//   5. Pushing canonical SessionEvents onto the event channel as they arrive.
-//   6. Accumulating and returning a fully assembled StreamResult.
-//
-// This module does NOT:
-//   - Parse provider wire formats (that's operon-context-normalize-stream).
-//   - Dispatch tool calls (that's runner.rs).
-//   - Know about session state or lifecycle (that's runner.rs).
-//
-// Important: HTTP non-2xx errors are returned as SessionError::Stream, NOT
-// SessionError::Http, because reqwest::Error does not expose a constructor for
-// status-level errors. See PROMPT.md §Implementation Notes #2.
+// Hey friend! This file consumes chunks of bytes from the HTTP response stream,
+// processes them into line-buffered strings, feeds them into the normalizer parser,
+// and emits live events (like text deltas) to the frontend.
 
 use futures::StreamExt;
 use reqwest::Client;
@@ -29,10 +16,8 @@ use operon_events::{SessionCommand, SessionEvent};
 use operon_providers::Provider;
 
 use crate::error::SessionError;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// StreamResult
-// ─────────────────────────────────────────────────────────────────────────────
+use super::headers::build_headers;
+use super::detector::{StreamingTagDetector, DetectorEvent};
 
 /// Fully assembled output from consuming one SSE stream from the provider.
 ///
@@ -55,51 +40,6 @@ pub struct StreamResult {
     /// The complete reasoning block accumulated during the stream.
     pub reasoning: Option<operon_context::ReasoningBlock>,
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// build_headers (private)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Build provider-specific request headers from the provider enum + API key.
-///
-/// Anthropic uses a custom `x-api-key` header plus an API version pin.
-/// All other (OpenAI-family) providers use the standard `Authorization: Bearer` header.
-fn build_headers(provider: &Provider, api_key: &str) -> reqwest::header::HeaderMap {
-    use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
-
-    let mut headers = HeaderMap::new();
-
-    // Every provider requires JSON — set this unconditionally.
-    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
-    match provider {
-        Provider::Anthropic => {
-            // Anthropic uses a custom x-api-key header, not Authorization: Bearer.
-            // The unwrap is safe because API keys are ASCII strings.
-            headers.insert(
-                "x-api-key",
-                HeaderValue::from_str(api_key).expect("API key must be a valid header value"),
-            );
-            // Version pin — ensures we always get the same response shape regardless
-            // of future Anthropic API changes.
-            headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
-        }
-        _ => {
-            // OpenAI-family and all other providers use Bearer token auth.
-            let bearer = format!("Bearer {api_key}");
-            headers.insert(
-                AUTHORIZATION,
-                HeaderValue::from_str(&bearer).expect("API key must be a valid header value"),
-            );
-        }
-    }
-
-    headers
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// send_streaming
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Send one streaming request to the provider and consume the entire SSE response.
 ///
@@ -132,6 +72,7 @@ pub async fn send_streaming(
     event_tx: &mpsc::Sender<SessionEvent>,
     cmd_rx: &mut mpsc::Receiver<SessionCommand>,
     pending_commands: &mut VecDeque<SessionCommand>,
+    turn_index: usize,
 ) -> Result<StreamResult, SessionError> {
     // Build provider-specific headers.
     let headers = build_headers(provider, api_key);
@@ -174,7 +115,10 @@ pub async fn send_streaming(
     // Buffer for building complete lines character by character.
     // SSE chunks do not respect line boundaries, so we accumulate until '\n'.
     let mut line_buf = String::new();
-    let mut last_emitted_len = 0;
+
+    // Hey friend! We initialize the streaming tag detector for the current turn.
+    // It sits between the SSE text output and our event channel, parsing tool tags on the fly.
+    let mut detector = StreamingTagDetector::new(turn_index);
 
     // Process the byte stream chunk by chunk.
     loop {
@@ -240,15 +184,40 @@ pub async fn send_streaming(
                                 .map_err(|e| SessionError::Stream(e.to_string()))?
                             {
                                 // Complete text delta — send to UI immediately and accumulate.
+                                // Hey friend! We push the streamed text to our StreamingTagDetector
+                                // which returns events telling us what is safe prose vs what is a tool call.
                                 AssemblerOutput::Text(text) => {
                                     result.text.push_str(&text);
-                                    let stripped = strip_in_progress_tool_tag(&result.text);
-                                    let emit_len = stripped.len();
-                                    if emit_len > last_emitted_len {
-                                        let delta = stripped[last_emitted_len..emit_len].to_string();
-                                        // Best-effort send — we don't care if the receiver is closed.
-                                        let _ = event_tx.send(SessionEvent::TextDelta { text: delta }).await;
-                                        last_emitted_len = emit_len;
+                                    let det_events = detector.push(&text);
+                                    for det_event in det_events {
+                                        match det_event {
+                                            DetectorEvent::TextDelta(t) => {
+                                                let _ = event_tx.send(SessionEvent::TextDelta { text: t }).await;
+                                            }
+                                            DetectorEvent::ToolCallDetected { call_id, name, attrs } => {
+                                                let _ = event_tx.send(SessionEvent::ToolCallDetected {
+                                                    call_id,
+                                                    name,
+                                                    attrs,
+                                                }).await;
+                                            }
+                                            DetectorEvent::ToolBodyStarted { call_id, name, attrs } => {
+                                                let _ = event_tx.send(SessionEvent::ToolCallDetected {
+                                                    call_id: call_id.clone(),
+                                                    name,
+                                                    attrs,
+                                                }).await;
+                                            }
+                                            DetectorEvent::ToolBodyDelta { call_id, text } => {
+                                                let _ = event_tx.send(SessionEvent::ToolBodyDelta {
+                                                    call_id,
+                                                    text,
+                                                }).await;
+                                            }
+                                            DetectorEvent::ToolCallComplete { .. } => {
+                                                // No event needed — the full result arrives after parsing.
+                                            }
+                                        }
                                     }
                                 }
 
@@ -266,7 +235,6 @@ pub async fn send_streaming(
                                         signature: signature.map(operon_context::ReasoningSignature),
                                     });
                                 }
-
 
                                 // Stream ended — record the stop reason.
                                 AssemblerOutput::StreamEnded { stop_reason } => {
@@ -322,7 +290,6 @@ pub async fn send_streaming(
                 });
             }
 
-
             // Final stop reason from the assembler.
             AssemblerOutput::StreamEnded { stop_reason } => {
                 // We prefer the stop reason already recorded directly from the stream events,
@@ -340,48 +307,4 @@ pub async fn send_streaming(
     Ok(result)
 }
 
-/// Strip any in-progress tool call from the tail of streamed text.
-///
-/// During streaming the model may have emitted a partial or complete tool tag
-/// that the parser will handle once the full response arrives. Until then, the
-/// raw tag syntax must not be shown as prose to the user.
-///
-/// Strategy: find the last `<` in the text that is followed by an ASCII
-/// alphabetic character (potential tag start). If found, check whether that
-/// position through the end of text looks like an in-progress tag or body block
-/// (i.e. no `>>>>` closing delimiter has appeared after it). If so, strip from
-/// that `<` to the end of the streamed text before emitting as prose.
-fn strip_in_progress_tool_tag(text: &str) -> &str {
-    // Find the last potential tag-open `<[a-zA-Z]` in the text.
-    let bytes = text.as_bytes();
-    let len = bytes.len();
 
-    // Walk backwards to find the last `<` followed by alpha.
-    let mut last_tag_start: Option<usize> = None;
-    let mut i = len.saturating_sub(1);
-    loop {
-        if bytes[i] == b'<' && i + 1 < len && bytes[i + 1].is_ascii_alphabetic() {
-            last_tag_start = Some(i);
-            break;
-        }
-        if i == 0 { break; }
-        i -= 1;
-    }
-
-    let tag_start = match last_tag_start {
-        Some(pos) => pos,
-        None => return text, // no tag candidate found
-    };
-
-    let tail = &text[tag_start..];
-
-    // If a complete `>>>>` closing delimiter appears after the tag start,
-    // the tool call is fully emitted and the parser will handle it — don't strip.
-    if tail.contains(">>>>") {
-        return text;
-    }
-
-    // The tag (or its body) is still in progress. Strip from tag_start onward.
-    // Trim any trailing whitespace/newlines left behind.
-    text[..tag_start].trim_end()
-}

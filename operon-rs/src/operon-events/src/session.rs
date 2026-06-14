@@ -112,6 +112,29 @@ pub enum SessionEvent {
         args_json: String,
     },
 
+    /// A tool call header (name + attrs) is confirmed during streaming but the
+    /// body has not yet started. Only emitted for body-less tools (e.g. `read`).
+    /// The UI shows the tool card immediately on receiving this.
+    ToolCallDetected {
+        /// Opaque streaming call index (not the final ToolCallId — that's assigned
+        /// after the full response is parsed). Format: "{turn_index}-{call_index}".
+        call_id: String,
+        /// Tool name extracted from the opening tag.
+        name: String,
+        /// Raw attr string from the opening tag (e.g. `path="C:\file.txt"`).
+        /// Displayed verbatim in the tool card header.
+        attrs: String,
+    },
+
+    /// A streaming token from inside a tool body (between `<<<<` and `>>>>`).
+    /// Emitted token-by-token so the UI can render a live body preview.
+    ToolBodyDelta {
+        /// Matches the call_id in the preceding ToolCallDetected event.
+        call_id: String,
+        /// One or more characters of body content.
+        text: String,
+    },
+
     /// Progress update emitted while a tool is executing.
     ///
     /// The dispatcher emits `Started` / `Completed` / `Failed`, and individual
