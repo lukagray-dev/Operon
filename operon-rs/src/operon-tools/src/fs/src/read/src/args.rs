@@ -62,12 +62,22 @@ impl ReadArgs {
             .as_str()
             .ok_or_else(|| "attribute 'paths' must be a string".to_string())?;
 
-        // Step 2: Split on whitespace — each token is one path entry (already
-        // unquoted by the parser). Empty tokens from extra whitespace are skipped.
-        let raw_entries: Vec<&str> = paths_str
-            .split_whitespace()
-            .filter(|s| !s.is_empty())
-            .collect();
+        // Step 2: Split on newlines if present, otherwise treat the entire string as a single path entry.
+        // Empty entries are skipped.
+        let raw_entries: Vec<&str> = if paths_str.contains('\n') {
+            paths_str
+                .split('\n')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect()
+        } else {
+            let trimmed = paths_str.trim();
+            if trimmed.is_empty() {
+                Vec::new()
+            } else {
+                vec![trimmed]
+            }
+        };
 
         if raw_entries.is_empty() {
             return Err("'paths' is empty — provide at least one file path".to_string());

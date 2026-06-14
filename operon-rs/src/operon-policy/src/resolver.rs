@@ -239,7 +239,15 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
             .get("paths")
             .or_else(|| args.get("path"))
             .and_then(|v| v.as_str())
-            .and_then(|s| s.split(';').next())
+            .and_then(|s| {
+                if s.contains('\n') {
+                    s.split('\n').next()
+                } else if s.contains(';') {
+                    s.split(';').next()
+                } else {
+                    Some(s)
+                }
+            })
             .map(|first| {
                 let entry = first.trim();
                 let stripped = if let Some(colon_idx) = find_range_colon(entry) {

@@ -41,10 +41,10 @@ pub struct GrepArgs {
 }
 
 impl GrepArgs {
-    /// Parse grep tool arguments from the attrs+body JSON produced by the LLM parser.
+    /// Parse grep tool arguments from the attrs JSON produced by the LLM parser.
     ///
     /// Extracts `path` from args_json["path"] or args_json["paths"] and all options from
-    /// either attributes or args_json["__body__"].
+    /// attributes.
     ///
     /// # Errors
     /// Returns `Err(String)` if:
@@ -60,51 +60,41 @@ impl GrepArgs {
             .ok_or_else(|| "attribute 'path' must be a string".to_string())?
             .to_string();
 
-        // Step 2: Extract the optional body string. Empty/missing body = defaults.
-        let body = args_json
-            .get("__body__")
+        // Step 2: Parse patterns
+        let mut patterns = Vec::new();
+        if let Some(attr_pat) = args_json
+            .get("pattern")
+            .or_else(|| args_json.get("patterns"))
             .and_then(|v| v.as_str())
-            .unwrap_or("");
-
-        // Step 3: Parse the body into fields.
-        let (mut patterns, mut glob, mut ignore, mut context_lines) = parse_body(body)?;
-
-        // Step 4: Fallback to attributes if not set in the body.
-        if patterns.is_empty() {
-            if let Some(attr_pat) = args_json
-                .get("pattern")
-                .or_else(|| args_json.get("patterns"))
-                .and_then(|v| v.as_str())
-            {
-                patterns = parse_tokens(attr_pat);
-            }
+        {
+            patterns = parse_tokens(attr_pat);
         }
 
-        if glob.is_none() {
-            if let Some(attr_glob) = args_json.get("glob").and_then(|v| v.as_str()) {
-                glob = Some(attr_glob.to_string());
-            }
+        // Step 3: Parse glob
+        let glob = args_json
+            .get("glob")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        // Step 4: Parse ignore
+        let mut ignore = Vec::new();
+        if let Some(attr_ignore) = args_json.get("ignore").and_then(|v| v.as_str()) {
+            ignore = parse_tokens(attr_ignore);
         }
 
-        if ignore.is_empty() {
-            if let Some(attr_ignore) = args_json.get("ignore").and_then(|v| v.as_str()) {
-                ignore = parse_tokens(attr_ignore);
-            }
-        }
-
-        if context_lines == 0 {
-            if let Some(attr_context) = args_json
-                .get("context")
-                .or_else(|| args_json.get("context_lines"))
-                .and_then(|v| v.as_str())
-            {
-                context_lines = attr_context.parse::<usize>().map_err(|_| {
-                    format!(
-                        "invalid context value '{}': must be a non-negative integer",
-                        attr_context
-                    )
-                })?;
-            }
+        // Step 5: Parse context
+        let mut context_lines = 0;
+        if let Some(attr_context) = args_json
+            .get("context")
+            .or_else(|| args_json.get("context_lines"))
+            .and_then(|v| v.as_str())
+        {
+            context_lines = attr_context.parse::<usize>().map_err(|_| {
+                format!(
+                    "invalid context value '{}': must be a non-negative integer",
+                    attr_context
+                )
+            })?;
         }
 
         Ok(GrepArgs {
@@ -117,121 +107,19 @@ impl GrepArgs {
     }
 }
 
-/// Parse the body string into grep option fields.
-///
-/// Body lines have the format: `key=token1 token2 ...`
-/// The first `=` separates the key from the values. Tokens are already unquoted
-/// by the parser (quotes were stripped before the body was assembled).
-///
-/// Recognized keys:
-///   "pattern"  → push each token to patterns vec
-///   "glob"     → first token → glob = Some(token)
-///   "ignore"   → push each token to ignore vec
-///   "context"  → parse first token as usize → context_lines
-///
-/// Unknown keys are silently ignored.
-///
-/// # Errors
-/// Returns Err if "context" value is not a valid usize.
-fn parse_body(
-    body: &str,
-) -> Result<(Vec<String>, Option<String>, Vec<String>, usize), String> {
-    let mut patterns: Vec<String> = Vec::new();
-    let mut glob: Option<String> = None;
-    let mut ignore: Vec<String> = Vec::new();
-    let mut context_lines: usize = 0;
-
-    for raw_line in body.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        // Split on the FIRST '=' only. Left side is key, right side is raw values.
-        let eq_pos = match line.find('=') {
-            Some(pos) => pos,
-            None => continue, // Line with no '=' is ignored.
-        };
-
-        let key = line[..eq_pos].trim();
-        let values_str = line[eq_pos + 1..].trim();
-
-        let tokens = parse_tokens(values_str);
-
-        match key {
-            "pattern" => {
-                // Each token is a separate pattern (OR-combined during search).
-                for token in tokens {
-                    patterns.push(token);
-                }
-            }
-            "glob" => {
-                // Only the first token is used.
-                if let Some(first) = tokens.first() {
-                    glob = Some(first.clone());
-                }
-            }
-            "ignore" => {
-                // Each token is a separate ignore pattern.
-                for token in tokens {
-                    ignore.push(token);
-                }
-            }
-            "context" => {
-                // Parse the first token as a usize.
-                if let Some(first) = tokens.first() {
-                    context_lines = first.parse::<usize>().map_err(|_| {
-                        format!("invalid context value '{}': must be a non-negative integer", first)
-                    })?;
-                }
-            }
-            // All other keys are silently ignored for forward-compatibility.
-            _ => {}
-        }
-    }
-
-    Ok((patterns, glob, ignore, context_lines))
-}
-
-/// Helper to parse space-separated tokens from a line, respecting double quotes and unescaping.
+/// Helper to parse newline-separated tokens, respecting any internal spaces.
 fn parse_tokens(s: &str) -> Vec<String> {
-    let mut tokens = Vec::new();
-    let mut chars = s.chars().peekable();
-    while let Some(&c) = chars.peek() {
-        if c.is_whitespace() {
-            chars.next();
-            continue;
-        }
-        if c == '"' {
-            chars.next(); // consume opening quote
-            let mut val = String::new();
-            while let Some(next_c) = chars.next() {
-                if next_c == '\\' {
-                    if let Some(&esc_c) = chars.peek() {
-                        if esc_c == '"' || esc_c == '\\' {
-                            val.push(esc_c);
-                            chars.next();
-                            continue;
-                        }
-                    }
-                }
-                if next_c == '"' {
-                    break;
-                }
-                val.push(next_c);
-            }
-            tokens.push(val);
+    if s.contains('\n') {
+        s.split('\n')
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+            .collect()
+    } else {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            Vec::new()
         } else {
-            let mut val = String::new();
-            while let Some(&next_c) = chars.peek() {
-                if next_c.is_whitespace() {
-                    break;
-                }
-                val.push(next_c);
-                chars.next();
-            }
-            tokens.push(val);
+            vec![trimmed.to_string()]
         }
     }
-    tokens
 }

@@ -48,8 +48,8 @@ fn command_matches_only_accepts_cancel_or_the_matching_approval_id() {
 
 #[test]
 fn policy_path_for_call_extracts_the_correct_anchor() {
-    // 1. "read" tool uses the first entry from its semicolon-delimited "paths" string argument as the policy anchor path.
-    let read_call = make_call("read", json!({ "paths": "/tmp/a.txt /tmp/b.txt" }));
+    // 1. "read" tool uses the first entry from its newline-delimited "paths" string argument as the policy anchor path.
+    let read_call = make_call("read", json!({ "paths": "/tmp/a.txt\n/tmp/b.txt" }));
     assert_eq!(
         policy_path_for_call(&read_call).as_deref(),
         Some("/tmp/a.txt")

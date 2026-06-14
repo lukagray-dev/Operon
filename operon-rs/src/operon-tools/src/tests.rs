@@ -419,7 +419,7 @@ async fn test_bash_tool_registration_and_dispatch() {
             "bash",
             json!({
                 "path": std::env::temp_dir().to_str().unwrap(),
-                "__body__": "command=\"echo hello\""
+                "command": "echo hello"
             }),
         ))
         .await;
@@ -452,7 +452,7 @@ async fn test_bash_tool_empty_command_error() {
             "bash",
             json!({
                 "path": std::env::temp_dir().to_str().unwrap(),
-                "__body__": "command=\"\""
+                "command": ""
             }),
         ))
         .await;
@@ -478,7 +478,7 @@ async fn test_bash_tool_nonzero_exit_not_error() {
             "bash",
             json!({
                 "path": std::env::temp_dir().to_str().unwrap(),
-                "__body__": "command=\"exit 42\""
+                "command": "exit 42"
             }),
         ))
         .await;

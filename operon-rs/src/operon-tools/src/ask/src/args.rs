@@ -42,82 +42,49 @@ pub struct AskArgs {
 impl AskArgs {
     /// Parse `AskArgs` from the raw JSON arguments of a tool call.
     ///
-    /// `question`, `option1`, `option2`, and `option3` are all parsed from
-    /// `args_json["__body__"]` as key=value lines (one per line).
+    /// `question`, `option1`, `option2`, and `option3` are all parsed from XML attributes.
     ///
     /// # Errors
     ///
-    /// Returns `Err(String)` with a descriptive message if:
-    /// - `__body__` key is missing entirely.
-    /// - `question` is missing from the body.
-    /// - Any of `option1`, `option2`, or `option3` are missing from the body.
+    /// Returns `Err(String)` with a descriptive message if any of the required attributes are missing.
     pub fn parse(args_json: &serde_json::Value) -> Result<AskArgs, String> {
-        // ── Extract and parse the body ────────────────────────────────────────
-        // The body contains all arguments as key=value lines, already unquoted
-        // by the call-format parser.
-        let body = args_json["__body__"]
+        let question = args_json
+            .get("question")
+            .ok_or_else(|| "missing attribute: question".to_string())?
             .as_str()
-            .ok_or_else(|| "missing body".to_string())?;
+            .ok_or_else(|| "attribute 'question' must be a string".to_string())?
+            .trim()
+            .to_string();
 
-        let mut question: Option<String> = None;
-        let mut option1: Option<String> = None;
-        let mut option2: Option<String> = None;
-        let mut option3: Option<String> = None;
+        let option1 = args_json
+            .get("option1")
+            .ok_or_else(|| "missing attribute: option1".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'option1' must be a string".to_string())?
+            .trim()
+            .to_string();
 
-        for line in body.lines() {
-            let line = line.trim();
-            // Skip blank lines gracefully — body may have padding.
-            if line.is_empty() {
-                continue;
-            }
+        let option2 = args_json
+            .get("option2")
+            .ok_or_else(|| "missing attribute: option2".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'option2' must be a string".to_string())?
+            .trim()
+            .to_string();
 
-            // Each non-empty line must be in `key=value` form.
-            if let Some(eq) = line.find('=') {
-                let key = line[..eq].trim();
-                let val = unquote_value(line[eq + 1..].trim());
+        let option3 = args_json
+            .get("option3")
+            .ok_or_else(|| "missing attribute: option3".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'option3' must be a string".to_string())?
+            .trim()
+            .to_string();
 
-                match key {
-                    "question" => question = Some(val),
-                    "option1" => option1 = Some(val),
-                    "option2" => option2 = Some(val),
-                    "option3" => option3 = Some(val),
-                    // Unknown keys are silently ignored — forward compatibility.
-                    _ => {}
-                }
-            }
-        }
-
-        // All four fields are required — missing any is always a model error.
         Ok(AskArgs {
-            question: question.ok_or("missing body key: question")?,
-            option1: option1.ok_or("missing body key: option1")?,
-            option2: option2.ok_or("missing body key: option2")?,
-            option3: option3.ok_or("missing body key: option3")?,
+            question,
+            option1,
+            option2,
+            option3,
         })
-    }
-}
-
-/// Helper to strip enclosing double quotes and unescape internal quotes/backslashes.
-fn unquote_value(s: &str) -> String {
-    let s = s.trim();
-    if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
-        let inner = &s[1..s.len() - 1];
-        let mut res = String::with_capacity(inner.len());
-        let mut chars = inner.chars().peekable();
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                if let Some(&next_c) = chars.peek() {
-                    if next_c == '"' || next_c == '\\' {
-                        res.push(next_c);
-                        chars.next();
-                        continue;
-                    }
-                }
-            }
-            res.push(c);
-        }
-        res
-    } else {
-        s.to_string()
     }
 }

@@ -58,7 +58,7 @@ async fn test_ignore_patterns() {
         ToolCallId("test_call".to_string()),
         json!({
             "path": &path,
-            "__body__": "ignore=\"*.lock\" \"node_modules\""
+            "ignore": "*.lock\nnode_modules"
         }),
     )
     .await
@@ -172,7 +172,7 @@ async fn test_attribute_based_listing() {
         ToolCallId("test_call".to_string()),
         json!({
             "paths": &path,
-            "ignore": "*.lock node_modules"
+            "ignore": "*.lock\nnode_modules"
         }),
     )
     .await

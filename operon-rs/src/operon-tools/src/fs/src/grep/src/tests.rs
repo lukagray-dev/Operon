@@ -32,7 +32,7 @@ async fn test_basic_search() {
         ToolCallId("test".to_string()),
         json!({
             "path": &file,
-            "__body__": "pattern=\"pattern\""
+            "pattern": "pattern"
         }),
     )
     .await
@@ -53,7 +53,7 @@ async fn test_invalid_regex() {
         ToolCallId("test".to_string()),
         json!({
             "path": &file,
-            "__body__": "pattern=\"[invalid\""
+            "pattern": "[invalid"
         }),
     )
     .await
@@ -73,7 +73,7 @@ async fn test_case_insensitive() {
         ToolCallId("test".to_string()),
         json!({
             "path": &file,
-            "__body__": "pattern=\"error\""
+            "pattern": "error"
         }),
     )
     .await
@@ -98,7 +98,7 @@ async fn test_truncation() {
         ToolCallId("test".to_string()),
         json!({
             "path": &file,
-            "__body__": "pattern=\"pattern\""
+            "pattern": "pattern"
         }),
     )
     .await
@@ -121,7 +121,8 @@ async fn test_include_filter() {
         ToolCallId("test".to_string()),
         json!({
             "path": temp.path().display().to_string(),
-            "__body__": "pattern=\"pattern\"\nglob=\"*.rs\""
+            "pattern": "pattern",
+            "glob": "*.rs"
         }),
     )
     .await

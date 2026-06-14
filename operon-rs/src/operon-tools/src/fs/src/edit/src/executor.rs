@@ -126,6 +126,7 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         // If the hunk carries a seek_context, locate that anchor line first
         // and advance line_index past it. This lets the model guide the
         // search to a known region of the file.
+        let mut seek_context_matched = false;
         if let Some(ref ctx) = hunk.seek_context {
             let anchor_pattern = vec![ctx.clone()];
             match seek_sequence(&lines, &anchor_pattern, line_index, false) {
@@ -133,15 +134,13 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
                     // Advance past the anchor line so the old_lines search
                     // begins immediately after it.
                     line_index = found_idx + 1;
+                    seek_context_matched = true;
                 }
                 None => {
-                    return error_result(
-                        call_id,
-                        &format!(
-                            "{}\nhunk {}: seek context not found: {}",
-                            path, hunk_number, ctx
-                        ),
-                    );
+                    // Seek context wasn't found in the current region/file.
+                    // We will fall back to checking if old_lines matches exactly
+                    // once in the entire file. If it doesn't, we will return the
+                    // seek context not found error.
                 }
             }
         }
@@ -151,6 +150,17 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         // lines without removing anything. This is equivalent to inserting at
         // the current line_index position.
         if hunk.old_lines.is_empty() {
+            if hunk.seek_context.is_some() && !seek_context_matched {
+                let ctx = hunk.seek_context.as_ref().unwrap();
+                return error_result(
+                    call_id,
+                    &format!(
+                        "{}\nhunk {}: seek context not found: {}",
+                        path, hunk_number, ctx
+                    ),
+                );
+            }
+
             // For EOF-anchored insertions, place after the last real content
             // (before the implicit trailing newline position).
             let insert_at = if hunk.is_end_of_file {
@@ -168,43 +178,76 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         }
 
         // ── 4c: Seek the old_lines region ─────────────────────────────────
-        let start_idx = match seek_sequence(&lines, &hunk.old_lines, line_index, hunk.is_end_of_file) {
-            Some(idx) => idx,
-            None => {
+        let start_idx = if hunk.seek_context.is_some() && !seek_context_matched {
+            // Seek context was provided but not found (likely a comment).
+            // Search the entire file starting from index 0. If it matches exactly once,
+            // we proceed using that index.
+            let mut matches = Vec::new();
+            let mut scan_idx = 0;
+            while scan_idx <= lines.len().saturating_sub(hunk.old_lines.len()) {
+                if let Some(m_idx) = seek_sequence(&lines, &hunk.old_lines, scan_idx, false) {
+                    matches.push(m_idx);
+                    scan_idx = m_idx + 1;
+                } else {
+                    break;
+                }
+            }
+
+            if matches.len() == 1 {
+                matches[0]
+            } else {
+                let ctx = hunk.seek_context.as_ref().unwrap();
                 return error_result(
                     call_id,
                     &format!(
-                        "{}\nhunk {}: match not found\nexpected:\n{}",
-                        path,
-                        hunk_number,
-                        hunk.old_lines.join("\n")
+                        "{}\nhunk {}: seek context not found: {}",
+                        path, hunk_number, ctx
                     ),
                 );
             }
-        };
+        } else {
+            // Seek context either not provided, or matched successfully.
+            // Search starting from the current line_index.
+            let start_idx = match seek_sequence(&lines, &hunk.old_lines, line_index, hunk.is_end_of_file) {
+                Some(idx) => idx,
+                None => {
+                    return error_result(
+                        call_id,
+                        &format!(
+                            "{}\nhunk {}: match not found\nexpected:\n{}",
+                            path,
+                            hunk_number,
+                            hunk.old_lines.join("\n")
+                        ),
+                    );
+                }
+            };
 
-        // Check for multiple matches in the searchable range starting from line_index
-        // to detect ambiguity.
-        let mut matches = Vec::new();
-        let mut scan_idx = line_index;
-        while scan_idx <= lines.len().saturating_sub(hunk.old_lines.len()) {
-            if let Some(m_idx) = seek_sequence(&lines, &hunk.old_lines, scan_idx, false) {
-                matches.push(m_idx);
-                scan_idx = m_idx + 1;
-            } else {
-                break;
+            // Check for multiple matches in the searchable range starting from line_index
+            // to detect ambiguity.
+            let mut matches = Vec::new();
+            let mut scan_idx = line_index;
+            while scan_idx <= lines.len().saturating_sub(hunk.old_lines.len()) {
+                if let Some(m_idx) = seek_sequence(&lines, &hunk.old_lines, scan_idx, false) {
+                    matches.push(m_idx);
+                    scan_idx = m_idx + 1;
+                } else {
+                    break;
+                }
             }
-        }
 
-        if matches.len() > 1 {
-            return error_result(
-                call_id,
-                &format!(
-                    "{}\nhunk {}: matched {} times",
-                    path, hunk_number, matches.len()
-                ),
-            );
-        }
+            if matches.len() > 1 {
+                return error_result(
+                    call_id,
+                    &format!(
+                        "{}\nhunk {}: matched {} times",
+                        path, hunk_number, matches.len()
+                    ),
+                );
+            }
+
+            start_idx
+        };
 
         // Found the region and verified it is unambiguous — record the replacement.
         replacements.push(Replacement {

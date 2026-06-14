@@ -27,7 +27,7 @@ async fn test_trash_file() {
         ToolCallId("test_call".to_string()),
         json!({
             "path": &path,
-            "__body__": "permanent=\"false\""
+            "permanent": "false"
         }),
     )
     .await
@@ -51,7 +51,7 @@ async fn test_trash_directory() {
         ToolCallId("test_call".to_string()),
         json!({
             "path": &dir_path,
-            "__body__": "permanent=\"false\""
+            "permanent": "false"
         }),
     )
     .await
@@ -95,7 +95,7 @@ async fn test_permanent_delete_file() {
         ToolCallId("test_call".to_string()),
         json!({
             "path": &path,
-            "__body__": "permanent=\"true\""
+            "permanent": "true"
         }),
     )
     .await
@@ -120,7 +120,7 @@ async fn test_permanent_delete_directory() {
         ToolCallId("test_call".to_string()),
         json!({
             "path": &dir_path,
-            "__body__": "permanent=\"true\""
+            "permanent": "true"
         }),
     )
     .await

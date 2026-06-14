@@ -27,7 +27,7 @@ async fn test_basic_command() {
         ToolCallId("call_1".to_string()),
         json!({
             "path": temp_dir_str(),
-            "__body__": "command=\"echo hello\""
+            "command": "echo hello"
         }),
     )
     .await
@@ -45,7 +45,7 @@ async fn test_nonzero_exit_code() {
         ToolCallId("call_2".to_string()),
         json!({
             "path": temp_dir_str(),
-            "__body__": "command=\"exit 42\""
+            "command": "exit 42"
         }),
     )
     .await
@@ -62,7 +62,7 @@ async fn test_stderr_captured() {
         ToolCallId("call_3".to_string()),
         json!({
             "path": temp_dir_str(),
-            "__body__": if cfg!(windows) { "command=\"echo error 1>&2\"" } else { "command=\"echo error >&2\"" }
+            "command": if cfg!(windows) { "echo error 1>&2" } else { "echo error >&2" }
         }),
     )
     .await
@@ -82,7 +82,7 @@ async fn test_cwd_respected_by_subprocess() {
         ToolCallId("call_5b".to_string()),
         json!({
             "path": &path,
-            "__body__": if cfg!(windows) { "command=\"cd\"" } else { "command=\"pwd\"" }
+            "command": if cfg!(windows) { "cd" } else { "pwd" }
         }),
     )
     .await
@@ -102,10 +102,10 @@ async fn test_output_truncation() {
         ToolCallId("call_6".to_string()),
         json!({
             "path": temp_dir_str(),
-            "__body__": if cfg!(windows) {
-                "command=\"for /L %i in (1,1,500) do @echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+            "command": if cfg!(windows) {
+                "for /L %i in (1,1,500) do @echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             } else {
-                "command=\"python3 -c \\\"print('a' * 20000)\\\"\""
+                "python3 -c \"print('a' * 20000)\""
             }
         }),
     )
@@ -123,11 +123,8 @@ async fn test_timeout_kills_command() {
         ToolCallId("call_8".to_string()),
         json!({
             "path": temp_dir_str(),
-            "__body__": if cfg!(windows) {
-                "command=\"ping -n 30 127.0.0.1\"\ntimeout=\"300\""
-            } else {
-                "command=\"sleep 10\"\ntimeout=\"300\""
-            }
+            "command": if cfg!(windows) { "ping -n 30 127.0.0.1" } else { "sleep 10" },
+            "timeout": "300"
         }),
     )
     .await
@@ -145,7 +142,7 @@ async fn test_empty_command() {
         ToolCallId("call_10".to_string()),
         json!({
             "path": temp_dir_str(),
-            "__body__": "command=\"\""
+            "command": ""
         }),
     )
     .await;
@@ -165,7 +162,7 @@ async fn test_cwd_does_not_exist() {
         ToolCallId("call_14".to_string()),
         json!({
             "path": nonexistent,
-            "__body__": "command=\"echo hello\""
+            "command": "echo hello"
         }),
     )
     .await

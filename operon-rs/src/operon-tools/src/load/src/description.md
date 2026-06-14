@@ -3,10 +3,7 @@ Loads and displays tool definitions for a specific group of tools.
 Format:
 
 ```example
-<load_tools>
-<<<<
-group="group_name"
->>>>
+<load_tools group="group_name">
 ```
 
 Constraints & Usage:

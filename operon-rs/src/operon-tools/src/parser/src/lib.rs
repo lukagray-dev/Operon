@@ -391,6 +391,7 @@ fn parse_attributes(attr_str: &str) -> Result<HashMap<String, String>, ParseErro
     let chars: Vec<char> = attr_str.chars().collect();
     let mut pos = 0;
     let len = chars.len();
+    let mut last_key: Option<String> = None;
 
     while pos < len {
         // Skip whitespace.
@@ -443,10 +444,11 @@ fn parse_attributes(attr_str: &str) -> Result<HashMap<String, String>, ParseErro
             }
 
             let value: String = value_chars.into_iter().collect();
-            // Keyless values are appended to the "paths" key separated by a space.
-            let entry = attrs.entry("paths".to_string()).or_insert_with(String::new);
+            // Keyless values are appended to the last seen key (or "paths" as default) separated by a newline.
+            let target_key = last_key.as_deref().unwrap_or("paths").to_string();
+            let entry = attrs.entry(target_key).or_insert_with(String::new);
             if !entry.is_empty() {
-                entry.push(' ');
+                entry.push('\n');
             }
             entry.push_str(&value);
             continue;
@@ -540,11 +542,12 @@ fn parse_attributes(attr_str: &str) -> Result<HashMap<String, String>, ParseErro
             }
             explicit_keys.insert(key.clone());
 
-            let entry = attrs.entry(key).or_insert_with(String::new);
+            let entry = attrs.entry(key.clone()).or_insert_with(String::new);
             if !entry.is_empty() {
-                entry.push(' ');
+                entry.push('\n');
             }
             entry.push_str(&value);
+            last_key = Some(key);
         }
     }
 
@@ -687,7 +690,7 @@ mod tests {
         assert_eq!(result.calls[0].name, "read");
         assert_eq!(
             result.calls[0].attrs.get("paths").unwrap(),
-            "C:\\src\\main.rs C:\\src\\lib.rs:10-50"
+            "C:\\src\\main.rs\nC:\\src\\lib.rs:10-50"
         );
         assert_eq!(result.calls[1].name, "write");
         assert_eq!(result.calls[1].attrs.get("path").unwrap(), "C:\\src\\new.rs");
@@ -783,5 +786,16 @@ mod tests {
         assert_eq!(result.calls[0].attrs.get("group").unwrap(), "fs");
         assert!(result.text.contains("Prose before."));
         assert!(result.text.contains("Prose after."));
+    }
+
+    #[test]
+    fn test_keyless_value_assigned_to_last_seen_key() {
+        let text = "<grep path=\"C:\\dir\" pattern=\"pat1\" \"pat2\" ignore=\"ig1\" \"ig2\">";
+        let result = parse(text);
+        assert_eq!(result.calls.len(), 1);
+        let call = &result.calls[0];
+        assert_eq!(call.attrs.get("path").unwrap(), "C:\\dir");
+        assert_eq!(call.attrs.get("pattern").unwrap(), "pat1\npat2");
+        assert_eq!(call.attrs.get("ignore").unwrap(), "ig1\nig2");
     }
 }

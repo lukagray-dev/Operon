@@ -87,9 +87,9 @@ async fn test_read_multiple_files() {
     let path1 = dir.path().join("simple.txt");
     let path2 = dir.path().join("no_newline.txt");
 
-    // Semicolon-delimited list of files
+    // Newline-delimited list of files
     let args = json!({
-        "paths": format!("{} {}", path1.to_str().unwrap(), path2.to_str().unwrap())
+        "paths": format!("{}\n{}", path1.to_str().unwrap(), path2.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_2".to_string()), args)
@@ -342,7 +342,7 @@ async fn test_read_mixed_string_targets() {
 
     // Mix full-file read path and range read path in the same paths string
     let args = json!({
-        "paths": format!("{} {}:2-3", path1.to_str().unwrap(), path2.to_str().unwrap())
+        "paths": format!("{}\n{}:2-3", path1.to_str().unwrap(), path2.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_13".to_string()), args)
@@ -369,7 +369,7 @@ async fn test_read_partial_failure() {
     let path3 = dir.path().join("no_newline.txt");
 
     let args = json!({
-        "paths": format!("{} {} {}", path1.to_str().unwrap(), path2, path3.to_str().unwrap())
+        "paths": format!("{}\n{}\n{}", path1.to_str().unwrap(), path2, path3.to_str().unwrap())
     });
 
     let result = execute(ToolCallId("test_14".to_string()), args)
@@ -413,7 +413,7 @@ async fn test_concurrent_reads() {
     }
 
     let args = json!({
-        "paths": paths.join(" ")
+        "paths": paths.join("\n")
     });
 
     let result = execute(ToolCallId("test_16".to_string()), args)

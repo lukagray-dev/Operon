@@ -68,21 +68,20 @@ pub struct BashArgs {
 }
 
 impl BashArgs {
-    /// Parse arguments from the new body-based JSON format.
+    /// Parse arguments from the attrs JSON format.
     ///
     /// `path` is taken from `args_json["path"]` (the XML attribute field).
-    /// `command` and optional `timeout` are parsed from `args_json["__body__"]`
-    /// as key=value lines (one per line, e.g. `command="cargo build"`).
+    /// `command` is taken from `args_json["command"]`.
+    /// `timeout` is taken from `args_json["timeout"]` or `args_json["timeout_ms"]`.
     ///
     /// # Errors
     ///
     /// Returns `Err(String)` with a descriptive message if:
     /// - `path` is missing, non-string, or empty.
-    /// - `command` is missing from the body or empty.
-    /// - `timeout` is present but not a valid u64.
+    /// - `command` is missing, non-string, or empty.
+    /// - `timeout`/`timeout_ms` is present but not a valid u64.
     pub fn parse(args_json: &serde_json::Value) -> Result<BashArgs, String> {
         // ── Extract the `path` XML attribute ─────────────────────────────────
-        // This is always provided as a top-level JSON field by the parser.
         let path = args_json["path"]
             .as_str()
             .ok_or_else(|| "missing or non-string attr: path".to_string())?
@@ -93,46 +92,26 @@ impl BashArgs {
             return Err("path is empty".to_string());
         }
 
-        // ── Parse the body key=value lines ───────────────────────────────────
-        // The body is the content between <<<< and >>>> markers in the call format.
-        // It is passed as `args_json["__body__"]`. If missing, treat as empty.
-        let body = args_json["__body__"].as_str().unwrap_or("");
+        // ── Extract the `command` attribute ──────────────────────────────────
+        let command = args_json
+            .get("command")
+            .ok_or_else(|| "missing or non-string attr: command".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'command' must be a string".to_string())?
+            .trim()
+            .to_string();
 
-        let mut command: Option<String> = None;
-        // Default timeout is 30 minutes (1,800,000 ms). The model may override via body.
-        let mut timeout_ms: u64 = 1_800_000;
-
-        for line in body.lines() {
-            let line = line.trim();
-            // Skip blank lines gracefully — body may have padding.
-            if line.is_empty() {
-                continue;
-            }
-
-            // Each non-empty line must be in `key=value` form.
-            if let Some(eq) = line.find('=') {
-                let key = line[..eq].trim();
-                let val = unquote_value(line[eq + 1..].trim());
-
-                match key {
-                    "command" => command = Some(val),
-                    "timeout" => {
-                        // Timeout must be a valid non-negative integer (milliseconds).
-                        timeout_ms = val.parse::<u64>().map_err(|_| {
-                            format!("invalid timeout value: {}", val)
-                        })?;
-                    }
-                    // Unknown keys are silently ignored — forward compatibility.
-                    _ => {}
-                }
-            }
+        if command.is_empty() {
+            return Err("command is empty".to_string());
         }
 
-        // `command` is required — missing it is always a model error.
-        let command = command.ok_or_else(|| "missing body key: command".to_string())?;
-
-        if command.trim().is_empty() {
-            return Err("command is empty".to_string());
+        // ── Extract the optional `timeout` or `timeout_ms` attribute ──────────
+        let mut timeout_ms: u64 = 1_800_000;
+        if let Some(v) = args_json.get("timeout").or_else(|| args_json.get("timeout_ms")) {
+            let val = v.as_str().ok_or_else(|| "timeout must be a string".to_string())?.trim();
+            timeout_ms = val.parse::<u64>().map_err(|_| {
+                format!("invalid timeout value '{}': must be a non-negative integer", val)
+            })?;
         }
 
         Ok(BashArgs {
@@ -140,30 +119,5 @@ impl BashArgs {
             command,
             timeout_ms,
         })
-    }
-}
-
-/// Helper to strip enclosing double quotes and unescape internal quotes/backslashes.
-fn unquote_value(s: &str) -> String {
-    let s = s.trim();
-    if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
-        let inner = &s[1..s.len() - 1];
-        let mut res = String::with_capacity(inner.len());
-        let mut chars = inner.chars().peekable();
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                if let Some(&next_c) = chars.peek() {
-                    if next_c == '"' || next_c == '\\' {
-                        res.push(next_c);
-                        chars.next();
-                        continue;
-                    }
-                }
-            }
-            res.push(c);
-        }
-        res
-    } else {
-        s.to_string()
     }
 }

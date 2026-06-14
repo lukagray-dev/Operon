@@ -37,13 +37,13 @@
 
 /// Tools that use a `<<<<`…`>>>>` body block.
 const BODY_TOOLS: &[&str] = &[
-    "write", "append", "edit", "bash", "grep", "ls", "delete", "ask",
+    "write", "append", "edit",
 ];
 
 /// All known tool names. Text that matches `<unknown>` is treated as prose.
 const ALL_TOOLS: &[&str] = &[
     "read", "write", "append", "edit", "bash", "grep", "ls", "delete", "ask",
-    "load_tools",
+    "load_tools", "web_search", "web_fetch", "todo_create", "todo_list", "todo_update", "todo_delete",
 ];
 
 /// The internal state of our detector state machine.

@@ -32,7 +32,15 @@ pub fn policy_path_for_call(call: &ToolCall) -> Option<String> {
             .arguments
             .get("paths")
             .and_then(|v| v.as_str())
-            .and_then(|s| s.split_whitespace().next())
+            .and_then(|s| {
+                if s.contains('\n') {
+                    s.split('\n').next()
+                } else if s.contains(';') {
+                    s.split(';').next()
+                } else {
+                    Some(s)
+                }
+            })
             .map(|first| first.trim().to_string()),
 
         // The "bash" tool executes commands within a specific directory. We extract the "path"

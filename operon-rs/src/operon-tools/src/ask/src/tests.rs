@@ -8,7 +8,10 @@ mod tests {
     #[test]
     fn test_valid_args_parse() {
         let args = json!({
-            "__body__": "question=\"Which format do you prefer?\"\noption1=\"JSON\"\noption2=\"TOML\"\noption3=\"YAML\""
+            "question": "Which format do you prefer?",
+            "option1": "JSON",
+            "option2": "TOML",
+            "option3": "YAML"
         });
         let parsed = AskArgs::parse(&args);
         assert!(parsed.is_ok(), "valid args should parse successfully");
@@ -22,7 +25,9 @@ mod tests {
     #[test]
     fn test_missing_question_fails() {
         let args = json!({
-            "__body__": "option1=\"JSON\"\noption2=\"TOML\"\noption3=\"YAML\""
+            "option1": "JSON",
+            "option2": "TOML",
+            "option3": "YAML"
         });
         let result = AskArgs::parse(&args);
         assert!(result.is_err(), "missing question should fail to parse");
@@ -31,7 +36,9 @@ mod tests {
     #[test]
     fn test_missing_option_fails() {
         let args = json!({
-            "__body__": "question=\"Choose one:\"\noption1=\"JSON\"\noption2=\"TOML\""
+            "question": "Choose one:",
+            "option1": "JSON",
+            "option2": "TOML"
         });
         let result = AskArgs::parse(&args);
         assert!(result.is_err(), "missing option3 should fail to parse");

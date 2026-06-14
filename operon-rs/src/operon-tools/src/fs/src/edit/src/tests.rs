@@ -191,3 +191,58 @@ async fn test_nonexistent_file() {
     let text = extract_text(&result);
     assert!(text.contains("failed to read file"));
 }
+
+#[tokio::test]
+async fn test_fallback_search_on_seek_context_mismatch() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
+    fs::write(&path, "line 1\nline 2\nline 3\n").unwrap();
+
+    // The seek context "Nonexistent Comment" does not exist in the file,
+    // but "line 2" exists exactly once in the entire file. So it should match.
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": &path,
+            "__body__": "@@ Nonexistent Comment\n-line 2\n+line 2 modified"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let text = extract_text(&result);
+    assert!(text.contains("1 hunk(s) applied"));
+
+    let content = fs::read_to_string(&path).unwrap();
+    assert_eq!(content, "line 1\nline 2 modified\nline 3\n");
+}
+
+#[tokio::test]
+async fn test_fallback_search_fails_on_ambiguity() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
+    fs::write(&path, "foo\nbar\nfoo\n").unwrap();
+
+    // "Nonexistent Comment" does not exist in the file.
+    // "foo" exists twice in the file, so it is ambiguous and should fail with "seek context not found".
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": &path,
+            "__body__": "@@ Nonexistent Comment\n-foo\n+baz"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let text = extract_text(&result);
+    assert!(text.contains("seek context not found"));
+
+    // File remains unmodified
+    let content = fs::read_to_string(&path).unwrap();
+    assert_eq!(content, "foo\nbar\nfoo\n");
+}

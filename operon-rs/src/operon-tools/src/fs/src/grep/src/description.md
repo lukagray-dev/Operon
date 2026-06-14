@@ -1,21 +1,9 @@
 Use `grep` tool to search for regex patterns in file contents or list files matching a glob pattern.
 
-Format (Attributes - preferred for simple/single-line arguments):
+Format:
 
 ```example
 <grep path="absolute\path\to\directory" pattern="regex_pattern" glob="glob_pattern" ignore="pattern1" "pattern2" context="lines">
-```
-
-Format (Body - optional, for multiple patterns or complex inputs):
-
-```example
-<grep path="absolute\path\to\directory">
-<<<<
-pattern="regex_pattern" "additional_regex_pattern"
-glob="glob_pattern"
-ignore="pattern1" "pattern2"
-context="lines"
->>>>
 ```
 
 Constraints & Usage:

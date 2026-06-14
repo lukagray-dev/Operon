@@ -26,15 +26,15 @@ pub struct DeleteArgs {
 }
 
 impl DeleteArgs {
-    /// Parse delete tool arguments from the attrs+body JSON produced by the LLM parser.
+    /// Parse delete tool arguments from the attrs JSON produced by the LLM parser.
     ///
     /// Extracts `path` from args_json["path"] and the optional `permanent` flag
-    /// from args_json["__body__"]. Missing or empty body = permanent defaults to false.
+    /// from attributes. Missing = permanent defaults to false.
     ///
     /// # Errors
     /// Returns `Err(String)` if:
     /// - The `path` key is missing or not a string.
-    /// - The `permanent` body value is not "true" or "false".
+    /// - The `permanent` value is not "true" or "false".
     pub fn parse(args_json: &serde_json::Value) -> Result<DeleteArgs, String> {
         // Step 1: Extract the required "path" attribute.
         let path = args_json
@@ -44,77 +44,25 @@ impl DeleteArgs {
             .ok_or_else(|| "attribute 'path' must be a string".to_string())?
             .to_string();
 
-        // Step 2: Extract the optional body string. Missing/empty = use defaults.
-        let body = args_json
-            .get("__body__")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-
-        // Step 3: Parse the body for the "permanent" key.
-        let mut permanent: Option<bool> = None;
-
-        for raw_line in body.lines() {
-            let line = raw_line.trim();
-            if line.is_empty() {
-                continue;
-            }
-
-            // Split on the FIRST '=' only.
-            let eq_pos = match line.find('=') {
-                Some(pos) => pos,
-                None => continue,
-            };
-
-            let key = line[..eq_pos].trim();
-            let values_str = line[eq_pos + 1..].trim();
-
-            // Only care about the first token.
-            let raw_token = values_str.split_whitespace().next().unwrap_or("");
-            let first_token = unquote_value(raw_token);
-
-            if key == "permanent" {
-                match first_token.as_str() {
-                    "true" => permanent = Some(true),
-                    "false" => permanent = Some(false),
-                    other => {
-                        return Err(format!(
-                            "invalid permanent value '{}': must be \"true\" or \"false\"",
-                            other
-                        ));
-                    }
+        // Step 2: Parse permanent attribute
+        let mut permanent = false;
+        if let Some(v) = args_json.get("permanent") {
+            let s = v.as_str().ok_or_else(|| "permanent must be a string".to_string())?;
+            match s.trim() {
+                "true" => permanent = true,
+                "false" => permanent = false,
+                other => {
+                    return Err(format!(
+                        "invalid permanent value '{}': must be \"true\" or \"false\"",
+                        other
+                    ));
                 }
             }
-            // Unknown keys are silently ignored for forward-compatibility.
         }
 
         Ok(DeleteArgs {
             path,
-            permanent: permanent.unwrap_or(false),
+            permanent,
         })
-    }
-}
-
-/// Helper to strip enclosing double quotes and unescape internal quotes/backslashes.
-fn unquote_value(s: &str) -> String {
-    let s = s.trim();
-    if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
-        let inner = &s[1..s.len() - 1];
-        let mut res = String::with_capacity(inner.len());
-        let mut chars = inner.chars().peekable();
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                if let Some(&next_c) = chars.peek() {
-                    if next_c == '"' || next_c == '\\' {
-                        res.push(next_c);
-                        chars.next();
-                        continue;
-                    }
-                }
-            }
-            res.push(c);
-        }
-        res
-    } else {
-        s.to_string()
     }
 }
