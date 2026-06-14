@@ -1,9 +1,11 @@
-Deletes a file or recursively deletes a directory.
+`delete` tool deletes a file or recursively deletes a directory. Use it to remove files or directories.
 
-Format:
-<delete path="[absolute_path]" permanent="[true_or_false]">
+**How to use `delete` tool:**
 
-Constraints & Usage:
-- `path` must be an absolute path to an existing file or directory.
-- `permanent` (optional attribute): `"true"` permanently deletes the target from disk (irreversible). `"false"` or omitted moves the target to the Recycle Bin/Trash.
-- Use Recycle Bin/Trash (default) whenever possible to prevent accidental data loss.
+```example
+<delete path="absolute\path\to\file_or_directory" permanent="true_or_false">
+```
+
+* **`path` must be an absolute path to an existing file or directory**
+* **`permanent` (optional attribute): `"true"` permanently deletes the target from disk (irreversible). `"false"` or omitted moves the target to the Recycle Bin**
+* **Use Recycle Bin (default) whenever possible to prevent accidental data loss**

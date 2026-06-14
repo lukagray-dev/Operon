@@ -1,13 +1,17 @@
-Creates a new file or completely overwrites an existing file at the absolute path specified.
+`write` tool creates a new file or completely overwrites an existing file at the absolute path specified. Use `write` tool to create new files or overwrite existing files.
 
-Format:
-<write path="[absolute_path]">
+**How to use `write` tool:**
+
+```example
+<write path="absolute\path\to\file.txt">
 <<<<
-[file content]
+content to write
 >>>>
+```
 
-Constraints & Usage:
-- `path` must be an absolute path.
-- Parent directories will be created automatically if they do not exist.
-- Content must be written inside the `<<<<` and `>>>>` delimiter block.
-- To edit small parts of an existing file, do NOT use this tool; use the `edit` tool instead to save token context.
+* **`path` must be an absolute path to an existing file**
+* **Content to write must be written in between `<<<<` `>>>>`**
+* **Do not use escape `\n` for new lines, use real line breaks instead**
+* **Before overwriting an existing file, you must read that file in that turn. Read ledger will reject overwriting files if not read**
+* **Parent directories will be created automatically if they do not exist**
+* **To edit small parts of existing files, use `edit` tool instead**
