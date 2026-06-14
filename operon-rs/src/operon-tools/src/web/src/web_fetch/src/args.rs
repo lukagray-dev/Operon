@@ -32,9 +32,14 @@ impl WebFetchArgs {
     /// - `url` does not start with http:// or https://.
     pub fn parse(args_json: &serde_json::Value) -> Result<WebFetchArgs, String> {
         // Extract the required "url" attribute — must be a non-empty string.
-        let url = args_json["url"]
-            .as_str()
+        let url = args_json
+            .get("url")
+            .or_else(|| args_json.get("urls"))
+            .or_else(|| args_json.get("path"))
+            .or_else(|| args_json.get("paths"))
             .ok_or_else(|| "missing or non-string attr: url".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'url' must be a string".to_string())?
             .trim()
             .to_string();
 

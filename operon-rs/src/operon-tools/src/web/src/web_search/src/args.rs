@@ -52,13 +52,21 @@ impl WebSearchArgs {
         let max = match args_json.get("max") {
             // Absent or explicitly null → use the executor's default.
             None | Some(serde_json::Value::Null) => None,
-            Some(v) => Some(
-                v.as_str()
-                    .ok_or_else(|| "max must be a string".to_string())?
-                    .trim()
-                    .parse::<usize>()
-                    .map_err(|_| format!("max is not a valid integer: {:?}", v))?,
-            ),
+            Some(v) => {
+                if let Some(val_str) = v.as_str() {
+                    let val = val_str.trim();
+                    Some(val.parse::<usize>().unwrap_or_else(|_| {
+                        tracing::warn!(
+                            "invalid max value '{}', defaulting to 5",
+                            val
+                        );
+                        5
+                    }))
+                } else {
+                    tracing::warn!("max attribute must be a string, ignoring");
+                    None
+                }
+            }
         };
 
         Ok(WebSearchArgs { query, max })

@@ -39,24 +39,29 @@ impl DeleteArgs {
         // Step 1: Extract the required "path" attribute.
         let path = args_json
             .get("path")
+            .or_else(|| args_json.get("paths"))
             .ok_or_else(|| "missing required attribute 'path'".to_string())?
             .as_str()
             .ok_or_else(|| "attribute 'path' must be a string".to_string())?
             .to_string();
 
-        // Step 2: Parse permanent attribute
+        // Step 2: Parse permanent attribute tolerantly
         let mut permanent = false;
         if let Some(v) = args_json.get("permanent") {
-            let s = v.as_str().ok_or_else(|| "permanent must be a string".to_string())?;
-            match s.trim() {
-                "true" => permanent = true,
-                "false" => permanent = false,
-                other => {
-                    return Err(format!(
-                        "invalid permanent value '{}': must be \"true\" or \"false\"",
-                        other
-                    ));
+            if let Some(s) = v.as_str() {
+                match s.trim() {
+                    "true" => permanent = true,
+                    "false" => permanent = false,
+                    other => {
+                        tracing::warn!(
+                            "invalid permanent value '{}', defaulting to false",
+                            other
+                        );
+                        permanent = false;
+                    }
                 }
+            } else {
+                tracing::warn!("permanent attribute must be a string, ignoring");
             }
         }
 

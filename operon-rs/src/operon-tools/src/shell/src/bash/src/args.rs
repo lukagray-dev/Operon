@@ -108,10 +108,18 @@ impl BashArgs {
         // ── Extract the optional `timeout` or `timeout_ms` attribute ──────────
         let mut timeout_ms: u64 = 1_800_000;
         if let Some(v) = args_json.get("timeout").or_else(|| args_json.get("timeout_ms")) {
-            let val = v.as_str().ok_or_else(|| "timeout must be a string".to_string())?.trim();
-            timeout_ms = val.parse::<u64>().map_err(|_| {
-                format!("invalid timeout value '{}': must be a non-negative integer", val)
-            })?;
+            if let Some(val_str) = v.as_str() {
+                let val = val_str.trim();
+                timeout_ms = val.parse::<u64>().unwrap_or_else(|_| {
+                    tracing::warn!(
+                        "invalid timeout value '{}', defaulting to 1800000ms",
+                        val
+                    );
+                    1_800_000
+                });
+            } else {
+                tracing::warn!("timeout attribute must be a string, ignoring");
+            }
         }
 
         Ok(BashArgs {

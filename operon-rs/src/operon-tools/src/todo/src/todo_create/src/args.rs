@@ -43,8 +43,11 @@ impl TodoCreateArgs {
         let priority = match args_json.get("priority") {
             None | Some(serde_json::Value::Null) => None,
             Some(v) => {
-                let s = v.as_str().ok_or_else(|| "priority must be a string".to_string())?;
-                Some(TodoPriority::from_str(s)?)
+                if let Some(s) = v.as_str() {
+                    TodoPriority::from_str(s).ok()
+                } else {
+                    None
+                }
             }
         };
         Ok(TodoCreateArgs { todo, priority })

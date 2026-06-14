@@ -169,7 +169,7 @@ pub fn parse_with_errors(text: &str) -> (ParseResult, Vec<ParseError>) {
         }
 
         // 5. Parse the attribute string.
-        let attrs = match parse_attributes(attr_str) {
+        let attrs = match parse_attributes(tool_name, attr_str) {
             Ok(map) => map,
             Err(kind) => {
                 errors.push(ParseError {
@@ -385,13 +385,21 @@ fn is_valid_tool_name(name: &str) -> bool {
 /// - Unescaping values: `\"` becomes `"`, `\\` becomes `\`. All other escapes are left as-is.
 /// - Duplicate explicit key detection.
 /// - Ignored keys with invalid characters (ASCII alphanumeric and underscore only).
-fn parse_attributes(attr_str: &str) -> Result<HashMap<String, String>, ParseErrorKind> {
+fn parse_attributes(tool_name: &str, attr_str: &str) -> Result<HashMap<String, String>, ParseErrorKind> {
     let mut attrs = HashMap::new();
     let mut explicit_keys = std::collections::HashSet::new();
     let chars: Vec<char> = attr_str.chars().collect();
     let mut pos = 0;
     let len = chars.len();
     let mut last_key: Option<String> = None;
+
+    // Define which keys are allowed to accumulate keyless positional arguments per tool.
+    let allowed_keys: &[&str] = match tool_name {
+        "ls" => &["ignore"],
+        "grep" => &["patterns", "pattern", "ignore"],
+        "read" => &["paths", "path"],
+        _ => &[],
+    };
 
     while pos < len {
         // Skip whitespace.
@@ -444,8 +452,18 @@ fn parse_attributes(attr_str: &str) -> Result<HashMap<String, String>, ParseErro
             }
 
             let value: String = value_chars.into_iter().collect();
-            // Keyless values are appended to the last seen key (or "paths" as default) separated by a newline.
-            let target_key = last_key.as_deref().unwrap_or("paths").to_string();
+            // Determine the target key for this keyless value.
+            // It should be the last seen key if it is allowed for this tool, otherwise fallback to "paths".
+            let target_key = if let Some(ref lk) = last_key {
+                if allowed_keys.contains(&lk.as_str()) {
+                    lk.clone()
+                } else {
+                    "paths".to_string()
+                }
+            } else {
+                "paths".to_string()
+            };
+
             let entry = attrs.entry(target_key).or_insert_with(String::new);
             if !entry.is_empty() {
                 entry.push('\n');
@@ -797,5 +815,17 @@ mod tests {
         assert_eq!(call.attrs.get("path").unwrap(), "C:\\dir");
         assert_eq!(call.attrs.get("pattern").unwrap(), "pat1\npat2");
         assert_eq!(call.attrs.get("ignore").unwrap(), "ig1\nig2");
+    }
+
+    #[test]
+    fn test_keyless_value_with_wrong_order_in_ls() {
+        // Here, the positional value target is keyless but follows depth.
+        // Since depth does not accept keyless values in ls, it should default to paths.
+        let text = "<ls depth=\"2\" \"C:\\dir\">";
+        let result = parse(text);
+        assert_eq!(result.calls.len(), 1);
+        let call = &result.calls[0];
+        assert_eq!(call.attrs.get("depth").unwrap(), "2");
+        assert_eq!(call.attrs.get("paths").unwrap(), "C:\\dir");
     }
 }

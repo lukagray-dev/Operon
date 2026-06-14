@@ -56,12 +56,13 @@ impl LsArgs {
         // Step 2: Parse depth
         let mut depth: Option<usize> = None;
         if let Some(attr_depth) = args_json.get("depth").and_then(|v| v.as_str()) {
-            depth = Some(attr_depth.parse::<usize>().map_err(|_| {
-                format!(
-                    "invalid depth value '{}': must be a non-negative integer",
+            depth = Some(attr_depth.parse::<usize>().unwrap_or_else(|_| {
+                tracing::warn!(
+                    "invalid depth value '{}', defaulting to 1",
                     attr_depth
-                )
-            })?);
+                );
+                1
+            }));
         }
 
         // Step 3: Parse glob

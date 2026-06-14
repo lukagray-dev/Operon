@@ -89,12 +89,13 @@ impl GrepArgs {
             .or_else(|| args_json.get("context_lines"))
             .and_then(|v| v.as_str())
         {
-            context_lines = attr_context.parse::<usize>().map_err(|_| {
-                format!(
-                    "invalid context value '{}': must be a non-negative integer",
+            context_lines = attr_context.parse::<usize>().unwrap_or_else(|_| {
+                tracing::warn!(
+                    "invalid context value '{}', defaulting to 0",
                     attr_context
-                )
-            })?;
+                );
+                0
+            });
         }
 
         Ok(GrepArgs {

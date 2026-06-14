@@ -36,9 +36,12 @@ impl AppendArgs {
     ///              Empty content is NOT rejected here — that validation lives in the executor.
     pub fn parse(args_json: &serde_json::Value) -> Result<AppendArgs, String> {
         // Extract the "path" attribute — mandatory, must be a non-empty string.
-        let path = args_json["path"]
-            .as_str()
+        let path = args_json
+            .get("path")
+            .or_else(|| args_json.get("paths"))
             .ok_or_else(|| "missing or non-string attr: path".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'path' must be a string".to_string())?
             .trim()
             .to_string();
 

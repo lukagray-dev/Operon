@@ -70,9 +70,12 @@ impl EditArgs {
         // ── Step 1: Extract the path attribute ────────────────────────────
         // The "path" attr is mandatory. Absence or a non-string value is a
         // hard error — we cannot proceed without knowing the target file.
-        let path = args_json["path"]
-            .as_str()
+        let path = args_json
+            .get("path")
+            .or_else(|| args_json.get("paths"))
             .ok_or_else(|| "missing or non-string attr: path".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'path' must be a string".to_string())?
             .trim()
             .to_string();
 

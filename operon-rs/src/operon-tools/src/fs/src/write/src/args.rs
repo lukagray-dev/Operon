@@ -32,9 +32,12 @@ impl WriteArgs {
     /// - `content`: optional; comes from args_json["__body__"]; defaults to "" if absent.
     pub fn parse(args_json: &serde_json::Value) -> Result<WriteArgs, String> {
         // Extract the "path" attribute — mandatory, must be a non-empty string.
-        let path = args_json["path"]
-            .as_str()
+        let path = args_json
+            .get("path")
+            .or_else(|| args_json.get("paths"))
             .ok_or_else(|| "missing or non-string attr: path".to_string())?
+            .as_str()
+            .ok_or_else(|| "attribute 'path' must be a string".to_string())?
             .trim()
             .to_string();
 

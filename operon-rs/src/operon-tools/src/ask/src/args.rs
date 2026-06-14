@@ -58,25 +58,22 @@ impl AskArgs {
 
         let option1 = args_json
             .get("option1")
-            .ok_or_else(|| "missing attribute: option1".to_string())?
-            .as_str()
-            .ok_or_else(|| "attribute 'option1' must be a string".to_string())?
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
             .trim()
             .to_string();
 
         let option2 = args_json
             .get("option2")
-            .ok_or_else(|| "missing attribute: option2".to_string())?
-            .as_str()
-            .ok_or_else(|| "attribute 'option2' must be a string".to_string())?
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
             .trim()
             .to_string();
 
         let option3 = args_json
             .get("option3")
-            .ok_or_else(|| "missing attribute: option3".to_string())?
-            .as_str()
-            .ok_or_else(|| "attribute 'option3' must be a string".to_string())?
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
             .trim()
             .to_string();
 

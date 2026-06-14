@@ -34,13 +34,15 @@ mod tests {
     }
 
     #[test]
-    fn test_missing_option_fails() {
+    fn test_missing_option_defaults_to_empty() {
         let args = json!({
             "question": "Choose one:",
             "option1": "JSON",
             "option2": "TOML"
         });
         let result = AskArgs::parse(&args);
-        assert!(result.is_err(), "missing option3 should fail to parse");
+        assert!(result.is_ok(), "missing option3 should parse successfully with tolerance");
+        let parsed = result.unwrap();
+        assert_eq!(parsed.option3, "");
     }
 }
