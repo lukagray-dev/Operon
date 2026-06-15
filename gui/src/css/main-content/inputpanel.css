@@ -135,7 +135,7 @@
 
 .input-panel {
     position: fixed;
-    bottom: var(--input-panel-bottom-offset);
+    bottom: calc(var(--input-panel-bottom-offset) + var(--terminal-height, 0px));
     left: var(--input-panel-left);
     right: 0;
     display: flex;
@@ -145,6 +145,7 @@
     z-index: var(--input-panel-z-index);
     -webkit-app-region: no-drag;
     pointer-events: none;
+    transition: bottom 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .input-panel__container {

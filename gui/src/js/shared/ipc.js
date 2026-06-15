@@ -382,4 +382,64 @@ export async function deleteMemory(id) {
     return await invoke('delete_memory', { id: Number(id) });
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// TERMINAL COMMANDS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Spawn a new terminal session
+ * @param {string} id - Unique terminal ID (e.g. 'term_1')
+ * @param {number} cols - Columns
+ * @param {number} rows - Rows
+ * @param {string|null} workdir - Starting directory
+ * @returns {Promise<void>}
+ */
+export async function createTerminal(id, cols, rows, workdir = null) {
+    return await invoke('create_terminal', {
+        id: normalizeString(id),
+        cols: Number(cols),
+        rows: Number(rows),
+        workdir: workdir ? normalizeString(workdir) : null,
+    });
+}
+
+/**
+ * Write characters or commands to a terminal session
+ * @param {string} id - Terminal ID
+ * @param {string} input - Input string
+ * @returns {Promise<void>}
+ */
+export async function writeTerminal(id, input) {
+    return await invoke('write_terminal', {
+        id: normalizeString(id),
+        input,
+    });
+}
+
+/**
+ * Resize a terminal session grid cols/rows
+ * @param {string} id - Terminal ID
+ * @param {number} cols - New columns
+ * @param {number} rows - New rows
+ * @returns {Promise<void>}
+ */
+export async function resizeTerminal(id, cols, rows) {
+    return await invoke('resize_terminal', {
+        id: normalizeString(id),
+        cols: Number(cols),
+        rows: Number(rows),
+    });
+}
+
+/**
+ * Close and terminate a terminal session
+ * @param {string} id - Terminal ID
+ * @returns {Promise<void>}
+ */
+export async function closeTerminal(id) {
+    return await invoke('close_terminal', {
+        id: normalizeString(id),
+    });
+}
+
 

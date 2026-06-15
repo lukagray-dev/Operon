@@ -59,6 +59,10 @@ fn main() {
             commands::memory_commands::add_memory,
             commands::memory_commands::update_memory,
             commands::memory_commands::delete_memory,
+            commands::terminal_commands::create_terminal,
+            commands::terminal_commands::write_terminal,
+            commands::terminal_commands::resize_terminal,
+            commands::terminal_commands::close_terminal,
         ])
         // Setup window and app configuration
         .setup(|app| {

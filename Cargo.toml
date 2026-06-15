@@ -90,6 +90,9 @@ members = [
     # Frontends
     "tui",
     "gui/src-tauri",
+
+    # Terminal Crate
+    "operon-rs/src/operon-terminal",
 ]
 
 [workspace.dependencies]
@@ -174,6 +177,10 @@ operon-config    = { path = "operon-rs/src/operon-config" }
 operon-policy    = { path = "operon-rs/src/operon-policy" }
 operon-session   = { path = "operon-rs/src/operon-session" }
 operon-markdown  = { path = "operon-rs/src/operon-markdown" }
+operon-terminal  = { path = "operon-rs/src/operon-terminal" }
+
+# Third party dependencies
+portable-pty     = "0.8"
 
 # SQLite persistence (used by operon-session)
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }

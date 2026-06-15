@@ -1,0 +1,16 @@
+[package]
+name        = "operon-terminal"
+description = "Terminal session management via portable-pty for Operon GUI/TUI"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+portable-pty.workspace = true
+serde.workspace        = true
+serde_json.workspace   = true
+thiserror.workspace    = true
+tracing.workspace      = true
+tokio = { workspace = true, features = ["sync"] }

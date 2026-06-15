@@ -22,6 +22,9 @@ pub struct AppState {
     /// Active session control channels, keyed by session_id.
     pub active_sessions:
         HashMap<String, tokio::sync::mpsc::Sender<operon_rs::events::SessionCommand>>,
+
+    /// Active terminal handles, keyed by terminal ID.
+    pub active_terminals: HashMap<String, operon_rs::terminal::TerminalHandle>,
 }
 
 pub type SharedState = Arc<Mutex<AppState>>;

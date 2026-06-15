@@ -24,6 +24,9 @@
     <link rel="stylesheet" href="./css/main-content/sessiontitle.css">
     <!-- Empty state styles -->
     <link rel="stylesheet" href="./css/main-content/emptystate.css">
+    <!-- Terminal styles -->
+    <link rel="stylesheet" href="./vendor/xterm/xterm.css">
+    <link rel="stylesheet" href="./css/main-content/terminal.css">
     <!-- Settings panel styles -->
     <link rel="stylesheet" href="./css/settings/settings-panel.css">
     <link rel="stylesheet" href="./css/settings/left-sidebar.css">
@@ -594,6 +597,44 @@
                     Operon uses AI models. AI can make mistakes.
                 </p>
             </div>
+
+            <!-- Terminal Toggle Button -->
+            <button 
+                id="terminal-toggle-btn" 
+                class="main-content__terminal-btn"
+                aria-label="Toggle terminal"
+                title="Toggle terminal"
+            >
+                <img 
+                    src="./assets/icons/main-content/terminal.svg" 
+                    alt="Terminal" 
+                    class="main-content__terminal-btn-icon"
+                />
+            </button>
+
+            <!-- Terminal Panel -->
+            <div id="terminal-panel" class="terminal-panel collapsed">
+                <!-- Resize Handle -->
+                <div id="terminal-resize-handle" class="terminal-panel__resize-handle"></div>
+
+                <!-- Terminal Panel Header -->
+                <div class="terminal-panel__header">
+                    <div class="terminal-panel__title">Terminal</div>
+                    
+                    <!-- Tabs & Controls -->
+                    <div class="terminal-panel__controls">
+                        <div class="terminal-panel__tabs" id="terminal-tabs-container">
+                            <!-- Tabs will be rendered dynamically here -->
+                        </div>
+                        <button id="terminal-add-tab-btn" class="terminal-panel__control-btn" title="New Terminal">
+                            <img src="./assets/icons/action/add.svg" alt="New Terminal" />
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Terminal Container -->
+                <div class="terminal-panel__body" id="terminal-container"></div>
+            </div>
         </main>
     </div>
 
@@ -602,6 +643,9 @@
     <!-- KaTeX JS and auto-render extension -->
     <script defer src="./vendor/katex/katex.min.js"></script>
     <script defer src="./vendor/katex/contrib/auto-render.min.js"></script>
+    <!-- xterm.js terminal emulator library -->
+    <script src="vendor/xterm/xterm.js"></script>
+    <script src="vendor/xterm/addon-fit.js"></script>
     <!-- JavaScript modules -->
     <script type="module" src="main.js"></script>
 </body>
