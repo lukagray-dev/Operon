@@ -1,0 +1,18 @@
+[package]
+name        = "operon-tools-memory-edit"
+description = "Memory Edit tool: updates the content of an existing memory."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                    = true
+serde.workspace                        = true
+serde_json.workspace                   = true
+tokio.workspace                        = true
+operon-context-normalize.workspace = true
+operon-tools-core.workspace        = true
+operon-tools-memory                = { path = "../.." }
+sqlx                               = { workspace = true, features = ["sqlite", "runtime-tokio"] }

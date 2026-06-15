@@ -278,6 +278,7 @@ sub_agent  = "ask"
 ask        = "ask"
 todo       = "ask"
 load_tools = "ask"
+memory     = "ask"
 
 [policy.global.external]
 web        = "deny"
@@ -285,6 +286,7 @@ sub_agent  = "deny"
 ask        = "deny"
 todo       = "deny"
 load_tools = "deny"
+memory     = "deny"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ALLOWED DIRECTORIES
@@ -544,6 +546,64 @@ web = "allow"
             remove_ws_result.is_err(),
             "removing default workspace should fail"
         );
+    }
+
+    #[test]
+    fn test_get_permission_rows_memory() {
+        let temp = tempfile::tempdir().unwrap();
+        let fake_paths = OperonPaths {
+            config_dir: temp.path().join(".operon"),
+            workspace_dir: temp.path().join(".operon").join("workspace"),
+            config_file: temp.path().join(".operon").join("config.toml"),
+            sessions_dir: temp.path().join(".operon").join("sessions"),
+        };
+        fake_paths.ensure_dirs_exist().unwrap();
+
+        // Write a minimal config WITHOUT any policy entries.
+        let toml_content = r#"
+[provider]
+name = "ollama"
+model_id = "llama3"
+"#;
+        std::fs::write(&fake_paths.config_file, toml_content).unwrap();
+
+        // Retrieve rows for owner when not explicitly configured.
+        // It should fallback to "ask" for owner global tools (e.g. memory, web), and is_explicit should be false.
+        let rows_owner = get_permission_rows_at_paths(&fake_paths, "owner", None).unwrap();
+        
+        let memory_row_owner = rows_owner.iter().find(|r| r.key == "memory").unwrap();
+        assert_eq!(memory_row_owner.mode, "ask");
+        assert_eq!(memory_row_owner.base_mode, "ask");
+        assert!(!memory_row_owner.is_explicit);
+
+        let web_row_owner = rows_owner.iter().find(|r| r.key == "web").unwrap();
+        assert_eq!(web_row_owner.mode, "ask");
+        assert_eq!(web_row_owner.base_mode, "ask");
+        assert!(!web_row_owner.is_explicit);
+
+        // Retrieve rows for external.
+        // It should fallback to "deny" for external global tools.
+        let rows_external = get_permission_rows_at_paths(&fake_paths, "external", None).unwrap();
+        
+        let memory_row_ext = rows_external.iter().find(|r| r.key == "memory").unwrap();
+        assert_eq!(memory_row_ext.mode, "deny");
+        assert_eq!(memory_row_ext.base_mode, "deny");
+        assert!(!memory_row_ext.is_explicit);
+
+        let web_row_ext = rows_external.iter().find(|r| r.key == "web").unwrap();
+        assert_eq!(web_row_ext.mode, "deny");
+        assert_eq!(web_row_ext.base_mode, "deny");
+        assert!(!web_row_ext.is_explicit);
+
+        // Now update permission to "deny" for owner (e.g. from the GUI settings panel)
+        update_permission_at_paths(&fake_paths, "owner", None, "memory", Some("deny")).unwrap();
+
+        // Verify updated configuration returns explicit "deny" while base_mode is still "ask"
+        let rows_owner_updated = get_permission_rows_at_paths(&fake_paths, "owner", None).unwrap();
+        let memory_row_owner_updated = rows_owner_updated.iter().find(|r| r.key == "memory").unwrap();
+        assert_eq!(memory_row_owner_updated.mode, "deny");
+        assert_eq!(memory_row_owner_updated.base_mode, "ask");
+        assert!(memory_row_owner_updated.is_explicit);
     }
 }
 
@@ -947,6 +1007,15 @@ pub fn get_permission_rows(
     scope: &str,
     directory: Option<&str>,
 ) -> Result<Vec<PermissionRow>, ConfigError> {
+    let paths = OperonPaths::resolve()?;
+    get_permission_rows_at_paths(&paths, scope, directory)
+}
+
+fn get_permission_rows_at_paths(
+    paths: &OperonPaths,
+    scope: &str,
+    directory: Option<&str>,
+) -> Result<Vec<PermissionRow>, ConfigError> {
     use crate::policy::CallerRole;
 
     let role = match scope {
@@ -955,9 +1024,8 @@ pub fn get_permission_rows(
         _ => return Err(ConfigError::Internal(format!("Invalid scope: {}", scope))),
     };
 
-    let paths = OperonPaths::resolve()?;
     // Read or create config
-    let toml_text = read_or_create_config(&paths)?;
+    let toml_text = read_or_create_config(paths)?;
     let toml_config: AppConfigToml =
         toml::from_str(&toml_text).map_err(|e| ConfigError::TomlParse {
             path: paths.config_file.display().to_string(),
@@ -969,7 +1037,7 @@ pub fn get_permission_rows(
         let toml_entry = toml_config
             .directories
             .iter()
-            .find(|d| path_matches(&paths, &d.path, dir_path));
+            .find(|d| path_matches(paths, &d.path, dir_path));
 
         let (fs_shorthand, fs_read, fs_write, fs_edit, fs_append, fs_grep, fs_ls, fs_delete, bash) =
             if let Some(entry) = toml_entry {
@@ -990,8 +1058,8 @@ pub fn get_permission_rows(
                 )
             } else {
                 // If directory is not in TOML, default to defaults
-                let is_workspace = path_matches(&paths, "~/.operon/workspace", dir_path)
-                    || path_matches(&paths, &paths.workspace_dir.to_string_lossy(), dir_path);
+                let is_workspace = path_matches(paths, "~/.operon/workspace", dir_path)
+                    || path_matches(paths, &paths.workspace_dir.to_string_lossy(), dir_path);
 
                 if is_workspace && role == CallerRole::Owner {
                     (
@@ -1085,12 +1153,17 @@ pub fn get_permission_rows(
             group_key: "".to_string(),
         });
 
-        Ok(rows)
-    } else {
-        // --- Global permissions ---
+        return Ok(rows);
+    }
+
+    // --- Global permissions ---
+        // We load the global owner and external policy maps from our TOML config.
         let global_owner_map = &toml_config.policy.global.owner;
         let global_external_map = &toml_config.policy.global.external;
 
+        // Helper closure to lookup a global tool's current permission mode.
+        // If the tool has an explicit configuration entry in TOML, we return it along with true.
+        // Otherwise, we return the tool's default fallback permission mode along with false.
         let get_global_val =
             |tool: crate::policy::GlobalTool| -> (crate::policy::PermissionMode, bool) {
                 let map = match role {
@@ -1100,7 +1173,12 @@ pub fn get_permission_rows(
                 if let Some(mode) = map.get(&tool) {
                     (*mode, true)
                 } else {
-                    (crate::policy::PermissionMode::Deny, false)
+                    // All global tools default to Ask for the Owner role and Deny for the External role.
+                    let fallback = match role {
+                        CallerRole::Owner => crate::policy::PermissionMode::Ask,
+                        CallerRole::External => crate::policy::PermissionMode::Deny,
+                    };
+                    (fallback, false)
                 }
             };
 
@@ -1130,16 +1208,29 @@ pub fn get_permission_rows(
                 "load_tools",
                 "Load Custom Dynamic Tools",
             ),
+            (
+                crate::policy::GlobalTool::Memory,
+                "memory",
+                "Manage Memories",
+            ),
         ];
 
         let mut rows = Vec::new();
         for (tool, key, label) in global_tools {
             let (mode, explicit) = get_global_val(tool);
+            
+            // Resolve the actual base/fallback mode for this tool and role,
+            // so the GUI knows the correct system defaults when settings are not explicitly stored in TOML.
+            let base_mode_val = match role {
+                CallerRole::Owner => crate::policy::PermissionMode::Ask,
+                CallerRole::External => crate::policy::PermissionMode::Deny,
+            };
+
             rows.push(PermissionRow {
                 key: key.to_string(),
                 label: label.to_string(),
                 mode: mode_str(mode),
-                base_mode: "deny".to_string(),
+                base_mode: mode_str(base_mode_val),
                 is_explicit: explicit,
                 kind: "group".to_string(),
                 group_key: "".to_string(),
@@ -1148,7 +1239,8 @@ pub fn get_permission_rows(
 
         Ok(rows)
     }
-}
+
+
 
 /// Retrieve the list of allowed directories and the default workspace directory, falling back to raw TOML parsing on error.
 pub fn get_allowed_directories_list() -> Result<(Vec<String>, String), ConfigError> {

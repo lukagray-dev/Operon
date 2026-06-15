@@ -60,6 +60,15 @@ members = [
     # Parser tool
     "operon-rs/src/operon-tools/src/parser",
 
+    # Memory tools
+    "operon-rs/src/operon-tools/src/memory",
+    "operon-rs/src/operon-tools/src/memory/src/memory_add",
+    "operon-rs/src/operon-tools/src/memory/src/memory_delete",
+    "operon-rs/src/operon-tools/src/memory/src/memory_edit",
+    "operon-rs/src/operon-tools/src/memory/src/memory_retrieve",
+    "operon-rs/src/operon-tools/src/memory/src/memory_search",
+
+
     # Events bus — pure types, no async
     "operon-rs/src/operon-events",
 
@@ -150,6 +159,13 @@ operon-tools-ask                      = { path = "operon-rs/src/operon-tools/src
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
 operon-tools-parser                   = { path = "operon-rs/src/operon-tools/src/parser" }
+operon-tools-memory                   = { path = "operon-rs/src/operon-tools/src/memory" }
+operon-tools-memory-add               = { path = "operon-rs/src/operon-tools/src/memory/src/memory_add" }
+operon-tools-memory-delete            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_delete" }
+operon-tools-memory-edit              = { path = "operon-rs/src/operon-tools/src/memory/src/memory_edit" }
+operon-tools-memory-retrieve          = { path = "operon-rs/src/operon-tools/src/memory/src/memory_retrieve" }
+operon-tools-memory-search            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_search" }
+
 
 # Events, policy, config, and session crates
 operon-events    = { path = "operon-rs/src/operon-events" }

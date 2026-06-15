@@ -85,6 +85,7 @@ pub async fn new_runner(
             "web" => dispatcher.register_web_tools(),
             "todo" => dispatcher.register_todo_tools(),
             "ask" => dispatcher.register_ask_tool(),
+            "memory" => dispatcher.register_memory_tools(),
             other => tracing::warn!("Unknown tool group: {other}"),
         }
     }

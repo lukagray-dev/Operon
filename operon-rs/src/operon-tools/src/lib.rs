@@ -42,3 +42,5 @@ pub use operon_tools_load as load;
 pub use operon_tools_shell as shell;
 pub use operon_tools_todo as todo;
 pub use operon_tools_web as web;
+pub use operon_tools_memory as memory;
+

@@ -184,6 +184,9 @@ fn classify_tool(name: &str) -> ToolScope {
             ToolScope::Global(GlobalTool::Todo)
         }
         "load_tools" => ToolScope::Global(GlobalTool::LoadTools),
+        "memory_add" | "memory_delete" | "memory_edit" | "memory_retrieve" | "memory_search" => {
+            ToolScope::Global(GlobalTool::Memory)
+        }
 
         // ── Directory-scoped: filesystem tools ────────────────────────────────
         "read" => ToolScope::Dir(DirTool::Fs(FsTool::Read)),
@@ -519,6 +522,11 @@ mod tests {
             "todo_update",
             "todo_delete",
             "load_tools",
+            "memory_add",
+            "memory_delete",
+            "memory_edit",
+            "memory_retrieve",
+            "memory_search",
         ];
         for name in &global_names {
             match classify_tool(name) {

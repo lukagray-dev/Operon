@@ -1,0 +1,18 @@
+[package]
+name        = "operon-tools-memory-delete"
+description = "Memory Delete tool: deletes a memory by its ID from the global store."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace                    = true
+serde.workspace                        = true
+serde_json.workspace                   = true
+tokio.workspace                        = true
+operon-context-normalize.workspace = true
+operon-tools-core.workspace        = true
+operon-tools-memory                = { path = "../.." }
+sqlx                               = { workspace = true, features = ["sqlite", "runtime-tokio"] }

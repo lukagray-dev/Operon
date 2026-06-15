@@ -57,6 +57,11 @@ use operon_tools_todo_list;
 use operon_tools_todo_update;
 use operon_tools_web_fetch;
 use operon_tools_web_search;
+use operon_tools_memory_add;
+use operon_tools_memory_delete;
+use operon_tools_memory_edit;
+use operon_tools_memory_retrieve;
+use operon_tools_memory_search;
 use std::collections::{HashMap, HashSet};
 
 /// A registered tool: its tiered definition, group tag, and async execute function.
@@ -290,6 +295,58 @@ impl Dispatcher {
             "web",
             |call_id, args, progress| async move {
                 operon_tools_web_fetch::execute_with_progress(call_id, args, progress)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+    }
+
+    /// Registers all memory tools.
+    ///
+    /// Call this after `Dispatcher::new()` to make memory tools available.
+    /// Currently includes: memory_add, memory_delete, memory_edit, memory_retrieve, memory_search.
+    pub fn register_memory_tools(&mut self) {
+        self.register(
+            operon_tools_memory_add::definition(),
+            "memory",
+            |call_id, args, progress| async move {
+                operon_tools_memory_add::execute_with_progress(call_id, args, progress)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+        self.register(
+            operon_tools_memory_delete::definition(),
+            "memory",
+            |call_id, args, progress| async move {
+                operon_tools_memory_delete::execute_with_progress(call_id, args, progress)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+        self.register(
+            operon_tools_memory_edit::definition(),
+            "memory",
+            |call_id, args, progress| async move {
+                operon_tools_memory_edit::execute_with_progress(call_id, args, progress)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+        self.register(
+            operon_tools_memory_retrieve::definition(),
+            "memory",
+            |call_id, args, progress| async move {
+                operon_tools_memory_retrieve::execute_with_progress(call_id, args, progress)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+        );
+        self.register(
+            operon_tools_memory_search::definition(),
+            "memory",
+            |call_id, args, progress| async move {
+                operon_tools_memory_search::execute_with_progress(call_id, args, progress)
                     .await
                     .map_err(|e| e.to_string())
             },

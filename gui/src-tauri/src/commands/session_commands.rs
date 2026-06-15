@@ -293,6 +293,7 @@ pub async fn send_message(
                     "web".into(),
                     "todo".into(),
                     "ask".into(),
+                    "memory".into(),
                 ],
                 compaction: operon_rs::prelude::CompactionConfig::default(),
                 store_path: Some(json_path.clone()),

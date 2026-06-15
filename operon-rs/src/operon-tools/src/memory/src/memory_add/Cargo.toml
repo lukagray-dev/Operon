@@ -1,6 +1,6 @@
 [package]
-name        = "operon-tools-memory-search"
-description = "Memory Search tool: searches for memories containing a query term."
+name        = "operon-tools-memory-add"
+description = "Memory Add tool: adds a new memory to the global memory store."
 version.workspace    = true
 edition.workspace    = true
 authors.workspace    = true

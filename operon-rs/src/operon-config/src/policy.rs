@@ -31,6 +31,7 @@ pub enum GlobalTool {
     Ask,
     Todo,
     LoadTools,
+    Memory,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -71,12 +72,18 @@ pub struct GlobalPolicy {
 }
 
 impl GlobalPolicy {
-    pub fn mode_for(&self, tool: GlobalTool, role: CallerRole) -> PermissionMode {
+    pub fn mode_for(&self, _tool: GlobalTool, role: CallerRole) -> PermissionMode {
         let map = match role {
             CallerRole::Owner => &self.owner,
             CallerRole::External => &self.external,
         };
-        map.get(&tool).copied().unwrap_or(PermissionMode::Deny)
+        map.get(&_tool).copied().unwrap_or_else(|| {
+            // All global tools default to Ask for the Owner role and Deny for the External role.
+            match role {
+                CallerRole::Owner => PermissionMode::Ask,
+                CallerRole::External => PermissionMode::Deny,
+            }
+        })
     }
 }
 
@@ -195,6 +202,10 @@ mod tests {
         let policy = GlobalPolicy::default();
         assert_eq!(
             policy.mode_for(GlobalTool::Web, CallerRole::Owner),
+            PermissionMode::Ask
+        );
+        assert_eq!(
+            policy.mode_for(GlobalTool::Web, CallerRole::External),
             PermissionMode::Deny
         );
     }

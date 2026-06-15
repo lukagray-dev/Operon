@@ -3720,6 +3720,12 @@ dependencies = [
  "operon-tools-fs-read",
  "operon-tools-fs-write",
  "operon-tools-load",
+ "operon-tools-memory",
+ "operon-tools-memory-add",
+ "operon-tools-memory-delete",
+ "operon-tools-memory-edit",
+ "operon-tools-memory-retrieve",
+ "operon-tools-memory-search",
  "operon-tools-shell",
  "operon-tools-shell-bash",
  "operon-tools-todo",
@@ -3879,6 +3885,87 @@ dependencies = [
  "operon-tools-core",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-memory"
+version = "0.1.0"
+dependencies = [
+ "dirs 6.0.0",
+ "operon-context-normalize",
+ "serde",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-memory-add"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize",
+ "operon-tools-core",
+ "operon-tools-memory",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-memory-delete"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize",
+ "operon-tools-core",
+ "operon-tools-memory",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-memory-edit"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize",
+ "operon-tools-core",
+ "operon-tools-memory",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-memory-retrieve"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize",
+ "operon-tools-core",
+ "operon-tools-memory",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-memory-search"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize",
+ "operon-tools-core",
+ "operon-tools-memory",
+ "serde",
+ "serde_json",
+ "sqlx",
  "thiserror 2.0.18",
  "tokio",
 ]
