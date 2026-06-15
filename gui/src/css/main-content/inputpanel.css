@@ -292,6 +292,19 @@
     filter: var(--filter-input-panel-hover);
 }
 
+.input-panel__action-btn.voice-active {
+    background-color: rgba(239, 68, 68, 0.15); /* Premium soft red background */
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+}
+
+.input-panel__action-btn.voice-active:hover {
+    background-color: rgba(239, 68, 68, 0.25);
+}
+
+.input-panel__action-btn.voice-active .input-panel__action-icon {
+    filter: invert(35%) sepia(90%) saturate(3000%) hue-rotate(350deg); /* Red active mic icon */
+}
+
 /* ============================================================================
    DROPDOWN BUTTON (MODEL SELECTOR)
    ============================================================================ */

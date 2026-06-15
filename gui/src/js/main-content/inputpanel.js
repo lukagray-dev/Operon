@@ -43,6 +43,9 @@ class InputPanelController {
         this.autoApproveEnabled = false;
         this._activeDropdown = null;
         this.isGenerating = false;
+        this.recognition = null;
+        this.isRecordingVoice = false;
+        this.preVoiceText = '';
         
         // Textarea settings
         this.lineHeight = 20; // Must match CSS --input-panel-textarea-line-height
@@ -694,17 +697,120 @@ class InputPanelController {
     /**
      * Handle voice button click
      * 
-     * Starts voice input recording.
-     * In production, this would:
-     * - Request microphone permissions
-     * - Start recording audio
-     * - Transcribe audio to text
-     * - Insert transcription into textarea
+     * Toggles speech recognition recording. Uses standard HTML5 Web Speech API
+     * (supported natively inside Chromium on Windows).
      */
     handleVoice() {
-        console.log('Voice clicked');
-        // TODO: Implement voice input
-        alert('Voice input functionality will be implemented here');
+        const voiceBtn = document.getElementById('input-voice');
+        if (!voiceBtn) return;
+
+        // Determine browser support: standard vs webkit prefix
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            console.error('Speech recognition is not supported in this browser environment.');
+            alert('Speech recognition is not supported in this browser. Please make sure Chromium microphone permissions are enabled.');
+            return;
+        }
+
+        // If currently recording, stop it and let the onend handler cleanup UI states
+        if (this.isRecordingVoice) {
+            if (this.recognition) {
+                this.recognition.stop();
+            }
+            return;
+        }
+
+        // Instantiate voice recognizer if not already setup
+        if (!this.recognition) {
+            try {
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = false; // Stop listening automatically when speaker pauses
+                this.recognition.interimResults = true; // Stream temporary text previews as speaker talks
+                this.recognition.lang = 'en-US';
+
+                // On recording start
+                this.recognition.onstart = () => {
+                    this.isRecordingVoice = true;
+                    // Preserve any text already typed in the input panel
+                    this.preVoiceText = this.textarea ? this.textarea.value : '';
+                    voiceBtn.classList.add('voice-active');
+                    voiceBtn.setAttribute('title', 'Stop voice typing');
+                    console.log('Voice transcription started...');
+                };
+
+                // Stream audio transcription updates
+                this.recognition.onresult = (event) => {
+                    if (!this.textarea) return;
+                    
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    // Iterate through results list to group final vs temporary segments
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        const transcriptSegment = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcriptSegment;
+                        } else {
+                            interimTranscript += transcriptSegment;
+                        }
+                    }
+
+                    // Prepend baseline text to speech results so existing text is never lost
+                    const baseText = this.preVoiceText || '';
+                    const spacing = (baseText && (finalTranscript || interimTranscript)) ? ' ' : '';
+                    
+                    this.textarea.value = baseText + spacing + finalTranscript + interimTranscript;
+                    
+                    // Trigger textarea height resizing and send button active state validation
+                    this.adjustTextareaHeight();
+                };
+
+                // Handle errors
+                this.recognition.onerror = (event) => {
+                    console.error('Speech recognition error encountered:', event.error);
+                    
+                    // Handle blocked permission scenarios specifically
+                    if (event.error === 'not-allowed') {
+                        alert('Microphone access denied. Please grant microphone permission to Operon in your system settings.');
+                    } else if (event.error !== 'no-speech') {
+                        // Suppress alerts for simple "no-speech" scenarios
+                        alert(`Voice input error: ${event.error}`);
+                    }
+                    
+                    this.cleanupVoiceUI(voiceBtn);
+                };
+
+                // Clean up when recognition shuts down (e.g. silent pause or manual cancel)
+                this.recognition.onend = () => {
+                    this.cleanupVoiceUI(voiceBtn);
+                    console.log('Voice transcription completed.');
+                };
+
+            } catch (err) {
+                console.error('Failed to configure speech recognition:', err);
+                alert('Could not configure voice interface.');
+                return;
+            }
+        }
+
+        // Start listening
+        try {
+            this.recognition.start();
+        } catch (startError) {
+            console.error('Failed to launch speech recognition start:', startError);
+        }
+    }
+
+    /**
+     * Utility method to reset visual active classes and state toggles for voice typing
+     * @param {HTMLElement} btn - The voice button element
+     */
+    cleanupVoiceUI(btn) {
+        this.isRecordingVoice = false;
+        if (btn) {
+            btn.classList.remove('voice-active');
+            btn.setAttribute('title', 'Voice');
+        }
     }
 
     /**

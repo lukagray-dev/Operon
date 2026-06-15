@@ -32,22 +32,8 @@ pub fn render_tool_groups(groups: &[String]) -> Option<String> {
          <load_tools group=\"fs\">\n\
          ```\n\
          \n\
-         Format (Body - optional):\n\n\
-         ```example\n\
-         <load_tools>\n\
-         <<<<\n\
-         group=\"fs\"\n\
-         >>>>\n\
-         ```\n\
-         \n\
-         Constraints & Usage:\n\
-         \n\
          - Call without a group parameter (e.g., `<load_tools>`) to list all registered tool groups.\n\
          - Specify `group` (e.g., `fs`, `shell`, `web`, `todo`, `ask`, `memory`) to load and register that group's tools.\n\
-         - Newly loaded tools become available for use on all subsequent turns.\n\
-         \n\
-         \n\
-         For installed extensions (OHub): use `mcp_load` to discover and load \
-         extension tools.",
+         - Newly loaded tools become available for use on all subsequent turns.",
     ))
 }
