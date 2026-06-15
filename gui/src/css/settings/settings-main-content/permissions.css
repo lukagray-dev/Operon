@@ -217,7 +217,7 @@
 .settings-permissions__directory-path {
   font-size: var(--permissions-dir-path-font-size);
   /* Monospace fonts ensure high legibility of slashes and paths */
-  font-family: 'Consolas', monospace;
+  font-family: var(--font-family-mono);
   color: var(--color-permissions-dir-path);
   /* Cut off path text and show ellipsis if it is too wide */
   overflow: hidden;
@@ -466,7 +466,7 @@
   margin-top: var(--permissions-subtitle-margin-top);
   font-size: var(--permissions-subtitle-font-size);
   color: var(--color-permissions-subtitle);
-  font-family: 'Consolas', monospace;
+  font-family: var(--font-family-mono);
 }
 
 /**

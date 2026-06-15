@@ -63,7 +63,18 @@ impl SnapshotBuilder {
         }
 
         // Canonicalizing once avoids path-identity drift between calls.
-        config.root = config.root.canonicalize()?;
+        let mut root = config.root.canonicalize()?;
+        // Hey friend! std::fs::canonicalize() on Windows prepends the \\?\ UNC prefix.
+        // This extended-length prefix causes confusion for the AI model and looks ugly in the UI.
+        // We strip it if present to keep the workspace root path standard and human-readable.
+        #[cfg(windows)]
+        {
+            let s = root.to_string_lossy();
+            if s.starts_with(r"\\?\") {
+                root = PathBuf::from(&s[4..]);
+            }
+        }
+        config.root = root;
 
         // Keep one-level tree traversal by default when callers pass 0.
         if config.tree_depth == 0 {

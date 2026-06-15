@@ -90,7 +90,7 @@
     --assistant-message-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Assistant message typography */
-    --assistant-message-font-family: 'PT Serif';
+    --assistant-message-font-family: var(--font-family-assistant);
     /* PT Serif font for assistant */
     --assistant-message-font-size: 14px;
     /* Base font size */

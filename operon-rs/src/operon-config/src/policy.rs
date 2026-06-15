@@ -153,12 +153,21 @@ impl PolicyConfig {
 
     pub fn validate(&mut self) -> Result<(), PolicyError> {
         for dir_policy in &mut self.directories {
-            let canonical = std::fs::canonicalize(&dir_policy.path).map_err(|e| {
+            let mut canonical = std::fs::canonicalize(&dir_policy.path).map_err(|e| {
                 PolicyError::PathCanonicalization {
                     path: dir_policy.path.display().to_string(),
                     reason: e.to_string(),
                 }
             })?;
+            // Hey friend! std::fs::canonicalize() on Windows prepends the \\?\ prefix.
+            // We strip it here so our allowed directory paths are stored in standard format.
+            #[cfg(windows)]
+            {
+                let s = canonical.to_string_lossy();
+                if s.starts_with(r"\\?\") {
+                    canonical = PathBuf::from(&s[4..]);
+                }
+            }
             dir_policy.path = canonical;
         }
         Ok(())

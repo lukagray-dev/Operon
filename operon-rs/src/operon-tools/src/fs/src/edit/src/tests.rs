@@ -128,7 +128,7 @@ async fn test_multiple_match_error() {
 }
 
 #[tokio::test]
-async fn test_identical_strings_error() {
+async fn test_identical_strings_success() {
     let dir = tempdir().unwrap();
     let file_path = dir.path().join("file.txt");
     let path = file_path.to_string_lossy().to_string();
@@ -146,7 +146,12 @@ async fn test_identical_strings_error() {
 
     assert!(!result.is_error);
     let text = extract_text(&result);
-    assert!(text.contains("identical"));
+    // Hey friend! Under the relaxed guidelines, identical replacements are silently
+    // accepted and reported as applied rather than failing with an error.
+    assert!(text.contains("1 hunk(s) applied"));
+
+    let content = fs::read_to_string(&path).unwrap();
+    assert_eq!(content, "content");
 }
 
 #[tokio::test]
@@ -245,4 +250,58 @@ async fn test_fallback_search_fails_on_ambiguity() {
     // File remains unmodified
     let content = fs::read_to_string(&path).unwrap();
     assert_eq!(content, "foo\nbar\nfoo\n");
+}
+
+#[tokio::test]
+async fn test_relaxed_case_insensitive_matching() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
+    fs::write(&path, "fn my_awesome_function() {\n    let X = 10;\n}\n").unwrap();
+
+    // The pattern uses lowercase "let x" and uppercase "FN MY_AWESOME_FUNCTION",
+    // which should match successfully due to the new case-insensitive passes.
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": &path,
+            "__body__": "@@\n-FN MY_AWESOME_FUNCTION() {\n-    let x = 10;\n+fn my_awesome_function() {\n+    let x = 20;"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let text = extract_text(&result);
+    assert!(text.contains("1 hunk(s) applied"));
+
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("let x = 20;"));
+}
+
+#[tokio::test]
+async fn test_relaxed_substring_seek_context() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    let path = file_path.to_string_lossy().to_string();
+    fs::write(&path, "struct MyData {}\n\n// TODO: Rename this structure soon\nfn process() {}\n").unwrap();
+
+    // The seek context anchor "Rename this structure" is a substring of the comment line
+    // "// TODO: Rename this structure soon". It should match and start the hunk edit there.
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": &path,
+            "__body__": "@@ Rename this structure\n-fn process() {}\n+fn process_data() {}"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let text = extract_text(&result);
+    assert!(text.contains("1 hunk(s) applied"));
+
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("fn process_data() {}"));
 }

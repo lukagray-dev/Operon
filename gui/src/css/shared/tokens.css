@@ -20,6 +20,7 @@
     /* Global Brand Font Families */
     --font-family-primary: 'Google Sans', sans-serif; /* Clean sans-serif for UI */
     --font-family-assistant: 'PT Serif', serif;      /* High-readability serif for AI assistant messages */
+    --font-family-mono: 'Kode Mono', monospace;      /* Clean monospace for code blocks */
     
     /* Global Base Typography & Color */
     --font-size-base: 13px;                          /* Default body font size */

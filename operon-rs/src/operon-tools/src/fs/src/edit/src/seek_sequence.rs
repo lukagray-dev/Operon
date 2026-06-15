@@ -124,6 +124,25 @@ pub(crate) fn seek_sequence(
         if pass4 {
             return Some(end_idx);
         }
+
+        // ── Pass 5: Case-insensitive both-sides-trimmed match at the end ─────
+        // Hey friend! If the exact structure matches but capitalization is different,
+        // we ignore casing at the end of the file to be more forgiving.
+        let pass5 = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            lines[end_idx + p_idx].trim().eq_ignore_ascii_case(pat.trim())
+        });
+        if pass5 {
+            return Some(end_idx);
+        }
+
+        // ── Pass 6: Case-insensitive Unicode-normalised match at the end ─────
+        // Hey friend! We combine normalization and casing checks at the end of the file.
+        let pass6 = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            normalise(&lines[end_idx + p_idx]).to_lowercase() == normalise(pat).to_lowercase()
+        });
+        if pass6 {
+            return Some(end_idx);
+        }
     }
 
     // Fall back to a forward search starting from `start`.
@@ -177,6 +196,30 @@ pub(crate) fn seek_sequence(
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
             normalise(&lines[i + p_idx]) == normalise(pat)
+        });
+        if all_match {
+            return Some(i);
+        }
+    }
+
+    // ── Pass 5: Case-insensitive both-sides-trimmed match ──────────────────
+    // Hey friend! Here we look for matches ignoring both leading/trailing
+    // whitespace AND differences in character casing.
+    for i in search_start..=lines.len().saturating_sub(pattern.len()) {
+        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            lines[i + p_idx].trim().eq_ignore_ascii_case(pat.trim())
+        });
+        if all_match {
+            return Some(i);
+        }
+    }
+
+    // ── Pass 6: Case-insensitive Unicode-normalisation pass ────────────────
+    // Hey friend! Combining Unicode punctuation normalization and case insensitivity
+    // for maximum flexibility.
+    for i in search_start..=lines.len().saturating_sub(pattern.len()) {
+        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            normalise(&lines[i + p_idx]).to_lowercase() == normalise(pat).to_lowercase()
         });
         if all_match {
             return Some(i);

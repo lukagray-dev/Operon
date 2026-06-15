@@ -62,11 +62,7 @@ const ACCENT_PRESETS = [
  * @type {Array<{key: string, label: string, value: string}>}
  */
 const UI_FONTS = [
-  { key: 'default', label: 'Google Sans', value: "'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
-  { key: 'system',  label: 'System UI',   value: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"        },
-  { key: 'inter',   label: 'Inter',       value: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"                   },
-  { key: 'roboto',  label: 'Roboto',      value: "'Roboto', -apple-system, BlinkMacSystemFont, sans-serif"                  },
-  { key: 'serif',   label: 'PT Serif',    value: "'PT Serif', Georgia, 'Times New Roman', serif"                            },
+  { key: 'default', label: 'Google Sans', value: "'Google Sans', sans-serif" },
 ];
 
 /**
@@ -74,11 +70,7 @@ const UI_FONTS = [
  * @type {Array<{key: string, label: string, value: string}>}
  */
 const CODE_FONTS = [
-  { key: 'default',   label: 'Kode Mono',      value: "'Kode Mono', 'JetBrains Mono', monospace"    },
-  { key: 'jetbrains', label: 'JetBrains Mono', value: "'JetBrains Mono', 'Fira Code', monospace"    },
-  { key: 'firacode',  label: 'Fira Code',      value: "'Fira Code', 'JetBrains Mono', monospace"    },
-  { key: 'cascadia',  label: 'Cascadia Code',  value: "'Cascadia Code', 'Consolas', monospace"       },
-  { key: 'consolas',  label: 'Consolas',       value: "'Consolas', 'Courier New', monospace"         },
+  { key: 'default',   label: 'Kode Mono',      value: "'Kode Mono', monospace"    },
 ];
 
 /**

@@ -109,38 +109,34 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         // 1-based for human-readable error messages.
         let hunk_number = hunk_idx + 1;
 
-        // ── 4_ident: Identical check ──────────────────────────────────────
-        // If the hunk's old lines and new lines are identical, there is no change.
-        // Reject this early to avoid redundant operations and signal a clear error.
-        if !hunk.old_lines.is_empty() && hunk.old_lines == hunk.new_lines {
-            return error_result(
-                call_id,
-                &format!(
-                    "{}\nhunk {}: the replacement is identical to the original",
-                    path, hunk_number
-                ),
-            );
-        }
+
 
         // ── 4a: Seek anchor ───────────────────────────────────────────────
-        // If the hunk carries a seek_context, locate that anchor line first
-        // and advance line_index past it. This lets the model guide the
-        // search to a known region of the file.
+        // Hey friend! A seek context is a hint. We relax this search to perform a
+        // case-insensitive substring search (i.e. if the file line contains the anchor text).
+        // First we scan forward from `line_index`, and if not found, we fall back to scanning
+        // from the beginning of the file.
         let mut seek_context_matched = false;
         if let Some(ref ctx) = hunk.seek_context {
-            let anchor_pattern = vec![ctx.clone()];
-            match seek_sequence(&lines, &anchor_pattern, line_index, false) {
-                Some(found_idx) => {
-                    // Advance past the anchor line so the old_lines search
-                    // begins immediately after it.
-                    line_index = found_idx + 1;
-                    seek_context_matched = true;
+            let normalized_ctx = ctx.trim().to_lowercase();
+            if !normalized_ctx.is_empty() {
+                // First pass: scan forward from cursor
+                for i in line_index..lines.len() {
+                    if lines[i].to_lowercase().contains(&normalized_ctx) {
+                        line_index = i + 1;
+                        seek_context_matched = true;
+                        break;
+                    }
                 }
-                None => {
-                    // Seek context wasn't found in the current region/file.
-                    // We will fall back to checking if old_lines matches exactly
-                    // once in the entire file. If it doesn't, we will return the
-                    // seek context not found error.
+                // Fallback pass: scan the whole file from the beginning
+                if !seek_context_matched {
+                    for i in 0..line_index {
+                        if lines[i].to_lowercase().contains(&normalized_ctx) {
+                            line_index = i + 1;
+                            seek_context_matched = true;
+                            break;
+                        }
+                    }
                 }
             }
         }

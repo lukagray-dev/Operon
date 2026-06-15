@@ -30,6 +30,442 @@ function escapeAttribute(raw) {
     return escapeHtml(raw);
 }
 
+/**
+ * Parses tool arguments from their raw string representation.
+ *
+ * During live streaming, the Rust runner emits events where the arguments are not formatted
+ * as a single JSON object. Instead, the backend formats it as:
+ *   {"path":"C:\\..."}
+ *   __body__:
+ *   <raw content lines>
+ * OR simply:
+ *   __body__:
+ *   <raw content lines>
+ *
+ * But when loading the history from the SQLite database, it is stored as a valid, fully formed
+ * JSON string:
+ *   {"path":"C:\\...", "__body__":"<escaped content>"}
+ *
+ * This helper function attempts to handle both cases transparently, so the live UI and the
+ * reloaded history UI look identical.
+ *
+ * @param {string} argsJson - The raw arguments string to parse.
+ * @returns {Object|null} A parsed object with path and __body__ properties, or null if parsing fails.
+ */
+function parseArgsJson(argsJson) {
+    if (!argsJson) return null;
+    
+    // Attempt 1: Standard JSON parsing. This succeeds for historical messages or valid JSON payloads.
+    try {
+        return JSON.parse(argsJson);
+    } catch (e) {
+        // Attempt 2: Fall back to parsing the custom multi-line text format sent during live stream.
+    }
+    
+    const lines = argsJson.split('\n');
+    let path = '';
+    let bodyStartIndex = -1;
+    
+    // Check if the first line is a JSON block containing the metadata (e.g. {"path": "..."})
+    if (lines.length > 0 && lines[0].trim().startsWith('{')) {
+        try {
+            const parsedFirstLine = JSON.parse(lines[0]);
+            path = parsedFirstLine.path || parsedFirstLine.paths || '';
+        } catch (e) {
+            // First line was not valid JSON after all, or didn't contain a path attribute.
+        }
+    }
+    
+    // Look for the "__body__:" line delimiter that separates metadata from the raw content lines.
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === '__body__:') {
+            bodyStartIndex = i + 1;
+            break;
+        }
+    }
+    
+    let body = '';
+    if (bodyStartIndex !== -1) {
+        // Extract everything following the "__body__:" line and join them back with newlines.
+        body = lines.slice(bodyStartIndex).join('\n');
+    } else {
+        // Fallback: If no "__body__:" delimiter was found, and the first line was not JSON,
+        // treat the entire string as the raw body.
+        if (!lines[0].trim().startsWith('{')) {
+            body = argsJson;
+        }
+    }
+    
+    return {
+        path: path,
+        __body__: body
+    };
+}
+
+/**
+ * Detects the programming language for syntax highlighting based on the file extension.
+ * Maps common file extensions to Highlight.js language identifiers.
+ *
+ * @param {string} path - The file path (e.g., 'src/main.rs').
+ * @returns {string} The Highlight.js language identifier (e.g., 'rust'), or empty string if unknown.
+ */
+function detectLanguage(path) {
+    if (!path) return '';
+    const parts = path.split(/[/\\]/);
+    const filename = parts[parts.length - 1];
+    const extParts = filename.split('.');
+    if (extParts.length <= 1) return '';
+    const ext = extParts.pop().toLowerCase();
+    
+    // Map of common file extensions to Highlight.js language names
+    const langMap = {
+        'js': 'javascript',
+        'mjs': 'javascript',
+        'cjs': 'javascript',
+        'ts': 'typescript',
+        'tsx': 'typescript',
+        'py': 'python',
+        'rs': 'rust',
+        'sh': 'bash',
+        'bash': 'bash',
+        'json': 'json',
+        'css': 'css',
+        'html': 'html',
+        'htm': 'html',
+        'cpp': 'cpp',
+        'cc': 'cpp',
+        'cxx': 'cpp',
+        'c': 'c',
+        'h': 'cpp',
+        'hpp': 'cpp',
+        'cs': 'csharp',
+        'go': 'go',
+        'rb': 'ruby',
+        'md': 'markdown',
+        'toml': 'ini',
+        'yaml': 'yaml',
+        'yml': 'yaml',
+        'xml': 'xml',
+        'sql': 'sql',
+        'bat': 'cmd',
+        'cmd': 'cmd',
+        'ps1': 'powershell'
+    };
+    return langMap[ext] || '';
+}
+
+/**
+ * Extracts the raw name of a tool from card header text.
+ * The card header might look like "tool: write path='...'" (live cards)
+ * or just "write" (historical cards loaded from SQLite).
+ *
+ * @param {string} text - The raw text content of the tool name label.
+ * @returns {string} The extracted tool name, e.g., 'write', 'append', 'edit'.
+ */
+function extractToolName(text) {
+    if (!text) return '';
+    const clean = text.trim();
+    // Live cards have a "tool:" prefix (e.g. "tool: write"). We strip this prefix
+    // and grab the first word after it as the actual tool name.
+    if (clean.startsWith('tool:')) {
+        const parts = clean.slice(5).trim().split(/\s+/);
+        return parts[0];
+    }
+    // Historical cards just have the raw tool name (e.g. "write"), so we split
+    // by spaces just in case and grab the first token.
+    return clean.split(/\s+/)[0];
+}
+
+/**
+ * Extracts a file/directory path from an raw XML-like tool attribute string (e.g. 'path="D:\Project\main.js"').
+ * This is used to extract paths while the tool call is still in progress / streaming.
+ *
+ * @param {string} attrs - The raw attributes string from the tool call element.
+ * @returns {string} The parsed path value, or an empty string if not found.
+ */
+function extractPathFromAttrs(attrs) {
+    if (!attrs) return '';
+    // Look for path="...", paths="...", or dir="..." (both double and single quotes)
+    const match = attrs.match(/(?:path|paths|dir)\s*=\s*"([^"]+)"/) || attrs.match(/(?:path|paths|dir)\s*=\s*'([^']+)'/);
+    return match ? match[1] : '';
+}
+
+/**
+ * Generates a human-friendly tool execution card title and tooltip based on the active state (running vs completed).
+ * Supports both single-file and multi-file paths (like the "read" tool which lists paths separated by newlines).
+ *
+ * @param {string} name - The tool name (e.g., 'edit', 'write', 'append', 'ls', 'bash').
+ * @param {Object} argsObj - The parsed JSON arguments (contains path/paths/dir/etc).
+ * @param {boolean} isCompleted - Whether the tool call execution has completed.
+ * @returns {Object} An object containing `{ title, tooltip }`.
+ */
+function getToolHeaderTitle(name, argsObj, isCompleted) {
+    const path = argsObj?.path || argsObj?.paths || argsObj?.dir || '';
+    let displayName = '';
+    let tooltip = '';
+    
+    if (path) {
+        let pathEntries = [];
+        // The read tool supports multiple path entries separated by newlines
+        if (path.includes('\n')) {
+            pathEntries = path.split('\n').map(p => p.trim()).filter(p => p.length > 0);
+        } else {
+            const trimmed = path.trim();
+            if (trimmed) {
+                pathEntries = [trimmed];
+            }
+        }
+        
+        if (pathEntries.length > 0) {
+            const fileNames = pathEntries.map(p => {
+                // Strip optional line ranges like :40-90 or :50-
+                const cleanPath = p.replace(/:\d*-\d*$/, '');
+                const parts = cleanPath.split(/[/\\]/);
+                return parts[parts.length - 1] || cleanPath;
+            });
+            // Join multiple file names with a comma to list them in the header
+            displayName = fileNames.join(', ');
+            
+            // Join full paths with newlines to show each path clearly in the hover tooltip popup
+            tooltip = pathEntries.map(p => p.replace(/:\d*-\d*$/, '')).join('\n');
+        }
+    }
+
+    let title = '';
+    switch (name) {
+        case 'write':
+            title = isCompleted ? `Wrote ${displayName || 'file'}` : `Writing ${displayName || 'file'}`;
+            break;
+        case 'append':
+            title = isCompleted ? `Appended ${displayName || 'file'}` : `Appending ${displayName || 'file'}`;
+            break;
+        case 'edit':
+            title = isCompleted ? `Edited ${displayName || 'file'}` : `Editing ${displayName || 'file'}`;
+            break;
+        case 'read':
+            title = isCompleted ? `Read ${displayName || 'file'}` : `Reading ${displayName || 'file'}`;
+            break;
+        case 'delete':
+            title = isCompleted ? `Deleted ${displayName || 'file'}` : `Deleting ${displayName || 'file'}`;
+            break;
+        case 'ls':
+            title = isCompleted ? `Listed ${displayName || 'directory'}` : `Listing ${displayName || 'directory'}`;
+            break;
+        case 'grep':
+            title = isCompleted ? `Searched ${displayName || 'directory'}` : `Searching ${displayName || 'directory'}`;
+            break;
+        case 'bash':
+            title = isCompleted ? 'Executed command' : 'Executing command';
+            break;
+        case 'ask':
+            title = isCompleted ? 'Asked question' : 'Asking question';
+            break;
+        case 'web_search':
+            title = isCompleted ? 'Searched web' : 'Searching web';
+            break;
+        case 'web_fetch':
+            title = isCompleted ? 'Fetched web page' : 'Fetching web page';
+            break;
+        case 'todo_create':
+            title = isCompleted ? 'Created TODO' : 'Creating TODO';
+            break;
+        case 'todo_update':
+            title = isCompleted ? 'Updated TODO' : 'Updating TODO';
+            break;
+        case 'todo_list':
+            title = isCompleted ? 'Listed TODOs' : 'Listing TODOs';
+            break;
+        default:
+            const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+            title = isCompleted ? `Finished ${formattedName}` : `Running ${formattedName}`;
+            break;
+    }
+    
+    return { title, tooltip };
+}
+
+
+/**
+ * Calculates line-based insertion and deletion statistics for our code modification tools.
+ *
+ * For "write" and "append", everything in the body content is treated as newly added lines,
+ * and there are no deletions (0).
+ * For "edit", the body content is a unified diff structure where lines starting with '+'
+ * represent additions, and lines starting with '-' represent deletions.
+ *
+ * @param {string} name - The tool name.
+ * @param {Object} argsObj - The parsed JSON arguments object of the tool call.
+ * @returns {Object} An object containing { added, deleted } counts.
+ */
+function getToolDiffStats(name, argsObj) {
+    let added = 0;
+    let deleted = 0;
+    if (!argsObj) return { added, deleted };
+
+    if (name === 'write' || name === 'append') {
+        // Grab the text payload. In the dispatcher, this is usually mapped to "__body__"
+        // or sometimes "content". If neither is present, fallback to empty string.
+        const body = argsObj.__body__ || argsObj.content || '';
+        if (body) {
+            // Count total lines. Even an empty string with newlines is split,
+            // so we count the items in the split array.
+            added = body.split('\n').length;
+        }
+    } else if (name === 'edit') {
+        // In the edit tool, the body contains the diff hunk. We split it into lines
+        // and count lines starting with '+' (additions) or '-' (deletions).
+        const body = argsObj.__body__ || '';
+        const lines = body.split('\n');
+        for (let line of lines) {
+            if (line.startsWith('+')) {
+                added++;
+            } else if (line.startsWith('-')) {
+                deleted++;
+            }
+        }
+    }
+    return { added, deleted };
+}
+
+/**
+ * Generates interactive, color-coded HTML representing the diff/code changes.
+ *
+ * This renders the code block with a green background for additions and red for deletions.
+ * - For "write" and "append", all lines are wrapped in addition style (.diff-line--added).
+ * - For "edit", lines starting with '+' are additions, '-' are deletions, ' ' are context,
+ *   and '@@' are headers. The prefixes are stripped for clean presentation, matching Codex.
+ *
+ * @param {string} name - The tool name.
+ * @param {Object} argsObj - The parsed JSON arguments object of the tool call.
+ * @returns {string} The fully formed HTML string representing the diff.
+ */
+function renderToolDiffHTML(name, argsObj) {
+    if (!argsObj) return '';
+    let html = '';
+    
+    const path = argsObj.path || argsObj.paths || '';
+ 
+    // Detect the programming language using the file extension helper
+    const lang = detectLanguage(path);
+
+    if (name === 'write' || name === 'append') {
+        const body = argsObj.__body__ || argsObj.content || '';
+        const lines = body.split('\n');
+        html += `<div class="diff-lines-container">`;
+        html += `<div class="diff-lines-wrapper">`;
+        for (let line of lines) {
+            // Apply syntax highlighting to the code line if hljs is present
+            let highlighted = '';
+            if (typeof hljs !== 'undefined' && lang) {
+                try {
+                    highlighted = hljs.highlight(line, { language: lang }).value;
+                } catch (e) {
+                    highlighted = escapeHtml(line);
+                }
+            } else {
+                highlighted = escapeHtml(line);
+            }
+            // Mark every line as added, since write/append creates/adds content.
+            html += `<div class="diff-line diff-line--added">${highlighted}</div>`;
+        }
+        html += `</div>`;
+        html += `</div>`;
+    } else if (name === 'edit') {
+        const body = argsObj.__body__ || '';
+        const lines = body.split('\n');
+        html += `<div class="diff-lines-container">`;
+        html += `<div class="diff-lines-wrapper">`;
+        for (let line of lines) {
+            // Check for hunk headers (lines starting with '@@')
+            if (line.startsWith('@@')) {
+                // Per user request, omit @@ hunk header lines entirely to clean up card presentation.
+                continue;
+            }
+            
+            let prefix = '';
+            let content = line;
+            let className = 'diff-line';
+            
+            // Classify each line's prefix (+ / - / space) to set background colors
+            if (line.startsWith('+')) {
+                prefix = '+';
+                content = line.slice(1);
+                className = 'diff-line diff-line--added';
+            } else if (line.startsWith('-')) {
+                prefix = '-';
+                content = line.slice(1);
+                className = 'diff-line diff-line--removed';
+            } else if (line.startsWith(' ')) {
+                prefix = ' ';
+                content = line.slice(1);
+                className = 'diff-line diff-line--context';
+            } else if (line.trim().length > 0) {
+                // Handle metadata lines (e.g. @@ EOF or fallback descriptors)
+                className = 'diff-line diff-line--meta';
+            } else {
+                className = 'diff-line';
+            }
+            
+            // Syntax highlight the code content (excluding unified diff prefixes so parser doesn't get confused)
+            let highlighted = '';
+            if (typeof hljs !== 'undefined' && lang && (prefix === '+' || prefix === '-' || prefix === ' ')) {
+                try {
+                    highlighted = hljs.highlight(content, { language: lang }).value;
+                } catch (e) {
+                    highlighted = escapeHtml(content);
+                }
+            } else {
+                highlighted = escapeHtml(content);
+            }
+            
+            html += `<div class="${className}">${highlighted}</div>`;
+        }
+        html += `</div>`;
+        html += `</div>`;
+    }
+    return html;
+}
+
+/**
+ * Updates the tool card header by injecting the diff stats (+12, -5) right beside the badge.
+ * This is called for both live streaming and historical rendering of write, append, and edit.
+ *
+ * @param {HTMLElement} toolCard - The DOM element of the tool card.
+ * @param {string} name - The tool name.
+ * @param {Object} argsObj - The parsed JSON arguments object of the tool call.
+ */
+function updateToolCardDiffStats(toolCard, name, argsObj) {
+    if (name !== 'write' && name !== 'append' && name !== 'edit') return;
+    const { added, deleted } = getToolDiffStats(name, argsObj);
+    if (added === 0 && deleted === 0) return;
+    
+    // Find the wrapper element where status badge and chevron reside.
+    const statusWrapper = toolCard.querySelector('.assistant-message__tool-status-wrapper');
+    if (statusWrapper) {
+        // If we already added stats previously (e.g. during a delta update), remove the old element.
+        const existingStats = statusWrapper.querySelector('.assistant-message__tool-diff-stats');
+        if (existingStats) {
+            existingStats.remove();
+        }
+        
+        const statsEl = document.createElement('div');
+        statsEl.className = 'assistant-message__tool-diff-stats';
+        
+        let statsHtml = '';
+        if (added > 0) {
+            statsHtml += `<span class="diff-stat-added">+${added}</span>`;
+        }
+        if (deleted > 0) {
+            statsHtml += `<span class="diff-stat-deleted">-${deleted}</span>`;
+        }
+        statsEl.innerHTML = statsHtml;
+        
+        // Insert the stats block as the first child of statusWrapper, placing it
+        // directly to the left of the checkmark/failed badge.
+        statusWrapper.insertBefore(statsEl, statusWrapper.firstChild);
+    }
+}
+
 class SessionManager {
     constructor() {
         this.activeSessionId = null;
@@ -593,28 +1029,25 @@ class SessionManager {
                 
                 const toolCard = document.createElement('div');
                 toolCard.className = 'assistant-message__tool-card collapsed';
+                toolCard.dataset.toolName = call.name; // Store tool name for consistent access
                 
-                let formattedArgs = '';
-                try {
-                    formattedArgs = JSON.stringify(call.arguments, null, 2);
-                } catch (e) {
-                    formattedArgs = JSON.stringify(call.arguments);
-                }
+                // Check if this tool is a code-modification/diff tool
+                const isDiffTool = (call.name === 'write' || call.name === 'append' || call.name === 'edit');
                 
-                toolCard.innerHTML = `
-                    <div class="assistant-message__tool-header">
-                        <div class="assistant-message__tool-title-wrapper">
-                            <span class="assistant-message__tool-icon">
-                                <img src="./assets/icons/main-content/messages/assistant/tool.svg" style="filter: invert(0.7); width:14px; height:14px;">
-                            </span>
-                            <span class="assistant-message__tool-name">${escapeHtml(call.name)}</span>
-                        </div>
-                        <div class="assistant-message__tool-status-wrapper" style="display: flex; align-items: center; gap: 8px;">
-                            <span class="assistant-message__tool-status ${statusClass}">${statusText}</span>
-                            <img class="assistant-message__tool-chevron" src="./assets/icons/sidebar/chevron-down.svg" style="filter: invert(0.6); width: 14px; height: 14px;">
-                        </div>
-                    </div>
-                    <div class="assistant-message__tool-details">
+                let detailsHtml = '';
+                if (isDiffTool) {
+                    // For code tools, render the arguments as a beautiful diff (added/deleted lines)
+                    detailsHtml = renderToolDiffHTML(call.name, call.arguments);
+                } else {
+                    // For general tools, stick to the classic Arguments and Result code blocks
+                    let formattedArgs = '';
+                    try {
+                        formattedArgs = JSON.stringify(call.arguments, null, 2);
+                    } catch (e) {
+                        formattedArgs = JSON.stringify(call.arguments);
+                    }
+                    
+                    detailsHtml = `
                         <div class="assistant-message__tool-section">
                             <div class="assistant-message__tool-section-title">Arguments</div>
                             <pre class="assistant-message__tool-code">${escapeHtml(formattedArgs)}</pre>
@@ -623,8 +1056,35 @@ class SessionManager {
                             <div class="assistant-message__tool-section-title">Result</div>
                             <pre class="assistant-message__tool-code">${escapeHtml(resultText)}</pre>
                         </div>
+                    `;
+                }
+
+                // Generate a completed action header title (e.g. "Edited ipc.js") and set full path hover tooltip
+                const { title: headerTitle, tooltip: pathVal } = getToolHeaderTitle(call.name, call.arguments, true);
+                const tooltipAttr = pathVal ? `title="${escapeAttribute(pathVal)}"` : '';
+                
+                toolCard.innerHTML = `
+                    <div class="assistant-message__tool-header">
+                        <div class="assistant-message__tool-title-wrapper">
+                            <span class="assistant-message__tool-icon">
+                                <img src="./assets/icons/main-content/messages/assistant/tool.svg" style="filter: invert(0.7); width:14px; height:14px;">
+                            </span>
+                            <span class="assistant-message__tool-name" ${tooltipAttr}>${escapeHtml(headerTitle)}</span>
+                        </div>
+                        <div class="assistant-message__tool-status-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                            <span class="assistant-message__tool-status ${statusClass}">${statusText}</span>
+                            <img class="assistant-message__tool-chevron" src="./assets/icons/sidebar/chevron-down.svg" style="filter: invert(0.6); width: 14px; height: 14px;">
+                        </div>
+                    </div>
+                    <div class="assistant-message__tool-details">
+                        ${detailsHtml}
                     </div>
                 `;
+                
+                // If it is a diff tool, count and display the added/removed lines in the header badge
+                if (isDiffTool) {
+                    updateToolCardDiffStats(toolCard, call.name, call.arguments);
+                }
                 
                 // Toggle collapse on click
                 toolCard.querySelector('.assistant-message__tool-header').addEventListener('click', () => {
@@ -962,14 +1422,21 @@ class SessionManager {
         const toolCard = document.createElement('div');
         toolCard.className = 'assistant-message__tool-card';
         toolCard.id = `tool-${callId}`;
-        const displayName = attrs ? `tool: ${name} ${attrs}` : `tool: ${name}`;
+        toolCard.dataset.toolName = name; // Cache the tool name on the DOM element for access during updates
+
+        // Parse path from XML attributes and generate the running title (e.g. "Editing ipc.js")
+        const path = extractPathFromAttrs(attrs);
+        const argsObj = { path };
+        const { title: headerTitle, tooltip: tooltipText } = getToolHeaderTitle(name, argsObj, false);
+        const tooltipAttr = tooltipText ? `title="${escapeAttribute(tooltipText)}"` : '';
+
         toolCard.innerHTML = `
             <div class="assistant-message__tool-header">
                 <div class="assistant-message__tool-title-wrapper">
                     <span class="assistant-message__tool-icon">
                         <img src="./assets/icons/main-content/messages/assistant/tool.svg" style="filter: invert(0.7); width:14px; height:14px;">
                     </span>
-                    <span class="assistant-message__tool-name">${escapeHtml(displayName)}</span>
+                    <span class="assistant-message__tool-name" ${tooltipAttr}>${escapeHtml(headerTitle)}</span>
                 </div>
                 <div class="assistant-message__tool-status-wrapper" style="display: flex; align-items: center; gap: 8px;">
                     <span class="assistant-message__tool-status assistant-message__tool-status--running">
@@ -1009,13 +1476,43 @@ class SessionManager {
     updateToolCallArgs(callId, argsJson) {
         const toolCard = this.activeToolCalls.get(callId);
         if (toolCard) {
-            const codeEl = toolCard.querySelector('.assistant-message__tool-code');
-            if (codeEl) {
-                try {
-                    const parsed = JSON.parse(argsJson);
-                    codeEl.textContent = JSON.stringify(parsed, null, 2);
-                } catch (e) {
-                    codeEl.textContent = argsJson;
+            // Retrieve cached tool name from the dataset attribute
+            const toolName = toolCard.dataset.toolName || '';
+            const isDiffTool = (toolName === 'write' || toolName === 'append' || toolName === 'edit');
+            
+            let argsObj = parseArgsJson(argsJson);
+            
+            // Update the tool card header text and tooltip with the parsed path information
+            const nameEl = toolCard.querySelector('.assistant-message__tool-name');
+            if (nameEl && argsObj) {
+                const { title: headerTitle, tooltip: tooltipText } = getToolHeaderTitle(toolName, argsObj, false);
+                nameEl.textContent = headerTitle;
+                if (tooltipText) {
+                    nameEl.setAttribute('title', tooltipText);
+                }
+            }
+
+            if (isDiffTool) {
+                if (argsObj) {
+                    // Update diff stats (+N, -M counts) in the tool card header badge
+                    updateToolCardDiffStats(toolCard, toolName, argsObj);
+                    
+                    // Replace the details element content with beautiful diff/added lines HTML
+                    const detailsEl = toolCard.querySelector('.assistant-message__tool-details');
+                    if (detailsEl) {
+                        detailsEl.innerHTML = renderToolDiffHTML(toolName, argsObj);
+                    }
+                }
+            } else {
+                // Classic code block rendering for non-diff/regular tools
+                const codeEl = toolCard.querySelector('.assistant-message__tool-code');
+                if (codeEl) {
+                    try {
+                        const parsed = JSON.parse(argsJson);
+                        codeEl.textContent = JSON.stringify(parsed, null, 2);
+                    } catch (e) {
+                        codeEl.textContent = argsJson;
+                    }
                 }
             }
         }
@@ -1039,23 +1536,64 @@ class SessionManager {
                 }
             }
             
-            // Append result section
-            const detailsEl = toolCard.querySelector('.assistant-message__tool-details');
-            if (detailsEl) {
-                const resultSection = document.createElement('div');
-                resultSection.className = 'assistant-message__tool-section';
-                
-                let cleanResult = contentJson;
-                try {
-                    const parsed = JSON.parse(contentJson);
-                    cleanResult = JSON.stringify(parsed, null, 2);
-                } catch (e) {}
-                
-                resultSection.innerHTML = `
-                    <div class="assistant-message__tool-section-title">Result</div>
-                    <pre class="assistant-message__tool-code">${escapeHtml(cleanResult)}</pre>
-                `;
-                detailsEl.appendChild(resultSection);
+            // Swap header title text to its completed past-tense equivalent (e.g. "Editing main.js" -> "Edited main.js")
+            const nameEl = toolCard.querySelector('.assistant-message__tool-name');
+            if (nameEl) {
+                const text = nameEl.textContent;
+                if (text.startsWith('Editing ')) {
+                    nameEl.textContent = text.replace('Editing ', 'Edited ');
+                } else if (text.startsWith('Writing ')) {
+                    nameEl.textContent = text.replace('Writing ', 'Wrote ');
+                } else if (text.startsWith('Appending ')) {
+                    nameEl.textContent = text.replace('Appending ', 'Appended ');
+                } else if (text.startsWith('Reading ')) {
+                    nameEl.textContent = text.replace('Reading ', 'Read ');
+                } else if (text.startsWith('Deleting ')) {
+                    nameEl.textContent = text.replace('Deleting ', 'Deleted ');
+                } else if (text.startsWith('Listing ')) {
+                    nameEl.textContent = text.replace('Listing ', 'Listed ');
+                } else if (text.startsWith('Searching ')) {
+                    nameEl.textContent = text.replace('Searching ', 'Searched ');
+                } else if (text.startsWith('Executing ')) {
+                    nameEl.textContent = text.replace('Executing ', 'Executed ');
+                } else if (text.startsWith('Asking ')) {
+                    nameEl.textContent = text.replace('Asking ', 'Asked ');
+                } else if (text.startsWith('Fetching ')) {
+                    nameEl.textContent = text.replace('Fetching ', 'Fetched ');
+                } else if (text.startsWith('Creating ')) {
+                    nameEl.textContent = text.replace('Creating ', 'Created ');
+                } else if (text.startsWith('Updating ')) {
+                    nameEl.textContent = text.replace('Updating ', 'Updated ');
+                } else if (text.startsWith('Running ')) {
+                    nameEl.textContent = text.replace('Running ', 'Finished ');
+                }
+            }
+
+            // Retrieve cached tool name from the dataset attribute
+            const toolName = toolCard.dataset.toolName || '';
+            const isDiffTool = (toolName === 'write' || toolName === 'append' || toolName === 'edit');
+            
+            // For write, append, and edit tools, we suppress the Result block entirely.
+            // A success checkmark or failure badge is already displayed in the card header.
+            if (!isDiffTool) {
+                // Append result section for normal/default tools
+                const detailsEl = toolCard.querySelector('.assistant-message__tool-details');
+                if (detailsEl) {
+                    const resultSection = document.createElement('div');
+                    resultSection.className = 'assistant-message__tool-section';
+                    
+                    let cleanResult = contentJson;
+                    try {
+                        const parsed = JSON.parse(contentJson);
+                        cleanResult = JSON.stringify(parsed, null, 2);
+                    } catch (e) {}
+                    
+                    resultSection.innerHTML = `
+                        <div class="assistant-message__tool-section-title">Result</div>
+                        <pre class="assistant-message__tool-code">${escapeHtml(cleanResult)}</pre>
+                    `;
+                    detailsEl.appendChild(resultSection);
+                }
             }
             
             // Collapse automatically to keep the feed clean

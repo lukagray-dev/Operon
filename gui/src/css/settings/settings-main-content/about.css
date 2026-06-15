@@ -152,7 +152,7 @@
 
 .settings-about-grid__value {
   color: var(--color-about-grid-value);
-  font-family: 'Consolas', monospace;
+  font-family: var(--font-family-mono);
 }
 
 /* ============================================================================

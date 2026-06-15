@@ -20,6 +20,16 @@ use std::path::PathBuf;
 use tauri::{Emitter, State, WebviewWindow};
 use tokio::sync::mpsc;
 
+// Hey friend! std::fs::canonicalize() on Windows prepends the \\?\ UNC prefix.
+// We define a helper to strip it so paths displayed in the GUI are clean and standard.
+fn clean_unc_path(s: String) -> String {
+    if s.starts_with(r"\\?\") {
+        s[4..].to_string()
+    } else {
+        s
+    }
+}
+
 /// Data Transfer Object (DTO) for listing sessions in the sidebar.
 /// This matches the shape expected by the frontend.
 #[derive(Debug, serde::Serialize, Clone)]
@@ -50,12 +60,15 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
     let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
     let sessions_dir = paths.sessions_dir;
 
-    let default_workspace = paths
-        .workspace_dir
-        .canonicalize()
-        .unwrap_or_else(|_| paths.workspace_dir.clone())
-        .to_string_lossy()
-        .to_string();
+    let default_workspace = {
+        let p = paths
+            .workspace_dir
+            .canonicalize()
+            .unwrap_or_else(|_| paths.workspace_dir.clone())
+            .to_string_lossy()
+            .to_string();
+        clean_unc_path(p)
+    };
 
     let mut sessions = Vec::new();
     if sessions_dir.exists() {
@@ -83,14 +96,16 @@ pub async fn list_sessions() -> Result<Vec<SessionItem>, String> {
                                     _ => "Untitled Chat".to_string(),
                                 };
 
-                                let session_workspace_canon =
-                                    std::path::PathBuf::from(&row.workspace)
+                                let session_workspace_canon = {
+                                    let p = std::path::PathBuf::from(&row.workspace)
                                         .canonicalize()
                                         .unwrap_or_else(|_| {
                                             std::path::PathBuf::from(&row.workspace)
                                         })
                                         .to_string_lossy()
                                         .to_string();
+                                    clean_unc_path(p)
+                                };
 
                                 let is_project = session_workspace_canon != default_workspace;
                                 let project_name = if is_project {
@@ -573,11 +588,14 @@ pub async fn delete_project(
     let paths = OperonPaths::resolve().map_err(|e| e.to_string())?;
     let sessions_dir = paths.sessions_dir;
 
-    let target_canon = std::path::PathBuf::from(&project_path)
-        .canonicalize()
-        .unwrap_or_else(|_| std::path::PathBuf::from(&project_path))
-        .to_string_lossy()
-        .to_string();
+    let target_canon = {
+        let p = std::path::PathBuf::from(&project_path)
+            .canonicalize()
+            .unwrap_or_else(|_| std::path::PathBuf::from(&project_path))
+            .to_string_lossy()
+            .to_string();
+        clean_unc_path(p)
+    };
 
     if sessions_dir.exists() {
         let entries = std::fs::read_dir(sessions_dir).map_err(|e| e.to_string())?;
@@ -588,11 +606,14 @@ pub async fn delete_project(
                     if let Ok(store) = SessionStore::open(&path).await {
                         if let Ok(rows) = store.list_sessions().await {
                             if let Some(row) = rows.first() {
-                                let row_canon = std::path::PathBuf::from(&row.workspace)
-                                    .canonicalize()
-                                    .unwrap_or_else(|_| std::path::PathBuf::from(&row.workspace))
-                                    .to_string_lossy()
-                                    .to_string();
+                                let row_canon = {
+                                    let p = std::path::PathBuf::from(&row.workspace)
+                                        .canonicalize()
+                                        .unwrap_or_else(|_| std::path::PathBuf::from(&row.workspace))
+                                        .to_string_lossy()
+                                        .to_string();
+                                    clean_unc_path(p)
+                                };
 
                                 if row_canon == target_canon {
                                     // Cancel if active

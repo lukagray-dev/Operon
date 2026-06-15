@@ -306,7 +306,7 @@
   font-size: var(--channels-whatsapp-path-font-size);
   color: var(--color-channels-whatsapp-path);
   /* Monospace font allows easy path character differentiation */
-  font-family: 'Consolas', monospace;
+  font-family: var(--font-family-mono);
   margin-bottom: var(--channels-whatsapp-path-margin-bottom);
   /* Ellipsis truncation for long directories */
   overflow: hidden;
@@ -322,7 +322,7 @@
  */
 .settings-channels__whatsapp-qr {
   /* Ensure strict character-width alignment for ascii block drawing */
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: var(--channels-qr-font-size);
   line-height: var(--channels-qr-line-height);
   color: var(--color-channels-qr-text);
