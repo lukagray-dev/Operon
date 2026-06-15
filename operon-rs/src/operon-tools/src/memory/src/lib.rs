@@ -113,3 +113,102 @@ pub async fn connect_db() -> Result<SqliteConnection, sqlx::Error> {
     Ok(conn)
 }
 
+/// Represents a single memory entry stored in the database.
+/// This matches the structure sent back and forth between the Tauri Rust backend and JS frontend.
+/// Fields are annotated to serialize to camelCase for standard JavaScript conventions.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryItem {
+    /// Unique auto-incrementing integer key.
+    pub id: i64,
+    /// The actual text content of the memory.
+    pub content: String,
+    /// The timestamp when the memory was first created.
+    pub created_at: String,
+    /// The timestamp when the memory was last edited or modified.
+    pub updated_at: String,
+}
+
+/// Retrieves all stored memories from the SQLite database.
+/// Returns a list of MemoryItem structs ordered by the `updated_at` timestamp descending (most recent first).
+pub async fn get_all_memories() -> Result<Vec<MemoryItem>, sqlx::Error> {
+    // Connect to the SQLite database
+    let mut conn = connect_db().await?;
+    
+    // Fetch all columns from the memories table, sorted by last update date
+    let rows = sqlx::query(
+        "SELECT id, content, created_at, updated_at FROM memories ORDER BY updated_at DESC"
+    )
+    .fetch_all(&mut conn)
+    .await?;
+
+    // Map database rows into structured MemoryItem structs
+    let mut items = Vec::new();
+    for row in rows {
+        use sqlx::Row;
+        items.push(MemoryItem {
+            id: row.try_get("id")?,
+            content: row.try_get("content")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        });
+    }
+
+    Ok(items)
+}
+
+/// Inserts a new memory content into the database and returns the fully populated MemoryItem.
+pub async fn add_memory(content: &str) -> Result<MemoryItem, sqlx::Error> {
+    // Connect to the SQLite database
+    let mut conn = connect_db().await?;
+    
+    // Insert the text content and immediately return the populated columns (SQLite RETURNING clause)
+    let row = sqlx::query(
+        "INSERT INTO memories (content) VALUES (?) RETURNING id, content, created_at, updated_at"
+    )
+    .bind(content)
+    .fetch_one(&mut conn)
+    .await?;
+
+    use sqlx::Row;
+    Ok(MemoryItem {
+        id: row.try_get("id")?,
+        content: row.try_get("content")?,
+        created_at: row.try_get("created_at")?,
+        updated_at: row.try_get("updated_at")?,
+    })
+}
+
+/// Updates the text content of a memory entry with a matching ID.
+/// Also triggers the `updated_at` column update to track modifications.
+pub async fn update_memory(id: i64, content: &str) -> Result<(), sqlx::Error> {
+    // Connect to the SQLite database
+    let mut conn = connect_db().await?;
+    
+    // Perform the SQL UPDATE query
+    sqlx::query(
+        "UPDATE memories SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    )
+    .bind(content)
+    .bind(id)
+    .execute(&mut conn)
+    .await?;
+
+    Ok(())
+}
+
+/// Permanently deletes a memory entry from the database using its unique ID.
+pub async fn delete_memory(id: i64) -> Result<(), sqlx::Error> {
+    // Connect to the SQLite database
+    let mut conn = connect_db().await?;
+    
+    // Perform the SQL DELETE query
+    sqlx::query("DELETE FROM memories WHERE id = ?")
+        .bind(id)
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+

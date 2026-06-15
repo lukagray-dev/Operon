@@ -33,6 +33,7 @@ import { resetPermissionsSettingsState, hydratePermissionsPage } from './setting
 import { resetSkillsSettingsState, hydrateSkillsPage } from './settings-main-content/skills.js';
 import { resetExtensionsSettingsState, hydrateExtensionsPage } from './settings-main-content/extensions.js';
 import { buildAboutPageContent, hydrateAboutPage } from './settings-main-content/about.js';
+import { resetMemorySettingsState, hydrateMemoryPage } from './settings-main-content/memory.js';
 
 // ── Module-Level State ───────────────────────────────────────────────────────
 
@@ -57,6 +58,7 @@ let isOpen = false;
 const CATEGORIES = [
   { key: 'general',     label: 'General',     icon: 'category-general.svg' },
   { key: 'appearance',  label: 'Appearance',  icon: 'category-appearance.svg'    },
+  { key: 'memory',      label: 'Memory',      icon: 'category-memory.svg'        },
   { key: 'models',      label: 'Models',      icon: 'category-models.svg'      },
   { key: 'channels',    label: 'Channels',    icon: 'category-channels.svg'       },
   { key: 'permissions', label: 'Permissions', icon: 'category-permissions.svg'     },
@@ -223,6 +225,7 @@ function closeSettings() {
  */
 function resetAllCategoryStates() {
   resetAppearanceSettingsState();
+  resetMemorySettingsState();
   resetModelsSettingsState();
   resetChannelsSettingsState();
   resetPermissionsSettingsState();
@@ -277,6 +280,9 @@ async function renderCategoryPage(category) {
     case 'appearance':
       html = buildAppearancePage(settings);
       break;
+    case 'memory':
+      html = buildMemoryPage();
+      break;
     case 'models':
       html = buildModelsPage();
       break;
@@ -307,6 +313,9 @@ async function renderCategoryPage(category) {
   switch (category) {
     case 'appearance':
       hydrateAppearancePage(mainEl);
+      break;
+    case 'memory':
+      await hydrateMemoryPage(dialog);
       break;
     case 'models':
       await hydrateModelsPage(dialog);
@@ -387,6 +396,23 @@ function handleSidebarClick(event) {
 // ── Static Page Stubs ────────────────────────────────────────────────────────
 // Pages with dynamic async content return a minimal host scaffold that the
 // module's hydrate function then fills via renderXxxStage(modal).
+
+/**
+ * Returns the host scaffold HTML for the Memories page.
+ * @returns {string}
+ */
+function buildMemoryPage() {
+  return `
+    <div class="settings-page">
+      <h2 class="settings-page__title">Memories</h2>
+      <p class="settings-page__description">
+        Manage short-term and long-term memories persisted by the agent. You can view, search, edit, or delete them manually.
+      </p>
+      <!-- Async content injected by hydrateMemoryPage() -->
+      <div data-memory-host></div>
+    </div>
+  `;
+}
 
 /**
  * Returns the host scaffold HTML for the Models page.

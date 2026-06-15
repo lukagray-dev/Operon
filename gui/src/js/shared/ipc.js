@@ -342,3 +342,44 @@ export async function deleteProject(projectPath) {
     return await invoke('delete_project', { projectPath: normalizeString(projectPath) });
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// MEMORY COMMANDS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Retrieve all memories from the global database
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getMemories() {
+    return await invoke('get_memories');
+}
+
+/**
+ * Add a new memory entry
+ * @param {string} content - Text content of the memory
+ * @returns {Promise<Object>} - The newly created memory item
+ */
+export async function addMemory(content) {
+    return await invoke('add_memory', { content: normalizeString(content) });
+}
+
+/**
+ * Update an existing memory entry's text content by its ID
+ * @param {number} id - Memory entry ID
+ * @param {string} content - Updated text content
+ * @returns {Promise<void>}
+ */
+export async function updateMemory(id, content) {
+    return await invoke('update_memory', { id: Number(id), content: normalizeString(content) });
+}
+
+/**
+ * Delete a memory entry from the database by its ID
+ * @param {number} id - Memory entry ID to delete
+ * @returns {Promise<void>}
+ */
+export async function deleteMemory(id) {
+    return await invoke('delete_memory', { id: Number(id) });
+}
+
+

@@ -55,6 +55,10 @@ fn main() {
             commands::session_commands::get_default_workspace,
             commands::session_commands::delete_session,
             commands::session_commands::delete_project,
+            commands::memory_commands::get_memories,
+            commands::memory_commands::add_memory,
+            commands::memory_commands::update_memory,
+            commands::memory_commands::delete_memory,
         ])
         // Setup window and app configuration
         .setup(|app| {

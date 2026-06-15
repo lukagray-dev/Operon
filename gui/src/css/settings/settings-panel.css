@@ -32,52 +32,76 @@
 
 :root {
   /* Overlay */
-  --settings-overlay-z-index: 9000;               /* Displays above the main app shell */
-  --color-settings-overlay-bg: rgba(0, 0, 0, 0.72); /* Dimmed backdrop opacity */
-  --settings-overlay-blur: 4px;                   /* Backdrop blur filter value */
-  --settings-overlay-transition: opacity 180ms ease; /* Fade-in duration */
+  --settings-overlay-z-index: 9000;
+  /* Displays above the main app shell */
+  --color-settings-overlay-bg: rgba(0, 0, 0, 0.72);
+  /* Dimmed backdrop opacity */
+  --settings-overlay-blur: 4px;
+  /* Backdrop blur filter value */
+  --settings-overlay-transition: opacity 180ms ease;
+  /* Fade-in duration */
 
   /* Dialog Card Sizing */
-  --settings-dialog-width: 70vw;                  /* Width occupies 70% of the viewport width */
-  --settings-dialog-height: 70vh;                 /* Height occupies 70% of the viewport height */
-  --settings-dialog-min-width: 720px;             /* Minimum width constraint */
-  --settings-dialog-min-height: 480px;            /* Minimum height constraint */
-  --settings-dialog-max-width: 1200px;            /* Maximum width constraint */
-  --settings-dialog-max-height: 900px;            /* Maximum height constraint */
+  --settings-dialog-width: 70vw;
+  /* Width occupies 70% of the viewport width */
+  --settings-dialog-height: 70vh;
+  /* Height occupies 70% of the viewport height */
+  --settings-dialog-min-width: 720px;
+  /* Minimum width constraint */
+  --settings-dialog-min-height: 480px;
+  /* Minimum height constraint */
+  --settings-dialog-max-width: 1200px;
+  /* Maximum width constraint */
+  --settings-dialog-max-height: 900px;
+  /* Maximum height constraint */
 
   /* Dialog Card Appearance */
-  --color-settings-dialog-bg: #111111;            /* Dark card background */
-  --color-settings-dialog-border: rgba(255, 255, 255, 0.08); /* Faint border outline */
+  --color-settings-dialog-bg: #111111;
+  /* Dark card background */
+  --color-settings-dialog-border: rgba(255, 255, 255, 0.08);
+  /* Faint border outline */
   --settings-dialog-border-width: 1px;
-  --settings-dialog-radius: 12px;                 /* Rounding for the dialog container */
-  --settings-dialog-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.4); /* Dual layer shadow */
-  --settings-dialog-transform-start: scale(0.96) translateY(8px); /* Exit scale/position */
-  --settings-dialog-transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1); /* Bounce animation on entrance */
+  --settings-dialog-radius: 12px;
+  /* Rounding for the dialog container */
+  --settings-dialog-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.4);
+  /* Dual layer shadow */
+  --settings-dialog-transform-start: scale(0.96) translateY(8px);
+  /* Exit scale/position */
+  --settings-dialog-transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Bounce animation on entrance */
 
   /* Dialog Header */
-  --settings-header-height: 56px;                 /* Fixed height for header */
-  --settings-header-padding-horizontal: 20px;     /* Left/right padding inside header */
-  --color-settings-header-border: rgba(255, 255, 255, 0.07); /* Bottom divider border */
+  --settings-header-height: 56px;
+  /* Fixed height for header */
+  --settings-header-padding-horizontal: 20px;
+  /* Left/right padding inside header */
+  --color-settings-header-border: rgba(255, 255, 255, 0.07);
+  /* Bottom divider border */
   --settings-header-border-width: 1px;
 
   /* Dialog Header Title */
   --settings-title-font-size: 15px;
   --settings-title-font-weight: 600;
-  --color-settings-title: #e8e8e8;                /* Light gray for title text */
+  --color-settings-title: #e8e8e8;
+  /* Light gray for title text */
   --settings-title-letter-spacing: 0.01em;
 
   /* Dialog Header Close Button (X) */
-  --settings-close-size: 32px;                    /* Width/height of the square button container */
+  --settings-close-size: 32px;
+  /* Width/height of the square button container */
   --settings-close-radius: 6px;
-  --color-settings-close-text: #888888;           /* Muted close icon color */
+  --color-settings-close-text: #888888;
+  /* Muted close icon color */
   --color-settings-close-hover-bg: rgba(255, 255, 255, 0.08);
   --color-settings-close-hover-text: #e8e8e8;
   --settings-close-icon-size: 16px;
   --settings-close-transition: background-color 140ms ease, color 140ms ease;
 
   /* Color filters for close button SVG image */
-  --filter-settings-close-muted: invert(53%);     /* Matches #888888 muted gray */
-  --filter-settings-close-hover: invert(92%);     /* Matches #e8e8e8 active white */
+  --filter-settings-close-muted: invert(53%);
+  /* Matches #888888 muted gray */
+  --filter-settings-close-hover: invert(92%);
+  /* Matches #e8e8e8 active white */
 
   /* Scrollbar Sizing & Colors */
   --settings-scrollbar-width: 6px;
@@ -87,29 +111,38 @@
 
   /* Sidebar nav panel strip (Left column) */
   --settings-sidebar-width: 200px;
-  --color-settings-sidebar-bg: #000000;           /* Absolute black per design spec */
-  --color-settings-sidebar-border: rgba(255, 255, 255, 0.06); /* Right border partition */
+  --color-settings-sidebar-bg: #000000;
+  /* Absolute black per design spec */
+  --color-settings-sidebar-border: rgba(255, 255, 255, 0.06);
+  /* Right border partition */
   --settings-sidebar-border-width: 1px;
 
   /* Main settings content panel (Right column) */
-  --settings-main-padding: 28px 32px;             /* Generous padding for input fields and layout */
-  --color-settings-main-bg: #111111;              /* Dark background matches the card */
+  --settings-main-padding: 28px 32px;
+  /* Generous padding for input fields and layout */
+  --color-settings-main-bg: #111111;
+  /* Dark background matches the card */
 
   /* Shared Setting Row Grid */
-  --settings-row-gap: 16px;                       /* Gap between columns */
-  --settings-row-padding-vertical: 12px;          /* Vertical padding around a row */
-  --color-settings-row-border: rgba(255, 255, 255, 0.05); /* Faint bottom separator line */
+  --settings-row-gap: 16px;
+  /* Gap between columns */
+  --settings-row-padding-vertical: 12px;
+  /* Vertical padding around a row */
+  --color-settings-row-border: rgba(255, 255, 255, 0.05);
+  /* Faint bottom separator line */
   --settings-row-border-width: 1px;
 
   /* Setting Row Label */
   --settings-row-label-font-size: 13.5px;
   --settings-row-label-font-weight: 500;
-  --color-settings-row-label: #d8d8d8;            /* Semi-white color */
+  --color-settings-row-label: #d8d8d8;
+  /* Semi-white color */
 
   /* Setting Row Description */
   --settings-row-desc-margin-top: 2px;
   --settings-row-desc-font-size: 12px;
-  --color-settings-row-desc: #666666;             /* Gray description color */
+  --color-settings-row-desc: #666666;
+  /* Gray description color */
   --settings-row-desc-line-height: 1.4;
 
   /* Page Title & Subtitle */
@@ -133,23 +166,34 @@
   --color-settings-section-desc: #555555;
 
   /* Toggle Switch */
-  --settings-toggle-width: 40px;                  /* Pill track width */
-  --settings-toggle-height: 22px;                 /* Pill track height */
-  --settings-toggle-radius: 11px;                 /* Fully rounded track capsules */
-  --color-settings-toggle-track-bg: #2a2a2a;      /* Inactive track color */
+  --settings-toggle-width: 40px;
+  /* Pill track width */
+  --settings-toggle-height: 22px;
+  /* Pill track height */
+  --settings-toggle-radius: 11px;
+  /* Fully rounded track capsules */
+  --color-settings-toggle-track-bg: #2a2a2a;
+  /* Inactive track color */
   --color-settings-toggle-track-border: rgba(255, 255, 255, 0.08);
   --settings-toggle-transition: background-color 160ms ease, border-color 160ms ease;
-  --settings-toggle-thumb-offset: 2px;            /* Inactive thumb margin */
-  --settings-toggle-thumb-size: 16px;             /* Round thumb diameter */
-  --color-settings-toggle-thumb-bg: #555555;      /* Inactive gray thumb color */
+  --settings-toggle-thumb-offset: 2px;
+  /* Inactive thumb margin */
+  --settings-toggle-thumb-size: 16px;
+  /* Round thumb diameter */
+  --color-settings-toggle-thumb-bg: #555555;
+  /* Inactive gray thumb color */
   --settings-toggle-thumb-transition: transform 160ms ease, background-color 160ms ease;
-  --settings-toggle-thumb-active-offset: 18px;    /* Checked position shift value */
-  --color-settings-toggle-thumb-active: #ffffff;  /* Active thumb color is white */
+  --settings-toggle-thumb-active-offset: 18px;
+  /* Checked position shift value */
+  --color-settings-toggle-thumb-active: #ffffff;
+  /* Active thumb color is white */
 
   /* Select Dropdowns */
   --settings-select-height: 32px;
-  --settings-select-padding: 0 28px 0 10px;       /* Extra right padding for arrow icon */
-  --color-settings-select-bg: #1c1c1c;            /* Dark select background */
+  --settings-select-padding: 0 28px 0 10px;
+  /* Extra right padding for arrow icon */
+  --color-settings-select-bg: #1c1c1c;
+  /* Dark select background */
   --color-settings-select-border: rgba(255, 255, 255, 0.10);
   --settings-select-radius: 6px;
   --color-settings-select-text: #d0d0d0;
@@ -230,8 +274,9 @@
   --filter-settings-btn-secondary: invert(85%);
   --filter-settings-btn-ghost: invert(53%);
   --filter-settings-btn-ghost-hover: invert(85%);
-  --filter-settings-btn-danger: invert(61%) sepia(35%) saturate(3475%) hue-rotate(320deg) brightness(101%) contrast(97%); /* Matches #f87171 */
-  
+  --filter-settings-btn-danger: invert(61%) sepia(35%) saturate(3475%) hue-rotate(320deg) brightness(101%) contrast(97%);
+  /* Matches #f87171 */
+
   /* Small button layout modifier */
   --settings-btn-sm-height: 28px;
   --settings-btn-sm-padding: 0 10px;
@@ -511,12 +556,12 @@
   transition: var(--settings-toggle-thumb-transition);
 }
 
-.setting-toggle input:checked + .setting-toggle__slider {
-  background-color: var(--accent-primary, #4f8ef7);
+.setting-toggle input:checked+.setting-toggle__slider {
+  background-color: var(--accent-primary, #002aff);
   border-color: var(--accent-primary, #4f8ef7);
 }
 
-.setting-toggle input:checked + .setting-toggle__slider::after {
+.setting-toggle input:checked+.setting-toggle__slider::after {
   transform: translateX(var(--settings-toggle-thumb-active-offset));
   background-color: var(--color-settings-toggle-thumb-active);
 }
@@ -590,7 +635,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Tabs ──────────────────────────────────────────────────────────────────── */
@@ -755,5 +802,3 @@
   padding: var(--settings-btn-sm-padding);
   font-size: var(--settings-btn-sm-font-size);
 }
-
-

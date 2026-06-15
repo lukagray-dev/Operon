@@ -1,0 +1,316 @@
+/**
+ * Memories Settings Page Styles
+ *
+ * Designed to seamlessly blend with the dark glassmorphic UI of Operon.
+ * Utilizes standard page typography, border radii, transitions, and colors.
+ */
+
+:root {
+  /* Scope memory styling variables */
+  --color-memory-card-bg: #0d0d0d;
+  --color-memory-card-border: rgba(255, 255, 255, 0.06);
+  --color-memory-input-bg: #050505;
+  --color-memory-input-border: rgba(255, 255, 255, 0.05);
+  --color-memory-input-focus-border: rgba(255, 255, 255, 0.15);
+  --color-memory-meta-text: #666666;
+  --color-memory-time-text: #444444;
+}
+
+/* ── Viewport Pinned Layout ───────────────────────────────────────────────── */
+
+/* 
+ * Disable scrolling on the main settings content viewport when the Memories page is active.
+ * This ensures the quick-add memory input form remains pinned at the bottom of the visible area.
+ */
+.settings-dialog__main:has([data-memory-host]) {
+  overflow-y: hidden !important;
+}
+
+.settings-page:has([data-memory-host]) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+[data-memory-host] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.settings-memory__container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  gap: 12px;
+  height: 100%;
+}
+
+/* ── Toolbar & Search Grid ────────────────────────────────────────────────── */
+
+.settings-memory__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.settings-memory__search-container {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-memory-input-bg);
+  border: 1px solid var(--color-memory-card-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  gap: 8px;
+  flex: 1;
+  max-width: 380px;
+  height: 32px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.settings-memory__search-icon {
+  filter: invert(40%); /* standard gray tint for icons */
+  flex-shrink: 0;
+}
+
+.settings-memory__search-input {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: #e8e8e8 !important;
+  font-size: 13px;
+  width: 100%;
+  padding: 0 !important;
+  height: 100%;
+  margin: 0;
+}
+
+.settings-memory__clear-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  transition: opacity 120ms ease;
+  flex-shrink: 0;
+}
+
+.settings-memory__clear-btn:hover {
+  opacity: 1;
+}
+
+.settings-memory__clear-btn img {
+  filter: invert(60%);
+}
+
+.settings-memory__refresh-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.settings-memory__refresh-btn img {
+  filter: invert(70%);
+}
+
+/* ── Quick Add Memory Input (beside submit button at bottom) ─────────────── */
+
+.settings-memory__add-container {
+  display: flex;
+  align-items: flex-end; /* Align bottom to look neat as textarea auto-grows */
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: auto;
+  background-color: var(--color-settings-dialog-bg);
+  border-top: 1px solid var(--color-memory-card-border);
+  padding: 12px 0 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Base style for textareas (quick-add input and card text inputs) */
+.settings-memory__textarea {
+  background-color: var(--color-memory-input-bg);
+  border: 1px solid var(--color-memory-input-border);
+  border-radius: 6px;
+  padding: 4px 8px; /* Slim padding */
+  color: #e8e8e8;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.4;
+  height: 26px; /* Slim: 1 line default height */
+  max-height: 58px; /* Slim: 3 lines max-height limit */
+  resize: none;
+  width: 100%;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 150ms ease;
+  overflow-y: auto;
+}
+
+.settings-memory__textarea:focus {
+  border-color: var(--color-memory-input-focus-border);
+}
+
+.settings-memory__add-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 26px; /* Matches 1 line textarea height */
+  padding: 0;
+}
+
+.settings-memory__add-btn img {
+  filter: var(--filter-settings-btn-primary);
+}
+
+/* ── Memories List Container ──────────────────────────────────────────────── */
+
+.settings-memory__list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Custom Scrollbar styling matching application settings panels */
+.settings-memory__list-container::-webkit-scrollbar {
+  width: var(--settings-scrollbar-width);
+}
+
+.settings-memory__list-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-memory__list-container::-webkit-scrollbar-thumb {
+  background-color: var(--color-settings-scrollbar-thumb);
+  border-radius: var(--settings-scrollbar-radius);
+}
+
+.settings-memory__list-container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-settings-scrollbar-thumb-hover);
+}
+
+.settings-memory__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Individual Memory Card Row ───────────────────────────────────────────── */
+
+.settings-memory__item-card {
+  background-color: var(--color-memory-card-bg);
+  border: 1px solid var(--color-memory-card-border);
+  border-radius: 8px;
+  padding: 6px 10px; /* Slim card padding */
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* Slim gap between title/meta and input box */
+  transition: border-color 150ms ease;
+  flex-shrink: 0;
+}
+
+.settings-memory__item-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.settings-memory__item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 20px; /* Slim header spacing */
+}
+
+.settings-memory__item-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-memory__item-id {
+  font-size: 11px;
+  color: var(--color-memory-meta-text);
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+}
+
+.settings-memory__item-time {
+  font-size: 11px;
+  color: var(--color-memory-time-text);
+}
+
+.settings-memory__item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Save button highlights when active (unsaved edits exist) */
+.settings-memory__action-save {
+  font-size: 11px !important;
+  font-weight: 500;
+  padding: 4px 10px !important;
+  height: 20px; /* Slim action buttons */
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.settings-memory__action-save.is-active {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+}
+
+.settings-memory__action-delete {
+  padding: 0 6px !important;
+  height: 20px;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-memory__action-delete img {
+  filter: invert(40%);
+  transition: filter 120ms ease;
+  width: 12px;
+  height: 12px;
+}
+
+.settings-memory__action-delete:hover img {
+  filter: invert(30%) sepia(90%) saturate(3000%) hue-rotate(350deg); /* red tint on hover */
+}
+
+.settings-memory__item-body {
+  width: 100%;
+}
+
+/* Empty or Status Indicator styles */
+.settings-memory__empty-state {
+  padding: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
