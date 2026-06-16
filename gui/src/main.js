@@ -37,6 +37,9 @@ import './js/main-content/emptystate.js';
 // Load terminal component (initializes itself on load)
 import './js/main-content/terminal.js';
 
+// Load right sidebar component (initializes itself on load)
+import './js/right-sidebar/right-sidebar.js';
+
 // Load session manager to handle agent events and chats history
 import './js/shared/session-manager.js';
 

@@ -3645,6 +3645,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "operon-diff"
+version = "0.1.0"
+dependencies = [
+ "git2",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "operon-events"
 version = "0.1.0"
 dependencies = [
@@ -3705,6 +3715,7 @@ version = "0.1.0"
 dependencies = [
  "operon-config",
  "operon-context",
+ "operon-diff",
  "operon-events",
  "operon-markdown",
  "operon-policy",

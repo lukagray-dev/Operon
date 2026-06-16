@@ -1,0 +1,18 @@
+[package]
+name        = "operon-diff"
+description = "Git diff engine and repository index management for Operon"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+# git2: Workspace shared dependency for high-performance libgit2 integration
+git2.workspace = true
+# serde: Serialization/deserialization for Tauri IPC transfer
+serde.workspace = true
+# thiserror: Clean, ergonomic Rust error structures
+thiserror.workspace = true
+# tracing: Core diagnostic and profiling logs
+tracing.workspace = true

@@ -670,3 +670,9 @@ body.sidebar-closed .input-panel {
     }
 }
 
+/* Disables all panel transitions during active left sidebar dragging to keep them in sync */
+body.left-sidebar-resizing .left-sidebar,
+body.left-sidebar-resizing .main-content,
+body.left-sidebar-resizing .input-panel {
+    transition: none !important;
+}

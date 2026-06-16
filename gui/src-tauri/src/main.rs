@@ -63,6 +63,13 @@ fn main() {
             commands::terminal_commands::write_terminal,
             commands::terminal_commands::resize_terminal,
             commands::terminal_commands::close_terminal,
+            commands::git_commands::get_git_diff_stats,
+            commands::git_commands::get_git_diff_details,
+            commands::git_commands::stage_git_file,
+            commands::git_commands::unstage_git_file,
+            commands::git_commands::revert_git_file,
+            commands::git_commands::stage_all_git_files,
+            commands::git_commands::revert_all_git_files,
         ])
         // Setup window and app configuration
         .setup(|app| {

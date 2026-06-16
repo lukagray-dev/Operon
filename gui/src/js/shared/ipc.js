@@ -442,4 +442,93 @@ export async function closeTerminal(id) {
     });
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// GIT DIFF COMMANDS
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Fetch general git stats (insertions/deletions) for the quick changes badge.
+ * Hey friend! This connects directly to get_git_diff_stats on the Rust backend.
+ * @param {string|null} [projectDir=null] - Workspace project folder path
+ * @returns {Promise<{hasRepo: boolean, insertions: number, deletions: number}>}
+ */
+export async function getGitDiffStats(projectDir = null) {
+    return await invoke('get_git_diff_stats', {
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+    });
+}
+
+/**
+ * Fetch detailed file-by-file status list and diff hunks to build the panel tree.
+ * @param {string|null} [projectDir=null] - Workspace project folder path
+ * @returns {Promise<Object>} Detailed RepositoryDiff DTO from Rust
+ */
+export async function getGitDiffDetails(projectDir = null) {
+    return await invoke('get_git_diff_details', {
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+    });
+}
+
+/**
+ * Stage a modified or untracked file to index.
+ * @param {string|null} projectDir - Workspace project folder path
+ * @param {string} relativePath - The file path relative to repo root
+ * @returns {Promise<void>}
+ */
+export async function stageGitFile(projectDir, relativePath) {
+    return await invoke('stage_git_file', {
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+        relativePath: normalizeString(relativePath),
+    });
+}
+
+/**
+ * Unstage a file by resetting it back to HEAD.
+ * @param {string|null} projectDir - Workspace project folder path
+ * @param {string} relativePath - The file path relative to repo root
+ * @returns {Promise<void>}
+ */
+export async function unstageGitFile(projectDir, relativePath) {
+    return await invoke('unstage_git_file', {
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+        relativePath: normalizeString(relativePath),
+    });
+}
+
+/**
+ * Discard unstaged changes to a file in the workspace.
+ * @param {string|null} projectDir - Workspace project folder path
+ * @param {string} relativePath - The file path relative to repo root
+ * @returns {Promise<void>}
+ */
+export async function revertGitFile(projectDir, relativePath) {
+    return await invoke('revert_git_file', {
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+        relativePath: normalizeString(relativePath),
+    });
+}
+
+/**
+ * Stage all unstaged modifications and untracked files.
+ * @param {string|null} projectDir - Workspace project folder path
+ * @returns {Promise<void>}
+ */
+export async function stageAllGitFiles(projectDir) {
+    return await invoke('stage_all_git_files', {
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+    });
+}
+
+/**
+ * Revert all unstaged changes to tracked files in the workspace.
+ * @param {string|null} projectDir - Workspace project folder path
+ * @returns {Promise<void>}
+ */
+export async function revertAllGitFiles(projectDir) {
+    return await invoke('revert_all_git_files', {
+        projectDir: projectDir ? normalizeString(projectDir) : null,
+    });
+}
+
+
 

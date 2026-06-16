@@ -597,8 +597,9 @@ class LeftSidebarController {
             startX = e.clientX;
             startWidth = sidebar.offsetWidth;
 
-            // Add resizing class for visual feedback
+            // Add resizing class for visual feedback and transition disabling
             resizeHandle.classList.add('resizing');
+            document.body.classList.add('left-sidebar-resizing');
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
 
@@ -638,6 +639,7 @@ class LeftSidebarController {
 
             // Remove resizing class
             resizeHandle.classList.remove('resizing');
+            document.body.classList.remove('left-sidebar-resizing');
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
 

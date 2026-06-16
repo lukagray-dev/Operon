@@ -583,6 +583,14 @@ class SessionManager {
         this.currentProjectDir = projectDir;
         this.resetStreamingState();
         
+        // Refresh git diff display for the new chat/project context
+        if (window.rightSidebarController) {
+            window.rightSidebarController.refreshQuickStats();
+            if (window.rightSidebarController.isOpen) {
+                window.rightSidebarController.refreshDetails();
+            }
+        }
+        
         // Clear diagnostics bar if visible
         if (window.inputPanelController) {
             window.inputPanelController.setGeneratingState(false);
@@ -736,6 +744,14 @@ class SessionManager {
             this.currentProjectDir = session.workspace;
         } else {
             this.currentProjectDir = null;
+        }
+        
+        // Refresh git changes count and side-panel details for the selected session
+        if (window.rightSidebarController) {
+            window.rightSidebarController.refreshQuickStats();
+            if (window.rightSidebarController.isOpen) {
+                window.rightSidebarController.refreshDetails();
+            }
         }
         
         // Clear diagnostics bar if visible
@@ -1311,6 +1327,14 @@ class SessionManager {
             }
             this.resetStreamingState();
             this.loadSessionsList();
+            
+            // Refresh git changes count and side-panel details after agent makes modifications
+            if (window.rightSidebarController) {
+                window.rightSidebarController.refreshQuickStats();
+                if (window.rightSidebarController.isOpen) {
+                    window.rightSidebarController.refreshDetails();
+                }
+            }
         } 
         else if (event.Error) {
             if (window.inputPanelController) {

@@ -18,6 +18,7 @@ operon-session    = { workspace = true }
 operon-tools      = { workspace = true }
 operon-tools-core = { workspace = true }
 operon-terminal   = { workspace = true }
+operon-diff       = { workspace = true }
 
 serde.workspace   = true
 thiserror.workspace = true

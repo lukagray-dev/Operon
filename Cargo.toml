@@ -93,6 +93,7 @@ members = [
 
     # Terminal Crate
     "operon-rs/src/operon-terminal",
+    "operon-rs/src/operon-diff",
 ]
 
 [workspace.dependencies]
@@ -178,6 +179,7 @@ operon-policy    = { path = "operon-rs/src/operon-policy" }
 operon-session   = { path = "operon-rs/src/operon-session" }
 operon-markdown  = { path = "operon-rs/src/operon-markdown" }
 operon-terminal  = { path = "operon-rs/src/operon-terminal" }
+operon-diff      = { path = "operon-rs/src/operon-diff" }
 
 # Third party dependencies
 portable-pty     = "0.8"

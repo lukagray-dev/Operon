@@ -276,7 +276,9 @@
     background-color: rgba(255, 255, 255, 0.18);
 }
 
-/* Disables the input panel transitions during active terminal dragging to prevent lag */
+/* Disables all panel transitions during active terminal dragging to keep them in sync */
+body.terminal-resizing .terminal-panel,
+body.terminal-resizing .main-content,
 body.terminal-resizing .input-panel {
     transition: none !important;
 }
