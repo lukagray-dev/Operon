@@ -89,7 +89,7 @@ members = [
 
     # Frontends
     "tui",
-    "gui/src-tauri",
+    "gui",
 
     # Terminal Crate
     "operon-rs/src/operon-terminal",
