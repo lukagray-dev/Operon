@@ -141,12 +141,36 @@ export component Projects inherits Rectangle {
                             font-size: Tokens.body-font-size;
                             vertical-alignment: center;
                             overflow: elide;
+                            // Stretch to occupy remaining horizontal space, pushing the chevron to the right
+                            horizontal-stretch: 1;
+                        }
+
+                        // Project expand/collapse chevron indicator (on the right)
+                        // Shows chevron-down when the project is currently active (expanded)
+                        // and chevron-right when it is collapsed.
+                        Image {
+                            source: project-index == root.active-project-index
+                                ? @image-url("../../assets/icons/sidebar/chevron-down.svg")
+                                : @image-url("../../assets/icons/sidebar/chevron-right.svg");
+                            width: 14px;
+                            height: 14px;
+                            // Centered vertically within the 32px project header box
+                            y: (parent.height - self.height) / 2;
+                            colorize: Tokens.text-muted;
+                            image-fit: contain;
                         }
                     }
                     
+                    // Clicking the project header toggles its expansion state.
+                    // If the project is already expanded (matches active-project-index), clicking it
+                    // collapses it by setting active-project-index to -1. Otherwise, it expands it.
                     project-touch := TouchArea {
                         clicked => {
-                            root.active-project-index = project-index;
+                            if root.active-project-index == project-index {
+                                root.active-project-index = -1;
+                            } else {
+                                root.active-project-index = project-index;
+                            }
                         }
                     }
                 }
