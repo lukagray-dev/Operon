@@ -119,6 +119,68 @@ export component DropdownItem inherits Rectangle {
     }
 }
 
+export component IconDropdownItem inherits Rectangle {
+    // Reusable dropdown item that displays an SVG icon beside a text label.
+    // Specially useful for sidebar session action dropdowns.
+    in property <string> label;
+    in property <image> icon;
+    in property <bool> danger: false;
+    in property <float> ui_scale: 1.0;
+    callback clicked();
+
+    width: DropdownTokens.surface_width - DropdownTokens.surface_padding * 2;
+    height: DropdownTokens.item_height;
+    border-radius: 6px;
+    background: item_touch.pressed
+        ? Tokens.dropdown_surface_pressed
+        : item_touch.has-hover
+            ? Tokens.dropdown_surface_hover
+            : transparent;
+
+    HorizontalLayout {
+        padding-left: DropdownTokens.item_padding_x;
+        padding-right: DropdownTokens.item_padding_x;
+        spacing: 8px;
+
+        // SVG icon representation for the action
+        Image {
+            source: root.icon;
+            width: 14px * root.ui_scale;
+            height: 14px * root.ui_scale;
+            y: (parent.height - self.height) / 2;
+            colorize: item_touch.pressed || item_touch.has-hover
+                ? (root.danger ? Tokens.danger_red_hover : Tokens.text_primary)
+                : (root.danger ? Tokens.danger_red : Tokens.text_secondary);
+            image-fit: contain;
+        }
+
+        // Action text label
+        item_label := Text {
+            text: root.label;
+            color: item_touch.pressed || item_touch.has-hover
+                ? (root.danger ? Tokens.danger_red_hover : Tokens.text_primary)
+                : (root.danger ? Tokens.danger_red : Tokens.text_secondary);
+            font-size: DropdownTokens.item_font_size * root.ui_scale;
+            font-weight: 400;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: clip;
+        }
+    }
+
+    item_touch := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+
 export component DropdownSeparator inherits Rectangle {
     width: DropdownTokens.surface_width - DropdownTokens.surface_padding * 2;
     height: 1px;

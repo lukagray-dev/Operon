@@ -1,10 +1,11 @@
 // Individual conversation/chat item component.
 //
 // This component represents a single chat conversation in the sidebar. It displays
-// the chat title and handles hover/click interactions. Used within both the Projects
-// and Chats sections to show individual conversation entries.
+// the chat title, handles hover/click interactions, and provides a context menu
+// dropdown (via a three-dots button) with action options like Share, Rename, etc.
 
 import { Tokens } from "../shared/tokens.slint";
+import { DropdownSurface, DropdownTokens, IconDropdownItem, DropdownSeparator } from "../shared/dropdown.slint";
 
 // Reusable conversation item that shows a chat title with hover and active states.
 // Designed to be used in lists within the Projects and Chats sections.
@@ -14,9 +15,17 @@ export component Conversation inherits Rectangle {
     
     // Whether this conversation is currently selected/active
     in property <bool> is-active: false;
-    
+
     // Callback fired when the user clicks on this conversation
     callback clicked();
+    
+    // Callbacks for options dropdown actions
+    callback share-clicked();
+    callback rename-clicked();
+    callback move-to-clicked();
+    callback pin-clicked();
+    callback fork-clicked();
+    callback delete-clicked();
     
     // Fixed height for consistent list item sizing
     height: 32px;
@@ -38,11 +47,10 @@ export component Conversation inherits Rectangle {
     // Rounded corners for modern appearance
     border-radius: 6px;
     
-    // Horizontal layout for potential future icon + text combination
+    // Horizontal layout for text label, padded on the right to leave space for the menu button
     HorizontalLayout {
         padding-left: 12px;
-        padding-right: 12px;
-        spacing: 8px;
+        padding-right: 36px; // Space reserved for the three-dots button
         
         // Chat title text with ellipsis overflow handling
         Text {
@@ -58,10 +66,114 @@ export component Conversation inherits Rectangle {
         }
     }
     
-    // Touch area covering the entire conversation item for click detection
+    // Touch area covering the conversation item for click detection.
     touch-area := TouchArea {
         clicked => {
             root.clicked();
+        }
+    }
+
+    // Three dots action menu button (on the right).
+    // Defined after the main touch-area in Slint to ensure it sits on top in the z-order
+    // and receives mouse clicks properly instead of letting them fall through.
+    three-dots := Rectangle {
+        x: parent.width - self.width - 4px;
+        y: (parent.height - self.height) / 2;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: three-dots-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
+        visible: touch-area.has-hover || root.is-active;
+        
+        animate background { duration: 100ms; }
+
+        // Three vertical dots icon
+        Image {
+            source: @image-url("../../assets/icons/sidebar/more-vertical.svg");
+            width: 14px;
+            height: 14px;
+            y: (parent.height - self.height) / 2;
+            x: (parent.width - self.width) / 2;
+            colorize: Tokens.text-muted;
+            image-fit: contain;
+        }
+
+        three-dots-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                menu-panel.show();
+            }
+        }
+    }
+
+    // Floating context menu dropdown using Slint's native PopupWindow.
+    // It automatically renders above all other elements and outside layout boundaries.
+    menu-panel := PopupWindow {
+        x: parent.width - self.width - 4px;
+        y: parent.height + 4px;
+        width: 140px;
+        height: menu-layout.preferred-height;
+        close-policy: close-on-click-outside;
+
+        DropdownSurface {
+            width: 100%;
+            height: 100%;
+
+            menu-layout := VerticalLayout {
+                padding: DropdownTokens.surface_padding;
+                spacing: DropdownTokens.item_gap;
+
+                IconDropdownItem {
+                    label: "Share";
+                    icon: @image-url("../../assets/icons/sidebar/share.svg");
+                    clicked => {
+                        menu-panel.close();
+                        root.share-clicked();
+                    }
+                }
+                IconDropdownItem {
+                    label: "Rename";
+                    icon: @image-url("../../assets/icons/sidebar/pencil.svg");
+                    clicked => {
+                        menu-panel.close();
+                        root.rename-clicked();
+                    }
+                }
+                IconDropdownItem {
+                    label: "Move to";
+                    icon: @image-url("../../assets/icons/sidebar/folder-input.svg");
+                    clicked => {
+                        menu-panel.close();
+                        root.move-to-clicked();
+                    }
+                }
+                IconDropdownItem {
+                    label: "Pin";
+                    icon: @image-url("../../assets/icons/sidebar/pin.svg");
+                    clicked => {
+                        menu-panel.close();
+                        root.pin-clicked();
+                    }
+                }
+                IconDropdownItem {
+                    label: "Fork";
+                    icon: @image-url("../../assets/icons/sidebar/git-fork.svg");
+                    clicked => {
+                        menu-panel.close();
+                        root.fork-clicked();
+                    }
+                }
+                DropdownSeparator {}
+                IconDropdownItem {
+                    label: "Delete";
+                    icon: @image-url("../../assets/icons/sidebar/trash.svg");
+                    danger: true;
+                    clicked => {
+                        menu-panel.close();
+                        root.delete-clicked();
+                    }
+                }
+            }
         }
     }
 }
