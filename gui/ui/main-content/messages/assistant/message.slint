@@ -1,0 +1,48 @@
+// Message text component for assistant messages.
+//
+// This component displays the assistant's message text using the PT Serif
+// font for better readability. Unlike user messages, assistant messages
+// don't have a bubble background - the text is displayed directly on the
+// main content background.
+//
+// The text supports:
+// - Word wrapping for long content
+// - PT Serif font for distinguished appearance
+// - Full width within the input panel boundaries
+
+import { Tokens } from "../../../shared/tokens.slint";
+
+// Message text display for assistant responses.
+// Uses PT Serif font for enhanced readability.
+export component MessageText inherits Rectangle {
+    // The message text content to display
+    in property <string> message-text: "";
+    
+    // Transparent background - no bubble for assistant messages
+    background: transparent;
+    
+    // Dynamic height based on text content
+    height: message-text-element.preferred-height + 32px;  // Text height + padding
+    
+    // Vertical layout for text with padding
+    VerticalLayout {
+        padding-top: 16px;
+        padding-bottom: 16px;
+        
+        // The actual text element
+        message-text-element := Text {
+            text: root.message-text;
+            color: Tokens.text-primary;
+            font-size: Tokens.body-font-size;
+            // Use PT Serif font for assistant messages
+            font-family: Tokens.serif-font-family;
+            
+            // Enable word wrapping for long messages
+            wrap: word-wrap;
+            
+            // Vertical alignment at the top
+            vertical-alignment: top;
+            horizontal-alignment: left;
+        }
+    }
+}

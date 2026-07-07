@@ -1,0 +1,25 @@
+// Session title component for the main content area.
+//
+// This component displays the current session title at the top left corner
+// of the main content area. It provides context about which conversation
+// or session is currently active.
+//
+// The title uses Google Sans font for consistency with the rest of the UI
+// and is positioned as simple text in the top left corner.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+// Session title display component.
+// Shows the active session/conversation title as simple text.
+export component SessionTitle inherits Text {
+    // The session title text to display
+    text: "New Session";
+    
+    // Styling
+    color: Tokens.text-primary;
+    font-size: 16px;  // Slightly larger than body text for prominence
+    font-family: Tokens.font-family;  // Google Sans
+    font-weight: 500;  // Medium weight for emphasis
+    vertical-alignment: top;
+    horizontal-alignment: left;
+}

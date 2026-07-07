@@ -1,0 +1,69 @@
+// Plugins button component for the sidebar.
+//
+// This component provides access to the plugins/extensions management interface.
+// It displays a plugins icon with label and responds to user interaction with hover states.
+
+import { Tokens } from "../shared/tokens.slint";
+
+// Plugins action button for managing extensions and add-ons.
+// Positioned in the top section of the sidebar for quick access.
+export component Plugins inherits Rectangle {
+    // Callback fired when the user clicks the Plugins button
+    callback clicked();
+    
+    // Fixed height for consistent button sizing
+    height: 40px;
+    
+    // Horizontal stretch to fill sidebar width
+    horizontal-stretch: 1;
+    
+    // Background color changes on hover for visual feedback
+    background: touch-area.has-hover 
+        ? Tokens.dropdown-surface-hover 
+        : transparent;
+    
+    // Smooth background transitions
+    animate background { duration: 150ms; easing: ease-in-out; }
+    
+    // Rounded corners matching the design system
+    border-radius: 8px;
+    
+    // Horizontal layout for icon + text arrangement
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+        
+        // Plugins icon
+        // Using colorize to apply the current text color to the SVG
+        Image {
+            source: @image-url("../../assets/icons/sidebar/plugins.svg");
+            width: 18px;
+            height: 18px;
+            y: (parent.height - self.height) / 2;
+            colorize: Tokens.text-secondary;
+            image-fit: contain;
+            
+            // Icon brightens on hover
+            animate colorize { duration: 150ms; }
+        }
+        
+        // "Plugins" label text
+        Text {
+            text: "Plugins";
+            color: Tokens.text-secondary;
+            font-size: Tokens.body-font-size;
+            vertical-alignment: center;
+            
+            // Text brightens on hover
+            animate color { duration: 150ms; }
+        }
+    }
+    
+    // Touch area for click detection covering the entire button
+    touch-area := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}

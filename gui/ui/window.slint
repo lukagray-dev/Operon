@@ -1,0 +1,297 @@
+// Top-level window composition for the Operon GUI.
+//
+// This file stays intentionally small on purpose: it defines the native shell,
+// sets the global visual defaults, and hands the chrome rendering off to the
+// dedicated titlebar component.
+
+import "../assets/fonts/google_sans/GoogleSans-Regular.ttf";
+import "../assets/fonts/pt_serif/PTSerif.ttf";
+import { Tokens } from "./shared/tokens.slint";
+import { Titlebar } from "./window/titlebar.slint";
+import { Sidebar } from "./left-sidebar/sidebar.slint";
+import { MainContent } from "./main-content/main-content.slint";
+
+export component OperonWindow inherits Window {
+    // The window opens in a centered 16:9-ish landscape shape. The runtime
+    // bootstrap still adjusts the final size and position to match the active
+    // monitor, but these values keep the fallback behavior sensible.
+    preferred-width: 960px;
+    preferred-height: 540px;
+    min-width: 800px;
+    min-height: 450px;
+    no-frame: true;
+    resize-border-width: Tokens.window_resize_border_width;
+
+    // Keep the shell background neutral so the UI reads as black and gray
+    // instead of drifting toward a bluish desktop aesthetic.
+    background: Tokens.window_background;
+    title: "Operon";
+    icon: @image-url("../assets/brand/operon.svg");
+
+    // The Google Sans import above makes this family available globally. The
+    // base size stays compact, while the chrome uses the shared titlebar
+    // tokens for a slightly larger and more polished feel.
+    default-font-family: Tokens.font_family;
+    default-font-size: Tokens.body_font_size * root.ui_scale;
+    default-font-weight: 400;
+
+    // Shared state exposed to Rust. The titlebar reacts to these values and the
+    // content area can bind to them later without changing the UI wiring.
+    in-out property <bool> window_maximized: false;
+    in-out property <float> ui_scale: 1.0;
+    in-out property <int> reload_generation: 0;
+    
+    // Sidebar data properties - bind these from Rust
+    in property <[{name: string, conversations: [string]}]> sidebar_projects: [
+        {
+            name: "Lunify",
+            conversations: [
+                "Hi",
+                "You are working in this directory",
+                "Add CloudStream style streaming",
+                "Fix FFI error handling",
+                "Fix player bar position"
+            ]
+        },
+        {
+            name: "Operon",
+            conversations: [
+                "I was building an AI agent named Operon...",
+                "Continue plan implementation",
+                "Execute Prompt.md",
+                "I was building an AI agent named Op...",
+                "Replace markdown renderer"
+            ]
+        }
+    ];
+    in property <[string]> sidebar_chats: [
+        "Execute Prompt.md",
+        "Explain this project to me",
+        "Connect to GitHub",
+        "Connect your favorite apps to Codex"
+    ];
+    in-out property <int> active_project_index: 0;
+    in-out property <int> active_conversation_index: 0;
+    in-out property <int> active_chat_index: 0;
+
+    // The titlebar only exposes the actions that need Rust-side behavior.
+    callback minimize_requested();
+    callback maximize_requested();
+    callback close_window_requested();
+    callback exit_requested();
+    callback drag_window_requested();
+    callback reload_requested();
+    callback zoom_in_requested();
+    callback zoom_out_requested();
+    callback actual_size_requested();
+    callback documentation_requested();
+    callback report_bug_requested();
+    callback follow_creator_requested();
+    callback see_repo_requested();
+    
+    // Sidebar callbacks - wire these to Rust handlers
+    callback sidebar_new_chat_clicked();
+    callback sidebar_search_clicked();
+    callback sidebar_plugins_clicked();
+    callback sidebar_settings_clicked();
+    callback sidebar_project_conversation_clicked(int /* project-index */, int /* conversation-index */);
+    callback sidebar_chat_clicked(int /* chat-index */);
+    callback sidebar_width_changed(length /* new-width */);
+    
+    // Main content / input panel callbacks - wire these to Rust handlers
+    callback message_submitted(string /* message-text */);
+    callback attach_clicked();
+    callback auto_approve_toggled(bool /* enabled */);
+    callback context_clicked();
+    callback model_clicked();
+    callback reasoning_clicked();
+    callback voice_clicked();
+    callback voice_recording_started();
+    callback voice_recording_stopped();
+    
+    // User message action callbacks
+    callback user_message_edit_clicked(int /* message-index */);
+    callback user_message_copy_clicked(int /* message-index */);
+    
+    // Assistant message action callbacks
+    callback assistant_message_copy_clicked(int /* message-index */);
+    callback assistant_message_like_clicked(int /* message-index */);
+    callback assistant_message_dislike_clicked(int /* message-index */);
+    callback assistant_message_regenerate_clicked(int /* message-index */);
+    callback assistant_message_fork_clicked(int /* message-index */);
+    
+    // Main content properties - bind these from Rust
+    in-out property <string> input_text: "";
+    in-out property <string> selected_model: "Claude Sonnet 4.5";
+    in-out property <string> selected_reasoning: "Medium";
+    in-out property <bool> auto_approve_enabled: false;
+    in property <float> context_usage: 0.35;
+    in property <int> tokens_used: 35000;
+    in property <int> tokens_total: 100000;
+    in-out property <bool> is_recording: false;
+    in property <string> session_title: "New Session";
+
+    // Main content layout: sidebar + content area
+    HorizontalLayout {
+        spacing: 0px;
+        y: titlebar.height;
+        height: parent.height - titlebar.height;
+        
+        // Left sidebar navigation
+        sidebar := Sidebar {
+            // Bind data from Rust
+            projects: root.sidebar_projects;
+            chats: root.sidebar_chats;
+            active-project-index: root.active_project_index;
+            active-conversation-index: root.active_conversation_index;
+            active-chat-index: root.active_chat_index;
+            
+            // Wire callbacks to root
+            new-chat-clicked => { root.sidebar_new_chat_clicked(); }
+            search-clicked => { root.sidebar_search_clicked(); }
+            plugins-clicked => { root.sidebar_plugins_clicked(); }
+            settings-clicked => { root.sidebar_settings_clicked(); }
+            project-conversation-clicked(proj-idx, conv-idx) => {
+                root.active_project_index = proj-idx;
+                root.active_conversation_index = conv-idx;
+                root.sidebar_project_conversation_clicked(proj-idx, conv-idx);
+            }
+            chat-clicked(chat-idx) => {
+                root.active_chat_index = chat-idx;
+                root.sidebar_chat_clicked(chat-idx);
+            }
+            width-changed(new-width) => {
+                root.sidebar_width_changed(new-width);
+            }
+        }
+        
+        // Vertical separator between sidebar and content
+        Rectangle {
+            width: 1px;
+            background: Tokens.dropdown-border;
+        }
+        
+        // Main content area with chat messages and input panel
+        content_area := Rectangle {
+            horizontal-stretch: 1;
+            background: Tokens.window_background;
+            
+            // Clicking in the content area dismisses any open titlebar dropdown
+            content_dismiss_area := TouchArea {
+                enabled: titlebar.active_menu != 0;
+                clicked => {
+                    titlebar.active_menu = 0;
+                }
+            }
+            
+            // Main content component with input panel
+            main_content := MainContent {
+                width: parent.width;
+                height: parent.height;
+                
+                // Bind properties from root
+                input-text <=> root.input_text;
+                selected-model <=> root.selected_model;
+                selected-reasoning <=> root.selected_reasoning;
+                auto-approve-enabled <=> root.auto_approve_enabled;
+                context-usage: root.context_usage;
+                tokens-used: root.tokens_used;
+                tokens-total: root.tokens_total;
+                is-recording <=> root.is_recording;
+                session-title: root.session_title;
+                
+                // Wire callbacks to root
+                message-submitted(text) => {
+                    root.message_submitted(text);
+                }
+                
+                attach-clicked => {
+                    root.attach_clicked();
+                }
+                
+                auto-approve-toggled(enabled) => {
+                    root.auto_approve_toggled(enabled);
+                }
+                
+                context-clicked => {
+                    root.context_clicked();
+                }
+                
+                model-clicked => {
+                    root.model_clicked();
+                }
+                
+                reasoning-clicked => {
+                    root.reasoning_clicked();
+                }
+                
+                voice-clicked => {
+                    root.voice_clicked();
+                }
+                
+                voice-recording-started => {
+                    root.voice_recording_started();
+                }
+                
+                voice-recording-stopped => {
+                    root.voice_recording_stopped();
+                }
+                
+                // User message action callbacks
+                message-edit-clicked(msg-idx) => {
+                    root.user_message_edit_clicked(msg-idx);
+                }
+                
+                message-copy-clicked(msg-idx) => {
+                    root.user_message_copy_clicked(msg-idx);
+                }
+                
+                // Assistant message action callbacks
+                assistant-copy-clicked(msg-idx) => {
+                    root.assistant_message_copy_clicked(msg-idx);
+                }
+                
+                assistant-like-clicked(msg-idx) => {
+                    root.assistant_message_like_clicked(msg-idx);
+                }
+                
+                assistant-dislike-clicked(msg-idx) => {
+                    root.assistant_message_dislike_clicked(msg-idx);
+                }
+                
+                assistant-regenerate-clicked(msg-idx) => {
+                    root.assistant_message_regenerate_clicked(msg-idx);
+                }
+                
+                assistant-fork-clicked(msg-idx) => {
+                    root.assistant_message_fork_clicked(msg-idx);
+                }
+            }
+        }
+    }
+
+    // The custom titlebar is painted above the content region so its dropdowns
+    // can extend downward without being clipped by the background surface.
+    titlebar := Titlebar {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: Tokens.titlebar_height;
+        is_maximized: root.window_maximized;
+        ui_scale: root.ui_scale;
+
+        minimize_requested => { root.minimize_requested(); }
+        maximize_requested => { root.maximize_requested(); }
+        close_window_requested => { root.close_window_requested(); }
+        exit_requested => { root.exit_requested(); }
+        drag_window_requested => { root.drag_window_requested(); }
+        reload_requested => { root.reload_requested(); }
+        zoom_in_requested => { root.zoom_in_requested(); }
+        zoom_out_requested => { root.zoom_out_requested(); }
+        actual_size_requested => { root.actual_size_requested(); }
+        documentation_requested => { root.documentation_requested(); }
+        report_bug_requested => { root.report_bug_requested(); }
+        follow_creator_requested => { root.follow_creator_requested(); }
+        see_repo_requested => { root.see_repo_requested(); }
+    }
+}

@@ -1,0 +1,87 @@
+// Auto-approve toggle button component for the input panel.
+//
+// This component provides a shield-like button that toggles the auto-approve
+// functionality. When enabled, certain agent actions can proceed without
+// requiring explicit user confirmation for each step.
+//
+// The button displays different icons based on its state:
+// - Shield with checkmark when enabled (auto-approve is ON)
+// - Shield without checkmark when disabled (auto-approve is OFF)
+//
+// This is a security/control feature that affects how the agent operates.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+// Auto-approve toggle button positioned next to the attach button.
+// Controls whether the agent can auto-approve certain operations.
+export component AutoApproveButton inherits Rectangle {
+    // Current state of auto-approve functionality
+    in-out property <bool> enabled: false;
+    
+    // Callback fired when the user toggles the auto-approve state
+    callback toggled(bool /* new-state */);
+    
+    // Fixed square dimensions for the button
+    width: 32px;
+    height: 32px;
+    
+    // Background color changes on hover for visual feedback
+    // When enabled, use a subtle blue tint to indicate active state
+    background: touch-area.has-hover 
+        ? Tokens.dropdown-surface-hover 
+        : (root.enabled ? #0800ff1a : transparent);
+    
+    // Smooth background transitions
+    animate background { duration: 150ms; easing: ease-in-out; }
+    
+    // Rounded corners matching the design system
+    border-radius: 6px;
+    
+    // Optional border when enabled to emphasize the active state
+    border-width: root.enabled ? 1px : 0px;
+    border-color: root.enabled ? Tokens.accent-blue : transparent;
+    
+    // Smooth border transitions
+    animate border-width { duration: 150ms; easing: ease-in-out; }
+    animate border-color { duration: 150ms; easing: ease-in-out; }
+    
+    // Center the icon within the button
+    HorizontalLayout {
+        alignment: center;
+        
+        VerticalLayout {
+            alignment: center;
+            
+            // Shield icon - changes based on enabled state
+            // Using colorize to apply theme colors to the SVG
+            icon := Image {
+                source: root.enabled 
+                    ? @image-url("../../../assets/icons/main-content/input/auto-approve-enable.svg")
+                    : @image-url("../../../assets/icons/main-content/input/auto-approve-disable.svg");
+                width: 18px;
+                height: 18px;
+                // When enabled, use accent blue; otherwise use secondary color
+                colorize: root.enabled 
+                    ? Tokens.accent-blue 
+                    : (touch-area.has-hover ? Tokens.text-primary : Tokens.text-secondary);
+                image-fit: contain;
+                
+                // Smooth color transition on state change and hover
+                animate colorize { duration: 150ms; easing: ease-in-out; }
+            }
+        }
+    }
+    
+    // Touch area for click detection covering the entire button
+    touch-area := TouchArea {
+        // Change cursor to pointer to indicate clickability
+        mouse-cursor: pointer;
+        
+        clicked => {
+            // Toggle the state
+            root.enabled = !root.enabled;
+            // Notify parent of the new state
+            root.toggled(root.enabled);
+        }
+    }
+}
