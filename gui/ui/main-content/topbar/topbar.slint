@@ -13,8 +13,8 @@ export component Topbar inherits Rectangle {
     // Active session/conversation title to display
     in property <string> title: "New Session";
 
-    // Fixed height for the header bar
-    height: 48px;
+    // Fixed height for the header bar (slimmer height)
+    height: 40px;
     horizontal-stretch: 1;
 
     // Background color matches the main content area
@@ -27,7 +27,7 @@ export component Topbar inherits Rectangle {
         
         SessionTitle {
             text: root.title;
-            // Center the text vertically within the 48px bar
+            // Center the text vertically within the 40px bar
             vertical-alignment: center;
         }
     }
