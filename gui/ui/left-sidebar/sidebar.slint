@@ -131,13 +131,7 @@ export component Sidebar inherits Rectangle {
                     root.plugins-clicked();
                 }
             }
-            
-            // Separator line after top actions
-            Rectangle {
-                height: 1px;
-                background: Tokens.dropdown-separator;
-                horizontal-stretch: 1;
-            }
+
         }
         
         // ===== MIDDLE SECTION: Scrollable Content =====
@@ -179,13 +173,7 @@ export component Sidebar inherits Rectangle {
                             root.project-conversation-clicked(proj-idx, conv-idx);
                         }
                     }
-                    
-                    // Separator between Projects and Chats
-                    Rectangle {
-                        height: 1px;
-                        background: Tokens.dropdown-separator;
-                        horizontal-stretch: 1;
-                    }
+
                     
                     // Chats section
                     Chats {
@@ -218,13 +206,7 @@ export component Sidebar inherits Rectangle {
         bottom-actions := VerticalLayout {
             spacing: 4px;
             vertical-stretch: 0; // Don't expand
-            
-            // Separator line before settings
-            Rectangle {
-                height: 1px;
-                background: Tokens.dropdown-separator;
-                horizontal-stretch: 1;
-            }
+
             
             // Settings button
             Settings {
