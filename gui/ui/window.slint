@@ -182,14 +182,7 @@ export component OperonWindow inherits Window {
         content_area := Rectangle {
             horizontal-stretch: 1;
             background: Tokens.window_background;
-            
-            // Clicking in the content area dismisses any open titlebar dropdown
-            content_dismiss_area := TouchArea {
-                enabled: titlebar.active_menu != 0;
-                clicked => {
-                    titlebar.active_menu = 0;
-                }
-            }
+
             
             // Main content component with input panel
             main_content := MainContent {
@@ -274,6 +267,19 @@ export component OperonWindow inherits Window {
                     root.assistant_message_fork_clicked(msg-idx);
                 }
             }
+        }
+    }
+
+    // Global touch area to dismiss any open titlebar dropdown menu when clicking outside.
+    // Spans the entire window area below the titlebar.
+    global_dismiss_area := TouchArea {
+        x: 0px;
+        y: Tokens.titlebar_height;
+        width: parent.width;
+        height: parent.height - Tokens.titlebar_height;
+        enabled: titlebar.active_menu != 0;
+        clicked => {
+            titlebar.active_menu = 0;
         }
     }
 
