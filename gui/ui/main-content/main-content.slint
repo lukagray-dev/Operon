@@ -23,7 +23,7 @@ import { Tokens } from "../shared/tokens.slint";
 import { InputPanel } from "./input/input.slint";
 import { UserMessage } from "./messages/user/user.slint";
 import { AssistantMessage } from "./messages/assistant/assistant.slint";
-import { SessionTitle } from "./title/title.slint";
+import { Topbar } from "./topbar/topbar.slint";
 import { WarningText } from "./input/warning.slint";
 
 // Main content area component that contains the chat interface.
@@ -93,15 +93,14 @@ export component MainContent inherits Rectangle {
     // Main content background
     background: Tokens.window-background;
     
-    // Session title positioned absolutely in top left corner
-    session-title := SessionTitle {
-        x: 24px;
-        y: 16px;
-        text: root.session-title;
-    }
-    
     // Vertical layout to organize content
     VerticalLayout {
+        // ===== TOPBAR =====
+        // Unified header containing session title and potential top bar actions
+        topbar := Topbar {
+            title: root.session-title;
+        }
+
         // ===== MESSAGES AREA =====
         // Scrollable area containing all chat messages (user and assistant)
         // Messages are displayed in chronological order with proper spacing

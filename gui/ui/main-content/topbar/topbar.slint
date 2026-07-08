@@ -1,0 +1,42 @@
+// Topbar component for the main content area.
+//
+// This component acts as the unified header bar at the top of the main chat area.
+// Currently it wires and displays the active session title, but it is structured
+// to scale for future toolbar controls, actions, and status indicators.
+//
+// The topbar matches the main content background and includes a bottom separator.
+
+import { Tokens } from "../../shared/tokens.slint";
+import { SessionTitle } from "./title.slint";
+
+export component Topbar inherits Rectangle {
+    // Active session/conversation title to display
+    in property <string> title: "New Session";
+
+    // Fixed height for the header bar
+    height: 48px;
+    horizontal-stretch: 1;
+
+    // Background color matches the main content area
+    background: Tokens.window-background;
+
+    // Horizontal layout for padding and positioning the title
+    HorizontalLayout {
+        padding-left: 24px;
+        padding-right: 24px;
+        
+        SessionTitle {
+            text: root.title;
+            // Center the text vertically within the 48px bar
+            vertical-alignment: center;
+        }
+    }
+
+    // Light separator border line at the bottom of the topbar
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Tokens.dropdown-border;
+        horizontal-stretch: 1;
+    }
+}
