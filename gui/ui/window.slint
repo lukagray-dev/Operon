@@ -40,6 +40,8 @@ export component OperonWindow inherits Window {
     in-out property <bool> window_maximized: false;
     in-out property <float> ui_scale: 1.0;
     in-out property <int> reload_generation: 0;
+    // Visiblity state of the left sidebar, bound to titlebar toggle button
+    in-out property <bool> sidebar_open: true;
     
     // Sidebar data properties - bind these from Rust
     in property <[{name: string, conversations: [string]}]> sidebar_projects: [
@@ -139,6 +141,10 @@ export component OperonWindow inherits Window {
         
         // Left sidebar navigation
         sidebar := Sidebar {
+            // Bind width dynamically based on sidebar collapse/expand state
+            width: root.sidebar_open ? self.sidebar-width : 0px;
+            visible: root.sidebar_open;
+
             // Bind data from Rust
             projects: root.sidebar_projects;
             chats: root.sidebar_chats;
@@ -167,7 +173,8 @@ export component OperonWindow inherits Window {
         
         // Vertical separator between sidebar and content
         Rectangle {
-            width: 1px;
+            width: root.sidebar_open ? 1px : 0px;
+            visible: root.sidebar_open;
             background: Tokens.dropdown-border;
         }
         
@@ -270,8 +277,6 @@ export component OperonWindow inherits Window {
         }
     }
 
-    // The custom titlebar is painted above the content region so its dropdowns
-    // can extend downward without being clipped by the background surface.
     titlebar := Titlebar {
         x: 0px;
         y: 0px;
@@ -279,6 +284,11 @@ export component OperonWindow inherits Window {
         height: Tokens.titlebar_height;
         is_maximized: root.window_maximized;
         ui_scale: root.ui_scale;
+        sidebar_open: root.sidebar_open;
+
+        sidebar_toggle_requested => {
+            root.sidebar_open = titlebar.sidebar_open;
+        }
 
         minimize_requested => { root.minimize_requested(); }
         maximize_requested => { root.maximize_requested(); }

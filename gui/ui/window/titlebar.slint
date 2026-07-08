@@ -17,7 +17,11 @@ export component Titlebar inherits Rectangle {
     in-out property <int> active_menu: 0;
     in property <bool> is_maximized: false;
     in property <float> ui_scale: 1.0;
+    // Current visibility state of the left sidebar
+    in-out property <bool> sidebar_open: true;
 
+    // Callback fired when the user clicks the brand logo to toggle the sidebar
+    callback sidebar_toggle_requested();
     callback minimize_requested();
     callback maximize_requested();
     callback close_window_requested();
@@ -54,20 +58,45 @@ export component Titlebar inherits Rectangle {
         }
     }
 
-    // Brand logo only. The user asked for the logo itself, not the product
-    // name text, so we keep this corner intentionally minimal.
-    brand_logo := Image {
+    // Brand logo and sidebar toggle container.
+    // By default, displays the Operon logo. When the user hovers over the logo,
+    // it switches to showing a sidebar-toggle icon (sidebar-opened or sidebar-closed)
+    // depending on the current open/collapsed state of the left sidebar.
+    // Clicking the container toggles the sidebar's visibility.
+    brand_container := Rectangle {
         x: Tokens.titlebar_padding_x;
         y: (Tokens.titlebar_height - Tokens.titlebar_logo_size) / 2;
         width: Tokens.titlebar_logo_size;
         height: Tokens.titlebar_logo_size;
-        source: @image-url("../../assets/brand/operon.svg");
+
+        logo_image := Image {
+            width: 100%;
+            height: 100%;
+            // Show action icon on hover, default to brand logo when not hovered
+            source: brand_touch.has-hover
+                ? (root.sidebar_open 
+                    ? @image-url("../../assets/icons/action/sidebar-opened.svg")
+                    : @image-url("../../assets/icons/action/sidebar-closed.svg"))
+                : @image-url("../../assets/brand/operon.svg");
+            
+            // Highlight the action icon with text-primary color when hovered
+            colorize: brand_touch.has-hover ? Tokens.text-primary : transparent;
+            image-fit: contain;
+        }
+
+        brand_touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.sidebar_open = !root.sidebar_open;
+                root.sidebar_toggle_requested();
+            }
+        }
     }
 
     // Back and forward are visual-only for now, but the chrome still reserves
     // the space so the future navigation wiring can drop in cleanly later.
     navigation := NavigationControls {
-        x: brand_logo.x + brand_logo.width + 8px;
+        x: brand_container.x + brand_container.width + 8px;
         y: (Tokens.titlebar_height - Tokens.titlebar_icon_hit_height) / 2;
     }
 
