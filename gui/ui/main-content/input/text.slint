@@ -45,8 +45,7 @@ export component TextInputField inherits Rectangle {
     // This automatically grows from 1 line to 10 lines as user types
     height: max(min-text-height, min(text-input.preferred-height, max-text-height));
     
-    // Smooth height transition as content grows
-    animate height { duration: 150ms; easing: ease-out; }
+
     
     // Transparent background - the parent panel provides the background
     background: transparent;

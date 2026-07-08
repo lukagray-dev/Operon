@@ -90,6 +90,9 @@ export component MainContent inherits Rectangle {
     callback assistant-fork-clicked(int /* message-index */);
     
     // ===== Layout =====
+    // FocusScope used to clear focus from input fields when clicking outside
+    focus-scope := FocusScope {}
+
     // Main content background
     background: Tokens.window-background;
     
@@ -129,6 +132,13 @@ export component MainContent inherits Rectangle {
                         width: parent.width;
                         height: messages-inner-layout.preferred-height;
                         background: transparent;
+                        
+                        // Click empty space in messages area to clear input panel focus
+                        TouchArea {
+                            clicked => {
+                                focus-scope.focus();
+                            }
+                        }
                         
                         // Horizontal layout to center the message column
                         messages-inner-layout := HorizontalLayout {
@@ -274,6 +284,13 @@ export component MainContent inherits Rectangle {
                 width: parent.width;
                 height: floating-layout.preferred-height;
                 background: transparent;
+
+                // Click background outside input box to deselect input panel
+                TouchArea {
+                    clicked => {
+                        focus-scope.focus();
+                    }
+                }
 
                 floating-layout := VerticalLayout {
                     padding-top: 16px; // Smooth transition zone for the fading text
