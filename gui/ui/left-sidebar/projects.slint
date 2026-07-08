@@ -6,57 +6,72 @@
 
 import { Tokens } from "../shared/tokens.slint";
 import { Conversation } from "./conversation.slint";
+import {
+    DropdownSurface,
+    DropdownTokens,
+    IconDropdownItem,
+    DropdownSeparator,
+} from "../shared/dropdown.slint";
 
 // Main Projects section containing project items.
 // This is the container that holds all projects and their conversations.
 export component Projects inherits Rectangle {
     // Array of project data structures
     // Each project should have: name (string) and conversations (array of strings)
-    in property <[{name: string, conversations: [string]}]> projects: [];
-    
+    in property <[{ name: string, conversations: [string] }]> projects: [];
+
     // Currently active project index (-1 means none selected)
     in-out property <int> active-project-index: -1;
-    
+
     // Currently active conversation index within the active project
     in-out property <int> active-conversation-index: -1;
-    
+
     // Whether the projects section is expanded
     in-out property <bool> is-expanded: true;
-    
+
     // Callback fired when a conversation is clicked
     // Parameters: project-index, conversation-index
     callback conversation-clicked(int, int);
-    
+
     // Callback fired when the section header is clicked (for expand/collapse)
     callback header-clicked();
-    
+
+    // Callbacks fired for project actions (triggered from the project row buttons/dropdowns)
+    callback new-session-clicked(int /* project-index */);
+    callback share-project-clicked(int /* project-index */);
+    callback rename-project-clicked(int /* project-index */);
+    callback project-settings-clicked(int /* project-index */);
+    callback project-home-clicked(int /* project-index */);
+    callback pin-project-clicked(int /* project-index */);
+    callback delete-project-clicked(int /* project-index */);
+
     // Dynamic height based on content
     height: content.preferred-height;
     horizontal-stretch: 1;
-    
+
     // Vertical layout for stacking section header and project items
     content := VerticalLayout {
         spacing: 4px;
         padding: 4px;
-        
+
         // Section header with "Projects" label and expand/collapse chevron
         header := Rectangle {
             height: 28px;
             horizontal-stretch: 1;
-            
+
             // Subtle hover effect on header
-            background: header-touch.has-hover 
-                ? Tokens.dropdown-surface 
+            background: header-touch.has-hover
+                ? Tokens.dropdown-surface
                 : transparent;
-            
+
             animate background { duration: 150ms; }
             border-radius: 6px;
-            
+
             HorizontalLayout {
                 padding-left: 8px;
                 padding-right: 8px;
                 spacing: 6px;
-                
+
                 // Projects section icon
                 Image {
                     source: @image-url("../../assets/icons/sidebar/projects.svg");
@@ -66,7 +81,7 @@ export component Projects inherits Rectangle {
                     colorize: Tokens.text-muted;
                     image-fit: contain;
                 }
-                
+
                 // "Projects" section title
                 Text {
                     text: "Projects";
@@ -76,10 +91,10 @@ export component Projects inherits Rectangle {
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
-                
+
                 // Expand/collapse chevron indicator - positioned on the right
                 Image {
-                    source: is-expanded 
+                    source: is-expanded
                         ? @image-url("../../assets/icons/sidebar/chevron-down.svg")
                         : @image-url("../../assets/icons/sidebar/chevron-right.svg");
                     width: 16px;
@@ -89,7 +104,7 @@ export component Projects inherits Rectangle {
                     image-fit: contain;
                 }
             }
-            
+
             // Touch area for header click (expand/collapse)
             header-touch := TouchArea {
                 clicked => {
@@ -98,32 +113,32 @@ export component Projects inherits Rectangle {
                 }
             }
         }
-        
+
         // Project items list (only visible when expanded)
-        if is-expanded : VerticalLayout {
+        if is-expanded: VerticalLayout {
             spacing: 2px;
-            
+
             // Dynamically create project items from the projects array
-            for project[project-index] in root.projects : VerticalLayout {
+            for project[project-index] in root.projects: VerticalLayout {
                 spacing: 2px;
-                
+
                 // Project header
                 project-header := Rectangle {
                     height: 32px;
                     horizontal-stretch: 1;
-                    
-                    background: project-touch.has-hover 
-                        ? Tokens.dropdown-surface 
+
+                    background: project-touch.has-hover
+                        ? Tokens.dropdown-surface
                         : transparent;
-                    
+
                     animate background { duration: 150ms; }
                     border-radius: 6px;
-                    
+
                     HorizontalLayout {
                         padding-left: 12px;
-                        padding-right: 12px;
+                        padding-right: 84px; // Reserved space on the right for new session, three dots, and chevron
                         spacing: 8px;
-                        
+
                         // Project folder icon
                         Image {
                             source: @image-url("../../assets/icons/sidebar/projects.svg");
@@ -133,7 +148,7 @@ export component Projects inherits Rectangle {
                             colorize: Tokens.text-secondary;
                             image-fit: contain;
                         }
-                        
+
                         // Project name text
                         Text {
                             text: project.name;
@@ -141,26 +156,11 @@ export component Projects inherits Rectangle {
                             font-size: Tokens.body-font-size;
                             vertical-alignment: center;
                             overflow: elide;
-                            // Stretch to occupy remaining horizontal space, pushing the chevron to the right
+                            // Stretch to occupy remaining horizontal space, keeping reserved right padding clear
                             horizontal-stretch: 1;
                         }
-
-                        // Project expand/collapse chevron indicator (on the right)
-                        // Shows chevron-down when the project is currently active (expanded)
-                        // and chevron-right when it is collapsed.
-                        Image {
-                            source: project-index == root.active-project-index
-                                ? @image-url("../../assets/icons/sidebar/chevron-down.svg")
-                                : @image-url("../../assets/icons/sidebar/chevron-right.svg");
-                            width: 14px;
-                            height: 14px;
-                            // Centered vertically within the 32px project header box
-                            y: (parent.height - self.height) / 2;
-                            colorize: Tokens.text-muted;
-                            image-fit: contain;
-                        }
                     }
-                    
+
                     // Clicking the project header toggles its expansion state.
                     // If the project is already expanded (matches active-project-index), clicking it
                     // collapses it by setting active-project-index to -1. Otherwise, it expands it.
@@ -173,17 +173,171 @@ export component Projects inherits Rectangle {
                             }
                         }
                     }
+
+                    // 1. New Session button (placed before three-dots and chevron)
+                    // Defined after the main touch-area in Slint to ensure it sits on top in the z-order
+                    // and receives mouse clicks properly instead of letting them fall through to selection.
+                    new-session-btn := Rectangle {
+                        x: parent.width - 78px;
+                        y: (parent.height - self.height) / 2;
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 4px;
+                        background: new-session-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
+                        visible: project-touch.has-hover || root.active-project-index == project-index;
+
+                        animate background { duration: 100ms; }
+
+                        Image {
+                            source: @image-url("../../assets/icons/sidebar/new-chat.svg");
+                            width: 13px;
+                            height: 13px;
+                            y: (parent.height - self.height) / 2;
+                            x: (parent.width - self.width) / 2;
+                            colorize: Tokens.text-muted;
+                            image-fit: contain;
+                        }
+
+                        new-session-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.new-session-clicked(project-index);
+                            }
+                        }
+                    }
+
+                    // 2. Three dots menu button (placed before the chevron)
+                    // Defined after the main touch-area to sit on top in the z-order and capture clicks
+                    three-dots-btn := Rectangle {
+                        x: parent.width - 50px;
+                        y: (parent.height - self.height) / 2;
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 4px;
+                        background: three-dots-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
+                        visible: project-touch.has-hover || root.active-project-index == project-index;
+
+                        animate background { duration: 100ms; }
+
+                        Image {
+                            source: @image-url("../../assets/icons/sidebar/more-vertical.svg");
+                            width: 13px;
+                            height: 13px;
+                            y: (parent.height - self.height) / 2;
+                            x: (parent.width - self.width) / 2;
+                            colorize: Tokens.text-muted;
+                            image-fit: contain;
+                        }
+
+                        three-dots-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                project-menu-panel.show();
+                            }
+                        }
+                    }
+
+                    // 3. Chevron expand/collapse indicator (at the far right)
+                    // Defined absolutely on the right side
+                    chevron-indicator := Image {
+                        x: parent.width - 22px;
+                        y: (parent.height - self.height) / 2;
+                        source: project-index == root.active-project-index
+                            ? @image-url("../../assets/icons/sidebar/chevron-down.svg")
+                            : @image-url("../../assets/icons/sidebar/chevron-right.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: Tokens.text-muted;
+                        image-fit: contain;
+                    }
+
+                    // Floating project context menu dropdown using Slint's native PopupWindow.
+                    // It automatically renders above all other layout elements.
+                    project-menu-panel := PopupWindow {
+                        x: parent.width - self.width - 4px;
+                        y: parent.height + 4px;
+                        width: 140px;
+                        height: project-menu-layout.preferred-height;
+                        close-policy: close-on-click-outside;
+
+                        DropdownSurface {
+                            width: 100%;
+                            height: 100%;
+
+                            project-menu-layout := VerticalLayout {
+                                padding: DropdownTokens.surface_padding;
+                                spacing: DropdownTokens.item_gap;
+
+                                IconDropdownItem {
+                                    label: "Share";
+                                    icon: @image-url("../../assets/icons/sidebar/share.svg");
+                                    clicked => {
+                                        project-menu-panel.close();
+                                        root.share-project-clicked(project-index);
+                                    }
+                                }
+
+                                IconDropdownItem {
+                                    label: "Rename";
+                                    icon: @image-url("../../assets/icons/sidebar/pencil.svg");
+                                    clicked => {
+                                        project-menu-panel.close();
+                                        root.rename-project-clicked(project-index);
+                                    }
+                                }
+
+                                IconDropdownItem {
+                                    label: "Settings";
+                                    icon: @image-url("../../assets/icons/sidebar/settings.svg");
+                                    clicked => {
+                                        project-menu-panel.close();
+                                        root.project-settings-clicked(project-index);
+                                    }
+                                }
+
+                                IconDropdownItem {
+                                    label: "Home";
+                                    icon: @image-url("../../assets/icons/sidebar/home.svg");
+                                    clicked => {
+                                        project-menu-panel.close();
+                                        root.project-home-clicked(project-index);
+                                    }
+                                }
+
+                                IconDropdownItem {
+                                    label: "Pin";
+                                    icon: @image-url("../../assets/icons/sidebar/pin.svg");
+                                    clicked => {
+                                        project-menu-panel.close();
+                                        root.pin-project-clicked(project-index);
+                                    }
+                                }
+
+                                DropdownSeparator { }
+
+                                IconDropdownItem {
+                                    label: "Delete";
+                                    icon: @image-url("../../assets/icons/sidebar/trash.svg");
+                                    danger: true;
+                                    clicked => {
+                                        project-menu-panel.close();
+                                        root.delete-project-clicked(project-index);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                
+
                 // Conversations list (only visible when this project is selected)
-                if project-index == root.active-project-index : VerticalLayout {
+                if project-index == root.active-project-index: VerticalLayout {
                     spacing: 2px;
                     padding-left: 12px;
-                    
-                    for conversation[conv-index] in project.conversations : Conversation {
+
+                    for conversation[conv-index] in project.conversations: Conversation {
                         title: conversation;
                         is-active: conv-index == root.active-conversation-index;
-                        
+
                         clicked => {
                             root.active-conversation-index = conv-index;
                             root.conversation-clicked(project-index, conv-index);
