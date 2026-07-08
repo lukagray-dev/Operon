@@ -208,6 +208,54 @@ export component MainContent inherits Rectangle {
                         }
                     }
                 }
+
+                // Custom slim, modern scrollbar (overlay on the right edge)
+                // Synchronized with messages-flickable.
+                // Does not use any easing animations on positioning to avoid lag/rubbery feel.
+                scrollbar-track := Rectangle {
+                    x: parent.width - self.width - 4px;
+                    y: 4px;
+                    width: 6px;
+                    height: parent.height - 8px;
+                    // Only visible when content height is larger than view height
+                    visible: messages-flickable.viewport-height > messages-flickable.height;
+                    background: transparent;
+
+                    scrollbar-thumb := Rectangle {
+                        width: 100%;
+                        // Compute height based on ratio of visible area, clamp to at least 40px
+                        height: Math.max(40px, (messages-flickable.height / messages-flickable.viewport-height) * messages-flickable.height);
+                        // Compute y-position based on scroll offset ratio. Clamp to fit track height.
+                        y: (-messages-flickable.viewport-y / (messages-flickable.viewport-height - messages-flickable.height)) * (scrollbar-track.height - self.height);
+                        background: Tokens.text-muted.with-alpha(0.3);
+                        border-radius: 3px;
+
+                        // Hover effect for the thumb color
+                        states [
+                            hover when scrollbar-touch.has-hover : {
+                                background: Tokens.text-secondary.with-alpha(0.6);
+                            }
+                        ]
+
+                        // Animate background color change for smooth polish, but NO animation on 'y' or 'height' to ensure instant reaction
+                        animate background { duration: 100ms; }
+                    }
+
+                    scrollbar-touch := TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        clicked => {
+                            // Scroll page up or down depending on where they click relative to thumb
+                            if (self.pressed-y < scrollbar-thumb.y) {
+                                // Page up
+                                messages-flickable.viewport-y = Math.min(0px, messages-flickable.viewport-y + messages-flickable.height * 0.8);
+                            } else if (self.pressed-y > scrollbar-thumb.y + scrollbar-thumb.height) {
+                                // Page down
+                                messages-flickable.viewport-y = Math.max(-(messages-flickable.viewport-height - messages-flickable.height), messages-flickable.viewport-y - messages-flickable.height * 0.8);
+                            }
+                        }
+                    }
+                }
             }
 
             // 2. Floating Input Overlay
@@ -320,12 +368,5 @@ export component MainContent inherits Rectangle {
             }
         }
     }
-    
-    // ===== SCROLLBAR =====
-    // Positioned on the right edge for scrolling through messages
-    // This will be implemented when the messages area is added
-    // For now, it's a placeholder
-    
-    // TODO: Add scrollbar component on the right edge
-    // This should be synchronized with the messages-area Flickable
+
 }
