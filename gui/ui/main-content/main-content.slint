@@ -254,6 +254,13 @@ export component MainContent inherits Rectangle {
                                 messages-flickable.viewport-y = Math.max(-(messages-flickable.viewport-height - messages-flickable.height), messages-flickable.viewport-y - messages-flickable.height * 0.8);
                             }
                         }
+                        
+                        // Drag to scroll logic
+                        moved => {
+                            messages-flickable.viewport-y = -Math.clamp(self.mouse-y - scrollbar-thumb.height / 2, 0px, scrollbar-track.height - scrollbar-thumb.height) 
+                                / (scrollbar-track.height - scrollbar-thumb.height) 
+                                * (messages-flickable.viewport-height - messages-flickable.height);
+                        }
                     }
                 }
             }
