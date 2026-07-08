@@ -25,6 +25,9 @@ export component Chats inherits Rectangle {
     
     // Callback fired when the section header is clicked (for expand/collapse)
     callback header-clicked();
+
+    // Callback fired when the new chat button is clicked
+    callback new-chat-clicked();
     
     // Dynamic height based on content
     // In a real implementation, this would be inside a ScrollView
@@ -51,7 +54,7 @@ export component Chats inherits Rectangle {
             
             HorizontalLayout {
                 padding-left: 8px;
-                padding-right: 8px;
+                padding-right: 56px; // Reserved space on the right for new-chat button and chevron
                 spacing: 6px;
                 
                 // Chats section icon
@@ -73,18 +76,6 @@ export component Chats inherits Rectangle {
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
-                
-                // Expand/collapse chevron indicator - positioned on the right
-                Image {
-                    source: is-expanded 
-                        ? @image-url("../../assets/icons/sidebar/chevron-down.svg")
-                        : @image-url("../../assets/icons/sidebar/chevron-right.svg");
-                    width: 16px;
-                    height: 16px;
-                    y: (parent.height - self.height) / 2;
-                    colorize: Tokens.text-muted;
-                    image-fit: contain;
-                }
             }
             
             // Touch area for header click (expand/collapse)
@@ -93,6 +84,51 @@ export component Chats inherits Rectangle {
                     root.is-expanded = !root.is-expanded;
                     root.header-clicked();
                 }
+            }
+
+            // 1. New Chat button (placed before the chevron)
+            // Defined after the main touch-area in Slint to ensure it sits on top in the z-order
+            // and receives mouse clicks properly instead of letting them fall through to expand/collapse.
+            new-chat-btn := Rectangle {
+                x: parent.width - 50px;
+                y: (parent.height - self.height) / 2;
+                width: 20px;
+                height: 20px;
+                border-radius: 4px;
+                background: new-chat-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
+                visible: header-touch.has-hover;
+
+                animate background { duration: 100ms; }
+
+                Image {
+                    source: @image-url("../../assets/icons/sidebar/new-chat.svg");
+                    width: 12px;
+                    height: 12px;
+                    y: (parent.height - self.height) / 2;
+                    x: (parent.width - self.width) / 2;
+                    colorize: Tokens.text-muted;
+                    image-fit: contain;
+                }
+
+                new-chat-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.new-chat-clicked();
+                    }
+                }
+            }
+
+            // 2. Expand/collapse chevron indicator (at the far right)
+            chevron-indicator := Image {
+                x: parent.width - 24px;
+                y: (parent.height - self.height) / 2;
+                source: is-expanded 
+                    ? @image-url("../../assets/icons/sidebar/chevron-down.svg")
+                    : @image-url("../../assets/icons/sidebar/chevron-right.svg");
+                width: 16px;
+                height: 16px;
+                colorize: Tokens.text-muted;
+                image-fit: contain;
             }
         }
         

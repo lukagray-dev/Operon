@@ -199,6 +199,10 @@ export component Sidebar inherits Rectangle {
                             root.active-conversation-index = -1;
                             root.chat-clicked(chat-idx);
                         }
+
+                        new-chat-clicked => {
+                            root.new-chat-clicked();
+                        }
                     }
                     
                     // Add spacing at the end to push content up when scrolling
