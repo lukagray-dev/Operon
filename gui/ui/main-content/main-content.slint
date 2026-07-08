@@ -260,14 +260,13 @@ export component MainContent inherits Rectangle {
 
             // 2. Floating Input Overlay
             // Positioned absolutely at the bottom of the body viewport, rendering on top of messages.
-            // Uses a premium linear-gradient background to fade messages out smoothly as they scroll under.
+            // Spans the full width, but has a transparent background so messages and the scrollbar
+            // remain fully visible underneath it.
             floating-input-overlay := Rectangle {
                 y: parent.height - self.height;
                 width: parent.width;
                 height: floating-layout.preferred-height;
-                
-                // Linear gradient fade effect from transparent (at the top edge) to window-background (where the input sits)
-                background: @linear-gradient(180deg, transparent 0%, Tokens.window-background 20%, Tokens.window-background 100%);
+                background: transparent;
 
                 floating-layout := VerticalLayout {
                     padding-top: 16px; // Smooth transition zone for the fading text
