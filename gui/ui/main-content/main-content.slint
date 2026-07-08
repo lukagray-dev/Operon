@@ -101,235 +101,221 @@ export component MainContent inherits Rectangle {
             title: root.session-title;
         }
 
-        // ===== MESSAGES AREA =====
-        // Scrollable area containing all chat messages (user and assistant)
-        // Messages are displayed in chronological order with proper spacing
-        messages-area := Rectangle {
+        // ===== MAIN CONTENT BODY (Messages scroll area + Floating input panel) =====
+        // This container holds both the scrollable message viewport and the absolute
+        // floating input overlay. Because they are sibling children of a Rectangle (not in a layout),
+        // they overlay each other. The input overlay sits at the bottom, and messages scroll behind it.
+        main-body := Rectangle {
             vertical-stretch: 1;
-            background: transparent;
-            
-            // Flickable container for scrolling through messages
-            // This allows users to scroll through the chat history
-            messages-flickable := Flickable {
-                width: parent.width;
-                height: parent.height;
+
+            // 1. Messages Scroll Area
+            // Covers the full width and height of the body area.
+            messages-area := Rectangle {
+                width: 100%;
+                height: 100%;
+                background: transparent;
                 
-                // Viewport height is dynamic based on message content
-                // This will be calculated based on the total height of all messages
-                viewport-height: messages-content.height;
-                
-                // Enable interactive scrolling
-                interactive: true;
-                
-                // Content container for all messages
-                // Uses the same horizontal layout as input panel for alignment
-                messages-content := Rectangle {
+                // Flickable container for scrolling through messages
+                messages-flickable := Flickable {
                     width: parent.width;
-                    // Height is dynamic based on message count and content
-                    // Use a simple calculation to avoid binding loops
-                    height: 600px;  // Fixed height for now, will be dynamic with real message model
-                    background: transparent;
+                    height: parent.height;
                     
-                    // Horizontal layout matching the input panel container
-                    // This ensures messages align with the input panel
-                    HorizontalLayout {
-                        padding-top: 24px;
-                        padding-bottom: 24px;
+                    // Viewport height is computed dynamically to match the inner content layout
+                    viewport-height: messages-inner-layout.preferred-height;
+                    interactive: true;
+                    
+                    // Content container for all messages
+                    messages-content := Rectangle {
+                        width: parent.width;
+                        height: messages-inner-layout.preferred-height;
+                        background: transparent;
                         
-                        // Left spacer - creates the same margin as input panel
+                        // Horizontal layout to center the message column
+                        messages-inner-layout := HorizontalLayout {
+                            padding-top: 24px;
+                            // Large bottom padding of 180px ensures the last message can be scrolled
+                            // completely clear of the floating input panel.
+                            padding-bottom: 180px;
+                            
+                            // Left spacer - matches the input panel side margins
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: transparent;
+                            }
+                            
+                            // Messages inner container - matches input panel width limits
+                            messages-inner := Rectangle {
+                                min-width: 400px;
+                                max-width: root.input-panel-max-width;
+                                horizontal-stretch: 1;
+                                background: transparent;
+                                
+                                // Vertical layout for stacking messages
+                                VerticalLayout {
+                                    spacing: 24px;
+                                    alignment: start;
+                                    
+                                    // Demo user message to show the layout
+                                    demo-user-message := UserMessage {
+                                        message-text: root.demo-user-message;
+                                        // Calculated based on root width to avoid layout binding loops
+                                        max-bubble-width: (root.width < root.input-panel-max-width ? root.width : root.input-panel-max-width) * 0.75;
+                                        
+                                        // Forward callbacks
+                                        edit-clicked => {
+                                            root.message-edit-clicked(0);
+                                        }
+                                        
+                                        copy-clicked => {
+                                            root.message-copy-clicked(0);
+                                        }
+                                    }
+                                    
+                                    // Demo assistant message to show the layout
+                                    demo-assistant-message := AssistantMessage {
+                                        message-text: root.demo-assistant-message;
+                                        time-text: root.demo-time;
+                                        
+                                        // Forward callbacks
+                                        copy-clicked => {
+                                            root.assistant-copy-clicked(0);
+                                        }
+                                        
+                                        like-clicked => {
+                                            root.assistant-like-clicked(0);
+                                        }
+                                        
+                                        dislike-clicked => {
+                                            root.assistant-dislike-clicked(0);
+                                        }
+                                        
+                                        regenerate-clicked => {
+                                            root.assistant-regenerate-clicked(0);
+                                        }
+                                        
+                                        fork-clicked => {
+                                            root.assistant-fork-clicked(0);
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Right spacer - matches the input panel side margins
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: transparent;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Floating Input Overlay
+            // Positioned absolutely at the bottom of the body viewport, rendering on top of messages.
+            // Uses a premium linear-gradient background to fade messages out smoothly as they scroll under.
+            floating-input-overlay := Rectangle {
+                y: parent.height - self.height;
+                width: parent.width;
+                height: floating-layout.preferred-height;
+                
+                // Linear gradient fade effect from transparent (at the top edge) to window-background (where the input sits)
+                background: @linear-gradient(180deg, transparent 0%, Tokens.window-background 20%, Tokens.window-background 100%);
+
+                floating-layout := VerticalLayout {
+                    padding-top: 16px; // Smooth transition zone for the fading text
+
+                    // Center the input panel horizontally
+                    HorizontalLayout {
                         Rectangle {
                             horizontal-stretch: 1;
                             background: transparent;
                         }
                         
-                        // Messages inner container - matches input panel width
-                        messages-inner := Rectangle {
-                            // Same width constraints as input panel
+                        input-panel := InputPanel {
                             min-width: 400px;
                             max-width: root.input-panel-max-width;
                             horizontal-stretch: 1;
-                            background: transparent;
                             
-                            // Vertical layout for stacking messages
-                            VerticalLayout {
-                                spacing: 24px;
-                                alignment: start;
-                                
-                                // Demo user message to show the layout
-                                // In a real implementation, this would be a repeater
-                                // iterating over a model of messages
-                                demo-user-message := UserMessage {
-                                    message-text: root.demo-user-message;
-                                    // Use input panel's width directly to avoid binding loop
-                                    // This ensures the message bubble aligns with the input panel
-                                    max-bubble-width: input-panel.width * 0.75;
-                                    
-                                    // Forward callbacks
-                                    edit-clicked => {
-                                        root.message-edit-clicked(0);
-                                    }
-                                    
-                                    copy-clicked => {
-                                        root.message-copy-clicked(0);
-                                    }
-                                }
-                                
-                                // Demo assistant message to show the layout
-                                demo-assistant-message := AssistantMessage {
-                                    message-text: root.demo-assistant-message;
-                                    time-text: root.demo-time;
-                                    
-                                    // Forward callbacks
-                                    copy-clicked => {
-                                        root.assistant-copy-clicked(0);
-                                    }
-                                    
-                                    like-clicked => {
-                                        root.assistant-like-clicked(0);
-                                    }
-                                    
-                                    dislike-clicked => {
-                                        root.assistant-dislike-clicked(0);
-                                    }
-                                    
-                                    regenerate-clicked => {
-                                        root.assistant-regenerate-clicked(0);
-                                    }
-                                    
-                                    fork-clicked => {
-                                        root.assistant-fork-clicked(0);
-                                    }
-                                }
-                                
-                                // TODO: Add more messages here using a repeater
-                                // Example structure:
-                                // for message[index] in messages-model : Rectangle {
-                                //     if message.type == "user" : UserMessage { ... }
-                                //     if message.type == "assistant" : AssistantMessage { ... }
-                                // }
+                            // Bind all properties
+                            input-text <=> root.input-text;
+                            selected-model <=> root.selected-model;
+                            selected-reasoning <=> root.selected-reasoning;
+                            auto-approve-enabled <=> root.auto-approve-enabled;
+                            context-usage: root.context-usage;
+                            tokens-used: root.tokens-used;
+                            tokens-total: root.tokens-total;
+                            is-recording <=> root.is-recording;
+                            
+                            // Forward all callbacks
+                            message-submitted(text) => {
+                                root.message-submitted(text);
+                            }
+                            
+                            attach-clicked => {
+                                root.attach-clicked();
+                            }
+                            
+                            auto-approve-toggled(enabled) => {
+                                root.auto-approve-toggled(enabled);
+                            }
+                            
+                            context-clicked => {
+                                root.context-clicked();
+                            }
+                            
+                            model-clicked => {
+                                root.model-clicked();
+                            }
+                            
+                            reasoning-clicked => {
+                                root.reasoning-clicked();
+                            }
+                            
+                            voice-clicked => {
+                                root.voice-clicked();
+                            }
+                            
+                            voice-recording-started => {
+                                root.voice-recording-started();
+                            }
+                            
+                            voice-recording-stopped => {
+                                root.voice-recording-stopped();
                             }
                         }
                         
-                        // Right spacer - creates the same margin as input panel
                         Rectangle {
                             horizontal-stretch: 1;
                             background: transparent;
                         }
                     }
-                }
-            }
-        }
-        
-        // ===== INPUT PANEL CONTAINER =====
-        // Container for the input panel - no padding, placed directly
-        input-container := Rectangle {
-            vertical-stretch: 0;
-            // Dynamic height based on input panel content only
-            height: input-panel.height;
-            background: transparent;
-            
-            // Horizontal layout to center the input panel with side margins
-            HorizontalLayout {
-                // No padding - input panel placed directly
-                
-                // Left spacer - creates margin on the left side
-                Rectangle {
-                    horizontal-stretch: 1;
-                    background: transparent;
-                }
-                
-                // The actual input panel component - responsive width with limits
-                input-panel := InputPanel {
-                    // Width grows with window but respects min and max limits
-                    min-width: 400px;
-                    max-width: root.input-panel-max-width;
-                    horizontal-stretch: 1;  // Allow it to grow
                     
-                    // Bind all properties
-                    input-text <=> root.input-text;
-                    selected-model <=> root.selected-model;
-                    selected-reasoning <=> root.selected-reasoning;
-                    auto-approve-enabled <=> root.auto-approve-enabled;
-                    context-usage: root.context-usage;
-                    tokens-used: root.tokens-used;
-                    tokens-total: root.tokens-total;
-                    is-recording <=> root.is-recording;
-                    
-                    // Forward all callbacks
-                    message-submitted(text) => {
-                        root.message-submitted(text);
+                    // Center the warning text below the input panel
+                    warning-container := Rectangle {
+                        height: 22px;
+                        background: transparent;
+                        
+                        HorizontalLayout {
+                            padding-top: 6px;
+                            padding-bottom: 6px;
+                            
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: transparent;
+                            }
+                            
+                            warning-text := WarningText {
+                                min-width: 400px;
+                                max-width: root.input-panel-max-width;
+                                horizontal-stretch: 1;
+                            }
+                            
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                background: transparent;
+                            }
+                        }
                     }
-                    
-                    attach-clicked => {
-                        root.attach-clicked();
-                    }
-                    
-                    auto-approve-toggled(enabled) => {
-                        root.auto-approve-toggled(enabled);
-                    }
-                    
-                    context-clicked => {
-                        root.context-clicked();
-                    }
-                    
-                    model-clicked => {
-                        root.model-clicked();
-                    }
-                    
-                    reasoning-clicked => {
-                        root.reasoning-clicked();
-                    }
-                    
-                    voice-clicked => {
-                        root.voice-clicked();
-                    }
-                    
-                    voice-recording-started => {
-                        root.voice-recording-started();
-                    }
-                    
-                    voice-recording-stopped => {
-                        root.voice-recording-stopped();
-                    }
-                }
-                
-                // Right spacer - creates margin on the right side
-                Rectangle {
-                    horizontal-stretch: 1;
-                    background: transparent;
-                }
-            }
-        }
-        
-        // ===== WARNING TEXT CONTAINER =====
-        // Container for the warning text below the input panel
-        warning-container := Rectangle {
-            vertical-stretch: 0;
-            height: 22px;  // Height includes all spacing
-            background: transparent;
-            
-            // Horizontal layout to center the warning text
-            HorizontalLayout {
-                padding-top: 6px;  // Space between input panel and warning
-                padding-bottom: 6px;  // Space between warning and window bottom
-                
-                // Left spacer
-                Rectangle {
-                    horizontal-stretch: 1;
-                    background: transparent;
-                }
-                
-                // Warning text - aligned with input panel
-                warning-text := WarningText {
-                    min-width: 400px;
-                    max-width: root.input-panel-max-width;
-                    horizontal-stretch: 1;
-                }
-                
-                // Right spacer
-                Rectangle {
-                    horizontal-stretch: 1;
-                    background: transparent;
                 }
             }
         }
