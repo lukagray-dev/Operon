@@ -54,7 +54,7 @@ export component UserMessage inherits Rectangle {
     background: transparent;
     
     // Dynamic height based on bubble and buttons
-    height: bubble.height + action-buttons-container.height + 8px;  // 8px spacing between bubble and buttons
+    height: bubble.height + action-buttons-container.height + 4px;  // 4px spacing between bubble and buttons
     
     // Outer TouchArea wrapping the entire component.
     // Making the layout a child of TouchArea ensures has-hover remains true
@@ -85,7 +85,7 @@ export component UserMessage inherits Rectangle {
                 
                 // Vertical layout for bubble and buttons
                 VerticalLayout {
-                    spacing: 8px;
+                    spacing: 4px;
                     alignment: start;
                     
                     // ===== MESSAGE BUBBLE =====
