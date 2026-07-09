@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use anyhow::Context;
 use slint::ComponentHandle;
+use slint::winit_030::WinitWindowAccessor;
 
 use crate::state::AppState;
 use crate::window::{startup, titlebar};
@@ -38,12 +39,34 @@ pub fn run() -> anyhow::Result<()> {
         let settings_window_handle = Rc::clone(&settings_window_handle);
         move || {
             eprintln!("[operon-gui] Sidebar settings clicked. Launching settings subprocess window.");
+            
+            // Check if settings window is already active
+            if let Some(existing_window) = settings_window_handle.borrow().as_ref() {
+                if let Err(error) = existing_window.show() {
+                    eprintln!("[operon-gui] Failed to bring settings window to focus: {error:#}");
+                }
+                return;
+            }
+            
             match crate::SettingsWindow::new() {
                 Ok(window) => {
+                    // Set dark theme preference on the winit window to tell Windows DWM to render 
+                    // a dark immersive titlebar and border instead of a bright white/light frame outline.
+                    let _ = window.window().with_winit_window(|winit_window: &slint::winit_030::winit::window::Window| {
+                        winit_window.set_theme(Some(slint::winit_030::winit::window::Theme::Dark));
+                    });
+
+                    // Set up the close handler to release our strong reference (closing/dropping it)
+                    let weak_handle = Rc::clone(&settings_window_handle);
+                    window.window().on_close_requested(move || {
+                        eprintln!("[operon-gui] Settings window closed by user request.");
+                        *weak_handle.borrow_mut() = None;
+                        slint::CloseRequestResponse::HideWindow
+                    });
+                    
                     if let Err(error) = window.show() {
                         eprintln!("[operon-gui] Failed to show settings window: {error:#}");
                     } else {
-                        // Storing the new window drops the old handle, which automatically closes any previously open window
                         *settings_window_handle.borrow_mut() = Some(window);
                     }
                 }
