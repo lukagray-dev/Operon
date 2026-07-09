@@ -10,7 +10,7 @@ import { Tokens } from "../../../shared/tokens.slint";
 // Displays the Operon logo in full color.
 export component OperonLogo inherits Rectangle {
     // Fixed size for the logo
-    width: 24px;
+    width: 26px;
     height: 24px;
     background: transparent;
     
@@ -21,12 +21,11 @@ export component OperonLogo inherits Rectangle {
         VerticalLayout {
             alignment: center;
             
-            // Operon brand logo image in full color
-            // Remove colorize to show the original SVG colors
+            // Operon brand logo image in full color (increased size)
             Image {
                 source: @image-url("../../../../assets/brand/operon.svg");
-                width: 16px;
-                height: 16px;
+                width: 20px;
+                height: 20px;
                 image-fit: contain;
             }
         }
