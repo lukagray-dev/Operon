@@ -32,6 +32,28 @@ pub fn run() -> anyhow::Result<()> {
     startup::apply_startup_geometry(&ui);
     titlebar::wire_titlebar_callbacks(&ui, Rc::clone(&state));
 
+    // Modelessly manage settings window instance
+    let settings_window_handle: Rc<RefCell<Option<crate::SettingsWindow>>> = Rc::new(RefCell::new(None));
+    ui.on_sidebar_settings_clicked({
+        let settings_window_handle = Rc::clone(&settings_window_handle);
+        move || {
+            eprintln!("[operon-gui] Sidebar settings clicked. Launching settings subprocess window.");
+            match crate::SettingsWindow::new() {
+                Ok(window) => {
+                    if let Err(error) = window.show() {
+                        eprintln!("[operon-gui] Failed to show settings window: {error:#}");
+                    } else {
+                        // Storing the new window drops the old handle, which automatically closes any previously open window
+                        *settings_window_handle.borrow_mut() = Some(window);
+                    }
+                }
+                Err(error) => {
+                    eprintln!("[operon-gui] Failed to construct settings window: {error:#}");
+                }
+            }
+        }
+    });
+
     // `run()` is the easiest Slint entry path for a normal desktop window:
     // it shows the component, runs the event loop, and hides it on shutdown.
     ui.run().context("failed while running the Operon event loop")?;

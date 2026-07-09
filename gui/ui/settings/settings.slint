@@ -1,0 +1,36 @@
+// Settings window component for the Operon GUI.
+//
+// This component represents the separate settings window that is spawned
+// when the user clicks the Settings button in the sidebar.
+//
+// It uses default OS titlebars (no custom frame) as requested.
+
+import { Tokens } from "../shared/tokens.slint";
+
+export component SettingsWindow inherits Window {
+    // Falls back to a comfortable centered size for settings page
+    preferred-width: 680px;
+    preferred-height: 480px;
+    min-width: 500px;
+    min-height: 350px;
+    
+    // Default OS window chrome is enabled (no no-frame property)
+    title: "Settings";
+    icon: @image-url("../../assets/brand/operon.svg");
+    background: Tokens.window_background;
+    default-font-family: Tokens.font_family;
+
+    // Placeholder content for the settings page mockup (to be expanded later)
+    Rectangle {
+        background: transparent;
+        
+        Text {
+            text: "Settings Workspace Placeholder";
+            color: Tokens.text_muted;
+            font-size: Tokens.body_font_size + 2px;
+            font-family: Tokens.font_family;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
