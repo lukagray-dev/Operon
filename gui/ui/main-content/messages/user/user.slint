@@ -17,6 +17,7 @@
 //
 // The message bubble is positioned on the right side, taking up to 75% of
 // the available width (matching the input panel's maximum width).
+// Action buttons fade in smoothly on hover to maintain a clean UI.
 
 import { Tokens } from "../../../shared/tokens.slint";
 import { MessageBubble } from "./message.slint";
@@ -53,67 +54,91 @@ export component UserMessage inherits Rectangle {
     background: transparent;
     
     // Dynamic height based on bubble and buttons
-    height: bubble.height + action-buttons.height + 8px;  // 8px spacing between bubble and buttons
+    height: bubble.height + action-buttons-container.height + 8px;  // 8px spacing between bubble and buttons
     
-    // Horizontal layout to position content on the right side
-    HorizontalLayout {
-        // Add 12px padding on the right to match assistant message padding
-        // This ensures the user bubble's right edge aligns with assistant message's right edge
-        padding-right: 12px;
-        
-        // Left spacer - pushes content to the right
-        // This creates the 25% empty space on the left
-        Rectangle {
-            horizontal-stretch: 1;
-            background: transparent;
-        }
-        
-        // Right section containing the message bubble and buttons
-        right-section := Rectangle {
-            // Width is 75% of the available space (controlled by max-bubble-width)
-            width: root.max-bubble-width;
-            horizontal-stretch: 0;
-            background: transparent;
+    // Outer TouchArea wrapping the entire component.
+    // Making the layout a child of TouchArea ensures has-hover remains true
+    // when hovering over interactive child elements like buttons.
+    hover-touch := TouchArea {
+        width: 100%;
+        height: 100%;
+
+        // Horizontal layout to position content on the right side
+        HorizontalLayout {
+            // Add 12px padding on the right to match assistant message padding
+            // This ensures the user bubble's right edge aligns with assistant message's right edge
+            padding-right: 12px;
             
-            // Vertical layout for bubble and buttons
-            VerticalLayout {
-                spacing: 8px;
-                alignment: start;
+            // Left spacer - pushes content to the right
+            // This creates the 25% empty space on the left
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
+            
+            // Right section containing the message bubble and buttons
+            right-section := Rectangle {
+                // Width is 75% of the available space (controlled by max-bubble-width)
+                width: root.max-bubble-width;
+                horizontal-stretch: 0;
+                background: transparent;
                 
-                // ===== MESSAGE BUBBLE =====
-                bubble := MessageBubble {
-                    message-text: root.message-text;
-                    is-expanded <=> root.is-expanded;
+                // Vertical layout for bubble and buttons
+                VerticalLayout {
+                    spacing: 8px;
+                    alignment: start;
                     
-                    // Forward the expand callback
-                    expand-clicked => {
-                        root.expand-clicked();
-                    }
-                }
-                
-                // ===== ACTION BUTTONS =====
-                // Edit and Copy buttons positioned below the bubble
-                action-buttons := Rectangle {
-                    height: 28px;
-                    vertical-stretch: 0;
-                    background: transparent;
-                    
-                    // Horizontal layout for buttons
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: start;
+                    // ===== MESSAGE BUBBLE =====
+                    bubble := MessageBubble {
+                        message-text: root.message-text;
+                        is-expanded <=> root.is-expanded;
                         
-                        // Edit button
-                        EditButton {
-                            clicked => {
-                                root.edit-clicked();
-                            }
+                        // Forward the expand callback
+                        expand-clicked => {
+                            root.expand-clicked();
                         }
-                        
-                        // Copy button
-                        CopyButton {
-                            clicked => {
-                                root.copy-clicked();
+                    }
+                    
+                    // ===== ACTION BUTTONS =====
+                    // Edit and Copy buttons positioned below the bubble.
+                    // Wrapped in a fixed height container to prevent layout jumping on hover show/hide.
+                    action-buttons-container := Rectangle {
+                        height: 28px;
+                        vertical-stretch: 0;
+                        horizontal-stretch: 1;
+
+                        action-buttons := Rectangle {
+                            width: 100%;
+                            height: 100%;
+                            background: transparent;
+
+                            // Fade effect linked to parent hover state
+                            opacity: hover-touch.has-hover ? 1.0 : 0.0;
+                            
+                            // Fully disable interactions when completely faded out
+                            visible: self.opacity > 0.0;
+
+                            // Smooth opacity transition on hover enter/exit
+                            animate opacity { duration: 150ms; easing: ease-in-out; }
+
+                            // Horizontal layout for buttons
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
+                                
+                                // Edit button
+                                EditButton {
+                                    clicked => {
+                                        root.edit-clicked();
+                                    }
+                                }
+                                
+                                // Copy button
+                                CopyButton {
+                                    clicked => {
+                                        root.copy-clicked();
+                                    }
+                                }
                             }
                         }
                     }
