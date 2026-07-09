@@ -22,12 +22,12 @@ export component MessageText inherits Rectangle {
     background: transparent;
     
     // Dynamic height based on text content
-    height: message-text-element.preferred-height + 32px;  // Text height + padding
+    height: message-text-element.preferred-height + 20px;  // Text height + padding (16px top + 4px bottom)
     
     // Vertical layout for text with padding
     VerticalLayout {
         padding-top: 16px;
-        padding-bottom: 16px;
+        padding-bottom: 4px;
         
         // The actual text element
         message-text-element := Text {
