@@ -8,10 +8,16 @@
 
 import { Tokens } from "../../shared/tokens.slint";
 import { SessionTitle } from "./title.slint";
+import { TerminalButton } from "./terminal.slint";
+import { GitCommitButton } from "./git-commit.slint";
 
 export component Topbar inherits Rectangle {
     // Active session/conversation title to display
     in property <string> title: "New Session";
+
+    // Callbacks for the action buttons
+    callback terminal-clicked();
+    callback git-commit-clicked();
 
     // Fixed height for the header bar (slimmer height)
     height: 40px;
@@ -20,15 +26,49 @@ export component Topbar inherits Rectangle {
     // Background color matches the main content area
     background: Tokens.window-background;
 
-    // Horizontal layout for padding and positioning the title
+    // Horizontal layout for padding and positioning the elements
     HorizontalLayout {
         padding-left: 16px;
         padding-right: 16px;
+        spacing: 12px;
+        
+        // 1. Session Title (aligned to left)
+        HorizontalLayout {
+            alignment: start;
+            SessionTitle {
+                text: root.title;
+                // Center the text vertically within the 40px bar
+                vertical-alignment: center;
+            }
+        }
 
-        SessionTitle {
-            text: root.title;
-            // Center the text vertically within the 40px bar
-            vertical-alignment: center;
+        // 2. Middle Spacer (stretches to push buttons to the right)
+        Rectangle {
+            horizontal-stretch: 1;
+            background: transparent;
+        }
+
+        // 3. Right Action Buttons
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+
+                // Terminal button
+                TerminalButton {
+                    clicked => {
+                        root.terminal-clicked();
+                    }
+                }
+
+                // Git Commit button
+                GitCommitButton {
+                    clicked => {
+                        root.git-commit-clicked();
+                    }
+                }
+            }
         }
     }
 

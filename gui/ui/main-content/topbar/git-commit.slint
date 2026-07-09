@@ -1,0 +1,54 @@
+// Git commit button component for the topbar action bar.
+//
+// This component provides an icon button that allows users to perform or view
+// Git commits/version control options. It follows the topbar action button
+// visual style with smooth hover highlight transitions.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+// Git commit action button.
+export component GitCommitButton inherits Rectangle {
+    // Callback fired when the button is clicked
+    callback clicked();
+
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    
+    // Background highlight on hover
+    background: touch-area.has-hover 
+        ? Tokens.dropdown-surface-hover 
+        : transparent;
+    
+    // Smooth transition for background hover state
+    animate background { duration: 150ms; easing: ease-in-out; }
+
+    HorizontalLayout {
+        alignment: center;
+        VerticalLayout {
+            alignment: center;
+            
+            // Git commit icon
+            Image {
+                source: @image-url("../../../assets/icons/main-content/topbar/git-commit.svg");
+                width: 16px;
+                height: 16px;
+                // Brightens up to text-primary on hover, default to text-secondary
+                colorize: touch-area.has-hover 
+                    ? Tokens.text-primary 
+                    : Tokens.text-secondary;
+                image-fit: contain;
+                
+                // Smooth transition for icon color change
+                animate colorize { duration: 150ms; easing: ease-in-out; }
+            }
+        }
+    }
+
+    touch-area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
