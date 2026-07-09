@@ -1,0 +1,220 @@
+// Terminal panel component that wires all terminal components together.
+//
+// This component manages the resizable terminal drawer at the bottom of the
+// main content area. It includes:
+// - A top drag-to-resize handle with ns-resize mouse cursor
+// - A tab bar with TerminalTab list and NewTerminalTab button
+// - A dark terminal session canvas displaying mock prompt and info
+// - Layout structure that preserves tab list state and handles tab selections
+
+import { Tokens } from "../../shared/tokens.slint";
+import { TerminalTab } from "./terminal-tabs.slint";
+import { NewTerminalTab } from "./new-terminal-tab.slint";
+
+export component TerminalPanel inherits Rectangle {
+    // Current height of the terminal panel (resizable)
+    in-out property <length> terminal-height: 220px;
+    
+    // Bounds for terminal drawer resizing
+    property <length> min-panel-height: 120px;
+    property <length> max-panel-height: 600px;
+    
+    // Active tab index selection
+    in-out property <int> active-tab: 0;
+    
+    // Total number of tabs (used to decide if close button is shown)
+    in property <int> tab-count: 2;
+
+    // Callbacks
+    callback tab-clicked(int);
+    callback tab-close-clicked(int);
+    callback tab-new-clicked();
+
+    height: root.terminal-height;
+    background: #0f0f0f; // Dark chrome border background
+    horizontal-stretch: 1;
+    
+    // Subtle top border line to separate terminal from the messaging viewport
+    border-width: 1px;
+    border-color: #2b2b2b;
+
+    // Vertical layout for the panel sections: tab bar + terminal viewport
+    VerticalLayout {
+        spacing: 0;
+        alignment: start;
+        
+        // ===== TAB BAR BAR =====
+        // Holds tabs and the plus button
+        tab-bar := Rectangle {
+            height: 33px; // 32px tab height + 1px border
+            background: #0c0c0c;
+            horizontal-stretch: 1;
+            
+            // Bottom border line separating tabs from viewport
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: #1e1e1e;
+            }
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                alignment: start;
+                spacing: 8px;
+                
+                // Horizontally stack tab elements
+                tabs-container := HorizontalLayout {
+                    spacing: 4px;
+                    alignment: start;
+                    
+                    // Tab 1: Cargo build
+                    TerminalTab {
+                        text: "cargo build";
+                        is-active: root.active-tab == 0;
+                        show-close: root.tab-count > 1;
+                        clicked => {
+                            root.active-tab = 0;
+                            root.tab-clicked(0);
+                        }
+                        close-clicked => {
+                            root.tab-close-clicked(0);
+                        }
+                    }
+
+                    // Tab 2: git branch (if tab count >= 2)
+                    if (root.tab-count >= 2) : TerminalTab {
+                        text: "git branch";
+                        is-active: root.active-tab == 1;
+                        show-close: root.tab-count > 1;
+                        clicked => {
+                            root.active-tab = 1;
+                            root.tab-clicked(1);
+                        }
+                        close-clicked => {
+                            root.tab-close-clicked(1);
+                        }
+                    }
+
+                    // Tab 3: operon shell (if tab count >= 3)
+                    if (root.tab-count >= 3) : TerminalTab {
+                        text: "operon-shell";
+                        is-active: root.active-tab == 2;
+                        show-close: root.tab-count > 1;
+                        clicked => {
+                            root.active-tab = 2;
+                            root.tab-clicked(2);
+                        }
+                        close-clicked => {
+                            root.tab-close-clicked(2);
+                        }
+                    }
+                }
+
+                // New terminal tab plus button (vertically centered in the tab-bar)
+                VerticalLayout {
+                    alignment: center;
+                    NewTerminalTab {
+                        clicked => {
+                            root.tab-new-clicked();
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== TERMINAL VIEWPORT =====
+        // Displays the terminal text session content using Kode Mono font
+        viewport := Rectangle {
+            background: #1e1e1e; // Dark console canvas background
+            horizontal-stretch: 1;
+            vertical-stretch: 1;
+            
+            // Console text area
+            VerticalLayout {
+                padding: 16px;
+                spacing: 4px;
+                alignment: start;
+                
+                // Welcome / status header
+                Text {
+                    text: "Operon Terminal Session [Active] v0.1.0";
+                    color: Tokens.text-muted;
+                    font-size: 11px;
+                    font-family: Tokens.mono_font_family; // Uses global design token
+                }
+                
+                // Mock previous command execution
+                if (root.active-tab == 0) : Text {
+                    text: "lukagray-dev/Operon $ cargo build\n   Compiling operon-gui v0.1.0\n    Finished dev profile [unoptimized] in 1.12s";
+                    color: Tokens.text-secondary;
+                    font-size: 11px;
+                    font-family: Tokens.mono_font_family; // Uses global design token
+                }
+
+                if (root.active-tab == 1) : Text {
+                    text: "lukagray-dev/Operon $ git branch\n* feat/slint-ui\n  main";
+                    color: Tokens.text-secondary;
+                    font-size: 11px;
+                    font-family: Tokens.mono_font_family; // Uses global design token
+                }
+
+                if (root.active-tab == 2) : Text {
+                    text: "lukagray-dev/Operon $ operon-shell --status\nOperon Core Agent: Idle\nConnected: Yes";
+                    color: Tokens.text-secondary;
+                    font-size: 11px;
+                    font-family: Tokens.mono_font_family; // Uses global design token
+                }
+
+                // Active prompt line with blinking cursor
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 4px;
+
+                    Text {
+                        text: "lukagray-dev/Operon $ ";
+                        color: #5af78e; // Clean terminal green
+                        font-size: 11px;
+                        font-family: Tokens.mono_font_family; // Uses global design token
+                        font-weight: 700;
+                    }
+
+                    // Blinking prompt line
+                    Text {
+                        text: "cargo run --bin operon-gui";
+                        color: Tokens.text-primary;
+                        font-size: 11px;
+                        font-family: Tokens.mono_font_family; // Uses global design token
+                    }
+
+                    // Cursor symbol
+                    Rectangle {
+                        width: 8px;
+                        height: 14px;
+                        background: #ffffff;
+                    }
+                }
+            }
+        }
+    }
+
+    // ===== TOP DRAG RESIZE HANDLE =====
+    // Positioned absolutely at the very top edge of the panel.
+    // Handles mouse drag coordinates to resize the panel height.
+    drag-handle := TouchArea {
+        y: 0px;
+        width: 100%;
+        height: 6px;
+        mouse-cursor: ns-resize; // North-South resize cursor
+        
+        moved => {
+            // Drag direction is upward (negative delta).
+            // Subtracting the delta increases the panel's vertical height property.
+            root.terminal-height = Math.clamp(
+                root.terminal-height - (self.mouse-y - self.pressed-y), 
+                root.min-panel-height, 
+                root.max-panel-height
+            );
+        }
+    }
+}

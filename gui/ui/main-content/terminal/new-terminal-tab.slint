@@ -1,0 +1,51 @@
+// New terminal tab button component.
+//
+// This component displays a plus icon button that allows users to create
+// a new terminal tab. It has hover highlighting.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+export component NewTerminalTab inherits Rectangle {
+    // Callback fired when the plus button is clicked
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    
+    // Background highlight on hover
+    background: touch-area.has-hover 
+        ? Tokens.dropdown-surface-hover 
+        : transparent;
+    
+    // Smooth transition for background hover state
+    animate background { duration: 150ms; easing: ease-in-out; }
+
+    HorizontalLayout {
+        alignment: center;
+        VerticalLayout {
+            alignment: center;
+            
+            // Plus icon
+            Image {
+                source: @image-url("../../../assets/icons/main-content/terminal/plus.svg");
+                width: 14px;
+                height: 14px;
+                colorize: touch-area.has-hover 
+                    ? Tokens.text-primary 
+                    : Tokens.text-secondary;
+                image-fit: contain;
+                
+                // Smooth transition for icon color change
+                animate colorize { duration: 150ms; easing: ease-in-out; }
+            }
+        }
+    }
+
+    touch-area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

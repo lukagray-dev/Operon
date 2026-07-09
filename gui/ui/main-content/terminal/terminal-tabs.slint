@@ -1,0 +1,112 @@
+// Terminal tab component for the terminal panel.
+//
+// This component displays a single tab inside the terminal header. It features:
+// - Dynamic or constrained tab width
+// - Active vs inactive visual styling (lighter background for active tab)
+// - Hover highlights on inactive tabs
+// - A close button at the right end of the tab (similar to chrome tabs)
+// - Smooth transitions on hover/active states
+
+import { Tokens } from "../../shared/tokens.slint";
+
+export component TerminalTab inherits Rectangle {
+    // The name of this terminal session/tab (e.g. "bash", "npm run dev")
+    in property <string> text: "terminal";
+    
+    // Whether this tab is currently selected/active
+    in property <bool> is-active: false;
+    
+    // Whether the close button is visible (can disable if it's the last tab)
+    in property <bool> show-close: true;
+
+    // Callbacks
+    callback clicked();
+    callback close-clicked();
+
+    width: 120px;
+    height: 32px;
+    
+    // Tabs have slightly rounded top corners, sharp bottom corners
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    
+    // Active tabs blend into the panel body; inactive tabs are darker
+    background: root.is-active 
+        ? #1e1e1e // Matches the dark terminal background
+        : (touch-area.has-hover ? #181818 : #0f0f0f);
+    
+    border-color: #2b2b2b;
+    border-width: 1px;
+    
+    // Smooth transition for background transitions
+    animate background { duration: 150ms; easing: ease-in-out; }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        spacing: 8px;
+        alignment: center;
+        
+        // Tab Text
+        Text {
+            text: root.text;
+            color: root.is-active ? Tokens.text-primary : Tokens.text-secondary;
+            font-size: Tokens.body-font-size;
+            font-family: Tokens.font-family;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+            horizontal-stretch: 1;
+            
+            animate color { duration: 150ms; easing: ease-in-out; }
+        }
+
+        // Close Icon Button (only shown if show-close is true)
+        if (root.show-close) : close-btn := Rectangle {
+            width: 18px;
+            height: 18px;
+            border-radius: 9px; // Circular background
+            
+            background: close-touch.has-hover 
+                ? #ffffff22 
+                : transparent;
+            
+            animate background { duration: 150ms; }
+
+            HorizontalLayout {
+                alignment: center;
+                VerticalLayout {
+                    alignment: center;
+                    
+                    Image {
+                        source: @image-url("../../../assets/icons/main-content/terminal/x.svg");
+                        width: 10px;
+                        height: 10px;
+                        colorize: close-touch.has-hover 
+                            ? Tokens.danger-red-hover 
+                            : Tokens.text-muted;
+                        
+                        animate colorize { duration: 150ms; }
+                    }
+                }
+            }
+
+            close-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.close-clicked();
+                }
+            }
+        }
+    }
+
+    // Main touch area for switching to this tab
+    touch-area := TouchArea {
+        // Only trigger tab selection when not clicking the close button
+        // Since close-btn touch area is defined inside, Slint automatically prioritizes
+        // the inner close-touch. If that is clicked, it won't trigger this parent touch-area!
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

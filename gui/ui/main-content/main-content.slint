@@ -25,6 +25,7 @@ import { UserMessage } from "./messages/user/user.slint";
 import { AssistantMessage } from "./messages/assistant/assistant.slint";
 import { Topbar } from "./topbar/topbar.slint";
 import { WarningText } from "./input/warning.slint";
+import { TerminalPanel } from "./terminal/terminal.slint";
 
 // Main content area component that contains the chat interface.
 // This is the primary workspace where users interact with the AI agent.
@@ -66,6 +67,10 @@ export component MainContent inherits Rectangle {
     // Session title property
     in property <string> session-title: "New Session";
     
+    // Toggle state and tab tracking for the terminal panel
+    in-out property <bool> is-terminal-open: false;
+    in-out property <int> terminal-tab-count: 2;
+    
     // ===== Callbacks =====
     // Forward all input panel callbacks to parent
     callback message-submitted(string /* message-text */);
@@ -102,6 +107,11 @@ export component MainContent inherits Rectangle {
         // Unified header containing session title and potential top bar actions
         topbar := Topbar {
             title: root.session-title;
+            
+            // Toggle terminal visibility when the terminal button is clicked
+            terminal-clicked => {
+                root.is-terminal-open = !root.is-terminal-open;
+            }
         }
 
         // ===== MAIN CONTENT BODY (Messages scroll area + Floating input panel) =====
@@ -387,6 +397,24 @@ export component MainContent inherits Rectangle {
                             }
                         }
                     }
+                }
+            }
+        }
+        
+        // ===== TERMINAL PANEL =====
+        // Resizable bottom terminal drawer that pushes the chat viewport up when visible
+        if (root.is-terminal-open) : terminal-panel := TerminalPanel {
+            tab-count <=> root.terminal-tab-count;
+            
+            tab-new-clicked => {
+                if (root.terminal-tab-count < 3) {
+                    root.terminal-tab-count = root.terminal-tab-count + 1;
+                }
+            }
+            
+            tab-close-clicked(idx) => {
+                if (root.terminal-tab-count > 1) {
+                    root.terminal-tab-count = root.terminal-tab-count - 1;
                 }
             }
         }

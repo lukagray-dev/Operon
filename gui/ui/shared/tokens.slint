@@ -4,6 +4,9 @@
 // future content panes feel like one coherent system instead of separate UI
 // fragments that just happen to live in the same window.
 
+// Import the custom Kode Mono monospace font globally
+import "../../assets/fonts/kode_mono/KodeMono-Regular.ttf";
+
 export global Tokens {
     // Font family used throughout the native shell. Changing this affects all
     // text that does not override `font-family` locally.
@@ -12,6 +15,9 @@ export global Tokens {
     // Serif font family for assistant messages. PT Serif provides a more
     // readable and distinguished appearance for AI-generated content.
     in property <string> serif_font_family: "PT Serif";
+    
+    // Monospace font family for integrated terminal viewports and console output.
+    in property <string> mono_font_family: "Kode Mono";
 
     // The main app canvas behind the titlebar and content. Darkening this makes
     // the entire window feel heavier and less exposed.
