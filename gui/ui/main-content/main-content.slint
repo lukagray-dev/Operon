@@ -67,9 +67,9 @@ export component MainContent inherits Rectangle {
     // Session title property
     in property <string> session-title: "New Session";
     
-    // Toggle state and tab tracking for the terminal panel
+    // State of terminal drawer panel
     in-out property <bool> is-terminal-open: false;
-    in-out property <int> terminal-tab-count: 2;
+
     
     // ===== Callbacks =====
     // Forward all input panel callbacks to parent
@@ -404,17 +404,16 @@ export component MainContent inherits Rectangle {
         // ===== TERMINAL PANEL =====
         // Resizable bottom terminal drawer that pushes the chat viewport up when visible
         if (root.is-terminal-open) : terminal-panel := TerminalPanel {
-            tab-count <=> root.terminal-tab-count;
-            
-            tab-new-clicked => {
-                if (root.terminal-tab-count < 3) {
-                    root.terminal-tab-count = root.terminal-tab-count + 1;
-                }
-            }
-            
+            // Check if all tabs have been closed to collapse the panel
             tab-close-clicked(idx) => {
-                if (root.terminal-tab-count > 1) {
-                    root.terminal-tab-count = root.terminal-tab-count - 1;
+                if (self.visible-tabs-count == 0) {
+                    // Close/collapse the terminal panel when the last remaining tab is closed
+                    root.is-terminal-open = false;
+                    // Reset tab visibilities to defaults for the next time it opens
+                    self.tab-1-visible = true;
+                    self.tab-2-visible = true;
+                    self.tab-3-visible = false;
+                    self.active-tab = 0;
                 }
             }
         }

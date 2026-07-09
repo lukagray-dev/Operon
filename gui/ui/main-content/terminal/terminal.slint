@@ -19,11 +19,17 @@ export component TerminalPanel inherits Rectangle {
     property <length> min-panel-height: 120px;
     property <length> max-panel-height: 600px;
     
-    // Active tab index selection
+    // Active tab index selection (0 = cargo build, 1 = git branch, 2 = operon-shell)
     in-out property <int> active-tab: 0;
     
-    // Total number of tabs (used to decide if close button is shown)
-    in property <int> tab-count: 2;
+    // Individual visibility states for the mock tabs (simulates dynamic closing)
+    in-out property <bool> tab-1-visible: true;
+    in-out property <bool> tab-2-visible: true;
+    in-out property <bool> tab-3-visible: false; // Start with 2 tabs by default
+
+    // Computed count of currently visible tabs
+    out property <int> visible-tabs-count: 
+        (tab-1-visible ? 1 : 0) + (tab-2-visible ? 1 : 0) + (tab-3-visible ? 1 : 0);
 
     // Callbacks
     callback tab-clicked(int);
@@ -58,54 +64,81 @@ export component TerminalPanel inherits Rectangle {
             }
 
             HorizontalLayout {
-                padding-left: 12px;
+                padding-left: 0px; // Starts flush with the panel edge
                 padding-right: 12px;
                 alignment: start;
                 spacing: 8px;
                 
-                // Horizontally stack tab elements
+                // Horizontally stack tab elements (no spacing between tabs)
                 tabs-container := HorizontalLayout {
-                    spacing: 4px;
+                    spacing: 0px;
                     alignment: start;
                     
                     // Tab 1: Cargo build
-                    TerminalTab {
+                    if (root.tab-1-visible) : TerminalTab {
                         text: "cargo build";
                         is-active: root.active-tab == 0;
-                        show-close: root.tab-count > 1;
+                        show-close: true;
                         clicked => {
                             root.active-tab = 0;
                             root.tab-clicked(0);
                         }
                         close-clicked => {
+                            root.tab-1-visible = false;
+                            // Shift active tab if we just closed the active one
+                            if (root.active-tab == 0) {
+                                if (root.tab-2-visible) {
+                                    root.active-tab = 1;
+                                } else if (root.tab-3-visible) {
+                                    root.active-tab = 2;
+                                }
+                            }
                             root.tab-close-clicked(0);
                         }
                     }
 
-                    // Tab 2: git branch (if tab count >= 2)
-                    if (root.tab-count >= 2) : TerminalTab {
+                    // Tab 2: git branch
+                    if (root.tab-2-visible) : TerminalTab {
                         text: "git branch";
                         is-active: root.active-tab == 1;
-                        show-close: root.tab-count > 1;
+                        show-close: true;
                         clicked => {
                             root.active-tab = 1;
                             root.tab-clicked(1);
                         }
                         close-clicked => {
+                            root.tab-2-visible = false;
+                            // Shift active tab if we just closed the active one
+                            if (root.active-tab == 1) {
+                                if (root.tab-1-visible) {
+                                    root.active-tab = 0;
+                                } else if (root.tab-3-visible) {
+                                    root.active-tab = 2;
+                                }
+                            }
                             root.tab-close-clicked(1);
                         }
                     }
 
-                    // Tab 3: operon shell (if tab count >= 3)
-                    if (root.tab-count >= 3) : TerminalTab {
+                    // Tab 3: operon-shell
+                    if (root.tab-3-visible) : TerminalTab {
                         text: "operon-shell";
                         is-active: root.active-tab == 2;
-                        show-close: root.tab-count > 1;
+                        show-close: true;
                         clicked => {
                             root.active-tab = 2;
                             root.tab-clicked(2);
                         }
                         close-clicked => {
+                            root.tab-3-visible = false;
+                            // Shift active tab if we just closed the active one
+                            if (root.active-tab == 2) {
+                                if (root.tab-1-visible) {
+                                    root.active-tab = 0;
+                                } else if (root.tab-2-visible) {
+                                    root.active-tab = 1;
+                                }
+                            }
                             root.tab-close-clicked(2);
                         }
                     }
@@ -116,6 +149,17 @@ export component TerminalPanel inherits Rectangle {
                     alignment: center;
                     NewTerminalTab {
                         clicked => {
+                            // Find the first closed tab and make it visible/active
+                            if (!root.tab-1-visible) {
+                                root.tab-1-visible = true;
+                                root.active-tab = 0;
+                            } else if (!root.tab-2-visible) {
+                                root.tab-2-visible = true;
+                                root.active-tab = 1;
+                            } else if (!root.tab-3-visible) {
+                                root.tab-3-visible = true;
+                                root.active-tab = 2;
+                            }
                             root.tab-new-clicked();
                         }
                     }
@@ -144,30 +188,30 @@ export component TerminalPanel inherits Rectangle {
                     font-family: Tokens.mono_font_family; // Uses global design token
                 }
                 
-                // Mock previous command execution
-                if (root.active-tab == 0) : Text {
+                // Mock previous command execution based on active tab selection
+                if (root.active-tab == 0 && root.tab-1-visible) : Text {
                     text: "lukagray-dev/Operon $ cargo build\n   Compiling operon-gui v0.1.0\n    Finished dev profile [unoptimized] in 1.12s";
                     color: Tokens.text-secondary;
                     font-size: 11px;
                     font-family: Tokens.mono_font_family; // Uses global design token
                 }
 
-                if (root.active-tab == 1) : Text {
+                if (root.active-tab == 1 && root.tab-2-visible) : Text {
                     text: "lukagray-dev/Operon $ git branch\n* feat/slint-ui\n  main";
                     color: Tokens.text-secondary;
                     font-size: 11px;
                     font-family: Tokens.mono_font_family; // Uses global design token
                 }
 
-                if (root.active-tab == 2) : Text {
+                if (root.active-tab == 2 && root.tab-3-visible) : Text {
                     text: "lukagray-dev/Operon $ operon-shell --status\nOperon Core Agent: Idle\nConnected: Yes";
                     color: Tokens.text-secondary;
                     font-size: 11px;
                     font-family: Tokens.mono_font_family; // Uses global design token
                 }
 
-                // Active prompt line with blinking cursor
-                HorizontalLayout {
+                // Active prompt line with blinking cursor (only render if there's an active visible tab)
+                if (root.visible-tabs-count > 0) : HorizontalLayout {
                     alignment: start;
                     spacing: 4px;
 
@@ -181,7 +225,8 @@ export component TerminalPanel inherits Rectangle {
 
                     // Blinking prompt line
                     Text {
-                        text: "cargo run --bin operon-gui";
+                        text: root.active-tab == 0 ? "cargo run --bin operon-gui" : 
+                              (root.active-tab == 1 ? "git status" : "operon --help");
                         color: Tokens.text-primary;
                         font-size: 11px;
                         font-family: Tokens.mono_font_family; // Uses global design token
