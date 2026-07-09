@@ -32,11 +32,11 @@ export component TerminalTab inherits Rectangle {
     
     // Active tabs blend into the panel body; inactive tabs are darker
     background: root.is-active 
-        ? #1e1e1e // Matches the dark terminal background
-        : (touch-area.has-hover ? #181818 : #0f0f0f);
+        ? #0f0f0f // Matches the dark terminal background
+        : (touch-area.has-hover ? #141414 : #070707);
     
-    border-color: #2b2b2b;
-    border-width: 1px;
+    // No border outline
+    border-width: 0px;
     
     // Smooth transition for background transitions
     animate background { duration: 150ms; easing: ease-in-out; }

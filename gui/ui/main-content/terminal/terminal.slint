@@ -52,16 +52,9 @@ export component TerminalPanel inherits Rectangle {
         // ===== TAB BAR BAR =====
         // Holds tabs and the plus button
         tab-bar := Rectangle {
-            height: 33px; // 32px tab height + 1px border
+            height: 32px;
             background: #0c0c0c;
             horizontal-stretch: 1;
-            
-            // Bottom border line separating tabs from viewport
-            Rectangle {
-                y: parent.height - 1px;
-                height: 1px;
-                background: #1e1e1e;
-            }
 
             HorizontalLayout {
                 padding-left: 0px; // Starts flush with the panel edge
@@ -170,7 +163,7 @@ export component TerminalPanel inherits Rectangle {
         // ===== TERMINAL VIEWPORT =====
         // Displays the terminal text session content using Kode Mono font
         viewport := Rectangle {
-            background: #1e1e1e; // Dark console canvas background
+            background: #0f0f0f; // Dark console canvas background (matching panel frame)
             horizontal-stretch: 1;
             vertical-stretch: 1;
             
