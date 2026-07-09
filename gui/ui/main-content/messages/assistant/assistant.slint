@@ -138,6 +138,9 @@ export component AssistantMessage inherits Rectangle {
                                 is-liked <=> root.is-liked;
 
                                 clicked => {
+                                    if (root.is-liked) {
+                                        root.is-disliked = false;
+                                    }
                                     root.like-clicked();
                                 }
                             }
@@ -147,6 +150,9 @@ export component AssistantMessage inherits Rectangle {
                                 is-disliked <=> root.is-disliked;
 
                                 clicked => {
+                                    if (root.is-disliked) {
+                                        root.is-liked = false;
+                                    }
                                     root.dislike-clicked();
                                 }
                             }

@@ -3,14 +3,19 @@
 // This component provides a button that allows users to copy the assistant's
 // message text to their clipboard. It's positioned in the action bar below
 // the message content.
+//
+// When clicked, it displays a checkmark icon (check.svg) for 3 seconds as
+// visual feedback, before reverting to the copy icon.
 
 import { Tokens } from "../../../shared/tokens.slint";
 
 // Copy button for copying assistant message text to clipboard.
-// Positioned in the action bar below the message.
 export component CopyButton inherits Rectangle {
     // Callback fired when the user clicks the copy button
     callback clicked();
+    
+    // Tracks whether the text was recently copied (shows checkmark feedback)
+    in-out property <bool> is-copied: false;
     
     // Fixed size for icon button
     width: 24px;
@@ -26,6 +31,16 @@ export component CopyButton inherits Rectangle {
     
     // Rounded corners for modern appearance
     border-radius: 4px;
+
+    // Timer to reset the copy feedback icon after 3 seconds
+    timer := Timer {
+        interval: 3s;
+        running: false;
+        triggered => {
+            root.is-copied = false;
+            self.running = false;
+        }
+    }
     
     // Center the icon
     HorizontalLayout {
@@ -34,9 +49,11 @@ export component CopyButton inherits Rectangle {
         VerticalLayout {
             alignment: center;
             
-            // Copy icon
+            // Copy or check icon based on state
             icon := Image {
-                source: @image-url("../../../../assets/icons/main-content/messages/assistant/copy.svg");
+                source: root.is-copied 
+                    ? @image-url("../../../../assets/icons/main-content/messages/assistant/check.svg")
+                    : @image-url("../../../../assets/icons/main-content/messages/assistant/copy.svg");
                 width: 14px;
                 height: 14px;
                 colorize: touch-area.has-hover 
@@ -55,6 +72,8 @@ export component CopyButton inherits Rectangle {
         mouse-cursor: pointer;
         
         clicked => {
+            root.is-copied = true;
+            timer.running = true;
             root.clicked();
         }
     }

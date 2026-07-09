@@ -4,13 +4,8 @@
 // to their clipboard. It's positioned below the message bubble alongside the
 // Edit button, providing quick access to message actions.
 //
-// The button has multiple states:
-// - Normal: Default state with subtle appearance
-// - Hover: Visual feedback when hovering
-// - Active: Visual feedback when clicking
-//
-// The button uses a copy icon (typically two overlapping squares) to indicate
-// the copy-to-clipboard action.
+// When clicked, it displays a checkmark icon (check.svg) for 3 seconds as
+// visual feedback, before reverting to the copy icon.
 
 import { Tokens } from "../../../shared/tokens.slint";
 
@@ -19,6 +14,9 @@ import { Tokens } from "../../../shared/tokens.slint";
 export component CopyButton inherits Rectangle {
     // Callback fired when the user clicks the copy button
     callback clicked();
+
+    // Tracks whether the text was recently copied (shows checkmark feedback)
+    in-out property <bool> is-copied: false;
     
     // Fixed size for icon button - matches assistant message buttons
     width: 24px;
@@ -34,6 +32,16 @@ export component CopyButton inherits Rectangle {
     
     // Rounded corners for modern appearance
     border-radius: 4px;
+
+    // Timer to reset the copy feedback icon after 3 seconds
+    timer := Timer {
+        interval: 3s;
+        running: false;
+        triggered => {
+            root.is-copied = false;
+            self.running = false;
+        }
+    }
     
     // Center the icon
     HorizontalLayout {
@@ -42,9 +50,11 @@ export component CopyButton inherits Rectangle {
         VerticalLayout {
             alignment: center;
             
-            // Copy icon
+            // Copy or check icon based on state
             icon := Image {
-                source: @image-url("../../../../assets/icons/main-content/messages/user/copy.svg");
+                source: root.is-copied 
+                    ? @image-url("../../../../assets/icons/main-content/messages/user/check.svg")
+                    : @image-url("../../../../assets/icons/main-content/messages/user/copy.svg");
                 width: 14px;
                 height: 14px;
                 colorize: touch-area.has-hover 
@@ -63,6 +73,8 @@ export component CopyButton inherits Rectangle {
         mouse-cursor: pointer;
         
         clicked => {
+            root.is-copied = true;
+            timer.running = true;
             root.clicked();
         }
     }
