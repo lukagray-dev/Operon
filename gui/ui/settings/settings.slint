@@ -85,6 +85,8 @@ export component SettingsWindow inherits Window {
                 // Left settings category navigation sidebar (absolute black background)
                 sidebar := SettingsSidebar {
                     active-category <=> root.active-category;
+                    width: root.sidebar_open ? 200px : 0px;
+                    visible: root.sidebar_open;
                 }
                 
                 // Main settings content viewport (same background color as main app sidebar)
