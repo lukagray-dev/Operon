@@ -1,0 +1,384 @@
+// Provider Setup form component for the Models page.
+import { Tokens } from "../../../shared/tokens.slint";
+
+component ModelsInput inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in property <string> placeholder: "";
+    in property <bool> is-password: false;
+    
+    height: 32px;
+    background: #0d0d0d;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        
+        input := TextInput {
+            font-size: Tokens.body_font_size - 1px;
+            font-family: Tokens.font_family;
+            color: Tokens.text_primary;
+            vertical-alignment: center;
+            single-line: true;
+            input-type: root.is-password ? InputType.password : InputType.text;
+        }
+    }
+    
+    // Placeholder text logic
+    if (input.text == "") : Text {
+        x: 8px;
+        text: root.placeholder;
+        color: Tokens.text_muted;
+        font-size: Tokens.body_font_size - 1px;
+        font-family: Tokens.font_family;
+        vertical-alignment: center;
+    }
+}
+
+component ModelTag inherits Rectangle {
+    in property <string> name;
+    in property <bool> is-selected: false;
+    
+    callback clicked();
+    
+    border-width: 1px;
+    border-color: root.is-selected ? rgba(255, 255, 255, 0.15) : rgba(255, 255, 255, 0.05);
+    background: root.is-selected ? rgba(255, 255, 255, 0.08) : (touch_area.has-hover ? #1a1a1a : #0d0d0d);
+    border-radius: 4px;
+    
+    animate background { duration: 120ms; }
+    
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        
+        Text {
+            text: root.name;
+            color: root.is-selected ? #ffffff : (touch_area.has-hover ? #e0e0e0 : #888888);
+            font-size: Tokens.body_font_size - 2px;
+            font-family: Tokens.mono_font_family;
+            vertical-alignment: center;
+        }
+    }
+    
+    touch_area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component SettingRow inherits Rectangle {
+    in property <string> label;
+    in property <string> subtitle;
+    
+    HorizontalLayout {
+        spacing: 16px;
+        
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            
+            Text {
+                text: root.label;
+                color: #e8e8e8;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 600;
+            }
+            
+            Text {
+                text: root.subtitle;
+                color: Tokens.text_muted;
+                font-size: Tokens.body_font_size - 3px;
+            }
+        }
+        
+        VerticalLayout {
+            width: 260px;
+            alignment: center;
+            @children
+        }
+    }
+}
+
+export component ProviderSetup inherits Rectangle {
+    background: transparent;
+    
+    in property <string> provider-id;
+    in property <string> provider-label;
+    
+    // Two-way bindings for input values
+    in-out property <string> api-base-url: "";
+    in-out property <string> api-key: "";
+    in-out property <string> active-model: "";
+    
+    // Callbacks to notify parent/Rust controller
+    callback back-clicked();
+    callback discover-clicked();
+    callback save-clicked();
+    callback reload-clicked();
+    
+    // Dummy discovered models list
+    property <[string]> discovered-models: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-5-sonnet", "gemini-1.5-pro", "llama3"];
+    
+    VerticalLayout {
+        spacing: 16px;
+        
+        // 1. Back button bar (centered chevron)
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            
+            back_btn := Rectangle {
+                width: 60px;
+                height: 28px;
+                border-radius: 6px;
+                background: back_touch.has-hover ? #242424 : #1a1a1a;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.08);
+                
+                animate background { duration: 150ms; }
+                
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 4px;
+                    alignment: center;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../../../assets/icons/settings/chevron-left.svg");
+                            width: 10px;
+                            height: 10px;
+                            colorize: back_touch.has-hover ? #e0e0e0 : #888888;
+                        }
+                    }
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Back";
+                            color: back_touch.has-hover ? #e0e0e0 : #888888;
+                            font-size: Tokens.body_font_size - 2px;
+                            font-weight: 600;
+                        }
+                    }
+                }
+                
+                back_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.back-clicked();
+                    }
+                }
+            }
+            
+            Text {
+                text: root.provider-label + " Setup";
+                color: #e8e8e8;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+        
+        // 2. Settings form
+        SettingRow {
+            label: "API Base URL";
+            subtitle: "Endpoint URL for the provider API";
+            
+            ModelsInput {
+                placeholder: "https://api.openai.com/v1";
+                text <=> root.api-base-url;
+            }
+        }
+        
+        SettingRow {
+            label: "API Key";
+            subtitle: "API credentials for the provider";
+            
+            ModelsInput {
+                placeholder: "sk-proj-xxxxxxxxxxxxxxxx";
+                is-password: true;
+                text <=> root.api-key;
+            }
+        }
+        
+        SettingRow {
+            label: "Fetch models";
+            subtitle: "Discover models from endpoint";
+            
+            HorizontalLayout {
+                alignment: start;
+                fetch_btn := Rectangle {
+                    width: 70px;
+                    height: 28px;
+                    border-radius: 6px;
+                    background: fetch_touch.has-hover ? #242424 : #1a1a1a;
+                    border-width: 1px;
+                    border-color: rgba(255, 255, 255, 0.08);
+                    
+                    animate background { duration: 150ms; }
+                    
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 4px;
+                        alignment: center;
+                        
+                        VerticalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../../../assets/icons/settings/refresh.svg");
+                                width: 10px;
+                                height: 10px;
+                                colorize: fetch_touch.has-hover ? #e0e0e0 : #888888;
+                            }
+                        }
+                        
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Fetch";
+                                color: fetch_touch.has-hover ? #e0e0e0 : #888888;
+                                font-size: Tokens.body_font_size - 2px;
+                                font-weight: 600;
+                            }
+                        }
+                    }
+                    
+                    fetch_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.discover-clicked();
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 3. Discovered models tags
+        Rectangle {
+            border-width: 1px;
+            border-color: rgba(255, 255, 255, 0.04);
+            border-radius: 6px;
+            background: #0d0d0d;
+            
+            VerticalLayout {
+                padding: 12px;
+                spacing: 8px;
+                
+                Text {
+                    text: "Discovered Models (Click to Select)";
+                    color: Tokens.text_muted;
+                    font-size: Tokens.body_font_size - 2px;
+                    font-weight: 600;
+                }
+                
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+                    
+                    for model-name in root.discovered-models : ModelTag {
+                        name: model-name;
+                        is-selected: model-name == root.active-model;
+                        clicked => {
+                            root.active-model = model-name;
+                        }
+                    }
+                }
+            }
+        }
+        
+        SettingRow {
+            label: "Active model";
+            subtitle: "Enter or select the model to use";
+            
+            ModelsInput {
+                placeholder: "gpt-4o";
+                text <=> root.active-model;
+            }
+        }
+        
+        // 4. Save and Reload row
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+            
+            reload_btn := Rectangle {
+                width: 70px;
+                height: 28px;
+                border-radius: 6px;
+                background: reload_touch.has-hover ? #242424 : #1a1a1a;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.08);
+                
+                animate background { duration: 150ms; }
+                
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 4px;
+                    alignment: center;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Reload";
+                            color: reload_touch.has-hover ? #e0e0e0 : #888888;
+                            font-size: Tokens.body_font_size - 2px;
+                            font-weight: 600;
+                        }
+                    }
+                }
+                
+                reload_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.reload-clicked();
+                    }
+                }
+            }
+            
+            save_btn := Rectangle {
+                width: 130px;
+                height: 28px;
+                border-radius: 6px;
+                background: save_touch.has-hover ? rgba(255, 255, 255, 0.1) : rgba(255, 255, 255, 0.05);
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.15);
+                
+                animate background { duration: 150ms; }
+                
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 4px;
+                    alignment: center;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Save & Activate";
+                            color: save_touch.has-hover ? #ffffff : #e8e8e8;
+                            font-size: Tokens.body_font_size - 2px;
+                            font-weight: 600;
+                        }
+                    }
+                }
+                
+                save_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.save-clicked();
+                    }
+                }
+            }
+        }
+    }
+}

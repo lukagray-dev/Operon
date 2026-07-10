@@ -1,38 +1,159 @@
-// Models settings category page for the Operon GUI.
+// Models settings category page coordinating list and setup views.
 import { Tokens } from "../../shared/tokens.slint";
+import { ScrollView } from "std-widgets.slint";
+import { ProvidersList } from "./models/providers.slint";
+import { ProviderSetup } from "./models/setup.slint";
 
 export component ModelsSettings inherits Rectangle {
     background: transparent;
-    
-    VerticalLayout {
-        padding: 24px;
-        spacing: 16px;
-        alignment: start;
-        
-        HorizontalLayout {
-            spacing: 12px;
+
+    // View state tracking: 0 = Providers List, 1 = Provider Setup
+    property <int> active-view: 0;
+
+    // Selection state
+    property <string> selected-provider-id: "";
+    property <string> selected-provider-label: "";
+
+    // Input state
+    property <string> api-base-url: "";
+    property <string> api-key: "";
+    property <string> active-model: "";
+
+    ScrollView {
+        width: 100%;
+        height: 100%;
+        vertical-scrollbar-policy: always-off;
+        horizontal-scrollbar-policy: always-off;
+
+        main_layout := VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
             alignment: start;
-            
-            Image {
-                source: @image-url("../../../assets/icons/settings/category-models.svg");
-                width: 20px;
-                height: 20px;
-                colorize: Tokens.text_primary;
+
+            // 1. Page Header (Icon + Title)
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+
+                Image {
+                    source: @image-url("../../../assets/icons/settings/category-models.svg");
+                    width: 20px;
+                    height: 20px;
+                    colorize: Tokens.text_primary;
+                }
+
+                Text {
+                    text: root.active-view == 0
+                        ? "Models Settings"
+                        : "Models Settings | " + root.selected-provider-label;
+                    color: Tokens.text_primary;
+                    font-size: Tokens.body_font_size + 4px;
+                    font-weight: 600;
+                }
             }
-            
+
+            // Subtitle
             Text {
-                text: "Models Settings";
-                color: Tokens.text_primary;
-                font-size: Tokens.body_font_size + 4px;
-                font-weight: 600;
+                text: root.active-view == 0
+                    ? "Configure AI models, API keys, endpoints, and provider preferences."
+                    : "Configure API credentials, discover available models, and save selections.";
+                color: Tokens.text_muted;
+                font-size: Tokens.body_font_size;
+                wrap: TextWrap.word-wrap;
             }
-        }
-        
-        Text {
-            text: "Configure AI models, API keys, endpoints, and provider preferences.";
-            color: Tokens.text_muted;
-            font-size: Tokens.body_font_size;
-            wrap: TextWrap.word-wrap;
+
+            // Separator
+            Rectangle {
+                height: 1px;
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            // 2. View Switching
+            if (root.active-view == 0): ProvidersList {
+                provider-selected(id, label) => {
+                    root.selected-provider-id = id;
+                    root.selected-provider-label = label;
+                    
+                    // Seed defaults for mock
+                    if (id == "openai") {
+                        root.api-base-url = "https://api.openai.com/v1";
+                        root.active-model = "gpt-4o";
+                    }
+                    if (id == "anthropic") {
+                        root.api-base-url = "https://api.anthropic.com/v1";
+                        root.active-model = "claude-3-5-sonnet";
+                    }
+                    if (id == "google") {
+                        root.api-base-url = "https://generativelanguage.googleapis.com";
+                        root.active-model = "gemini-1.5-pro";
+                    }
+                    if (id == "groq") {
+                        root.api-base-url = "https://api.groq.com/openai/v1";
+                        root.active-model = "llama3-70b-8192";
+                    }
+                    if (id == "openrouter") {
+                        root.api-base-url = "https://openrouter.ai/api/v1";
+                        root.active-model = "auto";
+                    }
+                    if (id == "deepseek") {
+                        root.api-base-url = "https://api.deepseek.com/v1";
+                        root.active-model = "deepseek-coder";
+                    }
+                    if (id == "moonshot") {
+                        root.api-base-url = "https://api.moonshot.cn/v1";
+                        root.active-model = "moonshot-v1-8k";
+                    }
+                    if (id == "mistral") {
+                        root.api-base-url = "https://api.mistral.ai/v1";
+                        root.active-model = "mistral-large-latest";
+                    }
+                    if (id == "huggingface") {
+                        root.api-base-url = "https://api-inference.huggingface.co/v1";
+                        root.active-model = "meta-llama/Meta-Llama-3-8B-Instruct";
+                    }
+                    if (id == "ollama") {
+                        root.api-base-url = "http://localhost:11434";
+                        root.active-model = "llama3";
+                    }
+                    if (id == "qwen") {
+                        root.api-base-url = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+                        root.active-model = "qwen-turbo";
+                    }
+                    if (id == "nvidia") {
+                        root.api-base-url = "https://integrate.api.nvidia.com/v1";
+                        root.active-model = "meta/llama3-70b-instruct";
+                    }
+                    if (id == "custom") {
+                        root.api-base-url = "http://localhost:8000/v1";
+                        root.active-model = "custom-model";
+                    }
+                    root.active-view = 1;
+                }
+            }
+
+            if (root.active-view == 1): ProviderSetup {
+                provider-id: root.selected-provider-id;
+                provider-label: root.selected-provider-label;
+                api-base-url <=> root.api-base-url;
+                api-key <=> root.api-key;
+                active-model <=> root.active-model;
+
+                back-clicked => {
+                    root.active-view = 0;
+                }
+                discover-clicked => {
+                    // Mock model discovery trigger
+                    debug("discover clicked");
+                }
+                save-clicked => {
+                    // Mock save trigger
+                    root.active-view = 0;
+                }
+                reload-clicked => {
+                    // Mock reload trigger
+                    debug("reload clicked");
+                }
+            }
         }
     }
 }
