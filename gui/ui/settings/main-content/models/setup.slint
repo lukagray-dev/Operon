@@ -1,5 +1,6 @@
 // Provider Setup form component for the Models page.
 import { Tokens } from "../../../shared/tokens.slint";
+import { ScrollView } from "std-widgets.slint";
 
 component ModelsInput inherits Rectangle {
     in-out property <string> text <=> input.text;
@@ -43,23 +44,23 @@ component ModelTag inherits Rectangle {
     
     callback clicked();
     
+    height: 32px;
     border-width: 1px;
     border-color: root.is-selected ? rgba(255, 255, 255, 0.15) : rgba(255, 255, 255, 0.05);
     background: root.is-selected ? rgba(255, 255, 255, 0.08) : (touch_area.has-hover ? #1a1a1a : #0d0d0d);
-    border-radius: 4px;
+    border-radius: 6px;
     
     animate background { duration: 120ms; }
     
     HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
-        padding-top: 4px;
-        padding-bottom: 4px;
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: start;
         
         Text {
             text: root.name;
             color: root.is-selected ? #ffffff : (touch_area.has-hover ? #e0e0e0 : #888888);
-            font-size: Tokens.body_font_size - 2px;
+            font-size: Tokens.body_font_size - 1px;
             font-family: Tokens.mono_font_family;
             vertical-alignment: center;
         }
@@ -118,12 +119,11 @@ export component ProviderSetup inherits Rectangle {
     
     // Callbacks to notify parent/Rust controller
     callback back-clicked();
-    callback discover-clicked();
     callback save-clicked();
     callback reload-clicked();
     
-    // Dummy discovered models list
-    property <[string]> discovered-models: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-5-sonnet", "gemini-1.5-pro", "llama3"];
+    // Input list of discovered models passed dynamically
+    in property <[string]> discovered-models;
     
     VerticalLayout {
         spacing: 16px;
@@ -209,99 +209,38 @@ export component ProviderSetup inherits Rectangle {
             }
         }
         
+        // 3. Models list box row (vertical listing matching other rows)
         SettingRow {
-            label: "Fetch models";
-            subtitle: "Discover models from endpoint";
+            label: "Models";
+            subtitle: "Select the active model to use";
             
-            HorizontalLayout {
-                alignment: start;
-                fetch_btn := Rectangle {
-                    width: 70px;
-                    height: 28px;
-                    border-radius: 6px;
-                    background: fetch_touch.has-hover ? #242424 : #1a1a1a;
-                    border-width: 1px;
-                    border-color: rgba(255, 255, 255, 0.08);
+            Rectangle {
+                height: 140px;
+                background: #0d0d0d;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.08);
+                border-radius: 6px;
+                clip: true; // clip rounded corners
+                
+                ScrollView {
+                    width: 100%;
+                    height: 100%;
+                    vertical-scrollbar-policy: always-off;
+                    horizontal-scrollbar-policy: always-off;
                     
-                    animate background { duration: 150ms; }
-                    
-                    HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
+                    VerticalLayout {
+                        padding: 4px;
                         spacing: 4px;
-                        alignment: center;
                         
-                        VerticalLayout {
-                            alignment: center;
-                            Image {
-                                source: @image-url("../../../../assets/icons/settings/refresh.svg");
-                                width: 10px;
-                                height: 10px;
-                                colorize: fetch_touch.has-hover ? #e0e0e0 : #888888;
-                            }
-                        }
-                        
-                        VerticalLayout {
-                            alignment: center;
-                            Text {
-                                text: "Fetch";
-                                color: fetch_touch.has-hover ? #e0e0e0 : #888888;
-                                font-size: Tokens.body_font_size - 2px;
-                                font-weight: 600;
+                        for model-name in root.discovered-models : ModelTag {
+                            name: model-name;
+                            is-selected: model-name == root.active-model;
+                            clicked => {
+                                root.active-model = model-name;
                             }
                         }
                     }
-                    
-                    fetch_touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.discover-clicked();
-                        }
-                    }
                 }
-            }
-        }
-        
-        // 3. Discovered models tags
-        Rectangle {
-            border-width: 1px;
-            border-color: rgba(255, 255, 255, 0.04);
-            border-radius: 6px;
-            background: #0d0d0d;
-            
-            VerticalLayout {
-                padding: 12px;
-                spacing: 8px;
-                
-                Text {
-                    text: "Discovered Models (Click to Select)";
-                    color: Tokens.text_muted;
-                    font-size: Tokens.body_font_size - 2px;
-                    font-weight: 600;
-                }
-                
-                HorizontalLayout {
-                    spacing: 6px;
-                    alignment: start;
-                    
-                    for model-name in root.discovered-models : ModelTag {
-                        name: model-name;
-                        is-selected: model-name == root.active-model;
-                        clicked => {
-                            root.active-model = model-name;
-                        }
-                    }
-                }
-            }
-        }
-        
-        SettingRow {
-            label: "Active model";
-            subtitle: "Enter or select the model to use";
-            
-            ModelsInput {
-                placeholder: "gpt-4o";
-                text <=> root.active-model;
             }
         }
         
