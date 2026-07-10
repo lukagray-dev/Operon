@@ -1,0 +1,39 @@
+// Main content viewport for the settings panel.
+//
+// This component manages the display pane on the right side of the settings
+// dialog, rendering the selected category page. It uses the same background
+// color as the main application's sidebar.
+
+import { Tokens } from "../../shared/tokens.slint";
+import { GeneralSettings } from "./general.slint";
+import { AppearanceSettings } from "./appearance.slint";
+import { ModelsSettings } from "./models.slint";
+import { ChannelsSettings } from "./channels.slint";
+import { PermissionsSettings } from "./permissions.slint";
+import { SkillsSettings } from "./skills.slint";
+import { ExtensionsSettings } from "./extensions.slint";
+import { AboutSettings } from "./about.slint";
+
+export component SettingsMainContent inherits Rectangle {
+    // Current category selection index matching the sidebar selection
+    in property <int> active-category: 2;
+
+    // Same background color as the main window sidebar
+    background: Tokens.titlebar_background;
+
+    // Viewport layout container
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+
+        if (root.active-category == 0) : GeneralSettings {}
+        if (root.active-category == 1) : AppearanceSettings {}
+        if (root.active-category == 2) : ModelsSettings {}
+        if (root.active-category == 3) : ChannelsSettings {}
+        if (root.active-category == 4) : PermissionsSettings {}
+        if (root.active-category == 5) : SkillsSettings {}
+        if (root.active-category == 6) : ExtensionsSettings {}
+        if (root.active-category == 7) : AboutSettings {}
+    }
+}

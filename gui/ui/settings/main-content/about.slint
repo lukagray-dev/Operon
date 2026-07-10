@@ -1,0 +1,38 @@
+// About settings category page for the Operon GUI.
+import { Tokens } from "../../shared/tokens.slint";
+
+export component AboutSettings inherits Rectangle {
+    background: transparent;
+    
+    VerticalLayout {
+        padding: 24px;
+        spacing: 16px;
+        alignment: start;
+        
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+            
+            Image {
+                source: @image-url("../../../assets/icons/settings/category-about.svg");
+                width: 20px;
+                height: 20px;
+                colorize: Tokens.text_primary;
+            }
+            
+            Text {
+                text: "About Operon";
+                color: Tokens.text_primary;
+                font-size: Tokens.body_font_size + 4px;
+                font-weight: 600;
+            }
+        }
+        
+        Text {
+            text: "Operon Version 0.1.0\n\nBuilt with Slint, Rust, and Tauri design elements. See licensing, documentation, and repository info.";
+            color: Tokens.text_muted;
+            font-size: Tokens.body_font_size;
+            wrap: TextWrap.word-wrap;
+        }
+    }
+}
