@@ -43,6 +43,9 @@ export component SettingsWindow inherits Window {
     callback close_window_requested();
     callback drag_window_requested();
     callback sidebar_toggle_requested();
+    callback github_requested();
+    callback documentation_requested();
+    callback report_issue_requested();
 
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
@@ -88,6 +91,10 @@ export component SettingsWindow inherits Window {
                 main-content := SettingsMainContent {
                     horizontal-stretch: 1;
                     active-category: root.active-category;
+                    
+                    github_requested => { root.github_requested(); }
+                    documentation_requested => { root.documentation_requested(); }
+                    report_issue_requested => { root.report_issue_requested(); }
                 }
             }
         }

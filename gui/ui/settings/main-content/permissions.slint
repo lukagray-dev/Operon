@@ -1,38 +1,649 @@
 // Permissions settings category page for the Operon GUI.
 import { Tokens } from "../../shared/tokens.slint";
+import { ScrollView } from "std-widgets.slint";
+
+component SegmentedControl2 inherits Rectangle {
+    in property <string> option1;
+    in property <string> option2;
+    in-out property <int> selected-index: 0;
+    
+    callback selected-changed(int);
+    
+    height: 32px;
+    background: #0d0d0d;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    
+    HorizontalLayout {
+        spacing: 0px;
+        padding: 2px;
+        
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 0 ? rgba(255, 255, 255, 0.08) : transparent;
+            
+            Text {
+                text: root.option1;
+                color: root.selected-index == 0 ? #e8e8e8 : #888888;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-index = 0;
+                    root.selected-changed(0);
+                }
+            }
+        }
+        
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 1 ? rgba(255, 255, 255, 0.08) : transparent;
+            
+            Text {
+                text: root.option2;
+                color: root.selected-index == 1 ? #e8e8e8 : #888888;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-index = 1;
+                    root.selected-changed(1);
+                }
+            }
+        }
+    }
+}
+
+component SegmentedControl3 inherits Rectangle {
+    in property <string> option1: "Allow";
+    in property <string> option2: "Ask";
+    in property <string> option3: "Deny";
+    in-out property <int> selected-index: 1; // 0, 1, 2
+    
+    callback selected-changed(int);
+    
+    height: 28px;
+    background: #0d0d0d;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    
+    HorizontalLayout {
+        spacing: 0px;
+        padding: 2px;
+        
+        // Option 1
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 0 ? rgba(255, 255, 255, 0.08) : transparent;
+            
+            Text {
+                text: root.option1;
+                color: root.selected-index == 0 ? #e8e8e8 : #555555;
+                font-size: Tokens.body_font_size - 2px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-index = 0;
+                    root.selected-changed(0);
+                }
+            }
+        }
+        
+        // Option 2
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 1 ? rgba(255, 255, 255, 0.08) : transparent;
+            
+            Text {
+                text: root.option2;
+                color: root.selected-index == 1 ? #e8e8e8 : #555555;
+                font-size: Tokens.body_font_size - 2px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-index = 1;
+                    root.selected-changed(1);
+                }
+            }
+        }
+        
+        // Option 3
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 2 ? rgba(255, 255, 255, 0.08) : transparent;
+            
+            Text {
+                text: root.option3;
+                color: root.selected-index == 2 ? #e8e8e8 : #555555;
+                font-size: Tokens.body_font_size - 2px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-index = 2;
+                    root.selected-changed(2);
+                }
+            }
+        }
+    }
+}
+
+component PermissionsInput inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in property <string> placeholder: "";
+    
+    height: 32px;
+    background: #0d0d0d;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        
+        input := TextInput {
+            font-size: Tokens.body_font_size - 1px;
+            font-family: Tokens.font_family;
+            color: Tokens.text_primary;
+            vertical-alignment: center;
+            single-line: true;
+        }
+    }
+    
+    // Placeholder text logic
+    if (input.text == "") : Text {
+        x: 8px;
+        text: root.placeholder;
+        color: Tokens.text_muted;
+        font-size: Tokens.body_font_size - 1px;
+        font-family: Tokens.font_family;
+        vertical-alignment: center;
+    }
+}
+
+component DirectoryRow inherits Rectangle {
+    in property <string> path;
+    in property <bool> is-workspace: false;
+    
+    callback configure-clicked();
+    callback remove-clicked();
+    
+    height: 44px;
+    background: #0d0d0d;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.04);
+    
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 12px;
+        
+        // 1. Directory icon (centered vertically)
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: @image-url("../../../assets/icons/settings/permission-directory.svg");
+                width: 14px;
+                height: 14px;
+                colorize: #888888;
+            }
+        }
+        
+        // 2. Path & Workspace Badge (centered vertically)
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                
+                Text {
+                    text: root.path;
+                    color: #e8e8e8;
+                    font-size: Tokens.body_font_size - 1px;
+                    vertical-alignment: center;
+                }
+                
+                if (root.is-workspace) : Rectangle {
+                    border-width: 1px;
+                    border-color: rgba(255, 255, 255, 0.1);
+                    border-radius: 4px;
+                    background: rgba(255, 255, 255, 0.02);
+                    
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        padding-top: 2px;
+                        padding-bottom: 2px;
+                        Text {
+                            text: "Workspace";
+                            color: #888888;
+                            font-size: Tokens.body_font_size - 3px;
+                            font-weight: 600;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 3. Action Buttons (centered vertically)
+        VerticalLayout {
+            alignment: center;
+            
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: end;
+                
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 6px;
+                    background: conf_touch.has-hover ? rgba(255, 255, 255, 0.05) : transparent;
+                    
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        source: @image-url("../../../assets/icons/settings/configure-directory-permissions.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: conf_touch.has-hover ? #e0e0e0 : #888888;
+                    }
+                    
+                    conf_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.configure-clicked(); }
+                    }
+                }
+                
+                if (!root.is-workspace) : Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 6px;
+                    background: rem_touch.has-hover ? rgba(255, 255, 255, 0.05) : transparent;
+                    
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        source: @image-url("../../../assets/icons/settings/permission-directory-remove.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: rem_touch.has-hover ? #e0e0e0 : #888888;
+                    }
+                    
+                    rem_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.remove-clicked(); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component PermissionToolRow inherits Rectangle {
+    in property <string> label;
+    in property <string> subtitle;
+    in-out property <int> mode-index: 1; // 0 = Allow, 1 = Ask, 2 = Deny
+    
+    height: 48px;
+    background: #0d0d0d;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.04);
+    
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 12px;
+        
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            
+            Text {
+                text: root.label;
+                color: #e8e8e8;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 500;
+            }
+            
+            Text {
+                text: root.subtitle;
+                color: #555555;
+                font-size: Tokens.body_font_size - 3px;
+            }
+        }
+        
+        VerticalLayout {
+            alignment: center;
+            SegmentedControl3 {
+                width: 140px;
+                selected-index <=> root.mode-index;
+            }
+        }
+    }
+}
 
 export component PermissionsSettings inherits Rectangle {
     background: transparent;
     
-    VerticalLayout {
-        padding: 24px;
-        spacing: 16px;
-        alignment: start;
+    // Tab tracking: 0 = Allowed Directories, 1 = Global
+    property <int> active-tab: 0;
+    
+    // Sub-view directory configuration
+    property <string> configure-directory: "";
+    
+    // Scope tracking: 0 = Owner, 1 = External
+    property <int> active-scope: 0;
+    
+    // Dummy directory data
+    property <[string]> allowed-directories: ["d:\\Operon", "c:\\Users\\soumo\\.gemini", "d:\\tauri-referance\\Operon"];
+    property <string> workspace-directory: "d:\\Operon";
+    
+    // New directory path input state
+    property <string> new-directory-path: "";
+    
+    ScrollView {
+        width: 100%;
+        height: 100%;
+        vertical-scrollbar-policy: always-off;
+        horizontal-scrollbar-policy: always-off;
         
-        HorizontalLayout {
-            spacing: 12px;
+        main_layout := VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
             alignment: start;
             
-            Image {
-                source: @image-url("../../../assets/icons/settings/category-permissions.svg");
-                width: 20px;
-                height: 20px;
-                colorize: Tokens.text_primary;
+            // 1. Page Header (Icon + Title)
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+                
+                Image {
+                    source: @image-url("../../../assets/icons/settings/category-permissions.svg");
+                    width: 20px;
+                    height: 20px;
+                }
+                
+                Text {
+                    text: "Permissions Settings";
+                    color: Tokens.text_primary;
+                    font-size: Tokens.body_font_size + 4px;
+                    font-weight: 600;
+                }
             }
             
-            Text {
-                text: "Permissions Settings";
-                color: Tokens.text_primary;
-                font-size: Tokens.body_font_size + 4px;
-                font-weight: 600;
+            // If in normal list view (directories or global)
+            if (root.configure-directory == "") : VerticalLayout {
+                spacing: 16px;
+                
+                // 2. Segmented Tab Selector
+                SegmentedControl2 {
+                    option1: "Allowed Directories";
+                    option2: "Global Permissions";
+                    selected-index <=> root.active-tab;
+                }
+                
+                // 3. Tab Contents
+                if (root.active-tab == 0) : VerticalLayout {
+                    spacing: 12px;
+                    
+                    // Directory rows
+                    for dir in root.allowed-directories : DirectoryRow {
+                        path: dir;
+                        is-workspace: dir == root.workspace-directory;
+                        configure-clicked => {
+                            root.configure-directory = dir;
+                        }
+                        remove-clicked => {
+                            // Dummy remove logic
+                            debug("remove clicked for dir");
+                        }
+                    }
+                    
+                    // Add directory row
+                    Rectangle {
+                        height: 17px;
+                        Rectangle {
+                            y: 8px;
+                            height: 1px;
+                            background: rgba(255, 255, 255, 0.05);
+                        }
+                    }
+                    
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Add directory";
+                            color: #e8e8e8;
+                            font-size: Tokens.body_font_size - 1px;
+                            font-weight: 600;
+                        }
+                        
+                        Text {
+                            text: "Allow tools to access a new directory path";
+                            color: Tokens.text_muted;
+                            font-size: Tokens.body_font_size - 2px;
+                        }
+                        
+                        HorizontalLayout {
+                            spacing: 8px;
+                            
+                            PermissionsInput {
+                                horizontal-stretch: 1;
+                                placeholder: "Directory path (e.g. /path/to/project)";
+                                text <=> root.new-directory-path;
+                            }
+                            
+                            // Add button
+                            add_btn := Rectangle {
+                                width: 32px;
+                                height: 32px;
+                                border-radius: 6px;
+                                background: add_touch.has-hover ? #242424 : #1a1a1a;
+                                border-width: 1px;
+                                border-color: rgba(255, 255, 255, 0.08);
+                                
+                                animate background { duration: 150ms; }
+                                
+                                Image {
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                    source: @image-url("../../../assets/icons/settings/plus.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: add_touch.has-hover ? #e0e0e0 : #888888;
+                                }
+                                
+                                add_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if (root.new-directory-path != "") {
+                                            root.new-directory-path = "";
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (root.active-tab == 1) : VerticalLayout {
+                    spacing: 12px;
+                    
+                    // Scope Selector
+                    HorizontalLayout {
+                        alignment: space-between;
+                        
+                        SegmentedControl2 {
+                            width: 180px;
+                            option1: "Owner";
+                            option2: "External";
+                            selected-index <=> root.active-scope;
+                        }
+                        
+                        Text {
+                            text: root.active-scope == 0 ? "Global · Owner scope" : "Global · External scope";
+                            color: Tokens.text_muted;
+                            font-size: Tokens.body_font_size - 2px;
+                            vertical-alignment: center;
+                        }
+                    }
+                    
+                    // Permission Rows
+                    PermissionToolRow {
+                        label: "Filesystem Read/Write";
+                        subtitle: "Allows read/write operations to system directories";
+                        mode-index: 0; // Allow
+                    }
+                    PermissionToolRow {
+                        label: "Terminal Shell Execution";
+                        subtitle: "Allows running commands in the terminal shell";
+                        mode-index: 1; // Ask
+                    }
+                    PermissionToolRow {
+                        label: "Network Connections";
+                        subtitle: "Allows outgoing HTTP requests and sockets";
+                        mode-index: 2; // Deny
+                    }
+                }
             }
-        }
-        
-        Text {
-            text: "Manage directory permissions, system tool access, and agent execution policies.";
-            color: Tokens.text_muted;
-            font-size: Tokens.body_font_size;
-            wrap: TextWrap.word-wrap;
+            
+            // If in Configure Directory View
+            if (root.configure-directory != "") : VerticalLayout {
+                spacing: 14px;
+                
+                // Back Button & Path Header
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    
+                    back_btn := Rectangle {
+                        width: 60px;
+                        height: 28px;
+                        border-radius: 6px;
+                        background: back_touch.has-hover ? #242424 : #1a1a1a;
+                        border-width: 1px;
+                        border-color: rgba(255, 255, 255, 0.08);
+                        
+                        animate background { duration: 150ms; }
+                        
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 4px;
+                            alignment: center;
+                            
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    source: @image-url("../../../assets/icons/settings/chevron-left.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: back_touch.has-hover ? #e0e0e0 : #888888;
+                                }
+                            }
+                            
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "Back";
+                                    color: back_touch.has-hover ? #e0e0e0 : #888888;
+                                    font-size: Tokens.body_font_size - 2px;
+                                    font-weight: 600;
+                                }
+                            }
+                        }
+                        
+                        back_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.configure-directory = "";
+                            }
+                        }
+                    }
+                    
+                    Text {
+                        text: "Directory: " + root.configure-directory;
+                        color: #e8e8e8;
+                        font-size: Tokens.body_font_size - 1px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                // Scope selector for the directory
+                HorizontalLayout {
+                    alignment: space-between;
+                    
+                    SegmentedControl2 {
+                        width: 180px;
+                        option1: "Owner";
+                        option2: "External";
+                        selected-index <=> root.active-scope;
+                    }
+                    
+                    Text {
+                        text: root.active-scope == 0 ? "Directory · Owner scope" : "Directory · External scope";
+                        color: Tokens.text_muted;
+                        font-size: Tokens.body_font_size - 2px;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                // Permission rows specific to the directory
+                PermissionToolRow {
+                    label: "Git Command Execution";
+                    subtitle: "Allows running git add, commit, push, etc.";
+                    mode-index: 0; // Allow
+                }
+                PermissionToolRow {
+                    label: "File System Write Access";
+                    subtitle: "Allows modifying files in this workspace";
+                    mode-index: 1; // Ask
+                }
+                PermissionToolRow {
+                    label: "External Script Running";
+                    subtitle: "Allows executing unverified binaries/scripts";
+                    mode-index: 2; // Deny
+                }
+            }
         }
     }
 }

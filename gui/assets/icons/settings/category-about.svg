@@ -1,51 +1,66 @@
 <svg width="512" height="512" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
   <!--
-    Operon Brand Logo
-    Based on the AI assistant avatar: blob body, curved antennae,
-    dark eyes with cyan pupils, rounded arms, pillar legs, gentle smile.
+    Operon Brand Logo (improved)
+    Symmetric around x=60, glossy gradients, limbs attached, antennae inside frame.
   -->
   <defs>
-    <!-- Body: radial gradient for 3D blob depth (lighter upper-left) -->
-    <radialGradient id="bodyGrad" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#60a5fa"/>
-      <stop offset="100%" stop-color="#2563eb"/>
+    <radialGradient id="bodyGrad" cx="38%" cy="32%" r="72%">
+      <stop offset="0%"  stop-color="#93c5fd"/>
+      <stop offset="55%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1e40af"/>
     </radialGradient>
-    <!-- Arms: slightly darker radial gradient for depth -->
-    <radialGradient id="armGrad" cx="40%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#2563eb"/>
+    <radialGradient id="armGrad" cx="38%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#3b82f6"/>
       <stop offset="100%" stop-color="#1d4ed8"/>
+    </radialGradient>
+    <linearGradient id="limbGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <radialGradient id="gloss" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="eyeGrad" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#0b1220"/>
     </radialGradient>
   </defs>
 
-  <!-- Legs — thin rounded-rect pillars at bottom, behind body -->
-  <rect x="46" y="91" width="7" height="18" rx="3.5" fill="#1d4ed8"/>
-  <rect x="67" y="91" width="7" height="18" rx="3.5" fill="#1d4ed8"/>
+  <!-- Antennae — symmetric, attached to body crown, fully inside frame -->
+  <path d="M 52 23 C 48 13 42 9 39 7" stroke="#93c5fd" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M 68 23 C 72 13 78 9 81 7" stroke="#93c5fd" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <circle cx="39" cy="7" r="4" fill="#bfdbfe"/>
+  <circle cx="81" cy="7" r="4" fill="#bfdbfe"/>
 
-  <!-- Arms — small rounded blobs on each side, behind body -->
-  <ellipse cx="18" cy="62" rx="12" ry="14" fill="url(#armGrad)"/>
-  <ellipse cx="102" cy="62" rx="12" ry="14" fill="url(#armGrad)"/>
+  <!-- Legs — rounded pillars tucked under the body so they read as attached -->
+  <rect x="49" y="86" width="8" height="22" rx="4" fill="url(#limbGrad)"/>
+  <rect x="63" y="86" width="8" height="22" rx="4" fill="url(#limbGrad)"/>
 
-  <!-- Body — large circular blob -->
-  <circle cx="60" cy="55" r="38" fill="url(#bodyGrad)"/>
+  <!-- Arms — blobs overlapping the body sides -->
+  <ellipse cx="22" cy="60" rx="12" ry="15" fill="url(#armGrad)"/>
+  <ellipse cx="98" cy="60" rx="12" ry="15" fill="url(#armGrad)"/>
 
-  <!-- Antennae — curved lines with hooked tips, on top of body -->
-  <path d="M 43 19 C 40 10 33 4 38 1" stroke="#60a5fa" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M 77 19 C 80 10 87 4 82 1" stroke="#60a5fa" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Body — large circular blob, centred on x=60 -->
+  <circle cx="60" cy="55" r="40" fill="url(#bodyGrad)"/>
 
-  <!-- Left eye — dark circle with cyan pupil and white glint -->
-  <circle cx="45" cy="48" r="10" fill="#111827"/>
-  <circle cx="45" cy="48" r="3.5" fill="#00f5d4"/>
-  <circle cx="43" cy="45" r="1.5" fill="white" opacity="0.35"/>
+  <!-- Glossy highlight on upper-left of body -->
+  <ellipse cx="46" cy="38" rx="22" ry="16" fill="url(#gloss)"/>
 
-  <!-- Right eye — dark circle with cyan pupil and white glint -->
-  <circle cx="75" cy="48" r="10" fill="#111827"/>
-  <circle cx="75" cy="48" r="3.5" fill="#00f5d4"/>
-  <circle cx="73" cy="45" r="1.5" fill="white" opacity="0.35"/>
+  <!-- Left eye -->
+  <circle cx="46" cy="50" r="11" fill="url(#eyeGrad)"/>
+  <circle cx="46" cy="50" r="4" fill="#00f5d4"/>
+  <circle cx="43.5" cy="46.5" r="1.8" fill="white" opacity="0.5"/>
 
-  <!-- Mouth — gentle smile -->
-  <path d="M 50 68 Q 60 75 70 68" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Right eye -->
+  <circle cx="74" cy="50" r="11" fill="url(#eyeGrad)"/>
+  <circle cx="74" cy="50" r="4" fill="#00f5d4"/>
+  <circle cx="71.5" cy="46.5" r="1.8" fill="white" opacity="0.5"/>
 
-  <!-- Cheeks — subtle blush -->
-  <circle cx="33" cy="58" r="5" fill="#60a5fa" opacity="0.25"/>
-  <circle cx="87" cy="58" r="5" fill="#60a5fa" opacity="0.25"/>
+  <!-- Mouth — gentle smile, centred -->
+  <path d="M 50 70 Q 60 78 70 70" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Cheeks — subtle symmetric blush -->
+  <circle cx="34" cy="62" r="5" fill="#bfdbfe" opacity="0.35"/>
+  <circle cx="86" cy="62" r="5" fill="#bfdbfe" opacity="0.35"/>
 </svg>

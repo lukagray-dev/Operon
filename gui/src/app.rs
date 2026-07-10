@@ -95,6 +95,24 @@ pub fn run() -> anyhow::Result<()> {
                     window.on_sidebar_toggle_requested(|| {
                         eprintln!("[operon-gui] Settings sidebar toggle requested.");
                     });
+
+                    window.on_github_requested(move || {
+                        if let Err(error) = crate::window::menu::open_repository() {
+                            eprintln!("[operon-gui][about] Failed to open repository: {error:#}");
+                        }
+                    });
+
+                    window.on_documentation_requested(move || {
+                        if let Err(error) = crate::window::menu::open_documentation() {
+                            eprintln!("[operon-gui][about] Failed to open documentation: {error:#}");
+                        }
+                    });
+
+                    window.on_report_issue_requested(move || {
+                        if let Err(error) = crate::window::menu::open_report_bug() {
+                            eprintln!("[operon-gui][about] Failed to open issue tracker: {error:#}");
+                        }
+                    });
                     
                     if let Err(error) = window.show() {
                         eprintln!("[operon-gui] Failed to show settings window: {error:#}");

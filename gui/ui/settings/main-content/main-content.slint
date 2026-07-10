@@ -18,6 +18,11 @@ export component SettingsMainContent inherits Rectangle {
     // Current category selection index matching the sidebar selection
     in property <int> active-category: 2;
 
+    // Callbacks to forward click events to the window controller
+    callback github_requested();
+    callback documentation_requested();
+    callback report_issue_requested();
+
     // Same background color as the main window sidebar
     background: Tokens.titlebar_background;
 
@@ -34,6 +39,10 @@ export component SettingsMainContent inherits Rectangle {
         if (root.active-category == 4) : PermissionsSettings {}
         if (root.active-category == 5) : SkillsSettings {}
         if (root.active-category == 6) : ExtensionsSettings {}
-        if (root.active-category == 7) : AboutSettings {}
+        if (root.active-category == 7) : AboutSettings {
+            github_requested => { root.github_requested(); }
+            documentation_requested => { root.documentation_requested(); }
+            report_issue_requested => { root.report_issue_requested(); }
+        }
     }
 }
