@@ -3,9 +3,10 @@
 // This component represents the separate settings window that is spawned
 // when the user clicks the Settings button in the sidebar.
 //
-// It uses default OS titlebars (no custom frame) as requested.
+// It uses a custom borderless design with the custom Titlebar component.
 
 import { Tokens } from "../shared/tokens.slint";
+import { Titlebar } from "../window/titlebar.slint";
 
 export component SettingsWindow inherits Window {
     // Falls back to a comfortable centered size for settings page
@@ -14,23 +15,69 @@ export component SettingsWindow inherits Window {
     min-width: 500px;
     min-height: 350px;
     
-    // Default OS window chrome is enabled (no no-frame property)
+    // Borderless frame styling
+    no-frame: true;
+    resize-border-width: Tokens.window_resize_border_width;
+    
     title: "Settings";
     icon: @image-url("../../assets/brand/operon.svg");
     background: Tokens.window_background;
     default-font-family: Tokens.font_family;
 
-    // Placeholder content for the settings page mockup (to be expanded later)
-    Rectangle {
-        background: transparent;
+    // Window state properties
+    in-out property <bool> window_maximized: false;
+    in-out property <float> ui_scale: 1.0;
+    // Current visibility state of the left sidebar (within settings - can default to true)
+    in-out property <bool> sidebar_open: true;
+
+    // Callbacks
+    callback minimize_requested();
+    callback maximize_requested();
+    callback close_window_requested();
+    callback drag_window_requested();
+    callback sidebar_toggle_requested();
+
+    // Main layout container: Titlebar on top, body content below
+    VerticalLayout {
+        spacing: 0px;
         
-        Text {
-            text: "Settings Workspace Placeholder";
-            color: Tokens.text_muted;
-            font-size: Tokens.body_font_size + 2px;
-            font-family: Tokens.font_family;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        // 1. Custom Titlebar (no menus, no navigation, but keeps logo/toggle and minimize/maximize/close actions)
+        titlebar := Titlebar {
+            width: 100%;
+            height: Tokens.titlebar_height;
+            is_maximized: root.window_maximized;
+            ui_scale: root.ui_scale;
+            sidebar_open: root.sidebar_open;
+            
+            // Hide navigation controls and dropdown menus
+            show_navigation: false;
+            show_menus: false;
+
+            sidebar_toggle_requested => {
+                root.sidebar_open = titlebar.sidebar_open;
+                root.sidebar_toggle_requested();
+            }
+
+            minimize_requested => { root.minimize_requested(); }
+            maximize_requested => { root.maximize_requested(); }
+            close_window_requested => { root.close_window_requested(); }
+            drag_window_requested => { root.drag_window_requested(); }
+        }
+
+        // 2. Settings Content Area
+        body := Rectangle {
+            vertical-stretch: 1;
+            background: transparent;
+
+            // Placeholder content for the settings page mockup (to be expanded later)
+            Text {
+                text: "Settings Workspace Placeholder";
+                color: Tokens.text_muted;
+                font-size: Tokens.body_font_size + 2px;
+                font-family: Tokens.font_family;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
         }
     }
 }

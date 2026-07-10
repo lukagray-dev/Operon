@@ -19,6 +19,10 @@ export component Titlebar inherits Rectangle {
     in property <float> ui_scale: 1.0;
     // Current visibility state of the left sidebar
     in-out property <bool> sidebar_open: true;
+    
+    // Configuration options to hide navigation and menus when reusing in popup windows
+    in property <bool> show_navigation: true;
+    in property <bool> show_menus: true;
 
     // Callback fired when the user clicks the brand logo to toggle the sidebar
     callback sidebar_toggle_requested();
@@ -98,6 +102,7 @@ export component Titlebar inherits Rectangle {
     navigation := NavigationControls {
         x: brand_container.x + brand_container.width + 8px;
         y: (Tokens.titlebar_height - Tokens.titlebar_icon_hit_height) / 2;
+        visible: root.show_navigation;
     }
 
     files_menu := FilesMenu {
@@ -105,6 +110,7 @@ export component Titlebar inherits Rectangle {
         y: 0px;
         open: root.active_menu == 1;
         ui_scale: root.ui_scale;
+        visible: root.show_menus;
         header_clicked => {
             root.active_menu = root.active_menu == 1 ? 0 : 1;
         }
@@ -118,6 +124,7 @@ export component Titlebar inherits Rectangle {
         y: 0px;
         open: root.active_menu == 2;
         ui_scale: root.ui_scale;
+        visible: root.show_menus;
         header_clicked => {
             root.active_menu = root.active_menu == 2 ? 0 : 2;
         }
@@ -143,6 +150,7 @@ export component Titlebar inherits Rectangle {
         y: 0px;
         open: root.active_menu == 3;
         ui_scale: root.ui_scale;
+        visible: root.show_menus;
         header_clicked => {
             root.active_menu = root.active_menu == 3 ? 0 : 3;
         }
@@ -162,6 +170,7 @@ export component Titlebar inherits Rectangle {
         y: 0px;
         open: root.active_menu == 4;
         ui_scale: root.ui_scale;
+        visible: root.show_menus;
         header_clicked => {
             root.active_menu = root.active_menu == 4 ? 0 : 4;
         }

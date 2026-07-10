@@ -56,12 +56,44 @@ pub fn run() -> anyhow::Result<()> {
                         winit_window.set_theme(Some(slint::winit_030::winit::window::Theme::Dark));
                     });
 
-                    // Set up the close handler to release our strong reference (closing/dropping it)
+                    // Wire custom titlebar window action callbacks
+                    let weak_window = window.as_weak();
                     let weak_handle = Rc::clone(&settings_window_handle);
-                    window.window().on_close_requested(move || {
-                        eprintln!("[operon-gui] Settings window closed by user request.");
+                    window.on_close_window_requested(move || {
+                        eprintln!("[operon-gui] Settings window close button clicked.");
+                        if let Some(w) = weak_window.upgrade() {
+                            let _ = w.hide();
+                        }
                         *weak_handle.borrow_mut() = None;
-                        slint::CloseRequestResponse::HideWindow
+                    });
+
+                    let weak_window = window.as_weak();
+                    window.on_drag_window_requested(move || {
+                        if let Some(w) = weak_window.upgrade() {
+                            let _ = w.window().with_winit_window(|winit_window| {
+                                let _ = winit_window.drag_window();
+                            });
+                        }
+                    });
+
+                    let weak_window = window.as_weak();
+                    window.on_minimize_requested(move || {
+                        if let Some(w) = weak_window.upgrade() {
+                            w.window().set_minimized(true);
+                        }
+                    });
+
+                    let weak_window = window.as_weak();
+                    window.on_maximize_requested(move || {
+                        if let Some(w) = weak_window.upgrade() {
+                            let next = !w.window().is_maximized();
+                            w.window().set_maximized(next);
+                            w.set_window_maximized(next);
+                        }
+                    });
+
+                    window.on_sidebar_toggle_requested(|| {
+                        eprintln!("[operon-gui] Settings sidebar toggle requested.");
                     });
                     
                     if let Err(error) = window.show() {
