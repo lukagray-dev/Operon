@@ -10,6 +10,7 @@ export component SettingsNavItem inherits Rectangle {
     in property <string> text;
     in property <image> icon;
     in property <bool> is-active: false;
+    in property <bool> colorize-icon: true;
     
     callback clicked();
     
@@ -36,9 +37,11 @@ export component SettingsNavItem inherits Rectangle {
                 source: root.icon;
                 width: 16px;
                 height: 16px;
-                colorize: root.is-active 
-                    ? #e8e8e8 
-                    : (touch-area.has-hover ? #bbbbbb : #555555);
+                colorize: !root.colorize-icon
+                    ? transparent
+                    : (root.is-active 
+                        ? #e8e8e8 
+                        : (touch-area.has-hover ? #bbbbbb : #555555));
                     
                 animate colorize { duration: 150ms; }
             }
@@ -171,6 +174,7 @@ export component SettingsSidebar inherits Rectangle {
             text: "About";
             icon: @image-url("../../../assets/icons/settings/category-about.svg");
             is-active: root.active-category == 7;
+            colorize-icon: false;
             clicked => {
                 root.active-category = 7;
                 root.category-changed(7);
