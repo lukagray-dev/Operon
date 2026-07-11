@@ -116,6 +116,70 @@ pub fn get_providers_list() -> Vec<ProviderSummary> {
         .collect()
 }
 
+/// Triggers asynchronous model discovery for a provider, caches the results, and updates the UI.
+fn trigger_model_discovery(
+    window: &crate::SettingsWindow,
+    provider_id: &str,
+    api_base: &str,
+    api_key: &str,
+) {
+    let provider_enum = match id_to_provider(provider_id) {
+        Some(p) => p,
+        None => {
+            window.set_provider_models(ModelRc::from(Rc::new(VecModel::default())));
+            return;
+        }
+    };
+
+    let weak_window = window.as_weak();
+    let provider_id_str = provider_id.to_string();
+    let api_key_str = api_key.to_string();
+    let api_base_str = api_base.to_string();
+
+    tokio::spawn(async move {
+        let base_opt = if api_base_str.trim().is_empty() { None } else { Some(api_base_str.as_str()) };
+        match operon_rs::discover_models(provider_enum, &api_key_str, base_opt).await {
+            Ok(result) => {
+                println!("[operon-gui][settings] Model auto-discovery succeeded: found {} models", result.models.len());
+                let model_ids: Vec<String> = result.models.into_iter().map(|m| m.model_id).collect();
+
+                // Cache the list
+                {
+                    let mut cache = discovered_models_cache().lock().unwrap();
+                    cache.insert(provider_id_str.clone(), model_ids.clone());
+                }
+
+                // Update the UI thread-safely
+                let slint_models: Vec<SharedString> = model_ids.into_iter().map(SharedString::from).collect();
+                let active_model = slint_models.first().cloned().unwrap_or_default();
+                
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(win) = weak_window.upgrade() {
+                        // Only apply the updates if the active configured provider in the view has not changed
+                        if win.get_selected_provider_id() == provider_id_str {
+                            win.set_provider_models(ModelRc::from(Rc::new(VecModel::from(slint_models))));
+                            if win.get_active_model().is_empty() {
+                                win.set_active_model(active_model);
+                            }
+                        }
+                    }
+                });
+            }
+            Err(e) => {
+                eprintln!("[operon-gui][settings] Model auto-discovery failed: {}", e);
+                // Clear the UI model list to reflect that discovery failed
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(win) = weak_window.upgrade() {
+                        if win.get_selected_provider_id() == provider_id_str {
+                            win.set_provider_models(ModelRc::from(Rc::new(VecModel::default())));
+                        }
+                    }
+                });
+            }
+        }
+    });
+}
+
 /// Registers the callback handlers on the Settings window for Models category settings.
 pub fn wire_models_settings(
     window: &crate::SettingsWindow,
@@ -158,8 +222,8 @@ pub fn wire_models_settings(
                     }
                 }
 
-                win.set_api_base_url(saved_base.into());
-                win.set_api_key(saved_key.into());
+                win.set_api_base_url(saved_base.clone().into());
+                win.set_api_key(saved_key.clone().into());
                 win.set_active_model(saved_model.into());
 
                 // Set fallback discovered models list from cache if it exists, otherwise empty
@@ -171,6 +235,11 @@ pub fn wire_models_settings(
                 let slint_models: Vec<SharedString> = cached_models.into_iter().map(SharedString::from).collect();
                 win.set_provider_models(ModelRc::from(Rc::new(VecModel::from(slint_models))));
                 win.set_models_active_view(1); // Transition to setup form view
+
+                // Auto-fetch available models if the API key is not empty (or if Ollama)
+                if !saved_key.is_empty() || provider_id == "ollama" {
+                    trigger_model_discovery(&win, &provider_id, &saved_base, &saved_key);
+                }
             }
         }
     });
@@ -233,53 +302,24 @@ pub fn wire_models_settings(
     window.on_provider_reload_clicked({
         let weak_window = weak_window.clone();
         move |provider_id, api_base, api_key| {
-            println!("[operon-gui][settings] Discovering models for: {}", provider_id);
-            
-            let provider_enum = match id_to_provider(provider_id.as_str()) {
-                Some(p) => p,
-                None => {
-                    eprintln!("[operon-gui][settings] Discovery failed: Unknown provider ID: {}", provider_id);
-                    return;
+            if let Some(win) = weak_window.upgrade() {
+                trigger_model_discovery(&win, &provider_id, &api_base, &api_key);
+            }
+        }
+    });
+
+    // Handler 4: Triggered automatically when the user modifies credentials (editing base URL or key)
+    window.on_provider_credentials_changed({
+        let weak_window = weak_window.clone();
+        move |provider_id, api_base, api_key| {
+            // Debounce/guard: Only run discovery if API key is populated and reasonably complete
+            // (>= 15 characters) or for local auth-free Ollama setup.
+            let is_valid_key = api_key.trim().len() >= 15 || provider_id == "ollama";
+            if is_valid_key {
+                if let Some(win) = weak_window.upgrade() {
+                    trigger_model_discovery(&win, &provider_id, &api_base, &api_key);
                 }
-            };
-
-            let weak_window_clone = weak_window.clone();
-            let provider_id_str = provider_id.to_string();
-            let api_key_str = api_key.to_string();
-            let api_base_str = api_base.to_string();
-
-            // Run model discovery asynchronously so it doesn't freeze the GUI event loop
-            tokio::spawn(async move {
-                let base_opt = if api_base_str.trim().is_empty() { None } else { Some(api_base_str.as_str()) };
-                match operon_rs::discover_models(provider_enum, &api_key_str, base_opt).await {
-                    Ok(result) => {
-                        println!("[operon-gui][settings] Model discovery succeeded: found {} models", result.models.len());
-                        let model_ids: Vec<String> = result.models.into_iter().map(|m| m.model_id).collect();
-
-                        // Cache the list
-                        {
-                            let mut cache = discovered_models_cache().lock().unwrap();
-                            cache.insert(provider_id_str.clone(), model_ids.clone());
-                        }
-
-                        // Update the UI thread-safely
-                        let slint_models: Vec<SharedString> = model_ids.into_iter().map(SharedString::from).collect();
-                        let active_model = slint_models.first().cloned().unwrap_or_default();
-                        
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(win) = weak_window_clone.upgrade() {
-                                win.set_provider_models(ModelRc::from(Rc::new(VecModel::from(slint_models))));
-                                if win.get_active_model().is_empty() {
-                                    win.set_active_model(active_model);
-                                }
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        eprintln!("[operon-gui][settings] Model discovery failed: {}", e);
-                    }
-                }
-            });
+            }
         }
     });
 }

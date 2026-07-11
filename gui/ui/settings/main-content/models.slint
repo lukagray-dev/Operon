@@ -29,6 +29,7 @@ export component ModelsSettings inherits Rectangle {
     callback provider-selected(string, string);
     callback save-clicked(string, string, string, string);
     callback reload-clicked(string, string, string);
+    callback credentials-changed(string, string, string);
     
     ScrollView {
         width: 100%;
@@ -103,6 +104,9 @@ export component ModelsSettings inherits Rectangle {
                 }
                 reload-clicked => {
                     root.reload-clicked(root.selected-provider-id, root.api-base-url, root.api-key);
+                }
+                credentials-changed(base, key) => {
+                    root.credentials-changed(root.selected-provider-id, base, key);
                 }
             }
         }

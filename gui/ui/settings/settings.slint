@@ -62,6 +62,7 @@ export component SettingsWindow inherits Window {
     callback provider-selected(string, string);
     callback provider-save-clicked(string, string, string, string);
     callback provider-reload-clicked(string, string, string);
+    callback provider-credentials-changed(string, string, string);
 
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
@@ -127,6 +128,9 @@ export component SettingsWindow inherits Window {
                     }
                     provider-reload-clicked(id, base-url, api-key) => {
                         root.provider-reload-clicked(id, base-url, api-key);
+                    }
+                    provider-credentials-changed(id, base-url, api-key) => {
+                        root.provider-credentials-changed(id, base-url, api-key);
                     }
                     
                     github_requested => { root.github_requested(); }

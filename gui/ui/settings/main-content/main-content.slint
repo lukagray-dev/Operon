@@ -38,6 +38,7 @@ export component SettingsMainContent inherits Rectangle {
     callback provider-selected(string, string);
     callback provider-save-clicked(string, string, string, string);
     callback provider-reload-clicked(string, string, string);
+    callback provider-credentials-changed(string, string, string);
 
     // Same background color as the main window sidebar
     background: Tokens.titlebar_background;
@@ -66,6 +67,9 @@ export component SettingsMainContent inherits Rectangle {
             }
             reload-clicked(id, base-url, api-key) => {
                 root.provider-reload-clicked(id, base-url, api-key);
+            }
+            credentials-changed(id, base-url, api-key) => {
+                root.provider-credentials-changed(id, base-url, api-key);
             }
         }
         if (root.active-category == 3) : ChannelsSettings {}

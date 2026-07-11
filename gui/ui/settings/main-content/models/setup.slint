@@ -6,6 +6,9 @@ component ModelsInput inherits Rectangle {
     in-out property <string> text <=> input.text;
     in property <string> placeholder: "";
     in property <bool> is-password: false;
+    clip: true;
+    
+    callback edited(string);
     
     height: 32px;
     background: #0d0d0d;
@@ -24,6 +27,7 @@ component ModelsInput inherits Rectangle {
             vertical-alignment: center;
             single-line: true;
             input-type: root.is-password ? InputType.password : InputType.text;
+            edited => { root.edited(self.text); }
         }
     }
     
@@ -121,6 +125,7 @@ export component ProviderSetup inherits Rectangle {
     callback back-clicked();
     callback save-clicked();
     callback reload-clicked();
+    callback credentials-changed(string, string);
     
     // Input list of discovered models passed dynamically
     in property <[string]> discovered-models;
@@ -195,6 +200,7 @@ export component ProviderSetup inherits Rectangle {
             ModelsInput {
                 placeholder: "https://api.openai.com/v1";
                 text <=> root.api-base-url;
+                edited(t) => { root.credentials-changed(t, root.api-key); }
             }
         }
         
@@ -206,6 +212,7 @@ export component ProviderSetup inherits Rectangle {
                 placeholder: "sk-proj-xxxxxxxxxxxxxxxx";
                 is-password: true;
                 text <=> root.api-key;
+                edited(t) => { root.credentials-changed(root.api-base-url, t); }
             }
         }
         
