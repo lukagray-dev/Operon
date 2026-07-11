@@ -7,13 +7,28 @@ export struct ProviderSummary {
     status: string,
     active-model: string,
     is-active: bool,
-    icon: image,
 }
 
 component ProviderCard inherits Rectangle {
     in property <ProviderSummary> provider;
     
     callback clicked();
+    
+    pure function provider_icon(id: string) -> image {
+        if (id == "open_ai") { return @image-url("../../../../assets/icons/settings/provider-openai.svg"); }
+        if (id == "anthropic") { return @image-url("../../../../assets/icons/settings/provider-anthropic.svg"); }
+        if (id == "gemini") { return @image-url("../../../../assets/icons/settings/provider-google.svg"); }
+        if (id == "groq") { return @image-url("../../../../assets/icons/settings/provider-groq.svg"); }
+        if (id == "open_router") { return @image-url("../../../../assets/icons/settings/provider-openrouter.svg"); }
+        if (id == "deep_seek") { return @image-url("../../../../assets/icons/settings/provider-deepseek.svg"); }
+        if (id == "moonshot") { return @image-url("../../../../assets/icons/settings/provider-moonshot.svg"); }
+        if (id == "mistral") { return @image-url("../../../../assets/icons/settings/provider-mistral.svg"); }
+        if (id == "huggingface") { return @image-url("../../../../assets/icons/settings/provider-huggingface.svg"); }
+        if (id == "ollama") { return @image-url("../../../../assets/icons/settings/provider-ollama.svg"); }
+        if (id == "qwen") { return @image-url("../../../../assets/icons/settings/provider-qwen.svg"); }
+        if (id == "nvidia_nim") { return @image-url("../../../../assets/icons/settings/provider-nvidia.svg"); }
+        return @image-url("../../../../assets/icons/settings/provider-custom.svg");
+    }
     
     height: 58px;
     background: touch_area.has-hover ? #1a1a1a : #0d0d0d;
@@ -40,7 +55,7 @@ component ProviderCard inherits Rectangle {
                 Image {
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
-                    source: root.provider.icon;
+                    source: provider_icon(root.provider.id);
                     width: 18px;
                     height: 18px;
                 }
@@ -136,112 +151,7 @@ export component ProvidersList inherits Rectangle {
     
     callback provider-selected(string, string); // Emits (provider-id, provider-label)
     
-    in property <[ProviderSummary]> providers: [
-        {
-            id: "openai",
-            label: "OpenAI",
-            status: "Configured",
-            active-model: "gpt-4o",
-            is-active: true,
-            icon: @image-url("../../../../assets/icons/settings/provider-openai.svg")
-        },
-        {
-            id: "anthropic",
-            label: "Anthropic",
-            status: "Configured",
-            active-model: "claude-3-5-sonnet",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-anthropic.svg")
-        },
-        {
-            id: "google",
-            label: "Google Gemini",
-            status: "API key required",
-            active-model: "gemini-1.5-pro",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-google.svg")
-        },
-        {
-            id: "groq",
-            label: "Groq",
-            status: "API key required",
-            active-model: "llama3-70b-8192",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-groq.svg")
-        },
-        {
-            id: "openrouter",
-            label: "OpenRouter",
-            status: "API key required",
-            active-model: "auto",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-openrouter.svg")
-        },
-        {
-            id: "deepseek",
-            label: "DeepSeek",
-            status: "Not configured",
-            active-model: "deepseek-coder",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-deepseek.svg")
-        },
-        {
-            id: "moonshot",
-            label: "Moonshot",
-            status: "Not configured",
-            active-model: "moonshot-v1-8k",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-moonshot.svg")
-        },
-        {
-            id: "mistral",
-            label: "Mistral",
-            status: "Not configured",
-            active-model: "mistral-large-latest",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-mistral.svg")
-        },
-        {
-            id: "huggingface",
-            label: "Hugging Face",
-            status: "Not configured",
-            active-model: "meta-llama/Meta-Llama-3-8B-Instruct",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-huggingface.svg")
-        },
-        {
-            id: "ollama",
-            label: "Ollama (Local)",
-            status: "Configured",
-            active-model: "llama3",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-ollama.svg")
-        },
-        {
-            id: "qwen",
-            label: "Qwen",
-            status: "Not configured",
-            active-model: "qwen-turbo",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-qwen.svg")
-        },
-        {
-            id: "nvidia",
-            label: "NVIDIA NIM",
-            status: "Not configured",
-            active-model: "meta/llama3-70b-instruct",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-nvidia.svg")
-        },
-        {
-            id: "custom",
-            label: "Custom Provider",
-            status: "Not configured",
-            active-model: "custom-model",
-            is-active: false,
-            icon: @image-url("../../../../assets/icons/settings/provider-custom.svg")
-        }
-    ];
+    in property <[ProviderSummary]> providers: [];
     
     VerticalLayout {
         spacing: 10px;

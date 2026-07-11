@@ -11,6 +11,7 @@ import { Titlebar } from "../window/titlebar.slint";
 // Import Sidebar and Settings main content viewport
 import { SettingsSidebar } from "./left-sidebar/sidebar.slint";
 import { SettingsMainContent } from "./main-content/main-content.slint";
+import { ProviderSummary } from "./main-content/models/providers.slint";
 
 export component SettingsWindow inherits Window {
     // Falls back to a comfortable centered size for settings page
@@ -46,6 +47,21 @@ export component SettingsWindow inherits Window {
     callback github_requested();
     callback documentation_requested();
     callback report_issue_requested();
+
+    // Models configuration properties forwarded to viewport
+    in property <[ProviderSummary]> providers: [];
+    in-out property <string> selected-provider-id: "";
+    in-out property <string> selected-provider-label: "";
+    in-out property <string> api-base-url: "";
+    in-out property <string> api-key: "";
+    in-out property <string> active-model: "";
+    in-out property <[string]> provider-models: [];
+    in-out property <int> models-active-view: 0;
+
+    // Models callbacks forwarded to viewport
+    callback provider-selected(string, string);
+    callback provider-save-clicked(string, string, string, string);
+    callback provider-reload-clicked(string, string, string);
 
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
@@ -93,6 +109,25 @@ export component SettingsWindow inherits Window {
                 main-content := SettingsMainContent {
                     horizontal-stretch: 1;
                     active-category: root.active-category;
+
+                    // Bind models configuration properties
+                    providers: root.providers;
+                    selected-provider-id <=> root.selected-provider-id;
+                    selected-provider-label <=> root.selected-provider-label;
+                    api-base-url <=> root.api-base-url;
+                    api-key <=> root.api-key;
+                    active-model <=> root.active-model;
+                    provider-models <=> root.provider-models;
+                    models-active-view <=> root.models-active-view;
+
+                    // Bind models callbacks
+                    provider-selected(id, label) => { root.provider-selected(id, label); }
+                    provider-save-clicked(id, base-url, api-key, active-model) => {
+                        root.provider-save-clicked(id, base-url, api-key, active-model);
+                    }
+                    provider-reload-clicked(id, base-url, api-key) => {
+                        root.provider-reload-clicked(id, base-url, api-key);
+                    }
                     
                     github_requested => { root.github_requested(); }
                     documentation_requested => { root.documentation_requested(); }

@@ -17,6 +17,8 @@ serde.workspace       = true
 toml.workspace        = true
 dirs.workspace        = true
 
+operon-rs = { path = "../operon-rs" }
+
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 
 # Slint GUI framework — declarative UI language and runtime

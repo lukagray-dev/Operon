@@ -8,6 +8,7 @@ slint::include_modules!();
 pub mod app;
 pub mod state;
 pub mod window;
+pub mod settings;
 
 /// Starts the Operon GUI application.
 ///

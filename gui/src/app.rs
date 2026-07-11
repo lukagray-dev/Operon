@@ -113,6 +113,9 @@ pub fn run() -> anyhow::Result<()> {
                             eprintln!("[operon-gui][about] Failed to open issue tracker: {error:#}");
                         }
                     });
+
+                    // Wire dynamic settings categories (e.g. Models config) and navigation
+                    crate::settings::wire_settings_window(&window, Rc::clone(&state));
                     
                     if let Err(error) = window.show() {
                         eprintln!("[operon-gui] Failed to show settings window: {error:#}");

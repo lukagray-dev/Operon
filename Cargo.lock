@@ -4742,6 +4742,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "dirs 6.0.0",
+ "operon-rs",
  "serde",
  "slint",
  "slint-build",

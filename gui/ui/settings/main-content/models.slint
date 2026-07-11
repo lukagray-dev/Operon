@@ -1,26 +1,34 @@
 // Models settings category page coordinating list and setup views.
 import { Tokens } from "../../shared/tokens.slint";
 import { ScrollView } from "std-widgets.slint";
-import { ProvidersList } from "./models/providers.slint";
+import { ProvidersList, ProviderSummary } from "./models/providers.slint";
 import { ProviderSetup } from "./models/setup.slint";
 
 export component ModelsSettings inherits Rectangle {
     background: transparent;
     
     // View state tracking: 0 = Providers List, 1 = Provider Setup
-    property <int> active-view: 0;
+    in-out property <int> active-view: 0;
     
     // Selection state
-    property <string> selected-provider-id: "";
-    property <string> selected-provider-label: "";
+    in-out property <string> selected-provider-id: "";
+    in-out property <string> selected-provider-label: "";
     
     // Input state
-    property <string> api-base-url: "";
-    property <string> api-key: "";
-    property <string> active-model: "";
+    in-out property <string> api-base-url: "";
+    in-out property <string> api-key: "";
+    in-out property <string> active-model: "";
     
     // Dynamic models list based on selection
-    property <[string]> provider-models: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"];
+    in-out property <[string]> provider-models: [];
+
+    // Providers list from Rust
+    in property <[ProviderSummary]> providers;
+
+    // Callbacks to forward events to the Rust controller
+    callback provider-selected(string, string);
+    callback save-clicked(string, string, string, string);
+    callback reload-clicked(string, string, string);
     
     ScrollView {
         width: 100%;
@@ -73,77 +81,9 @@ export component ModelsSettings inherits Rectangle {
             
             // 2. View Switching
             if (root.active-view == 0) : ProvidersList {
+                providers: root.providers;
                 provider-selected(id, label) => {
-                    root.selected-provider-id = id;
-                    root.selected-provider-label = label;
-                    
-                    // Seed defaults and dynamic models list
-                    if (id == "openai") {
-                        root.api-base-url = "https://api.openai.com/v1";
-                        root.active-model = "gpt-4o";
-                        root.provider-models = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"];
-                    }
-                    if (id == "anthropic") {
-                        root.api-base-url = "https://api.anthropic.com/v1";
-                        root.active-model = "claude-3-5-sonnet";
-                        root.provider-models = ["claude-3-5-sonnet", "claude-3-opus", "claude-3-haiku"];
-                    }
-                    if (id == "google") {
-                        root.api-base-url = "https://generativelanguage.googleapis.com";
-                        root.active-model = "gemini-1.5-pro";
-                        root.provider-models = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"];
-                    }
-                    if (id == "groq") {
-                        root.api-base-url = "https://api.groq.com/openai/v1";
-                        root.active-model = "llama3-70b-8192";
-                        root.provider-models = ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"];
-                    }
-                    if (id == "openrouter") {
-                        root.api-base-url = "https://openrouter.ai/api/v1";
-                        root.active-model = "auto";
-                        root.provider-models = ["auto", "openai/gpt-4o", "anthropic/claude-3.5-sonnet"];
-                    }
-                    if (id == "deepseek") {
-                        root.api-base-url = "https://api.deepseek.com/v1";
-                        root.active-model = "deepseek-coder";
-                        root.provider-models = ["deepseek-coder", "deepseek-chat"];
-                    }
-                    if (id == "moonshot") {
-                        root.api-base-url = "https://api.moonshot.cn/v1";
-                        root.active-model = "moonshot-v1-8k";
-                        root.provider-models = ["moonshot-v1-8k", "moonshot-v1-32k"];
-                    }
-                    if (id == "mistral") {
-                        root.api-base-url = "https://api.mistral.ai/v1";
-                        root.active-model = "mistral-large-latest";
-                        root.provider-models = ["mistral-large-latest", "mistral-medium", "open-mixtral-8x22b"];
-                    }
-                    if (id == "huggingface") {
-                        root.api-base-url = "https://api-inference.huggingface.co/v1";
-                        root.active-model = "meta-llama/Meta-Llama-3-8B-Instruct";
-                        root.provider-models = ["meta-llama/Meta-Llama-3-8B-Instruct", "mistralai/Mistral-7B-Instruct-v0.2"];
-                    }
-                    if (id == "ollama") {
-                        root.api-base-url = "http://localhost:11434";
-                        root.active-model = "llama3";
-                        root.provider-models = ["llama3", "mistral", "codegemma"];
-                    }
-                    if (id == "qwen") {
-                        root.api-base-url = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-                        root.active-model = "qwen-turbo";
-                        root.provider-models = ["qwen-turbo", "qwen-plus", "qwen-max"];
-                    }
-                    if (id == "nvidia") {
-                        root.api-base-url = "https://integrate.api.nvidia.com/v1";
-                        root.active-model = "meta/llama3-70b-instruct";
-                        root.provider-models = ["meta/llama3-70b-instruct", "nvidia/nemotron-4-340b-instruct"];
-                    }
-                    if (id == "custom") {
-                        root.api-base-url = "http://localhost:8000/v1";
-                        root.active-model = "custom-model";
-                        root.provider-models = ["custom-model-1", "custom-model-2"];
-                    }
-                    root.active-view = 1;
+                    root.provider-selected(id, label);
                 }
             }
             
@@ -159,10 +99,10 @@ export component ModelsSettings inherits Rectangle {
                     root.active-view = 0;
                 }
                 save-clicked => {
-                    root.active-view = 0;
+                    root.save-clicked(root.selected-provider-id, root.api-base-url, root.api-key, root.active-model);
                 }
                 reload-clicked => {
-                    debug("reload clicked");
+                    root.reload-clicked(root.selected-provider-id, root.api-base-url, root.api-key);
                 }
             }
         }

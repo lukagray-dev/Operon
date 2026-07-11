@@ -13,6 +13,7 @@ import { PermissionsSettings } from "./permissions.slint";
 import { SkillsSettings } from "./skills.slint";
 import { ExtensionsSettings } from "./extensions.slint";
 import { AboutSettings } from "./about.slint";
+import { ProviderSummary } from "./models/providers.slint";
 
 export component SettingsMainContent inherits Rectangle {
     // Current category selection index matching the sidebar selection
@@ -22,6 +23,21 @@ export component SettingsMainContent inherits Rectangle {
     callback github_requested();
     callback documentation_requested();
     callback report_issue_requested();
+
+    // Models configuration properties forwarded from window
+    in property <[ProviderSummary]> providers: [];
+    in-out property <string> selected-provider-id: "";
+    in-out property <string> selected-provider-label: "";
+    in-out property <string> api-base-url: "";
+    in-out property <string> api-key: "";
+    in-out property <string> active-model: "";
+    in-out property <[string]> provider-models: [];
+    in-out property <int> models-active-view: 0;
+
+    // Models callbacks forwarded to window
+    callback provider-selected(string, string);
+    callback provider-save-clicked(string, string, string, string);
+    callback provider-reload-clicked(string, string, string);
 
     // Same background color as the main window sidebar
     background: Tokens.titlebar_background;
@@ -34,7 +50,24 @@ export component SettingsMainContent inherits Rectangle {
 
         if (root.active-category == 0) : GeneralSettings {}
         if (root.active-category == 1) : AppearanceSettings {}
-        if (root.active-category == 2) : ModelsSettings {}
+        if (root.active-category == 2) : ModelsSettings {
+            providers: root.providers;
+            selected-provider-id <=> root.selected-provider-id;
+            selected-provider-label <=> root.selected-provider-label;
+            api-base-url <=> root.api-base-url;
+            api-key <=> root.api-key;
+            active-model <=> root.active-model;
+            provider-models <=> root.provider-models;
+            active-view <=> root.models-active-view;
+
+            provider-selected(id, label) => { root.provider-selected(id, label); }
+            save-clicked(id, base-url, api-key, active-model) => {
+                root.provider-save-clicked(id, base-url, api-key, active-model);
+            }
+            reload-clicked(id, base-url, api-key) => {
+                root.provider-reload-clicked(id, base-url, api-key);
+            }
+        }
         if (root.active-category == 3) : ChannelsSettings {}
         if (root.active-category == 4) : PermissionsSettings {}
         if (root.active-category == 5) : SkillsSettings {}
