@@ -21,6 +21,9 @@ pub fn wire_settings_content(
     // Wire models configuration settings panel
     models::wire_models_settings(window, Rc::clone(&state));
 
+    // Wire permissions settings panel
+    permissions::wire_permissions_settings(window, Rc::clone(&state));
+
     // Placeholders for other categories:
     // general::wire_general_settings(window, Rc::clone(&state));
     // appearance::wire_appearance_settings(window, Rc::clone(&state));

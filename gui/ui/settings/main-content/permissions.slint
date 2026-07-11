@@ -314,12 +314,46 @@ component DirectoryRow inherits Rectangle {
     }
 }
 
-component PermissionToolRow inherits Rectangle {
+export struct PermissionItem {
+    key: string,
+    label: string,
+    subtitle: string,
+    mode: string,      // "allow", "ask", "deny", "custom"
+    base-mode: string, // "allow", "ask", "deny"
+    is-explicit: bool,
+    kind: string,      // "group" or "tool"
+    group-key: string,
+    is-expanded: bool,
+    has-tools: bool,
+}
+
+export global PermissionHelpers {
+    public pure function mode_to_index(mode: string) -> int {
+        if (mode == "allow") { return 0; }
+        if (mode == "ask") { return 1; }
+        if (mode == "deny") { return 2; }
+        return 1; // Default to "ask"
+    }
+
+    public pure function index_to_mode(index: int) -> string {
+        if (index == 0) { return "allow"; }
+        if (index == 1) { return "ask"; }
+        if (index == 2) { return "deny"; }
+        return "ask";
+    }
+}
+
+component PermissionGroupRow inherits Rectangle {
     in property <string> label;
     in property <string> subtitle;
-    in-out property <int> mode-index: 1; // 0 = Allow, 1 = Ask, 2 = Deny
+    in property <string> mode;
+    in property <bool> is-expanded: false;
+    in property <bool> has-tools: false;
     
-    height: 48px;
+    callback toggle-expanded();
+    callback mode-changed(string);
+    
+    height: 52px;
     background: #0d0d0d;
     border-radius: 6px;
     border-width: 1px;
@@ -330,6 +364,53 @@ component PermissionToolRow inherits Rectangle {
         padding-right: 12px;
         spacing: 12px;
         
+        // 1. Expand/Collapse arrow + Package Icon
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            
+            VerticalLayout {
+                alignment: center;
+                if (root.has-tools) : Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 4px;
+                    background: expand_touch.has-hover ? rgba(255, 255, 255, 0.04) : transparent;
+                    
+                    Image {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        source: root.is-expanded 
+                            ? @image-url("../../../assets/icons/settings/chevron-up.svg") 
+                            : @image-url("../../../assets/icons/settings/chevron-down.svg");
+                        width: 10px;
+                        height: 10px;
+                        colorize: expand_touch.has-hover ? #e0e0e0 : #555555;
+                    }
+                    
+                    expand_touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.toggle-expanded(); }
+                    }
+                }
+                if (!root.has-tools) : Rectangle {
+                    width: 20px;
+                    height: 20px;
+                }
+            }
+            
+            VerticalLayout {
+                alignment: center;
+                Image {
+                    source: @image-url("../../../assets/icons/settings/package.svg");
+                    width: 16px;
+                    height: 16px;
+                    colorize: #888888;
+                }
+            }
+        }
+        
+        // 2. Text Details
         VerticalLayout {
             horizontal-stretch: 1;
             alignment: center;
@@ -339,7 +420,7 @@ component PermissionToolRow inherits Rectangle {
                 text: root.label;
                 color: #e8e8e8;
                 font-size: Tokens.body_font_size - 1px;
-                font-weight: 500;
+                font-weight: 600;
             }
             
             Text {
@@ -349,11 +430,78 @@ component PermissionToolRow inherits Rectangle {
             }
         }
         
+        // 3. Segmented Control
         VerticalLayout {
             alignment: center;
             SegmentedControl3 {
                 width: 140px;
-                selected-index <=> root.mode-index;
+                selected-index: PermissionHelpers.mode_to_index(root.mode);
+                selected-changed(index) => {
+                    root.mode-changed(PermissionHelpers.index_to_mode(index));
+                }
+            }
+        }
+    }
+}
+
+component PermissionToolRow inherits Rectangle {
+    in property <string> label;
+    in property <string> subtitle;
+    in property <string> mode;
+    
+    callback mode-changed(string);
+    
+    height: 48px;
+    background: #090909;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.02);
+    
+    HorizontalLayout {
+        padding-left: 24px; // Indent tool rows
+        padding-right: 12px;
+        spacing: 12px;
+        
+        // 1. Tool Icon
+        VerticalLayout {
+            alignment: center;
+            Image {
+                source: @image-url("../../../assets/icons/settings/code.svg");
+                width: 14px;
+                height: 14px;
+                colorize: #555555;
+            }
+        }
+        
+        // 2. Text Details
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            
+            Text {
+                text: root.label;
+                color: #d0d0d0;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 500;
+            }
+            
+            Text {
+                text: root.subtitle;
+                color: #444444;
+                font-size: Tokens.body_font_size - 3px;
+            }
+        }
+        
+        // 3. Segmented Control
+        VerticalLayout {
+            alignment: center;
+            SegmentedControl3 {
+                width: 140px;
+                selected-index: PermissionHelpers.mode_to_index(root.mode);
+                selected-changed(index) => {
+                    root.mode-changed(PermissionHelpers.index_to_mode(index));
+                }
             }
         }
     }
@@ -363,20 +511,33 @@ export component PermissionsSettings inherits Rectangle {
     background: transparent;
     
     // Tab tracking: 0 = Allowed Directories, 1 = Global
-    property <int> active-tab: 0;
+    in-out property <int> active-tab: 0;
     
-    // Sub-view directory configuration
-    property <string> configure-directory: "";
+    // Sub-view directory configuration (empty means allowed directories tab list view)
+    in-out property <string> configure-directory: "";
     
     // Scope tracking: 0 = Owner, 1 = External
-    property <int> active-scope: 0;
+    in-out property <int> active-scope: 0;
     
-    // Dummy directory data
-    property <[string]> allowed-directories: ["d:\\Operon", "c:\\Users\\soumo\\.gemini", "d:\\tauri-referance\\Operon"];
-    property <string> workspace-directory: "d:\\Operon";
+    // Directories list
+    in property <[string]> allowed-directories: [];
+    in property <string> workspace-directory: "";
     
     // New directory path input state
-    property <string> new-directory-path: "";
+    in-out property <string> new-directory-path: "";
+    
+    // Flat loop items list for the current tab / directory scope
+    in property <[PermissionItem]> permission-items: [];
+    
+    // Callbacks to forward events to the Rust controller
+    callback tab-changed(int);
+    callback scope-changed(int);
+    callback configure-directory-clicked(string);
+    callback configure-directory-back();
+    callback add-directory-clicked(string);
+    callback remove-directory-clicked(string);
+    callback toggle-group-expanded(string);
+    callback set-permission-mode(string, string, string);
     
     ScrollView {
         width: 100%;
@@ -418,6 +579,9 @@ export component PermissionsSettings inherits Rectangle {
                     option1: "Allowed Directories";
                     option2: "Global Permissions";
                     selected-index <=> root.active-tab;
+                    selected-changed(idx) => {
+                        root.tab-changed(idx);
+                    }
                 }
                 
                 // 3. Tab Contents
@@ -429,11 +593,10 @@ export component PermissionsSettings inherits Rectangle {
                         path: dir;
                         is-workspace: dir == root.workspace-directory;
                         configure-clicked => {
-                            root.configure-directory = dir;
+                            root.configure-directory-clicked(dir);
                         }
                         remove-clicked => {
-                            // Dummy remove logic
-                            debug("remove clicked for dir");
+                            root.remove-directory-clicked(dir);
                         }
                     }
                     
@@ -496,6 +659,7 @@ export component PermissionsSettings inherits Rectangle {
                                     mouse-cursor: pointer;
                                     clicked => {
                                         if (root.new-directory-path != "") {
+                                            root.add-directory-clicked(root.new-directory-path);
                                             root.new-directory-path = "";
                                         }
                                     }
@@ -517,6 +681,9 @@ export component PermissionsSettings inherits Rectangle {
                             option1: "Owner";
                             option2: "External";
                             selected-index <=> root.active-scope;
+                            selected-changed(idx) => {
+                                root.scope-changed(idx);
+                            }
                         }
                         
                         Text {
@@ -528,20 +695,25 @@ export component PermissionsSettings inherits Rectangle {
                     }
                     
                     // Permission Rows
-                    PermissionToolRow {
-                        label: "Filesystem Read/Write";
-                        subtitle: "Allows read/write operations to system directories";
-                        mode-index: 0; // Allow
-                    }
-                    PermissionToolRow {
-                        label: "Terminal Shell Execution";
-                        subtitle: "Allows running commands in the terminal shell";
-                        mode-index: 1; // Ask
-                    }
-                    PermissionToolRow {
-                        label: "Network Connections";
-                        subtitle: "Allows outgoing HTTP requests and sockets";
-                        mode-index: 2; // Deny
+                    for item in root.permission-items : VerticalLayout {
+                        spacing: 8px;
+                        
+                        if (item.kind == "group") : PermissionGroupRow {
+                            label: item.label;
+                            subtitle: item.subtitle;
+                            mode: item.mode;
+                            is-expanded: item.is-expanded;
+                            has-tools: item.has-tools;
+                            toggle-expanded => { root.toggle-group-expanded(item.key); }
+                            mode-changed(m) => { root.set-permission-mode(item.key, item.kind, m); }
+                        }
+                        
+                        if (item.kind == "tool") : PermissionToolRow {
+                            label: item.label;
+                            subtitle: item.subtitle;
+                            mode: item.mode;
+                            mode-changed(m) => { root.set-permission-mode(item.key, item.kind, m); }
+                        }
                     }
                 }
             }
@@ -595,7 +767,7 @@ export component PermissionsSettings inherits Rectangle {
                         back_touch := TouchArea {
                             mouse-cursor: pointer;
                             clicked => {
-                                root.configure-directory = "";
+                                root.configure-directory-back();
                             }
                         }
                     }
@@ -618,6 +790,9 @@ export component PermissionsSettings inherits Rectangle {
                         option1: "Owner";
                         option2: "External";
                         selected-index <=> root.active-scope;
+                        selected-changed(idx) => {
+                            root.scope-changed(idx);
+                        }
                     }
                     
                     Text {
@@ -629,20 +804,25 @@ export component PermissionsSettings inherits Rectangle {
                 }
                 
                 // Permission rows specific to the directory
-                PermissionToolRow {
-                    label: "Git Command Execution";
-                    subtitle: "Allows running git add, commit, push, etc.";
-                    mode-index: 0; // Allow
-                }
-                PermissionToolRow {
-                    label: "File System Write Access";
-                    subtitle: "Allows modifying files in this workspace";
-                    mode-index: 1; // Ask
-                }
-                PermissionToolRow {
-                    label: "External Script Running";
-                    subtitle: "Allows executing unverified binaries/scripts";
-                    mode-index: 2; // Deny
+                for item in root.permission-items : VerticalLayout {
+                    spacing: 8px;
+                    
+                    if (item.kind == "group") : PermissionGroupRow {
+                        label: item.label;
+                        subtitle: item.subtitle;
+                        mode: item.mode;
+                        is-expanded: item.is-expanded;
+                        has-tools: item.has-tools;
+                        toggle-expanded => { root.toggle-group-expanded(item.key); }
+                        mode-changed(m) => { root.set-permission-mode(item.key, item.kind, m); }
+                    }
+                    
+                    if (item.kind == "tool") : PermissionToolRow {
+                        label: item.label;
+                        subtitle: item.subtitle;
+                        mode: item.mode;
+                        mode-changed(m) => { root.set-permission-mode(item.key, item.kind, m); }
+                    }
                 }
             }
         }

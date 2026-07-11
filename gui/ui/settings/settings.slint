@@ -12,6 +12,7 @@ import { Titlebar } from "../window/titlebar.slint";
 import { SettingsSidebar } from "./left-sidebar/sidebar.slint";
 import { SettingsMainContent } from "./main-content/main-content.slint";
 import { ProviderSummary } from "./main-content/models/providers.slint";
+import { PermissionItem } from "./main-content/permissions.slint";
 
 export component SettingsWindow inherits Window {
     // Falls back to a comfortable centered size for settings page
@@ -63,6 +64,25 @@ export component SettingsWindow inherits Window {
     callback provider-save-clicked(string, string, string, string);
     callback provider-reload-clicked(string, string, string);
     callback provider-credentials-changed(string, string, string);
+
+    // Permissions configuration properties forwarded to viewport
+    in property <[string]> allowed-directories: [];
+    in property <string> workspace-directory: "";
+    in-out property <string> configure-directory: "";
+    in-out property <int> permissions-active-tab: 0;
+    in-out property <int> permissions-active-scope: 0;
+    in-out property <string> permissions-new-directory-path: "";
+    in property <[PermissionItem]> permission-items: [];
+
+    // Permissions callbacks forwarded to viewport
+    callback permission-tab-changed(int);
+    callback permission-scope-changed(int);
+    callback permission-configure-directory-clicked(string);
+    callback permission-configure-directory-back();
+    callback permission-add-directory-clicked(string);
+    callback permission-remove-directory-clicked(string);
+    callback permission-toggle-group-expanded(string);
+    callback permission-set-mode(string, string, string);
 
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
@@ -132,6 +152,25 @@ export component SettingsWindow inherits Window {
                     provider-credentials-changed(id, base-url, api-key) => {
                         root.provider-credentials-changed(id, base-url, api-key);
                     }
+
+                    // Bind permissions configuration properties
+                    allowed-directories: root.allowed-directories;
+                    workspace-directory: root.workspace-directory;
+                    configure-directory <=> root.configure-directory;
+                    permissions-active-tab <=> root.permissions-active-tab;
+                    permissions-active-scope <=> root.permissions-active-scope;
+                    permissions-new-directory-path <=> root.permissions-new-directory-path;
+                    permission-items: root.permission-items;
+
+                    // Bind permissions callbacks
+                    permission-tab-changed(idx) => { root.permission-tab-changed(idx); }
+                    permission-scope-changed(idx) => { root.permission-scope-changed(idx); }
+                    permission-configure-directory-clicked(dir) => { root.permission-configure-directory-clicked(dir); }
+                    permission-configure-directory-back() => { root.permission-configure-directory-back(); }
+                    permission-add-directory-clicked(dir) => { root.permission-add-directory-clicked(dir); }
+                    permission-remove-directory-clicked(dir) => { root.permission-remove-directory-clicked(dir); }
+                    permission-toggle-group-expanded(gk) => { root.permission-toggle-group-expanded(gk); }
+                    permission-set-mode(k, kind, m) => { root.permission-set-mode(k, kind, m); }
                     
                     github_requested => { root.github_requested(); }
                     documentation_requested => { root.documentation_requested(); }

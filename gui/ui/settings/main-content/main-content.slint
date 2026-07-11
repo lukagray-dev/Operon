@@ -9,7 +9,7 @@ import { GeneralSettings } from "./general.slint";
 import { AppearanceSettings } from "./appearance.slint";
 import { ModelsSettings } from "./models.slint";
 import { ChannelsSettings } from "./channels.slint";
-import { PermissionsSettings } from "./permissions.slint";
+import { PermissionsSettings, PermissionItem } from "./permissions.slint";
 import { SkillsSettings } from "./skills.slint";
 import { ExtensionsSettings } from "./extensions.slint";
 import { AboutSettings } from "./about.slint";
@@ -39,6 +39,25 @@ export component SettingsMainContent inherits Rectangle {
     callback provider-save-clicked(string, string, string, string);
     callback provider-reload-clicked(string, string, string);
     callback provider-credentials-changed(string, string, string);
+
+    // Permissions properties
+    in property <[string]> allowed-directories: [];
+    in property <string> workspace-directory: "";
+    in-out property <string> configure-directory: "";
+    in-out property <int> permissions-active-tab: 0;
+    in-out property <int> permissions-active-scope: 0;
+    in-out property <string> permissions-new-directory-path: "";
+    in property <[PermissionItem]> permission-items: [];
+
+    // Permissions callbacks
+    callback permission-tab-changed(int);
+    callback permission-scope-changed(int);
+    callback permission-configure-directory-clicked(string);
+    callback permission-configure-directory-back();
+    callback permission-add-directory-clicked(string);
+    callback permission-remove-directory-clicked(string);
+    callback permission-toggle-group-expanded(string);
+    callback permission-set-mode(string, string, string);
 
     // Same background color as the main window sidebar
     background: Tokens.titlebar_background;
@@ -73,7 +92,24 @@ export component SettingsMainContent inherits Rectangle {
             }
         }
         if (root.active-category == 3) : ChannelsSettings {}
-        if (root.active-category == 4) : PermissionsSettings {}
+        if (root.active-category == 4) : PermissionsSettings {
+            allowed-directories: root.allowed-directories;
+            workspace-directory: root.workspace-directory;
+            configure-directory <=> root.configure-directory;
+            active-tab <=> root.permissions-active-tab;
+            active-scope <=> root.permissions-active-scope;
+            new-directory-path <=> root.permissions-new-directory-path;
+            permission-items: root.permission-items;
+
+            tab-changed(idx) => { root.permission-tab-changed(idx); }
+            scope-changed(idx) => { root.permission-scope-changed(idx); }
+            configure-directory-clicked(dir) => { root.permission-configure-directory-clicked(dir); }
+            configure-directory-back() => { root.permission-configure-directory-back(); }
+            add-directory-clicked(dir) => { root.permission-add-directory-clicked(dir); }
+            remove-directory-clicked(dir) => { root.permission-remove-directory-clicked(dir); }
+            toggle-group-expanded(gk) => { root.permission-toggle-group-expanded(gk); }
+            set-permission-mode(k, kind, m) => { root.permission-set-mode(k, kind, m); }
+        }
         if (root.active-category == 5) : SkillsSettings {}
         if (root.active-category == 6) : ExtensionsSettings {}
         if (root.active-category == 7) : AboutSettings {
