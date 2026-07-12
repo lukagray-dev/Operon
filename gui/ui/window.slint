@@ -7,6 +7,7 @@
 import { Tokens } from "./shared/tokens.slint";
 import { Titlebar } from "./window/titlebar.slint";
 import { Sidebar } from "./left-sidebar/sidebar.slint";
+import { SidebarConversation, SidebarProject } from "./left-sidebar/types.slint";
 import { MainContent } from "./main-content/main-content.slint";
 export { SettingsWindow } from "./settings/settings.slint";
 
@@ -43,37 +44,11 @@ export component OperonWindow inherits Window {
     in-out property <bool> sidebar_open: true;
     
     // Sidebar data properties - bind these from Rust
-    in property <[{name: string, conversations: [string]}]> sidebar_projects: [
-        {
-            name: "Lunify",
-            conversations: [
-                "Hi",
-                "You are working in this directory",
-                "Add CloudStream style streaming",
-                "Fix FFI error handling",
-                "Fix player bar position"
-            ]
-        },
-        {
-            name: "Operon",
-            conversations: [
-                "I was building an AI agent named Operon...",
-                "Continue plan implementation",
-                "Execute Prompt.md",
-                "I was building an AI agent named Op...",
-                "Replace markdown renderer"
-            ]
-        }
-    ];
-    in property <[string]> sidebar_chats: [
-        "Execute Prompt.md",
-        "Explain this project to me",
-        "Connect to GitHub",
-        "Connect your favorite apps to Codex"
-    ];
-    in-out property <int> active_project_index: 0;
-    in-out property <int> active_conversation_index: 0;
-    in-out property <int> active_chat_index: 0;
+    in property <[SidebarProject]> sidebar_projects: [];
+    in property <[SidebarConversation]> sidebar_chats: [];
+    in-out property <int> active_project_index: -1;
+    in-out property <int> active_conversation_index: -1;
+    in-out property <int> active_chat_index: -1;
 
     // The titlebar only exposes the actions that need Rust-side behavior.
     callback minimize_requested();
@@ -89,14 +64,19 @@ export component OperonWindow inherits Window {
     callback report_bug_requested();
     callback follow_creator_requested();
     callback see_repo_requested();
+    callback open_project_requested();
     
     // Sidebar callbacks - wire these to Rust handlers
     callback sidebar_new_chat_clicked();
     callback sidebar_search_clicked();
     callback sidebar_plugins_clicked();
     callback sidebar_settings_clicked();
-    callback sidebar_project_conversation_clicked(int /* project-index */, int /* conversation-index */);
-    callback sidebar_chat_clicked(int /* chat-index */);
+    callback sidebar_project_conversation_clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
+    callback sidebar_chat_clicked(string /* session-id */, int /* chat-index */);
+    callback sidebar_delete_chat_clicked(string /* session-id */, int /* chat-index */);
+    callback sidebar_delete_conversation_clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
+    callback sidebar_delete_project_clicked(string /* project-workspace-path */, int /* project-index */);
+    callback sidebar_new_session_clicked(string /* project-workspace-path */, int /* project-index */);
     callback sidebar_width_changed(length /* new-width */);
     
     // Main content / input panel callbacks - wire these to Rust handlers
@@ -156,15 +136,24 @@ export component OperonWindow inherits Window {
             search-clicked => { root.sidebar_search_clicked(); }
             plugins-clicked => { root.sidebar_plugins_clicked(); }
             settings-clicked => { root.sidebar_settings_clicked(); }
-            project-conversation-clicked(proj-idx, conv-idx) => {
+            project-conversation-clicked(session-id, proj-idx, conv-idx) => {
                 root.active_project_index = proj-idx;
                 root.active_conversation_index = conv-idx;
-                root.sidebar_project_conversation_clicked(proj-idx, conv-idx);
+                root.active_chat_index = -1;
+                root.sidebar_project_conversation_clicked(session-id, proj-idx, conv-idx);
             }
-            chat-clicked(chat-idx) => {
+            chat-clicked(session-id, chat-idx) => {
                 root.active_chat_index = chat-idx;
-                root.sidebar_chat_clicked(chat-idx);
+                root.active_project_index = -1;
+                root.active_conversation_index = -1;
+                root.sidebar_chat_clicked(session-id, chat-idx);
             }
+            delete-chat-clicked(session-id, chat-idx) => { root.sidebar_delete_chat_clicked(session-id, chat-idx); }
+            delete-conversation-clicked(session-id, proj-idx, conv-idx) => {
+                root.sidebar_delete_conversation_clicked(session-id, proj-idx, conv-idx);
+            }
+            delete-project-clicked(proj-path, proj-idx) => { root.sidebar_delete_project_clicked(proj-path, proj-idx); }
+            new-session-clicked(proj-path, proj-idx) => { root.sidebar_new_session_clicked(proj-path, proj-idx); }
             width-changed(new-width) => {
                 root.sidebar_width_changed(new-width);
             }
@@ -308,5 +297,6 @@ export component OperonWindow inherits Window {
         report_bug_requested => { root.report_bug_requested(); }
         follow_creator_requested => { root.follow_creator_requested(); }
         see_repo_requested => { root.see_repo_requested(); }
+        open_project_requested => { root.open_project_requested(); }
     }
 }

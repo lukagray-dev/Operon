@@ -6,6 +6,7 @@
 
 import { Tokens } from "../shared/tokens.slint";
 import { Conversation } from "./conversation.slint";
+import { SidebarConversation, SidebarProject } from "./types.slint";
 import {
     DropdownSurface,
     DropdownTokens,
@@ -17,8 +18,7 @@ import {
 // This is the container that holds all projects and their conversations.
 export component Projects inherits Rectangle {
     // Array of project data structures
-    // Each project should have: name (string) and conversations (array of strings)
-    in property <[{ name: string, conversations: [string] }]> projects: [];
+    in property <[SidebarProject]> projects: [];
 
     // Currently active project index (-1 means none selected)
     in-out property <int> active-project-index: -1;
@@ -30,20 +30,20 @@ export component Projects inherits Rectangle {
     in-out property <bool> is-expanded: true;
 
     // Callback fired when a conversation is clicked
-    // Parameters: project-index, conversation-index
-    callback conversation-clicked(int, int);
+    callback conversation-clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
+    callback delete-conversation-clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
 
     // Callback fired when the section header is clicked (for expand/collapse)
     callback header-clicked();
 
     // Callbacks fired for project actions (triggered from the project row buttons/dropdowns)
-    callback new-session-clicked(int /* project-index */);
+    callback new-session-clicked(string /* project-workspace */, int /* project-index */);
     callback share-project-clicked(int /* project-index */);
     callback rename-project-clicked(int /* project-index */);
     callback project-settings-clicked(int /* project-index */);
     callback project-home-clicked(int /* project-index */);
     callback pin-project-clicked(int /* project-index */);
-    callback delete-project-clicked(int /* project-index */);
+    callback delete-project-clicked(string /* project-workspace */, int /* project-index */);
 
     // Dynamic height based on content
     height: content.preferred-height;
@@ -201,7 +201,7 @@ export component Projects inherits Rectangle {
                         new-session-touch := TouchArea {
                             mouse-cursor: pointer;
                             clicked => {
-                                root.new-session-clicked(project-index);
+                                root.new-session-clicked(project.workspace, project-index);
                             }
                         }
                     }
@@ -321,7 +321,7 @@ export component Projects inherits Rectangle {
                                     danger: true;
                                     clicked => {
                                         project-menu-panel.close();
-                                        root.delete-project-clicked(project-index);
+                                        root.delete-project-clicked(project.workspace, project-index);
                                     }
                                 }
                             }
@@ -335,12 +335,16 @@ export component Projects inherits Rectangle {
                     padding-left: 12px;
 
                     for conversation[conv-index] in project.conversations: Conversation {
-                        title: conversation;
+                        title: conversation.title;
                         is-active: conv-index == root.active-conversation-index;
 
                         clicked => {
                             root.active-conversation-index = conv-index;
-                            root.conversation-clicked(project-index, conv-index);
+                            root.conversation-clicked(conversation.id, project-index, conv-index);
+                        }
+                        
+                        delete-clicked => {
+                            root.delete-conversation-clicked(conversation.id, project-index, conv-index);
                         }
                     }
                 }

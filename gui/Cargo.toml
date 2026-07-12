@@ -18,6 +18,7 @@ toml.workspace        = true
 dirs.workspace        = true
 
 operon-rs = { path = "../operon-rs" }
+rfd = "0.15"
 
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 

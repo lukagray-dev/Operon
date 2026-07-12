@@ -6,12 +6,13 @@
 
 import { Tokens } from "../shared/tokens.slint";
 import { Conversation } from "./conversation.slint";
+import { SidebarConversation } from "./types.slint";
 
 // Main Chats section containing standalone conversation items.
 // These conversations are not grouped under any project.
 export component Chats inherits Rectangle {
     // Array of chat titles to display
-    in property <[string]> chat-titles: [];
+    in property <[SidebarConversation]> chat-titles: [];
     
     // Currently active/selected chat index (-1 means none selected)
     in-out property <int> active-chat-index: -1;
@@ -20,8 +21,8 @@ export component Chats inherits Rectangle {
     in-out property <bool> is-expanded: true;
     
     // Callback fired when a chat is clicked
-    // Parameter: chat-index
-    callback chat-clicked(int);
+    callback chat-clicked(string, int);
+    callback delete-chat-clicked(string, int);
     
     // Callback fired when the section header is clicked (for expand/collapse)
     callback header-clicked();
@@ -138,12 +139,16 @@ export component Chats inherits Rectangle {
             
             // Dynamically create conversation items from the chat-titles array
             for chat[index] in root.chat-titles : Conversation {
-                title: chat;
+                title: chat.title;
                 is-active: index == root.active-chat-index;
                 
                 clicked => {
                     root.active-chat-index = index;
-                    root.chat-clicked(index);
+                    root.chat-clicked(chat.id, index);
+                }
+                
+                delete-clicked => {
+                    root.delete-chat-clicked(chat.id, index);
                 }
             }
             

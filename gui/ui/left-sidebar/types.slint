@@ -1,0 +1,12 @@
+// Shared type definitions for Left Sidebar components to avoid circular dependencies.
+
+export struct SidebarConversation {
+    id: string,
+    title: string,
+}
+
+export struct SidebarProject {
+    name: string,
+    workspace: string,
+    conversations: [SidebarConversation],
+}

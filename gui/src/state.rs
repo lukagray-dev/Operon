@@ -9,11 +9,13 @@ const MAX_UI_SCALE: f32 = 1.5;
 const UI_SCALE_STEP: f32 = 0.1;
 const DEFAULT_UI_SCALE: f32 = 1.0;
 
-/// Small state bundle that tracks the titlebar's user-facing view controls.
+/// Small state bundle that tracks the titlebar's user-facing view controls and active session state.
 #[derive(Debug, Clone)]
 pub struct AppState {
     ui_scale: f32,
     reload_generation: i32,
+    active_session_id: Option<String>,
+    current_project_dir: Option<String>,
 }
 
 impl Default for AppState {
@@ -21,6 +23,8 @@ impl Default for AppState {
         Self {
             ui_scale: DEFAULT_UI_SCALE,
             reload_generation: 0,
+            active_session_id: None,
+            current_project_dir: None,
         }
     }
 }
@@ -29,6 +33,26 @@ impl AppState {
     /// Creates a fresh state object with the normal 100% zoom level.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Returns the current active session ID, if any.
+    pub fn active_session_id(&self) -> Option<&str> {
+        self.active_session_id.as_deref()
+    }
+
+    /// Sets the active session ID.
+    pub fn set_active_session_id(&mut self, id: Option<String>) {
+        self.active_session_id = id;
+    }
+
+    /// Returns the current project directory path, if any.
+    pub fn current_project_dir(&self) -> Option<&str> {
+        self.current_project_dir.as_deref()
+    }
+
+    /// Sets the current project directory path.
+    pub fn set_current_project_dir(&mut self, dir: Option<String>) {
+        self.current_project_dir = dir;
     }
 
     /// Returns the current UI scale used by the titlebar and future content.

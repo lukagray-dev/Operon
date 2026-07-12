@@ -33,6 +33,9 @@ pub fn run() -> anyhow::Result<()> {
     startup::apply_startup_geometry(&ui);
     titlebar::wire_titlebar_callbacks(&ui, Rc::clone(&state));
 
+    // Wire left sidebar callbacks and load workspace sessions list
+    crate::left_sidebar::wire_left_sidebar(&ui, Rc::clone(&state));
+
     // Modelessly manage settings window instance
     let settings_window_handle: Rc<RefCell<Option<crate::SettingsWindow>>> = Rc::new(RefCell::new(None));
     ui.on_sidebar_settings_clicked({

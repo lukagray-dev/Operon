@@ -10,6 +10,9 @@ pub mod state;
 pub mod window;
 pub mod settings;
 
+#[path = "left-sidebar/mod.rs"]
+pub mod left_sidebar;
+
 /// Starts the Operon GUI application.
 ///
 /// Keeping the public run function in the library lets the binary stay tiny and

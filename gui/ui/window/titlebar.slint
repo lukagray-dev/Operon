@@ -39,6 +39,7 @@ export component Titlebar inherits Rectangle {
     callback report_bug_requested();
     callback follow_creator_requested();
     callback see_repo_requested();
+    callback open_project_requested();
 
     height: Tokens.titlebar_height;
     background: Tokens.titlebar_background;
@@ -116,6 +117,9 @@ export component Titlebar inherits Rectangle {
         }
         dismiss => {
             root.active_menu = 0;
+        }
+        open_project_clicked => {
+            root.open_project_requested();
         }
     }
 

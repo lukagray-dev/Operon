@@ -18,6 +18,7 @@ import { Plugins } from "./plugins.slint";
 import { Projects } from "./projects.slint";
 import { Chats } from "./chats.slint";
 import { Settings } from "./settings.slint";
+import { SidebarConversation, SidebarProject } from "./types.slint";
 
 // Main sidebar component with resizable width and scrollable content.
 // This is the primary navigation interface for the application.
@@ -30,50 +31,27 @@ export component Sidebar inherits Rectangle {
     property <length> sidebar-max-width: 400px;
     
     // Data properties for dynamic content
-    // Projects: array of {name: string, conversations: [string]}
-    in property <[{name: string, conversations: [string]}]> projects: [
-        {
-            name: "Lunify",
-            conversations: [
-                "Hi",
-                "You are working in this directory",
-                "Add CloudStream style streaming",
-                "Fix FFI error handling",
-                "Fix player bar position"
-            ]
-        },
-        {
-            name: "Operon",
-            conversations: [
-                "I was building an AI agent named Operon...",
-                "Continue plan implementation",
-                "Execute Prompt.md",
-                "I was building an AI agent named Op...",
-                "Replace markdown renderer"
-            ]
-        }
-    ];
+    in property <[SidebarProject]> projects: [];
     
     // Standalone chats: array of chat title strings
-    in property <[string]> chats: [
-        "Execute Prompt.md",
-        "Explain this project to me",
-        "Connect to GitHub",
-        "Connect your favorite apps to Codex"
-    ];
+    in property <[SidebarConversation]> chats: [];
     
     // Active selection state
-    in-out property <int> active-project-index: 0;
-    in-out property <int> active-conversation-index: 0;
-    in-out property <int> active-chat-index: 0;
+    in-out property <int> active-project-index: -1;
+    in-out property <int> active-conversation-index: -1;
+    in-out property <int> active-chat-index: -1;
     
     // Callbacks for user interactions
     callback new-chat-clicked();
     callback search-clicked();
     callback plugins-clicked();
     callback settings-clicked();
-    callback project-conversation-clicked(int /* project-index */, int /* conversation-index */);
-    callback chat-clicked(int /* chat-index */);
+    callback project-conversation-clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
+    callback chat-clicked(string /* session-id */, int /* chat-index */);
+    callback delete-chat-clicked(string /* session-id */, int /* chat-index */);
+    callback delete-conversation-clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
+    callback delete-project-clicked(string /* project-workspace-path */, int /* project-index */);
+    callback new-session-clicked(string /* project-workspace-path */, int /* project-index */);
     callback width-changed(length /* new-width */);
     
     // Set the sidebar width from the property
@@ -165,12 +143,20 @@ export component Sidebar inherits Rectangle {
                         active-project-index: root.active-project-index;
                         active-conversation-index: root.active-conversation-index;
                         
-                        conversation-clicked(proj-idx, conv-idx) => {
+                        conversation-clicked(session-id, proj-idx, conv-idx) => {
                             root.active-project-index = proj-idx;
                             root.active-conversation-index = conv-idx;
-                            // Clear chat selection when project conversation is selected
                             root.active-chat-index = -1;
-                            root.project-conversation-clicked(proj-idx, conv-idx);
+                            root.project-conversation-clicked(session-id, proj-idx, conv-idx);
+                        }
+                        delete-conversation-clicked(session-id, proj-idx, conv-idx) => {
+                            root.delete-conversation-clicked(session-id, proj-idx, conv-idx);
+                        }
+                        delete-project-clicked(proj-path, proj-idx) => {
+                            root.delete-project-clicked(proj-path, proj-idx);
+                        }
+                        new-session-clicked(proj-path, proj-idx) => {
+                            root.new-session-clicked(proj-path, proj-idx);
                         }
                     }
 
@@ -180,14 +166,15 @@ export component Sidebar inherits Rectangle {
                         chat-titles: root.chats;
                         active-chat-index: root.active-chat-index;
                         
-                        chat-clicked(chat-idx) => {
-                            root.active-chat-index = chat-idx;
-                            // Clear project selection when standalone chat is selected
+                        chat-clicked(session-id, chat-idx) => {
                             root.active-project-index = -1;
                             root.active-conversation-index = -1;
-                            root.chat-clicked(chat-idx);
+                            root.active-chat-index = chat-idx;
+                            root.chat-clicked(session-id, chat-idx);
                         }
-
+                        delete-chat-clicked(session-id, chat-idx) => {
+                            root.delete-chat-clicked(session-id, chat-idx);
+                        }
                         new-chat-clicked => {
                             root.new-chat-clicked();
                         }
