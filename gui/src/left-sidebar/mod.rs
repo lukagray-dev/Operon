@@ -6,6 +6,7 @@
 pub mod sidebar;
 pub mod chats;
 pub mod projects;
+pub mod search;
 
 use std::cell::RefCell;
 use std::rc::Rc;

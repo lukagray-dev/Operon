@@ -41,9 +41,14 @@ export component Sidebar inherits Rectangle {
     in-out property <int> active-conversation-index: -1;
     in-out property <int> active-chat-index: -1;
     
+    // Search states
+    in-out property <string> search-text: "";
+    in-out property <bool> is-searching: false;
+    
     // Callbacks for user interactions
     callback new-chat-clicked();
-    callback search-clicked();
+    callback search-query-changed(string);
+    callback search-cancelled();
     callback plugins-clicked();
     callback settings-clicked();
     callback project-conversation-clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
@@ -96,10 +101,16 @@ export component Sidebar inherits Rectangle {
                 }
             }
             
-            // Search button
+            // Search input/button
             Search {
-                clicked => {
-                    root.search-clicked();
+                text <=> root.search-text;
+                is-searching <=> root.is-searching;
+                
+                search-query-changed(query) => {
+                    root.search-query-changed(query);
+                }
+                search-cancelled => {
+                    root.search-cancelled();
                 }
             }
             

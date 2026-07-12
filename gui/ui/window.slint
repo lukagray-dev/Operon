@@ -66,9 +66,14 @@ export component OperonWindow inherits Window {
     callback see_repo_requested();
     callback open_project_requested();
     
+    // Sidebar properties
+    in-out property <string> sidebar_search_text: "";
+    in-out property <bool> sidebar_is_searching: false;
+
     // Sidebar callbacks - wire these to Rust handlers
     callback sidebar_new_chat_clicked();
-    callback sidebar_search_clicked();
+    callback sidebar_search_query_changed(string);
+    callback sidebar_search_cancelled();
     callback sidebar_plugins_clicked();
     callback sidebar_settings_clicked();
     callback sidebar_project_conversation_clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
@@ -131,9 +136,21 @@ export component OperonWindow inherits Window {
             active-conversation-index: root.active_conversation_index;
             active-chat-index: root.active_chat_index;
             
+            // Bind search properties
+            search-text <=> root.sidebar_search_text;
+            is-searching <=> root.sidebar_is_searching;
+            
             // Wire callbacks to root
             new-chat-clicked => { root.sidebar_new_chat_clicked(); }
-            search-clicked => { root.sidebar_search_clicked(); }
+            search-query-changed(query) => {
+                root.sidebar_search_text = query;
+                root.sidebar_search_query_changed(query);
+            }
+            search-cancelled => {
+                root.sidebar_is_searching = false;
+                root.sidebar_search_text = "";
+                root.sidebar_search_cancelled();
+            }
             plugins-clicked => { root.sidebar_plugins_clicked(); }
             settings-clicked => { root.sidebar_settings_clicked(); }
             project-conversation-clicked(session-id, proj-idx, conv-idx) => {

@@ -1,7 +1,7 @@
 //! Left Sidebar orchestrator and view model refresher.
 //!
 //! This module orchestrates the background-threaded listing and filtering of chat sessions
-//! and delegates specific callback handling to `chats.rs` and `projects.rs` submodules.
+//! and delegates specific callback handling to `chats.rs`, `projects.rs`, and `search.rs` submodules.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -28,9 +28,10 @@ pub fn clean_unc_path(s: String) -> String {
 }
 
 /// Asynchronously queries session JSON files, matches them against allowed projects,
-/// constructs Slint models, and updates the Operon window.
+/// filters them by the current search query, constructs Slint models, and updates the Operon window.
 pub fn refresh_sidebar(window: &crate::OperonWindow) {
     let window_weak = window.as_weak();
+    let search_query = window.get_sidebar_search_text().to_string().to_lowercase();
 
     tokio::spawn(async move {
         let run_refresh = async {
@@ -89,13 +90,30 @@ pub fn refresh_sidebar(window: &crate::OperonWindow) {
                                     };
 
                                     let is_project = session_workspace_canon != default_workspace;
-                                    sessions.push(SessionRecord {
-                                        id: row.id.clone(),
-                                        created_at: row.created_at,
-                                        workspace: row.workspace.clone(),
-                                        title,
-                                        is_project,
-                                    });
+                                    let project_name = if is_project {
+                                        std::path::Path::new(&row.workspace)
+                                            .file_name()
+                                            .and_then(|n| n.to_str())
+                                            .unwrap_or("")
+                                            .to_string()
+                                    } else {
+                                        String::new()
+                                    };
+
+                                    // Filter by search query if present
+                                    let matches_search = search_query.is_empty()
+                                        || title.to_lowercase().contains(&search_query)
+                                        || project_name.to_lowercase().contains(&search_query);
+
+                                    if matches_search {
+                                        sessions.push(SessionRecord {
+                                            id: row.id.clone(),
+                                            created_at: row.created_at,
+                                            workspace: row.workspace.clone(),
+                                            title,
+                                            is_project,
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -139,7 +157,17 @@ pub fn refresh_sidebar(window: &crate::OperonWindow) {
                     .to_string();
 
                 let conversations = project_chats_map.remove(&p).unwrap_or_default();
-                projects_data.push((name, p, conversations));
+                
+                // If search query is active, only include the project if:
+                // 1. The project name itself matches the query, OR
+                // 2. The project has at least one conversation that matched the query
+                let project_matches = search_query.is_empty()
+                    || name.to_lowercase().contains(&search_query)
+                    || !conversations.is_empty();
+
+                if project_matches {
+                    projects_data.push((name, p, conversations));
+                }
             }
 
             // Dispatch update to Slint main thread
@@ -230,4 +258,5 @@ pub fn wire_sidebar(
     // Delegate callback wire setup to submodules
     super::chats::wire_chats(window, Rc::clone(&state));
     super::projects::wire_projects(window, Rc::clone(&state));
+    super::search::wire_search(window, Rc::clone(&state));
 }
