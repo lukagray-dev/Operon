@@ -4,6 +4,8 @@
 //! logic for displaying project and standalone chat lists.
 
 pub mod sidebar;
+pub mod chats;
+pub mod projects;
 
 use std::cell::RefCell;
 use std::rc::Rc;
