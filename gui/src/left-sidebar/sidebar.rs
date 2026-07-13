@@ -294,18 +294,29 @@ pub fn load_chat_session(
                 let utilization = if context_window > 0 { last_token_count as f32 / context_window as f32 } else { 0.0 };
                 let context_text = crate::main_content::input::context::format_tokens(last_token_count as i32, context_window as i32);
 
+                // Pre-parse all markdown + syntax highlighting on the async/background thread
+                // using Send-safe intermediate types (no Rc) to avoid blocking the UI thread.
+                let pre_parsed: Vec<(bool, String, Vec<crate::main_content::assistant_messages::markdown::ParsedMarkdownItem>)> = raw_messages
+                    .into_iter()
+                    .map(|(is_user, text)| {
+                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(&text);
+                        (is_user, text, parsed)
+                    })
+                    .collect();
+
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = window_weak.upgrade() {
                         ui.set_session_title(title.into());
                         
-                        let slint_messages: Vec<crate::ChatMessage> = raw_messages.into_iter().map(|(is_user, text)| {
-                            let parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&text);
+                        // Convert Send-safe intermediates to Slint types on UI thread (cheap, no parsing)
+                        let slint_messages: Vec<crate::ChatMessage> = pre_parsed.into_iter().map(|(is_user, text, parsed)| {
+                            let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed);
                             crate::ChatMessage {
                                 id: "".into(),
                                 is_user,
                                 text: text.into(),
                                 time: "".into(),
-                                markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed))),
+                                markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items))),
                             }
                         }).collect();
                         

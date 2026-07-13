@@ -175,7 +175,7 @@ pub fn submit_prompt(
                                     // Append or merge text delta into assistant message
                                     let needs_new = msgs.last().map_or(true, |m| m.is_user);
                                     if needs_new {
-                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&text);
+                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_streaming(&text);
                                         msgs.push(crate::ChatMessage {
                                             id: "".into(),
                                             is_user: false,
@@ -188,7 +188,7 @@ pub fn submit_prompt(
                                         new_text.push_str(&text);
                                         last.text = new_text.clone().into();
                                         
-                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&new_text);
+                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_streaming(&new_text);
                                         last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed)));
                                     }
                                     
@@ -233,10 +233,33 @@ pub fn submit_prompt(
                 *ACTIVE_CMD_TX.lock().unwrap() = None;
             }
 
-            // Force sidebar update and turn off responding flag
+            // Finalize: re-parse the last assistant message with full syntax highlighting
+            // now that streaming is complete, then turn off responding flag.
             let win_weak_sidebar = window_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(win) = win_weak_sidebar.upgrade() {
+                    // Re-parse the final assistant message with full syntect highlighting
+                    let model = win.get_chat_messages();
+                    let count = model.row_count();
+                    if count > 0 {
+                        if let Some(last_msg) = model.row_data(count - 1) {
+                            if !last_msg.is_user {
+                                let final_text = last_msg.text.to_string();
+                                let full_parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&final_text);
+                                let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                for i in 0..count {
+                                    if let Some(m) = model.row_data(i) {
+                                        msgs.push(m);
+                                    }
+                                }
+                                if let Some(m) = msgs.last_mut() {
+                                    m.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(full_parsed)));
+                                }
+                                win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                            }
+                        }
+                    }
+
                     win.set_is_responding(false);
                     crate::left_sidebar::sidebar::refresh_sidebar(&win, Some(session_id_clone));
                 }
