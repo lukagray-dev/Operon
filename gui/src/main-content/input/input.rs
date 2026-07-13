@@ -43,10 +43,13 @@ pub fn wire_input_panel(
     window.set_auto_approve_enabled(auto_approve);
 
     // 3. Initial context usage
+    let context_window = app_config.as_ref()
+        .map(|c| c.provider.model.context_window as i32)
+        .unwrap_or(128_000);
     window.set_context_usage(0.0);
     window.set_tokens_used(0);
-    window.set_tokens_total(128_000);
-    window.set_context_text(context::format_tokens(0, 128_000).into());
+    window.set_tokens_total(context_window);
+    window.set_context_text(context::format_tokens(0, context_window).into());
 
     // Wire submodules
     attach::wire_attach(window, Rc::clone(&state));

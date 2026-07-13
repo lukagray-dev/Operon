@@ -1,7 +1,7 @@
 // Context window indicator component for the input panel.
 //
 // This component displays the current context window usage as formatted text
-// directly in place, next to the context icon.
+// directly in place.
 
 import { Tokens } from "../../shared/tokens.slint";
 
@@ -9,15 +9,15 @@ export component ContextIndicator inherits Rectangle {
     // Current context usage as a percentage (0.0 to 1.0)
     in property <float> usage: 0.0;
     
-    // Total tokens used and available display text
+    // Total tokens used and available display text (e.g. "15k/128k")
     in property <string> display-text: "";
     
     // Callback fired when the user clicks the context indicator
     callback clicked();
     
     // Dynamic width based on text content
-    min-width: 60px;
-    preferred-width: label.preferred-width + 28px;
+    min-width: 48px;
+    preferred-width: label.preferred-width + 16px;
     height: 32px;
     
     // Background color changes on hover for visual feedback
@@ -35,37 +35,19 @@ export component ContextIndicator inherits Rectangle {
     border-width: 1px;
     border-color: #2a2a2a;
     
-    // Horizontal layout for icon + text label
-    HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
-        spacing: 6px;
-        alignment: center;
+    // Formatted context text directly in place
+    label := Text {
+        text: root.display-text;
+        // Text color changes to warn when usage is high
+        color: root.usage < 0.6 
+            ? Tokens.text-primary 
+            : (root.usage < 0.85 ? #ffa500 : Tokens.danger-red);
+        font-size: Tokens.body-font-size - 1px;
+        font-family: Tokens.font-family;
+        horizontal-alignment: center;
+        vertical-alignment: center;
         
-        // Context icon
-        icon := Image {
-            source: @image-url("../../../assets/icons/main-content/input/context.svg");
-            width: 14px;
-            height: 14px;
-            y: (parent.height - self.height) / 2;
-            colorize: root.usage < 0.6 
-                ? (touch-area.has-hover ? Tokens.text-primary : Tokens.text-secondary)
-                : (root.usage < 0.85 
-                    ? #ffa500  // Orange for medium usage
-                    : Tokens.danger-red);  // Red for high usage
-            image-fit: contain;
-            
-            animate colorize { duration: 150ms; easing: ease-in-out; }
-        }
-        
-        // Formatted context text directly in place
-        label := Text {
-            text: root.display-text;
-            color: Tokens.text-primary;
-            font-size: Tokens.body-font-size - 1px;
-            font-family: Tokens.font-family;
-            vertical-alignment: center;
-        }
+        animate color { duration: 150ms; easing: ease-in-out; }
     }
     
     // Touch area for click detection covering the entire button

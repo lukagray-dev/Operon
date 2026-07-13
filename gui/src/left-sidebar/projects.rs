@@ -63,6 +63,13 @@ pub fn wire_projects(
                 win.set_active_chat_index(-1);
                 win.set_session_title("New Chat".into());
                 win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
+
+                let app_config = operon_rs::config::load().ok();
+                let context_window = app_config.as_ref().map(|c| c.provider.model.context_window).unwrap_or(128_000);
+                win.set_context_usage(0.0);
+                win.set_tokens_used(0);
+                win.set_tokens_total(context_window as i32);
+                win.set_context_text(crate::main_content::input::context::format_tokens(0, context_window as i32).into());
             }
         }
     });

@@ -293,10 +293,20 @@ pub fn load_chat_session(
                     }
                 }
 
+                let last_token_count = store.get_last_token_count(&session_id_str).await.ok().flatten().unwrap_or(0);
+                let app_config = operon_rs::load().ok();
+                let context_window = app_config.as_ref().map(|c| c.provider.model.context_window).unwrap_or(128_000);
+                let utilization = if context_window > 0 { last_token_count as f32 / context_window as f32 } else { 0.0 };
+                let context_text = crate::main_content::input::context::format_tokens(last_token_count as i32, context_window as i32);
+
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = window_weak.upgrade() {
                         ui.set_session_title(title.into());
                         ui.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_messages))));
+                        ui.set_context_usage(utilization);
+                        ui.set_tokens_used(last_token_count as i32);
+                        ui.set_tokens_total(context_window as i32);
+                        ui.set_context_text(context_text.into());
                     }
                 });
             }
