@@ -140,11 +140,13 @@ pub fn submit_prompt(
             // Load existing conversation turns
             let history_turns = store.load_turns(&session_id).await?;
             let turn_index = history_turns.len();
-            let flat_history: Vec<_> = history_turns.into_iter().flatten().collect();
             let last_token_count = store.get_last_token_count(&session_id).await?;
 
             let mut runner = operon_rs::session::SessionRunner::new(config, event_tx, cmd_rx).await?;
-            runner.set_history(flat_history, turn_index, last_token_count);
+            if !history_turns.is_empty() {
+                let history = history_turns.last().cloned().unwrap_or_default();
+                runner.set_history(history, turn_index, last_token_count);
+            }
 
             // Run runner in background task
             let runner_handle = tokio::spawn(async move {

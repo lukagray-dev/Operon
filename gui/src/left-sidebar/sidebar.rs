@@ -268,8 +268,8 @@ pub fn load_chat_session(
                 // Get conversation history turns
                 let mut raw_messages = Vec::new();
                 if let Ok(history_turns) = store.load_turns(&session_id_str).await {
-                    for turn in history_turns {
-                        for msg in turn {
+                    if let Some(last_turn) = history_turns.last() {
+                        for msg in last_turn {
                             let is_user = msg.role == operon_rs::context::MessageRole::User;
                             let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
                             if is_user || is_assistant {
