@@ -62,6 +62,7 @@ pub fn wire_projects(
                 win.set_active_conversation_index(-1);
                 win.set_active_chat_index(-1);
                 win.set_session_title("New Chat".into());
+                win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
             }
         }
     });
@@ -80,12 +81,13 @@ pub fn wire_projects(
 
             if confirmed == MessageDialogResult::Ok {
                 // Clear state on the main thread first
-                {
+                let active_id = {
                     let mut g_state = app_state.borrow_mut();
                     if g_state.active_session_id() == Some(&session_id) {
                         g_state.set_active_session_id(None);
                     }
-                }
+                    g_state.active_session_id().map(String::from)
+                };
 
                 let win_weak = window_weak.clone();
                 let session_id_clone = session_id.clone();
@@ -104,7 +106,7 @@ pub fn wire_projects(
                                 win.set_session_title("New Chat".into());
                             }
                             super::sidebar::clear_sidebar_selection(&win);
-                            super::sidebar::refresh_sidebar(&win);
+                            super::sidebar::refresh_sidebar(&win, active_id);
                         }
                     });
                 });
@@ -132,15 +134,16 @@ pub fn wire_projects(
 
             if confirmed == MessageDialogResult::Ok {
                 // Clear state on the main thread if the active project matches the deleted project!
-                let active_project_deleted = {
+                let (active_project_deleted, active_id) = {
                     let mut g_state = app_state.borrow_mut();
-                    if g_state.current_project_dir() == Some(&proj_path) {
+                    let deleted = if g_state.current_project_dir() == Some(&proj_path) {
                         g_state.set_active_session_id(None);
                         g_state.set_current_project_dir(None);
                         true
                     } else {
                         false
-                    }
+                    };
+                    (deleted, g_state.active_session_id().map(String::from))
                 };
 
                 let win_weak = window_weak.clone();
@@ -192,7 +195,7 @@ pub fn wire_projects(
                             if win.get_active_project_index() == proj_idx {
                                 super::sidebar::clear_sidebar_selection(&win);
                             }
-                            super::sidebar::refresh_sidebar(&win);
+                            super::sidebar::refresh_sidebar(&win, active_id);
                         }
                     });
                 });
@@ -213,11 +216,12 @@ pub fn wire_projects(
                 println!("[operon-gui][sidebar-projects] User picked folder to open project: {}", path_str);
 
                 // Update AppState directly on the main thread!
-                {
+                let active_id = {
                     let mut g_state = app_state.borrow_mut();
                     g_state.set_active_session_id(None);
                     g_state.set_current_project_dir(Some(path_str.clone()));
-                }
+                    g_state.active_session_id().map(String::from)
+                };
 
                 let win_weak = window_weak.clone();
                 let path_str_clone = path_str.clone();
@@ -230,7 +234,7 @@ pub fn wire_projects(
                                 // Clear selections
                                 super::sidebar::clear_sidebar_selection(&win);
                                 win.set_session_title("New Chat".into());
-                                super::sidebar::refresh_sidebar(&win);
+                                super::sidebar::refresh_sidebar(&win, active_id);
                             }
                         });
                     }

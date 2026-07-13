@@ -13,6 +13,9 @@ pub mod settings;
 #[path = "left-sidebar/mod.rs"]
 pub mod left_sidebar;
 
+#[path = "main-content/main-content.rs"]
+pub mod main_content;
+
 /// Starts the Operon GUI application.
 ///
 /// Keeping the public run function in the library lets the binary stay tiny and

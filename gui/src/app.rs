@@ -36,6 +36,9 @@ pub fn run() -> anyhow::Result<()> {
     // Wire left sidebar callbacks and load workspace sessions list
     crate::left_sidebar::wire_left_sidebar(&ui, Rc::clone(&state));
 
+    // Wire main content area callbacks (input panel, message display, etc.)
+    crate::main_content::wire_main_content(&ui, Rc::clone(&state));
+
     // Modelessly manage settings window instance
     let settings_window_handle: Rc<RefCell<Option<crate::SettingsWindow>>> = Rc::new(RefCell::new(None));
     ui.on_sidebar_settings_clicked({

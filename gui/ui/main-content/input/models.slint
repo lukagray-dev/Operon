@@ -17,16 +17,10 @@ import { Tokens } from "../../shared/tokens.slint";
 // Allows users to choose which AI model to use for the conversation.
 export component ModelSelector inherits Rectangle {
     // Currently selected model name
-    in-out property <string> selected-model: "Claude Sonnet 4.5";
+    in-out property <string> selected-model: "";
     
-    // List of available models (for future dropdown implementation)
-    in property <[string]> available-models: [
-        "Claude Sonnet 4.5",
-        "Claude Sonnet 4",
-        "Claude Opus 4",
-        "GPT-4 Turbo",
-        "GPT-4"
-    ];
+    // List of available models
+    in property <[string]> available-models: [];
     
     // Callback fired when the user clicks to open the model selection dropdown
     callback clicked();

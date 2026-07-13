@@ -1,40 +1,29 @@
 // Context window indicator component for the input panel.
 //
-// This component displays a circular icon that shows the current context window
-// usage. It provides visual feedback about how much of the available context
-// window is being used by the current conversation.
-//
-// The component could be enhanced to show:
-// - A progress ring around the icon indicating usage percentage
-// - Color changes based on usage level (green -> yellow -> red)
-// - Tooltip with detailed token count information
-//
-// For now, it serves as a clickable indicator that can show context details.
+// This component displays the current context window usage as formatted text
+// directly in place, next to the context icon.
 
 import { Tokens } from "../../shared/tokens.slint";
 
-// Context window indicator positioned before the model selection.
-// Shows the current context usage and allows viewing detailed information.
 export component ContextIndicator inherits Rectangle {
     // Current context usage as a percentage (0.0 to 1.0)
-    in property <float> usage: 0.35;
+    in property <float> usage: 0.0;
     
-    // Total tokens used and available
-    in property <int> tokens-used: 35000;
-    in property <int> tokens-total: 100000;
+    // Total tokens used and available display text
+    in property <string> display-text: "";
     
     // Callback fired when the user clicks the context indicator
-    // Could open a detailed view of context usage
     callback clicked();
     
-    // Fixed square dimensions for the button
-    width: 32px;
+    // Dynamic width based on text content
+    min-width: 60px;
+    preferred-width: label.preferred-width + 28px;
     height: 32px;
     
     // Background color changes on hover for visual feedback
     background: touch-area.has-hover 
         ? Tokens.dropdown-surface-hover 
-        : transparent;
+        : Tokens.dropdown-surface;
     
     // Smooth background transitions
     animate background { duration: 150ms; easing: ease-in-out; }
@@ -42,68 +31,46 @@ export component ContextIndicator inherits Rectangle {
     // Rounded corners matching the design system
     border-radius: 6px;
     
-    // Center the icon within the button
+    // Subtle border for definition
+    border-width: 1px;
+    border-color: #2a2a2a;
+    
+    // Horizontal layout for icon + text label
     HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 6px;
         alignment: center;
         
-        VerticalLayout {
-            alignment: center;
+        // Context icon
+        icon := Image {
+            source: @image-url("../../../assets/icons/main-content/input/context.svg");
+            width: 14px;
+            height: 14px;
+            y: (parent.height - self.height) / 2;
+            colorize: root.usage < 0.6 
+                ? (touch-area.has-hover ? Tokens.text-primary : Tokens.text-secondary)
+                : (root.usage < 0.85 
+                    ? #ffa500  // Orange for medium usage
+                    : Tokens.danger-red);  // Red for high usage
+            image-fit: contain;
             
-            // Context icon (circular indicator)
-            // Using colorize to apply theme colors to the SVG
-            icon := Image {
-                source: @image-url("../../../assets/icons/main-content/input/context.svg");
-                width: 18px;
-                height: 18px;
-                // Color changes based on usage level
-                // Green when low, yellow when medium, red when high
-                colorize: root.usage < 0.6 
-                    ? (touch-area.has-hover ? Tokens.text-primary : Tokens.text-secondary)
-                    : (root.usage < 0.85 
-                        ? #ffa500  // Orange for medium usage
-                        : Tokens.danger-red);  // Red for high usage
-                image-fit: contain;
-                
-                // Smooth color transition on hover and usage changes
-                animate colorize { duration: 150ms; easing: ease-in-out; }
-            }
+            animate colorize { duration: 150ms; easing: ease-in-out; }
         }
-    }
-    
-    // Optional: Progress ring overlay to visualize usage percentage
-    // This creates a circular progress indicator around the icon
-    if (root.usage > 0) : Path {
-        // Position the ring around the icon
-        x: (parent.width - 20px) / 2;
-        y: (parent.height - 20px) / 2;
-        width: 20px;
-        height: 20px;
         
-        // Draw a circular arc representing the usage
-        // The arc starts at the top and goes clockwise
-        viewbox-width: 20;
-        viewbox-height: 20;
-        
-        // Stroke color matches the icon color logic
-        stroke: root.usage < 0.6 
-            ? Tokens.text-muted
-            : (root.usage < 0.85 ? #ffa500 : Tokens.danger-red);
-        stroke-width: 1.5px;
-        fill: transparent;
-        
-        // The arc path - this is a simplified version
-        // A full implementation would calculate the arc based on usage percentage
-        // For now, this serves as a placeholder for the visual concept
-        
-        // Smooth color transition
-        animate stroke { duration: 150ms; easing: ease-in-out; }
+        // Formatted context text directly in place
+        label := Text {
+            text: root.display-text;
+            color: Tokens.text-primary;
+            font-size: Tokens.body-font-size - 1px;
+            font-family: Tokens.font-family;
+            vertical-alignment: center;
+        }
     }
     
     // Touch area for click detection covering the entire button
     touch-area := TouchArea {
-        // Change cursor to pointer to indicate clickability
         mouse-cursor: pointer;
-        
         clicked => {
             root.clicked();
         }

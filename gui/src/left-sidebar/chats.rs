@@ -44,6 +44,7 @@ pub fn wire_chats(
                 }
                 super::sidebar::clear_sidebar_selection(&win);
                 win.set_session_title("New Chat".into());
+                win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
             }
         }
     });
@@ -62,12 +63,13 @@ pub fn wire_chats(
 
             if confirmed == MessageDialogResult::Ok {
                 // Clear state on the main thread first
-                {
+                let active_id = {
                     let mut g_state = app_state.borrow_mut();
                     if g_state.active_session_id() == Some(&session_id) {
                         g_state.set_active_session_id(None);
                     }
-                }
+                    g_state.active_session_id().map(String::from)
+                };
 
                 let win_weak = window_weak.clone();
                 let session_id_clone = session_id.clone();
@@ -86,7 +88,7 @@ pub fn wire_chats(
                                 win.set_session_title("New Chat".into());
                             }
                             super::sidebar::clear_sidebar_selection(&win);
-                            super::sidebar::refresh_sidebar(&win);
+                            super::sidebar::refresh_sidebar(&win, active_id);
                         }
                     });
                 });

@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::HashMap;
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, ModelRc, VecModel, Model};
 
 use crate::state::AppState;
 
@@ -29,7 +29,7 @@ pub fn clean_unc_path(s: String) -> String {
 
 /// Asynchronously queries session JSON files, matches them against allowed projects,
 /// filters them by the current search query, constructs Slint models, and updates the Operon window.
-pub fn refresh_sidebar(window: &crate::OperonWindow) {
+pub fn refresh_sidebar(window: &crate::OperonWindow, active_session_id: Option<String>) {
     let window_weak = window.as_weak();
     let search_query = window.get_sidebar_search_text().to_string().to_lowercase();
 
@@ -132,7 +132,7 @@ pub fn refresh_sidebar(window: &crate::OperonWindow) {
                 project_chats_map.insert(p.clone(), Vec::new());
             }
 
-            for s in sessions {
+            for s in &sessions {
                 if !s.is_project {
                     standalone_chats.push(crate::SidebarConversation {
                         id: s.id.clone().into(),
@@ -173,7 +173,7 @@ pub fn refresh_sidebar(window: &crate::OperonWindow) {
             // Dispatch update to Slint main thread
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = window_weak.upgrade() {
-                    ui.set_sidebar_chats(ModelRc::from(Rc::new(VecModel::from(standalone_chats))));
+                    ui.set_sidebar_chats(ModelRc::from(Rc::new(VecModel::from(standalone_chats.clone()))));
                     
                     let slint_projects: Vec<crate::SidebarProject> = projects_data
                         .into_iter()
@@ -183,7 +183,30 @@ pub fn refresh_sidebar(window: &crate::OperonWindow) {
                             conversations: ModelRc::from(Rc::new(VecModel::from(convs))),
                         })
                         .collect();
-                    ui.set_sidebar_projects(ModelRc::from(Rc::new(VecModel::from(slint_projects))));
+                    ui.set_sidebar_projects(ModelRc::from(Rc::new(VecModel::from(slint_projects.clone()))));
+
+                    // Auto-highlight active session in sidebar if it exists
+                    if let Some(ref active_id) = active_session_id {
+                        if let Some(idx) = standalone_chats.iter().position(|c| c.id == *active_id) {
+                            ui.set_active_chat_index(idx as i32);
+                            ui.set_active_project_index(-1);
+                            ui.set_active_conversation_index(-1);
+                        } else {
+                            for (p_idx, project) in slint_projects.iter().enumerate() {
+                                let convs_model = &project.conversations;
+                                for c_idx in 0..convs_model.row_count() {
+                                    if let Some(conv) = convs_model.row_data(c_idx) {
+                                        if conv.id == *active_id {
+                                            ui.set_active_project_index(p_idx as i32);
+                                            ui.set_active_conversation_index(c_idx as i32);
+                                            ui.set_active_chat_index(-1);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             });
 
@@ -229,18 +252,53 @@ pub fn load_chat_session(
             let json_path = paths.session_db(&session_id_str);
             if json_path.exists() {
                 let store = operon_rs::session::store::SessionStore::open(&json_path).await?;
-                if let Ok(Some(first_msg)) = store.get_first_user_message_text(&session_id_str).await {
-                    let mut clean_title = first_msg.replace('\n', " ").trim().to_string();
-                    if clean_title.len() > 40 {
-                        clean_title = format!("{}...", &clean_title[..40]);
-                    }
-
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = window_weak.upgrade() {
-                            ui.set_session_title(clean_title.into());
+                
+                // Get title
+                let title = match store.get_first_user_message_text(&session_id_str).await {
+                    Ok(Some(first_msg)) => {
+                        let mut clean_title = first_msg.replace('\n', " ").trim().to_string();
+                        if clean_title.len() > 40 {
+                            clean_title = format!("{}...", &clean_title[..40]);
                         }
-                    });
+                        clean_title
+                    }
+                    _ => "New Chat".to_string(),
+                };
+
+                // Get conversation history turns
+                let mut slint_messages = Vec::new();
+                if let Ok(history_turns) = store.load_turns(&session_id_str).await {
+                    for turn in history_turns {
+                        for msg in turn {
+                            let is_user = msg.role == operon_rs::context::MessageRole::User;
+                            let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
+                            if is_user || is_assistant {
+                                let mut text_parts = Vec::new();
+                                for block in &msg.content {
+                                    if let operon_rs::context::ContentBlock::Text(s) = block {
+                                        text_parts.push(s.clone());
+                                    }
+                                }
+                                let text = text_parts.join("\n");
+                                if !text.is_empty() {
+                                    slint_messages.push(crate::ChatMessage {
+                                        id: "".into(),
+                                        is_user,
+                                        text: text.into(),
+                                        time: "".into(),
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
+
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = window_weak.upgrade() {
+                        ui.set_session_title(title.into());
+                        ui.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_messages))));
+                    }
+                });
             }
             anyhow::Ok(())
         }.await;
@@ -253,7 +311,8 @@ pub fn wire_sidebar(
     state: Rc<RefCell<AppState>>,
 ) {
     // Trigger initial load
-    refresh_sidebar(window);
+    let active_id = state.borrow().active_session_id().map(String::from);
+    refresh_sidebar(window, active_id);
 
     // Delegate callback wire setup to submodules
     super::chats::wire_chats(window, Rc::clone(&state));

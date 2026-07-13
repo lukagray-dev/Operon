@@ -27,6 +27,13 @@ import { Topbar } from "./topbar/topbar.slint";
 import { WarningText } from "./input/warning.slint";
 import { TerminalPanel } from "./terminal/terminal.slint";
 
+export struct ChatMessage {
+    id: string,
+    is_user: bool,
+    text: string,
+    time: string,
+}
+
 // Main content area component that contains the chat interface.
 // This is the primary workspace where users interact with the AI agent.
 export component MainContent inherits Rectangle {
@@ -56,13 +63,13 @@ export component MainContent inherits Rectangle {
     // Voice recording state
     in-out property <bool> is-recording: false;
     
+    // Discovered models list and inline context indicator values
+    in property <string> context-text: "0k/128k";
+    in property <[string]> available-models: ["Claude Sonnet 4.5", "GPT-4o", "DeepSeek Chat"];
+    
     // ===== Message Properties =====
-    // Array of user messages to display in the chat
-    // In a real implementation, this would be a model containing all messages
-    // For now, we'll use simple properties to demonstrate the layout
-    in property <string> demo-user-message: "This is a sample user message to demonstrate the layout. It can be quite long and will wrap to multiple lines. When the message exceeds 10 lines, a 'Show more' button will appear to expand the full content.";
-    in property <string> demo-assistant-message: "This is a sample assistant message using PT Serif font. The assistant's response appears without a bubble, spanning the full width of the input panel. Below this message, you'll find action buttons for copying, liking, regenerating, and more.";
-    in property <string> demo-time: "2m ago";
+    // Array of user and assistant messages to display in the chat
+    in property <[ChatMessage]> chat-messages: [];
     
     // Session title property
     in property <string> session-title: "New Session";
@@ -82,6 +89,7 @@ export component MainContent inherits Rectangle {
     callback voice-clicked();
     callback voice-recording-started();
     callback voice-recording-stopped();
+    callback model-selected(string /* selected-model */);
     
     // Message action callbacks
     callback message-edit-clicked(int /* message-index */);
@@ -175,46 +183,43 @@ export component MainContent inherits Rectangle {
                                     spacing: 12px;
                                     alignment: start;
                                     
-                                    // Demo user message to show the layout
-                                    demo-user-message := UserMessage {
-                                        message-text: root.demo-user-message;
-                                        // Calculated based on root width to avoid layout binding loops
-                                        max-bubble-width: (root.width < root.input-panel-max-width ? root.width : root.input-panel-max-width) * 0.75;
-                                        
-                                        // Forward callbacks
-                                        edit-clicked => {
-                                            root.message-edit-clicked(0);
+                                    for msg[idx] in root.chat-messages : VerticalLayout {
+                                        if (msg.is-user) : UserMessage {
+                                            message-text: msg.text;
+                                            max-bubble-width: (root.width < root.input-panel-max-width ? root.width : root.input-panel-max-width) * 0.75;
+                                            
+                                            edit-clicked => {
+                                                root.message-edit-clicked(idx);
+                                            }
+                                            
+                                            copy-clicked => {
+                                                root.message-copy-clicked(idx);
+                                            }
                                         }
                                         
-                                        copy-clicked => {
-                                            root.message-copy-clicked(0);
-                                        }
-                                    }
-                                    
-                                    // Demo assistant message to show the layout
-                                    demo-assistant-message := AssistantMessage {
-                                        message-text: root.demo-assistant-message;
-                                        time-text: root.demo-time;
-                                        
-                                        // Forward callbacks
-                                        copy-clicked => {
-                                            root.assistant-copy-clicked(0);
-                                        }
-                                        
-                                        like-clicked => {
-                                            root.assistant-like-clicked(0);
-                                        }
-                                        
-                                        dislike-clicked => {
-                                            root.assistant-dislike-clicked(0);
-                                        }
-                                        
-                                        regenerate-clicked => {
-                                            root.assistant-regenerate-clicked(0);
-                                        }
-                                        
-                                        fork-clicked => {
-                                            root.assistant-fork-clicked(0);
+                                        if (!msg.is-user) : AssistantMessage {
+                                            message-text: msg.text;
+                                            time-text: msg.time;
+                                            
+                                            copy-clicked => {
+                                                root.assistant-copy-clicked(idx);
+                                            }
+                                            
+                                            like-clicked => {
+                                                root.assistant-like-clicked(idx);
+                                            }
+                                            
+                                            dislike-clicked => {
+                                                root.assistant-dislike-clicked(idx);
+                                            }
+                                            
+                                            regenerate-clicked => {
+                                                root.assistant-regenerate-clicked(idx);
+                                            }
+                                            
+                                            fork-clicked => {
+                                                root.assistant-fork-clicked(idx);
+                                            }
                                         }
                                     }
                                 }
@@ -326,6 +331,8 @@ export component MainContent inherits Rectangle {
                             tokens-used: root.tokens-used;
                             tokens-total: root.tokens-total;
                             is-recording <=> root.is-recording;
+                            context-text: root.context-text;
+                            available-models: root.available-models;
                             
                             // Forward all callbacks
                             message-submitted(text) => {
@@ -362,6 +369,10 @@ export component MainContent inherits Rectangle {
                             
                             voice-recording-stopped => {
                                 root.voice-recording-stopped();
+                            }
+                            
+                            model-selected(model) => {
+                                root.model-selected(model);
                             }
                         }
                         

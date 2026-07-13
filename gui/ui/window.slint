@@ -8,7 +8,7 @@ import { Tokens } from "./shared/tokens.slint";
 import { Titlebar } from "./window/titlebar.slint";
 import { Sidebar } from "./left-sidebar/sidebar.slint";
 import { SidebarConversation, SidebarProject } from "./left-sidebar/types.slint";
-import { MainContent } from "./main-content/main-content.slint";
+import { MainContent, ChatMessage } from "./main-content/main-content.slint";
 export { SettingsWindow } from "./settings/settings.slint";
 
 export component OperonWindow inherits Window {
@@ -108,14 +108,22 @@ export component OperonWindow inherits Window {
     
     // Main content properties - bind these from Rust
     in-out property <string> input_text: "";
-    in-out property <string> selected_model: "Claude Sonnet 4.5";
-    in-out property <string> selected_reasoning: "Medium";
+    in-out property <string> selected_model: "";
+    in-out property <string> selected_reasoning: "";
     in-out property <bool> auto_approve_enabled: false;
-    in property <float> context_usage: 0.35;
-    in property <int> tokens_used: 35000;
-    in property <int> tokens_total: 100000;
+    in property <float> context_usage: 0.0;
+    in property <int> tokens_used: 0;
+    in property <int> tokens_total: 0;
     in-out property <bool> is_recording: false;
     in property <string> session_title: "New Session";
+    in property <[ChatMessage]> chat_messages: [];
+    
+    // Discovered models list and inline context indicator values
+    in property <string> context_text: "";
+    in property <[string]> available_models: [];
+    
+    // Fired when user selects a model from the dropdown
+    callback model_selected(string /* selected-model */);
 
     // Main content layout: sidebar + content area
     HorizontalLayout {
@@ -204,6 +212,9 @@ export component OperonWindow inherits Window {
                 tokens-total: root.tokens_total;
                 is-recording <=> root.is_recording;
                 session-title: root.session_title;
+                context-text: root.context_text;
+                available-models: root.available_models;
+                chat-messages: root.chat_messages;
                 
                 // Wire callbacks to root
                 message-submitted(text) => {
@@ -240,6 +251,10 @@ export component OperonWindow inherits Window {
                 
                 voice-recording-stopped => {
                     root.voice_recording_stopped();
+                }
+                
+                model-selected(model) => {
+                    root.model_selected(model);
                 }
                 
                 // User message action callbacks

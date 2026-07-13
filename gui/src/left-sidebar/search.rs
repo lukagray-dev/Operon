@@ -12,16 +12,19 @@ use crate::state::AppState;
 /// Wire sidebar search query change and cancel event callbacks.
 pub fn wire_search(
     window: &crate::OperonWindow,
-    _state: Rc<RefCell<AppState>>,
+    state: Rc<RefCell<AppState>>,
 ) {
     let window_weak = window.as_weak();
+    let app_state = Rc::clone(&state);
 
     // Callback 1: User typed/changed query in search input field
     window.on_sidebar_search_query_changed({
         let window_weak = window_weak.clone();
+        let app_state = Rc::clone(&app_state);
         move |_query| {
             if let Some(win) = window_weak.upgrade() {
-                super::sidebar::refresh_sidebar(&win);
+                let active_id = app_state.borrow().active_session_id().map(String::from);
+                super::sidebar::refresh_sidebar(&win, active_id);
             }
         }
     });
@@ -29,9 +32,11 @@ pub fn wire_search(
     // Callback 2: User cancelled/closed search mode
     window.on_sidebar_search_cancelled({
         let window_weak = window_weak.clone();
+        let app_state = Rc::clone(&app_state);
         move || {
             if let Some(win) = window_weak.upgrade() {
-                super::sidebar::refresh_sidebar(&win);
+                let active_id = app_state.borrow().active_session_id().map(String::from);
+                super::sidebar::refresh_sidebar(&win, active_id);
             }
         }
     });
