@@ -4,6 +4,9 @@ export component MarkdownCode inherits Rectangle {
     in property <string> text: "";
     in property <string> lang: "";
     
+    // Tracks copy feedback state
+    in-out property <bool> is-copied: false;
+    
     background: rgba(30, 30, 30, 0.4);
     border-width: 1px;
     border-color: rgba(255, 255, 255, 0.08);
@@ -14,6 +17,16 @@ export component MarkdownCode inherits Rectangle {
     
     // Dynamic height based on code text
     height: 32px + code-text-element.preferred-height + 24px;
+    
+    // Timer to reset copy feedback after 3 seconds
+    timer := Timer {
+        interval: 3s;
+        running: false;
+        triggered => {
+            root.is-copied = false;
+            self.running = false;
+        }
+    }
     
     VerticalLayout {
         // Header
@@ -42,27 +55,35 @@ export component MarkdownCode inherits Rectangle {
                     vertical-alignment: center;
                 }
                 
-                // Copy button
-                copy-touch := TouchArea {
-                    width: 20px;
-                    height: 20px;
-                    mouse-cursor: pointer;
+                // Copy button container to center vertically
+                VerticalLayout {
+                    alignment: center;
                     
-                    VerticalLayout {
-                        alignment: center;
-                        HorizontalLayout {
+                    copy-touch := TouchArea {
+                        width: 20px;
+                        height: 20px;
+                        mouse-cursor: pointer;
+                        
+                        VerticalLayout {
                             alignment: center;
-                            Image {
-                                source: @image-url("../../../assets/icons/sidebar/new-chat.svg");
-                                width: 12px;
-                                height: 12px;
-                                colorize: copy-touch.has-hover ? #ffffff : #8b949e;
+                            HorizontalLayout {
+                                alignment: center;
+                                Image {
+                                    source: root.is-copied
+                                        ? @image-url("../../../assets/icons/main-content/messages/assistant/check.svg")
+                                        : @image-url("../../../assets/icons/main-content/messages/assistant/copy.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: copy-touch.has-hover ? #ffffff : #8b949e;
+                                }
                             }
                         }
-                    }
-                    
-                    clicked => {
-                        root.copy-clicked();
+                        
+                        clicked => {
+                            root.is-copied = true;
+                            timer.running = true;
+                            root.copy-clicked();
+                        }
                     }
                 }
             }
