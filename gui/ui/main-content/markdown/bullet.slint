@@ -3,6 +3,7 @@ import { Tokens } from "../../shared/tokens.slint";
 export component MarkdownBullet inherits HorizontalLayout {
     in property <string> text: "";
     in property <string> font-family-custom: Tokens.serif-font-family;
+    in property <length> font-size-custom: Tokens.body-font-size;
     
     spacing: 12px;
     padding-left: 24px;
@@ -12,7 +13,7 @@ export component MarkdownBullet inherits HorizontalLayout {
     Text {
         text: "•";
         color: #8b949e; // GitHub muted grey
-        font-size: Tokens.body-font-size;
+        font-size: root.font-size-custom;
         font-weight: 600;
         vertical-alignment: top;
     }
@@ -21,7 +22,7 @@ export component MarkdownBullet inherits HorizontalLayout {
     Text {
         text: root.text;
         color: Tokens.text-primary;
-        font-size: Tokens.body-font-size;
+        font-size: root.font-size-custom;
         font-family: root.font-family-custom;
         wrap: word-wrap;
         horizontal-stretch: 1;

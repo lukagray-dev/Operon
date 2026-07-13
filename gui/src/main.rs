@@ -5,5 +5,6 @@
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    std::env::set_var("SLINT_BACKEND", "winit-skia");
     operon_gui::run()
 }

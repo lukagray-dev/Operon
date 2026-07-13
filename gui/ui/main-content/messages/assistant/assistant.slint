@@ -71,6 +71,7 @@ export component AssistantMessage inherits Rectangle {
             message-text-area := MarkdownContent {
                 items: root.markdown-items;
                 show-cursor: root.show-cursor;
+                font-size: 14.5px;
                 code-copied(idx) => {
                     root.code-copied(idx);
                 }

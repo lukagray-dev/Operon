@@ -16,6 +16,7 @@ export component MarkdownContent inherits VerticalLayout {
     in property <[MarkdownItem]> items: [];
     in property <bool> show-cursor: false;
     in property <string> font-family: Tokens.serif-font-family;
+    in property <length> font-size: Tokens.body-font-size;
     
     // Callback fired when a code block's copy button is clicked
     callback code-copied(int /* item-index */);
@@ -30,6 +31,7 @@ export component MarkdownContent inherits VerticalLayout {
         if (item.kind == "p") : MarkdownParagraph {
             text: item.text + (is-last && root.show-cursor ? "|" : "");
             font-family-custom: root.font-family;
+            font-size-custom: root.font-size;
         }
         if (item.kind == "h1") : MarkdownHeading {
             level: 1;
@@ -53,6 +55,7 @@ export component MarkdownContent inherits VerticalLayout {
         if (item.kind == "bullet") : MarkdownBullet {
             text: item.text + (is-last && root.show-cursor ? "|" : "");
             font-family-custom: root.font-family;
+            font-size-custom: root.font-size;
         }
     }
 }

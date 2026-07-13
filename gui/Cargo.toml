@@ -26,7 +26,7 @@ pulldown-cmark = "0.11"
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 
 # Slint GUI framework — declarative UI language and runtime
-slint = { version = "1.16.1", features = ["unstable-winit-030"] }
+slint = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
 
 [build-dependencies]
 # Slint build script — compiles .slint files to Rust
