@@ -4776,11 +4776,13 @@ name = "operon-gui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arboard",
  "async-trait",
  "dirs 6.0.0",
  "operon-rs",
  "rfd",
  "serde",
+ "serde_json",
  "slint",
  "slint-build",
  "tokio",

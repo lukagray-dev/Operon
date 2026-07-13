@@ -16,9 +16,11 @@ anyhow.workspace      = true
 serde.workspace       = true
 toml.workspace        = true
 dirs.workspace        = true
+serde_json.workspace  = true
 
 operon-rs = { path = "../operon-rs" }
 rfd = "0.15"
+arboard = "3.6.1"
 
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 

@@ -6,6 +6,12 @@
 #[path = "input/input.rs"]
 pub mod input;
 
+#[path = "messages/user/user.rs"]
+pub mod user_messages;
+
+#[path = "messages/assistant/assistant.rs"]
+pub mod assistant_messages;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::state::AppState;
@@ -17,4 +23,8 @@ pub fn wire_main_content(
 ) {
     // Wire prompt input area
     input::wire_input_panel(window, Rc::clone(&state));
+
+    // Wire user and assistant message actions
+    user_messages::wire_user_messages(window, Rc::clone(&state));
+    assistant_messages::wire_assistant_messages(window, Rc::clone(&state));
 }
