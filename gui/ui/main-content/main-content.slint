@@ -27,6 +27,7 @@ import { Topbar } from "./topbar/topbar.slint";
 import { WarningText } from "./input/warning.slint";
 import { TerminalPanel } from "./terminal/terminal.slint";
 import { MarkdownItem } from "./markdown/markdown.slint";
+import { ChatLoadingSkeleton } from "./messages/loading.slint";
 
 export struct ChatMessage {
     id: string,
@@ -68,6 +69,9 @@ export component MainContent inherits Rectangle {
     // Generator / responding state
     in-out property <bool> is-responding: false;
     in property <bool> cursor-blink: true;
+    
+    // Session loading state
+    in-out property <bool> is-loading-session: false;
     
     // Discovered models list and inline context indicator values
     in property <string> context-text: "";
@@ -145,6 +149,7 @@ export component MainContent inherits Rectangle {
                 background: transparent;
                 
                 messages-flickable := Flickable {
+                    visible: !root.is-loading-session;
                     width: parent.width;
                     height: parent.height;
                     
@@ -297,31 +302,22 @@ export component MainContent inherits Rectangle {
                     y: 4px;
                     width: 6px;
                     height: parent.height - 8px;
-                    // Only visible when content height is larger than view height
-                    visible: messages-flickable.viewport-height > messages-flickable.height;
+                    // Only visible when content height is larger than view height and not loading a session
+                    visible: !root.is-loading-session && (messages-flickable.viewport-height > messages-flickable.height);
                     background: transparent;
 
                     scrollbar-thumb := Rectangle {
                         width: 100%;
-                        // Compute height based on ratio of visible area, clamp to at least 40px
-                        height: Math.max(40px, (messages-flickable.height / messages-flickable.viewport-height) * messages-flickable.height);
-                        // Compute y-position based on scroll offset ratio. Clamp to fit track height.
-                        y: (-messages-flickable.viewport-y / (messages-flickable.viewport-height - messages-flickable.height)) * (scrollbar-track.height - self.height);
-                        background: Tokens.text-muted.with-alpha(0.3);
+                        height: Math.max(20px, parent.height * Math.min(1.0, messages-flickable.height / messages-flickable.viewport-height));
+                        y: -messages-flickable.viewport-y / (messages-flickable.viewport-height - messages-flickable.height) * (parent.height - self.height);
                         border-radius: 3px;
-
-                        // Hover effect for the thumb color
-                        states [
-                            hover when scrollbar-touch.has-hover : {
-                                background: Tokens.text-secondary.with-alpha(0.6);
-                            }
-                        ]
-
-                        // Animate background color change for smooth polish, but NO animation on 'y' or 'height' to ensure instant reaction
+                        background: scrollbar-track-touch.has-hover ? rgba(255, 255, 255, 0.25) : rgba(255, 255, 255, 0.12);
+                        
+                        // Smooth highlight transition on hover
                         animate background { duration: 100ms; }
                     }
 
-                    scrollbar-touch := TouchArea {
+                    scrollbar-track-touch := TouchArea {
                         width: 100%;
                         height: 100%;
                         clicked => {
@@ -342,6 +338,14 @@ export component MainContent inherits Rectangle {
                                 * (messages-flickable.viewport-height - messages-flickable.height);
                         }
                     }
+                }
+
+                // Chat session loading skeleton component (displayed while loading a previous session)
+                ChatLoadingSkeleton {
+                    visible: root.is-loading-session;
+                    active: root.is-loading-session;
+                    width: parent.width;
+                    height: parent.height;
                 }
             }
 

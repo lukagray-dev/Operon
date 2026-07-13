@@ -122,6 +122,9 @@ export component OperonWindow inherits Window {
     in-out property <bool> is_responding: false;
     in-out property <bool> cursor_blink: true;
     
+    // Session loading state - when true, shows a shimmer skeleton instead of messages
+    in-out property <bool> is_loading_session: false;
+    
     // Discovered models list and inline context indicator values
     in property <string> context_text: "";
     in property <[string]> available_models: [];
@@ -222,6 +225,7 @@ export component OperonWindow inherits Window {
                 chat-messages: root.chat_messages;
                 is-responding <=> root.is_responding;
                 cursor-blink: root.cursor_blink;
+                is-loading-session: root.is_loading_session;
                 
                 // Wire callbacks to root
                  cancel-clicked => {

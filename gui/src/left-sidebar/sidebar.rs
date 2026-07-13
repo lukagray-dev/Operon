@@ -244,10 +244,12 @@ pub fn load_chat_session(
 
     // Retrieve conversation title and update Slint title property
     let window_weak = window.as_weak();
+    let window_weak_err = window.as_weak();
+    window.set_is_loading_session(true);
     let session_id_str = session_id.to_string();
     
     tokio::spawn(async move {
-        let _load_session = async {
+        let run_load = async {
             let paths = operon_rs::config::OperonPaths::resolve()?;
             let json_path = paths.session_db(&session_id_str);
             if json_path.exists() {
@@ -325,11 +327,28 @@ pub fn load_chat_session(
                         ui.set_tokens_used(last_token_count as i32);
                         ui.set_tokens_total(context_window as i32);
                         ui.set_context_text(context_text.into());
+                        ui.set_is_loading_session(false);
+                    }
+                });
+            } else {
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = window_weak.upgrade() {
+                        ui.set_chat_messages(slint::ModelRc::default());
+                        ui.set_session_title("New Chat".into());
+                        ui.set_is_loading_session(false);
                     }
                 });
             }
             anyhow::Ok(())
         }.await;
+
+        if run_load.is_err() {
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = window_weak_err.upgrade() {
+                    ui.set_is_loading_session(false);
+                }
+            });
+        }
     });
 }
 
