@@ -58,13 +58,14 @@ export component InputPanel inherits Rectangle {
     in property <string> context-text: "";
     in property <[string]> available-models: [];
     in-out property <bool> show-model-dropdown: false;
+    in-out property <bool> is-responding: false;
 
     // Fired when user selects a model from the dropdown
     callback model-selected(string /* selected-model */);
 
-    // ===== Callbacks =====
     // Fired when the user submits a message (Enter key or Send button)
     callback message-submitted(string /* message-text */);
+    callback cancel-clicked();
 
     // Fired when text content changes
     callback text-changed(string /* new-text */);
@@ -265,15 +266,16 @@ export component InputPanel inherits Rectangle {
                         }
                     }
 
-                    // Send button - only enabled when there's text
+                    // Send button - stop when responding, submit when text present
                     SendButton {
-                        enabled: root.input-text != "";
+                        enabled: root.input-text != "" || root.is-responding;
+                        is-responding: root.is-responding;
 
                         clicked => {
-                            // Submit the message if there's text
-                            if (root.input-text != "") {
+                            if (root.is-responding) {
+                                root.cancel-clicked();
+                            } else if (root.input-text != "") {
                                 root.message-submitted(root.input-text);
-                                // Clear the input after submission
                                 root.input-text = "";
                             }
                         }

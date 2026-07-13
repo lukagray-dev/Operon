@@ -3,14 +3,6 @@
 // This component provides the primary action button that submits the user's
 // prompt to the AI agent. It's positioned at the bottom-right corner of the
 // input panel as the final step in composing a message.
-//
-// The button has multiple states:
-// - Disabled: When there's no text to send (grayed out)
-// - Enabled: When text is present (normal state)
-// - Hover: Visual feedback when hovering
-// - Active: Visual feedback when clicking
-//
-// The button uses an arrow or send icon to indicate the submit action.
 
 import { Tokens } from "../../shared/tokens.slint";
 
@@ -20,6 +12,9 @@ export component SendButton inherits Rectangle {
     // Whether the button is enabled (typically based on whether there's text to send)
     in property <bool> enabled: true;
     
+    // Whether the model is currently generating a response (shows stop icon)
+    in property <bool> is-responding: false;
+    
     // Callback fired when the user clicks the send button
     callback clicked();
     
@@ -28,8 +23,7 @@ export component SendButton inherits Rectangle {
     height: 32px;
     
     // Background color changes based on enabled state and hover
-    // Use accent blue when enabled to draw attention as the primary action
-    background: !root.enabled 
+    background: !(root.enabled || root.is-responding)
         ? transparent
         : (touch-area.has-hover 
             ? Tokens.accent-blue-hover 
@@ -48,14 +42,15 @@ export component SendButton inherits Rectangle {
         VerticalLayout {
             alignment: center;
             
-            // Send icon (arrow or paper plane symbol)
-            // Using colorize to apply theme colors to the SVG
+            // Send or Stop icon depending on generator state
             icon := Image {
-                source: @image-url("../../../assets/icons/main-content/input/send.svg");
+                source: root.is-responding 
+                    ? @image-url("../../../assets/icons/main-content/input/stop.svg")
+                    : @image-url("../../../assets/icons/main-content/input/send.svg");
                 width: 18px;
                 height: 18px;
-                // When disabled, use muted color; when enabled, use white for contrast
-                colorize: !root.enabled 
+                // When disabled, use muted color; when enabled or responding, use white for contrast
+                colorize: !(root.enabled || root.is-responding)
                     ? Tokens.text-muted 
                     : #ffffff;
                 image-fit: contain;
@@ -69,11 +64,11 @@ export component SendButton inherits Rectangle {
     // Touch area for click detection covering the entire button
     touch-area := TouchArea {
         // Change cursor based on enabled state
-        mouse-cursor: root.enabled ? pointer : default;
+        mouse-cursor: (root.enabled || root.is-responding) ? pointer : default;
         
-        // Only respond to clicks when enabled
+        // Only respond to clicks when enabled or responding
         clicked => {
-            if (root.enabled) {
+            if (root.enabled || root.is-responding) {
                 root.clicked();
             }
         }

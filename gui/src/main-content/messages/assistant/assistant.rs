@@ -36,6 +36,7 @@ pub fn wire_assistant_messages(
             }
         }
     });
+
     // Callback 2: Like assistant message
     window.on_assistant_message_like_clicked(move |msg_idx| {
         println!("[operon-gui][assistant-message] Liked assistant message at index {}", msg_idx);

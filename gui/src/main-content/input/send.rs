@@ -4,9 +4,15 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Mutex;
 use slint::{ComponentHandle, Model};
 
 use crate::state::AppState;
+
+// Global thread-safe reference to the active session's command channel.
+// This allows cancellation from titlebar/input stop buttons without passing
+// thread-local Rc<RefCell<AppState>> handles into background tasks.
+static ACTIVE_CMD_TX: Mutex<Option<tokio::sync::mpsc::Sender<operon_rs::SessionCommand>>> = Mutex::new(None);
 
 /// Register message submission callback.
 pub fn wire_send(
@@ -38,6 +44,16 @@ pub fn wire_send(
             submit_prompt(&win, message_text.to_string(), session_id, is_new_session, project_dir);
         }
     });
+
+    window.on_cancel_clicked(move || {
+        println!("[operon-gui][send] Stop requested by user");
+        let cmd_tx_opt = ACTIVE_CMD_TX.lock().unwrap().clone();
+        if let Some(cmd_tx) = cmd_tx_opt {
+            tokio::spawn(async move {
+                let _ = cmd_tx.send(operon_rs::SessionCommand::Cancel).await;
+            });
+        }
+    });
 }
 
 /// Start an agentic chat turn turn by submitting the given prompt text to the runner.
@@ -66,13 +82,15 @@ pub fn submit_prompt(
     });
     window.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
 
-    // 2. Clear text input area in Slint
+    // 2. Clear text input area and update responding state in Slint
     window.set_input_text("".into());
+    window.set_is_responding(true);
 
     let window_weak = window.as_weak();
 
     // 3. Launch tokio prompt task in the background
     tokio::spawn(async move {
+        let session_id_clone = session_id.clone();
         let run_prompt = async {
             let app_config = operon_rs::load()?;
             
@@ -98,7 +116,12 @@ pub fn submit_prompt(
 
             // Create event/command channels
             let (event_tx, mut event_rx) = tokio::sync::mpsc::channel(100);
-            let (_cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(100);
+            let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(100);
+
+            // Store command sender in global static reference for cancellation support
+            {
+                *ACTIVE_CMD_TX.lock().unwrap() = Some(cmd_tx);
+            }
 
             let store = operon_rs::session::store::SessionStore::open(&store_path).await?;
             
@@ -122,10 +145,8 @@ pub fn submit_prompt(
             runner.set_history(flat_history, turn_index, last_token_count);
 
             // Run runner in background task
-            tokio::spawn(async move {
-                if let Err(e) = runner.run(message_text.to_string()).await {
-                    eprintln!("[operon-gui][send] Runner failed to process message: {}", e);
-                }
+            let runner_handle = tokio::spawn(async move {
+                runner.run(message_text.to_string()).await
             });
 
             // Spawn task to read events and update context indicators in the UI
@@ -191,11 +212,23 @@ pub fn submit_prompt(
                 }
             });
 
-            // Force sidebar update to list the new session and its title
-            let session_id_clone = session_id.clone();
+            // Wait for runner task to complete
+            if let Ok(res) = runner_handle.await {
+                if let Err(e) = res {
+                    eprintln!("[operon-gui][send] Runner failed to process message: {}", e);
+                }
+            }
+
+            // Clear the active command channel sender
+            {
+                *ACTIVE_CMD_TX.lock().unwrap() = None;
+            }
+
+            // Force sidebar update and turn off responding flag
             let win_weak_sidebar = window_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(win) = win_weak_sidebar.upgrade() {
+                    win.set_is_responding(false);
                     crate::left_sidebar::sidebar::refresh_sidebar(&win, Some(session_id_clone));
                 }
             });
@@ -205,6 +238,12 @@ pub fn submit_prompt(
 
         if let Err(e) = run_prompt {
             eprintln!("[operon-gui][send] Failed to launch prompt run: {}", e);
+            // Reset responding state on launcher failures
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(win) = window_weak.upgrade() {
+                    win.set_is_responding(false);
+                }
+            });
         }
     });
 }

@@ -105,6 +105,7 @@ export component OperonWindow inherits Window {
     callback assistant_message_dislike_clicked(int /* message-index */);
     callback assistant_message_regenerate_clicked(int /* message-index */);
     callback assistant_message_fork_clicked(int /* message-index */);
+    callback cancel_clicked();
     
     // Main content properties - bind these from Rust
     in-out property <string> input_text: "";
@@ -117,6 +118,8 @@ export component OperonWindow inherits Window {
     in-out property <bool> is_recording: false;
     in property <string> session_title: "New Session";
     in property <[ChatMessage]> chat_messages: [];
+    in-out property <bool> is_responding: false;
+    in-out property <bool> cursor_blink: true;
     
     // Discovered models list and inline context indicator values
     in property <string> context_text: "";
@@ -215,8 +218,13 @@ export component OperonWindow inherits Window {
                 context-text: root.context_text;
                 available-models: root.available_models;
                 chat-messages: root.chat_messages;
+                is-responding <=> root.is_responding;
+                cursor-blink: root.cursor_blink;
                 
                 // Wire callbacks to root
+                cancel-clicked => {
+                    root.cancel_clicked();
+                }
                 message-submitted(text) => {
                     root.message_submitted(text);
                 }

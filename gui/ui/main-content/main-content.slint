@@ -51,21 +51,25 @@ export component MainContent inherits Rectangle {
     in-out property <string> input-text: "";
     
     // Selected model and settings
-    in-out property <string> selected-model: "Claude Sonnet 4.5";
-    in-out property <string> selected-reasoning: "Medium";
+    in-out property <string> selected-model: "";
+    in-out property <string> selected-reasoning: "";
     in-out property <bool> auto-approve-enabled: false;
     
     // Context window information
-    in property <float> context-usage: 0.35;
-    in property <int> tokens-used: 35000;
-    in property <int> tokens-total: 100000;
+    in property <float> context-usage: 0.0;
+    in property <int> tokens-used: 0;
+    in property <int> tokens-total: 0;
     
     // Voice recording state
     in-out property <bool> is-recording: false;
     
+    // Generator / responding state
+    in-out property <bool> is-responding: false;
+    in property <bool> cursor-blink: true;
+    
     // Discovered models list and inline context indicator values
-    in property <string> context-text: "0k/128k";
-    in property <[string]> available-models: ["Claude Sonnet 4.5", "GPT-4o", "DeepSeek Chat"];
+    in property <string> context-text: "";
+    in property <[string]> available-models: [];
     
     // ===== Message Properties =====
     // Array of user and assistant messages to display in the chat
@@ -90,6 +94,7 @@ export component MainContent inherits Rectangle {
     callback voice-recording-started();
     callback voice-recording-stopped();
     callback model-selected(string /* selected-model */);
+    callback cancel-clicked();
     
     // Message action callbacks
     callback message-edit-clicked(int /* message-index */);
@@ -200,6 +205,7 @@ export component MainContent inherits Rectangle {
                                         if (!msg.is-user) : AssistantMessage {
                                             message-text: msg.text;
                                             time-text: msg.time;
+                                            show-cursor: (idx == root.chat-messages.length - 1) && root.is-responding && root.cursor-blink;
                                             
                                             copy-clicked => {
                                                 root.assistant-copy-clicked(idx);
@@ -333,8 +339,13 @@ export component MainContent inherits Rectangle {
                             is-recording <=> root.is-recording;
                             context-text: root.context-text;
                             available-models: root.available-models;
+                            is-responding <=> root.is-responding;
                             
                             // Forward all callbacks
+                            cancel-clicked => {
+                                root.cancel-clicked();
+                            }
+                            
                             message-submitted(text) => {
                                 root.message-submitted(text);
                             }

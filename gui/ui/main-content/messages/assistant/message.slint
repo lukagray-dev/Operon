@@ -18,6 +18,9 @@ export component MessageText inherits Rectangle {
     // The message text content to display
     in property <string> message-text: "";
     
+    // Whether to show the blinking typing indicator cursor
+    in property <bool> show-cursor: false;
+    
     // Transparent background - no bubble for assistant messages
     background: transparent;
     
@@ -31,7 +34,7 @@ export component MessageText inherits Rectangle {
         
         // The actual text element
         message-text-element := Text {
-            text: root.message-text;
+            text: root.message-text + (root.show-cursor ? "|" : "");
             color: Tokens.text-primary;
             font-size: Tokens.body-font-size;
             // Use PT Serif font for assistant messages

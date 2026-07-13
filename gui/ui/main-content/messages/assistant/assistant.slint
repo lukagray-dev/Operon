@@ -31,9 +31,11 @@ import { TimeDisplay } from "./time.slint";
 // Complete assistant message component with text and action bar.
 // This represents a single assistant message in the chat history.
 export component AssistantMessage inherits Rectangle {
-    // ===== Message Properties =====
     // The message text content
     in property <string> message-text: "";
+    
+    // Whether to show the blinking typing indicator cursor
+    in property <bool> show-cursor: false;
 
     // Time text to display (e.g., "2m ago")
     in property <string> time-text: "Just now";
@@ -83,6 +85,7 @@ export component AssistantMessage inherits Rectangle {
             // ===== MESSAGE TEXT AREA =====
             message-text-area := MessageText {
                 message-text: root.message-text;
+                show-cursor: root.show-cursor;
             }
 
             // ===== CONTROLS CONTAINER =====
