@@ -249,12 +249,12 @@ export component Sidebar inherits Rectangle {
             // Handle drag movement
             moved => {
                 if (self.pressed) {
-                    // Calculate new width based on drag distance
+                    // Calculate new width using relative delta tracking to prevent coordinate-loop jitter
                     root.sidebar-width = max(
                         root.sidebar-min-width,
                         min(
                             root.sidebar-max-width,
-                            self.drag-start-width + (self.mouse-x - self.pressed-x)
+                            root.sidebar-width + (self.mouse-x - self.pressed-x)
                         )
                     );
                     

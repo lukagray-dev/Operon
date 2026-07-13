@@ -144,27 +144,51 @@ export component MainContent inherits Rectangle {
                 height: 100%;
                 background: transparent;
                 
-                // Flickable container for scrolling through messages
                 messages-flickable := Flickable {
                     width: parent.width;
                     height: parent.height;
                     
                     // Viewport height is computed dynamically to match the inner content layout
                     viewport-height: messages-inner-layout.preferred-height;
-                    interactive: true;
+                    interactive: false; // Disable built-in kinetic momentum animations
+                    
+                    // Smooth scroll target tracking (mimics VS Code smooth-scrolling physics)
+                    property <length> target-scroll-y: 0px;
+                    viewport-y: self.target-scroll-y;
+                    
+                    animate viewport-y {
+                        duration: 120ms;
+                        easing: ease-out;
+                    }
+                    
+                    changed viewport-height => {
+                        // Auto-scroll to bottom when new content is added (streaming/loading turns)
+                        self.target-scroll-y = min(0px, self.height - self.viewport-height);
+                    }
+                    
+                    // Custom TouchArea to handle direct mouse wheel scrolling with smooth ease-out target tracking
+                    TouchArea {
+                        width: 100%;
+                        height: max(messages-flickable.height, messages-flickable.viewport-height);
+                        
+                        clicked => {
+                            focus-scope.focus();
+                        }
+                        
+                        scroll-event(e) => {
+                            messages-flickable.target-scroll-y = max(
+                                min(0px, messages-flickable.height - messages-flickable.viewport-height),
+                                min(0px, messages-flickable.target-scroll-y + e.delta-y)
+                            );
+                            EventResult.accept
+                        }
+                    }
                     
                     // Content container for all messages
                     messages-content := Rectangle {
                         width: parent.width;
                         height: messages-inner-layout.preferred-height;
                         background: transparent;
-                        
-                        // Click empty space in messages area to clear input panel focus
-                        TouchArea {
-                            clicked => {
-                                focus-scope.focus();
-                            }
-                        }
                         
                         // Horizontal layout to center the message column
                         messages-inner-layout := HorizontalLayout {
@@ -192,6 +216,7 @@ export component MainContent inherits Rectangle {
                                     alignment: start;
                                     
                                     for msg[idx] in root.chat-messages : VerticalLayout {
+                                        cache-rendering-hint: true;
                                         if (msg.is-user) : UserMessage {
                                             message-text: msg.text;
                                             markdown-items: msg.markdown_items;

@@ -97,7 +97,7 @@ export component Chats inherits Rectangle {
                 height: 20px;
                 border-radius: 4px;
                 background: new-chat-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
-                visible: header-touch.has-hover;
+                visible: header-touch.has-hover || new-chat-touch.has-hover;
 
                 animate background { duration: 100ms; }
 

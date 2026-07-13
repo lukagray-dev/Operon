@@ -140,6 +140,7 @@ export component OperonWindow inherits Window {
             // Bind width dynamically based on sidebar collapse/expand state
             width: root.sidebar_open ? self.sidebar-width : 0px;
             visible: root.sidebar_open;
+            horizontal-stretch: 0;
 
             // Bind data from Rust
             projects: root.sidebar_projects;

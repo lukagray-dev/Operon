@@ -184,7 +184,7 @@ export component Projects inherits Rectangle {
                         height: 22px;
                         border-radius: 4px;
                         background: new-session-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
-                        visible: project-touch.has-hover || root.active-project-index == project-index;
+                        visible: project-touch.has-hover || new-session-touch.has-hover || root.active-project-index == project-index;
 
                         animate background { duration: 100ms; }
 
@@ -215,7 +215,7 @@ export component Projects inherits Rectangle {
                         height: 22px;
                         border-radius: 4px;
                         background: three-dots-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
-                        visible: project-touch.has-hover || root.active-project-index == project-index;
+                        visible: project-touch.has-hover || three-dots-touch.has-hover || root.active-project-index == project-index;
 
                         animate background { duration: 100ms; }
 
