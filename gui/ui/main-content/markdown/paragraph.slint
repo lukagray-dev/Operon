@@ -1,0 +1,10 @@
+import { Tokens } from "../../shared/tokens.slint";
+
+export component MarkdownParagraph inherits Text {
+    text: "";
+    color: Tokens.text-primary;
+    font-size: Tokens.body-font-size;
+    wrap: word-wrap;
+    vertical-alignment: top;
+    horizontal-alignment: left;
+}

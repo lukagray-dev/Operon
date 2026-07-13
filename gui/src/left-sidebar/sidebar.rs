@@ -266,7 +266,7 @@ pub fn load_chat_session(
                 };
 
                 // Get conversation history turns
-                let mut slint_messages = Vec::new();
+                let mut raw_messages = Vec::new();
                 if let Ok(history_turns) = store.load_turns(&session_id_str).await {
                     for turn in history_turns {
                         for msg in turn {
@@ -281,12 +281,7 @@ pub fn load_chat_session(
                                 }
                                 let text = text_parts.join("\n");
                                 if !text.is_empty() {
-                                    slint_messages.push(crate::ChatMessage {
-                                        id: "".into(),
-                                        is_user,
-                                        text: text.into(),
-                                        time: "".into(),
-                                    });
+                                    raw_messages.push((is_user, text));
                                 }
                             }
                         }
@@ -302,6 +297,18 @@ pub fn load_chat_session(
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = window_weak.upgrade() {
                         ui.set_session_title(title.into());
+                        
+                        let slint_messages: Vec<crate::ChatMessage> = raw_messages.into_iter().map(|(is_user, text)| {
+                            let parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&text);
+                            crate::ChatMessage {
+                                id: "".into(),
+                                is_user,
+                                text: text.into(),
+                                time: "".into(),
+                                markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed))),
+                            }
+                        }).collect();
+                        
                         ui.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_messages))));
                         ui.set_context_usage(utilization);
                         ui.set_tokens_used(last_token_count as i32);

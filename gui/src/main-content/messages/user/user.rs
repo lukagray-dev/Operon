@@ -9,6 +9,8 @@ use slint::{ComponentHandle, Model};
 
 use crate::state::AppState;
 
+pub mod markdown;
+
 /// Wire user message actions.
 pub fn wire_user_messages(
     window: &crate::OperonWindow,

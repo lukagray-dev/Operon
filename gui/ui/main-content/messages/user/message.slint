@@ -1,51 +1,36 @@
 // Message bubble component for user messages.
-//
-// This component displays the user's message text in a styled bubble container.
-// It supports:
-// - Text wrapping for long messages
-// - Truncation to 10 lines with "Show more" expansion
-// - Smooth expand/collapse animations
-// - Professional square bubble design
-//
-// The bubble is positioned on the right side of the chat area and uses the
-// same background color as the titlebar for visual consistency.
-//
-// Layout behavior:
-// - Width: 75% of the input panel width (aligned to right)
-// - Height: Dynamic based on content (1-10 lines collapsed, unlimited when expanded)
-// - Text: Word-wrapped with proper padding
 
 import { Tokens } from "../../../shared/tokens.slint";
+import { MarkdownItem, MarkdownContent } from "../../markdown/markdown.slint";
 
 // Message bubble displaying user's text content.
 // This is the main visual container for user messages in the chat.
 export component MessageBubble inherits Rectangle {
-    // The message text content to display
+    // The message text content to display (kept for backwards-compatibility or reference)
     in property <string> message-text: "";
     
+    // Parsed markdown items
+    in property <[MarkdownItem]> markdown-items: [];
+    
     // Whether the message is currently expanded (showing all content)
-    // When false, only first 10 lines are visible
     in-out property <bool> is-expanded: false;
     
     // Callback fired when the "Show more" button is clicked
     callback expand-clicked();
+
+    // Callback fired when code block copy button is clicked
+    callback code-copied(int /* item-index */);
     
     // Calculate if the message needs truncation
-    // We approximate line count based on text length and width
-    // This is a simplified approach - in production you might want more precise calculation
     property <bool> needs-truncation: message-text.character-count > 500;
     
     // Dynamic height calculation
-    // When collapsed: max 10 lines (~200px)
-    // When expanded: use preferred height of text
     property <length> line-height: 20px;
-    property <length> max-collapsed-height: 200px;  // ~10 lines
+    property <length> max-collapsed-height: 200px;
     
-    // Width is controlled by parent (75% of input panel width)
-    // Height is dynamic based on content and expansion state
     height: is-expanded 
-        ? (message-text-element.preferred-height + 32px)  // Full height + padding
-        : min(message-text-element.preferred-height + 32px, max-collapsed-height + 32px);
+        ? (message-text-area.preferred-height + 32px)  // Full height + padding
+        : min(message-text-area.preferred-height + 32px, max-collapsed-height + 32px);
     
     // Smooth height transition when expanding/collapsing
     animate height { duration: 250ms; easing: ease-in-out; }
@@ -54,7 +39,6 @@ export component MessageBubble inherits Rectangle {
     background: Tokens.titlebar-background;
     
     // Square corners for modern, professional appearance
-    // No border-radius to maintain sharp edges
     border-radius: 0px;
     
     // Subtle border for definition
@@ -74,21 +58,12 @@ export component MessageBubble inherits Rectangle {
             // Clip content when collapsed to hide overflow
             clip: !root.is-expanded;
             
-            // The actual text element
-            message-text-element := Text {
-                text: root.message-text;
-                color: Tokens.text-primary;
-                font-size: Tokens.body-font-size;
-                font-family: Tokens.font-family;
-                
-                // Enable word wrapping for long messages
-                wrap: word-wrap;
-                
-                // Vertical alignment at the top
-                vertical-alignment: top;
-                horizontal-alignment: left;
-                
-                // Width fills the container
+            // The markdown text element
+            message-text-area := MarkdownContent {
+                items: root.markdown-items;
+                code-copied(idx) => {
+                    root.code-copied(idx);
+                }
                 width: parent.width;
             }
         }
@@ -124,8 +99,8 @@ export component MessageBubble inherits Rectangle {
                         show-more-text := Text {
                             text: root.is-expanded ? "Show less" : "Show more";
                             color: show-more-touch.has-hover 
-                                ? Tokens.text-primary 
-                                : Tokens.text-secondary;
+                               ? Tokens.text-primary 
+                               : Tokens.text-secondary;
                             font-size: Tokens.body-font-size;
                             font-family: Tokens.font-family;
                             vertical-alignment: center;

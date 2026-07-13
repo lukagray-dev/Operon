@@ -106,6 +106,7 @@ export component OperonWindow inherits Window {
     callback assistant_message_regenerate_clicked(int /* message-index */);
     callback assistant_message_fork_clicked(int /* message-index */);
     callback cancel_clicked();
+    callback code_copied(int /* message-index */, int /* item-index */);
     
     // Main content properties - bind these from Rust
     in-out property <string> input_text: "";
@@ -222,9 +223,12 @@ export component OperonWindow inherits Window {
                 cursor-blink: root.cursor_blink;
                 
                 // Wire callbacks to root
-                cancel-clicked => {
-                    root.cancel_clicked();
-                }
+                 cancel-clicked => {
+                     root.cancel_clicked();
+                 }
+                 code-copied(msg_idx, item_idx) => {
+                     root.code_copied(msg_idx, item_idx);
+                 }
                 message-submitted(text) => {
                     root.message_submitted(text);
                 }

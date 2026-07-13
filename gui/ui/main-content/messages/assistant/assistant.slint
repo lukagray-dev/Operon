@@ -1,25 +1,7 @@
 // Assistant message component that combines all assistant message elements.
-//
-// This component assembles the complete assistant message display including:
-// - The message text (using PT Serif font)
-// - A horizontal separator line
-// - Action bar with: Operon logo, Copy, Like/Dislike, Fork, Time
-// - Dot separators between action items
-//
-// Layout structure:
-// ┌─────────────────────────────────────────────────────────────┐
-// │ Assistant's message text here using PT Serif font           │
-// │ (spans full width from left edge to right edge of input     │
-// │  panel boundaries)                                          │
-// ├─────────────────────────────────────────────────────────────┤
-// │ [Logo] [Copy] [Like] [Dislike] [Fork] [Time]                │
-// └─────────────────────────────────────────────────────────────┘
-//
-// The action buttons and separator line smoothly fade in when hovered
-// and fade out when the cursor leaves, preventing layout shifting.
 
 import { Tokens } from "../../../shared/tokens.slint";
-import { MessageText } from "./message.slint";
+import { MarkdownItem, MarkdownContent } from "../../markdown/markdown.slint";
 import { Separator } from "./separator.slint";
 import { OperonLogo } from "./operon.slint";
 import { CopyButton } from "./copy.slint";
@@ -33,6 +15,9 @@ import { TimeDisplay } from "./time.slint";
 export component AssistantMessage inherits Rectangle {
     // The message text content
     in property <string> message-text: "";
+    
+    // Parsed markdown items
+    in property <[MarkdownItem]> markdown-items: [];
     
     // Whether to show the blinking typing indicator cursor
     in property <bool> show-cursor: false;
@@ -54,22 +39,22 @@ export component AssistantMessage inherits Rectangle {
     // Fired when the user clicks the Dislike button
     callback dislike-clicked();
 
-    // Fired when the user clicks the Regenerate button (kept for API compatibility)
+    // Fired when the user clicks the Regenerate button
     callback regenerate-clicked();
 
     // Fired when the user clicks the Fork button
     callback fork-clicked();
 
+    // Fired when a code block's copy button inside markdown is clicked
+    callback code-copied(int /* item-index */);
+
     // ===== Layout =====
-    // Transparent background - no bubble for assistant messages
     background: transparent;
 
     // Dynamic height based on message text and controls container height
-    height: message-text-area.height + controls-container.height + 8px;
+    height: message-text-area.preferred-height + controls-container.height + 16px;
 
     // Outer TouchArea wrapping the entire component.
-    // Making the layout a child of TouchArea ensures has-hover remains true
-    // when hovering over interactive child elements like buttons.
     hover-touch := TouchArea {
         width: 100%;
         height: 100%;
@@ -82,16 +67,16 @@ export component AssistantMessage inherits Rectangle {
             spacing: 4px;
             alignment: start;
 
-            // ===== MESSAGE TEXT AREA =====
-            message-text-area := MessageText {
-                message-text: root.message-text;
+            // ===== MESSAGE TEXT AREA (RENDERED AS MARKDOWN) =====
+            message-text-area := MarkdownContent {
+                items: root.markdown-items;
                 show-cursor: root.show-cursor;
+                code-copied(idx) => {
+                    root.code-copied(idx);
+                }
             }
 
             // ===== CONTROLS CONTAINER =====
-            // Holds both the separator line and the action bar.
-            // Opacity and visibility are tied to the hover state of the parent TouchArea.
-            // It uses a fixed height to prevent structural/layout jumping when shown/hidden.
             controls-container := Rectangle {
                 height: 29px; // 1px separator + 4px spacing + 24px action-bar
                 vertical-stretch: 0;
@@ -111,11 +96,9 @@ export component AssistantMessage inherits Rectangle {
 
                     // ===== SEPARATOR LINE =====
                     separator-line := Separator {
-                        // Width is automatically filled by VerticalLayout
                     }
 
                     // ===== ACTION BAR =====
-                    // Contains all action buttons and info with dot separators
                     action-bar := Rectangle {
                         height: 24px;
                         vertical-stretch: 0;

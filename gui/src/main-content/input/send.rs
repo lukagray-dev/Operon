@@ -74,11 +74,13 @@ pub fn submit_prompt(
             msgs.push(msg);
         }
     }
+    let parsed_user = crate::main_content::user_messages::markdown::parse_markdown(&message_text);
     msgs.push(crate::ChatMessage {
         id: "".into(),
         is_user: true,
         text: message_text.clone().into(),
         time: "".into(),
+        markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed_user))),
     });
     window.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
 
@@ -171,16 +173,21 @@ pub fn submit_prompt(
                                     // Append or merge text delta into assistant message
                                     let needs_new = msgs.last().map_or(true, |m| m.is_user);
                                     if needs_new {
+                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&text);
                                         msgs.push(crate::ChatMessage {
                                             id: "".into(),
                                             is_user: false,
                                             text: text.clone().into(),
                                             time: "".into(),
+                                            markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed))),
                                         });
                                     } else if let Some(last) = msgs.last_mut() {
                                         let mut new_text = last.text.to_string();
                                         new_text.push_str(&text);
-                                        last.text = new_text.into();
+                                        last.text = new_text.clone().into();
+                                        
+                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&new_text);
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed)));
                                     }
                                     
                                     win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));

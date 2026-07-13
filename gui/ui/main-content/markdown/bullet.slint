@@ -1,0 +1,28 @@
+import { Tokens } from "../../shared/tokens.slint";
+
+export component MarkdownBullet inherits HorizontalLayout {
+    in property <string> text: "";
+    
+    spacing: 8px;
+    padding-left: 8px;
+    alignment: start;
+    
+    // Bullet character
+    Text {
+        text: "•";
+        color: Tokens.accent-blue;
+        font-size: Tokens.body-font-size;
+        font-weight: 900;
+        vertical-alignment: top;
+    }
+    
+    // Text content
+    Text {
+        text: root.text;
+        color: Tokens.text-primary;
+        font-size: Tokens.body-font-size;
+        wrap: word-wrap;
+        horizontal-stretch: 1;
+        vertical-alignment: top;
+    }
+}

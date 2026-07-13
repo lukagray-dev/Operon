@@ -1,0 +1,55 @@
+import { Tokens } from "../../shared/tokens.slint";
+import { MarkdownParagraph } from "./paragraph.slint";
+import { MarkdownHeading } from "./heading.slint";
+import { MarkdownCode } from "./code.slint";
+import { MarkdownBullet } from "./bullet.slint";
+
+// Struct representing a single block-level markdown item
+export struct MarkdownItem {
+    kind: string, // "p", "h1", "h2", "h3", "code", "bullet"
+    text: string,
+    lang: string,
+}
+
+// Markdown renderer container that loops over MarkdownItems
+export component MarkdownContent inherits VerticalLayout {
+    in property <[MarkdownItem]> items: [];
+    in property <bool> show-cursor: false;
+    
+    // Callback fired when a code block's copy button is clicked
+    callback code-copied(int /* item-index */);
+    
+    spacing: 8px;
+    alignment: start;
+    
+    for item[idx] in root.items : VerticalLayout {
+        // Calculate if this is the very last block element in the model
+        property <bool> is-last: idx == root.items.length - 1;
+        
+        if (item.kind == "p") : MarkdownParagraph {
+            text: item.text + (is-last && root.show-cursor ? "|" : "");
+        }
+        if (item.kind == "h1") : MarkdownHeading {
+            level: 1;
+            text: item.text + (is-last && root.show-cursor ? "|" : "");
+        }
+        if (item.kind == "h2") : MarkdownHeading {
+            level: 2;
+            text: item.text + (is-last && root.show-cursor ? "|" : "");
+        }
+        if (item.kind == "h3") : MarkdownHeading {
+            level: 3;
+            text: item.text + (is-last && root.show-cursor ? "|" : "");
+        }
+        if (item.kind == "code") : MarkdownCode {
+            text: item.text + (is-last && root.show-cursor ? "|" : "");
+            lang: item.lang;
+            copy-clicked => {
+                root.code-copied(idx);
+            }
+        }
+        if (item.kind == "bullet") : MarkdownBullet {
+            text: item.text + (is-last && root.show-cursor ? "|" : "");
+        }
+    }
+}

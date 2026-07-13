@@ -1,0 +1,90 @@
+import { Tokens } from "../../shared/tokens.slint";
+
+export component MarkdownCode inherits Rectangle {
+    in property <string> text: "";
+    in property <string> lang: "";
+    
+    background: rgba(30, 30, 30, 0.4);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    
+    // Callback fired when copy icon is clicked
+    callback copy-clicked();
+    
+    // Dynamic height based on code text
+    height: 32px + code-text-element.preferred-height + 24px;
+    
+    VerticalLayout {
+        // Header
+        Rectangle {
+            height: 28px;
+            background: rgba(255, 255, 255, 0.04);
+            
+            // Bottom border inside header
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: rgba(255, 255, 255, 0.08);
+            }
+            
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                alignment: space-between;
+                
+                // Language label
+                Text {
+                    text: root.lang != "" ? root.lang : "code";
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #8b949e;
+                    vertical-alignment: center;
+                }
+                
+                // Copy button
+                copy-touch := TouchArea {
+                    width: 20px;
+                    height: 20px;
+                    mouse-cursor: pointer;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            Image {
+                                source: @image-url("../../../assets/icons/sidebar/new-chat.svg");
+                                width: 12px;
+                                height: 12px;
+                                colorize: copy-touch.has-hover ? #ffffff : #8b949e;
+                            }
+                        }
+                    }
+                    
+                    clicked => {
+                        root.copy-clicked();
+                    }
+                }
+            }
+        }
+        
+        // Code Text container with correct padding layout
+        Rectangle {
+            VerticalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 12px;
+                padding-bottom: 12px;
+                
+                code-text-element := Text {
+                    text: root.text;
+                    font-family: Tokens.mono-font-family;
+                    font-size: Tokens.body-font-size;
+                    color: #f0f6fc;
+                    wrap: word-wrap;
+                    vertical-alignment: top;
+                }
+            }
+        }
+    }
+}

@@ -9,6 +9,8 @@ use slint::{ComponentHandle, Model};
 
 use crate::state::AppState;
 
+pub mod markdown;
+
 /// Wire assistant message actions.
 pub fn wire_assistant_messages(
     window: &crate::OperonWindow,
@@ -136,5 +138,29 @@ pub fn wire_assistant_messages(
     window.on_assistant_message_fork_clicked(move |msg_idx| {
         println!("[operon-gui][assistant-message] Fork requested at message index {}", msg_idx);
         // Placeholder / not fully implemented in Tauri ref either
+    });
+
+    let window_weak = window.as_weak();
+    // Callback 6: Copy code block inside markdown content to clipboard
+    window.on_code_copied(move |msg_idx, item_idx| {
+        if let Some(win) = window_weak.upgrade() {
+            let model = win.get_chat_messages();
+            if let Some(msg) = model.row_data(msg_idx as usize) {
+                if let Some(item) = msg.markdown_items.row_data(item_idx as usize) {
+                    match arboard::Clipboard::new() {
+                        Ok(mut clipboard) => {
+                            if let Err(e) = clipboard.set_text(item.text.to_string()) {
+                                eprintln!("[operon-gui][code-copy] Failed to write code text to clipboard: {}", e);
+                            } else {
+                                println!("[operon-gui][code-copy] Copied code block text to clipboard");
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[operon-gui][code-copy] Failed to open clipboard: {}", e);
+                        }
+                    }
+                }
+            }
+        }
     });
 }

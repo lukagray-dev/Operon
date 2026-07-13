@@ -26,12 +26,14 @@ import { AssistantMessage } from "./messages/assistant/assistant.slint";
 import { Topbar } from "./topbar/topbar.slint";
 import { WarningText } from "./input/warning.slint";
 import { TerminalPanel } from "./terminal/terminal.slint";
+import { MarkdownItem } from "./markdown/markdown.slint";
 
 export struct ChatMessage {
     id: string,
     is_user: bool,
     text: string,
     time: string,
+    markdown_items: [MarkdownItem],
 }
 
 // Main content area component that contains the chat interface.
@@ -105,7 +107,8 @@ export component MainContent inherits Rectangle {
     callback assistant-like-clicked(int /* message-index */);
     callback assistant-dislike-clicked(int /* message-index */);
     callback assistant-regenerate-clicked(int /* message-index */);
-    callback assistant-fork-clicked(int /* message-index */);
+    callback assistant_fork_clicked(int /* message-index */);
+    callback code-copied(int /* message-index */, int /* item-index */);
     
     // ===== Layout =====
     // FocusScope used to clear focus from input fields when clicking outside
@@ -191,6 +194,7 @@ export component MainContent inherits Rectangle {
                                     for msg[idx] in root.chat-messages : VerticalLayout {
                                         if (msg.is-user) : UserMessage {
                                             message-text: msg.text;
+                                            markdown-items: msg.markdown_items;
                                             max-bubble-width: (root.width < root.input-panel-max-width ? root.width : root.input-panel-max-width) * 0.75;
                                             
                                             edit-clicked => {
@@ -200,10 +204,15 @@ export component MainContent inherits Rectangle {
                                             copy-clicked => {
                                                 root.message-copy-clicked(idx);
                                             }
+                                            
+                                            code-copied(item_idx) => {
+                                                root.code-copied(idx, item_idx);
+                                            }
                                         }
                                         
                                         if (!msg.is-user) : AssistantMessage {
                                             message-text: msg.text;
+                                            markdown-items: msg.markdown_items;
                                             time-text: msg.time;
                                             show-cursor: (idx == root.chat-messages.length - 1) && root.is-responding && root.cursor-blink;
                                             
@@ -225,6 +234,10 @@ export component MainContent inherits Rectangle {
                                             
                                             fork-clicked => {
                                                 root.assistant-fork-clicked(idx);
+                                            }
+                                            
+                                            code-copied(item_idx) => {
+                                                root.code-copied(idx, item_idx);
                                             }
                                         }
                                     }
