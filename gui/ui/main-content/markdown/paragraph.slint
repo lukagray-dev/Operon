@@ -1,9 +1,12 @@
 import { Tokens } from "../../shared/tokens.slint";
 
 export component MarkdownParagraph inherits Text {
+    in property <string> font-family-custom: Tokens.serif-font-family;
+    
     text: "";
     color: Tokens.text-primary;
     font-size: Tokens.body-font-size;
+    font-family: root.font-family-custom;
     wrap: word-wrap;
     vertical-alignment: top;
     horizontal-alignment: left;
