@@ -33,14 +33,17 @@ pub fn parse_markdown(markdown_text: &str) -> Vec<crate::MarkdownItem> {
     for event in parser {
         match event {
             Event::Start(tag) => {
-                // If there's an active block, flush it first
-                flush_state(&mut state, &mut items);
-                
                 match tag {
                     Tag::Paragraph => {
-                        state = BlockState::Paragraph { text: String::new() };
+                        // If we are currently collecting a list item, don't break it
+                        // into a separate paragraph block.
+                        if !matches!(state, BlockState::Item { .. }) {
+                            flush_state(&mut state, &mut items);
+                            state = BlockState::Paragraph { text: String::new() };
+                        }
                     }
                     Tag::Heading { level, .. } => {
+                        flush_state(&mut state, &mut items);
                         let lvl_num = match level {
                             pulldown_cmark::HeadingLevel::H1 => 1,
                             pulldown_cmark::HeadingLevel::H2 => 2,
@@ -50,6 +53,7 @@ pub fn parse_markdown(markdown_text: &str) -> Vec<crate::MarkdownItem> {
                         state = BlockState::Heading { level: lvl_num, text: String::new() };
                     }
                     Tag::CodeBlock(kind) => {
+                        flush_state(&mut state, &mut items);
                         let lang = match kind {
                             CodeBlockKind::Fenced(l) => l.to_string(),
                             CodeBlockKind::Indented => String::new(),
@@ -57,6 +61,7 @@ pub fn parse_markdown(markdown_text: &str) -> Vec<crate::MarkdownItem> {
                         state = BlockState::CodeBlock { lang, text: String::new() };
                     }
                     Tag::Item => {
+                        flush_state(&mut state, &mut items);
                         state = BlockState::Item { text: String::new() };
                     }
                     _ => {}
@@ -64,7 +69,13 @@ pub fn parse_markdown(markdown_text: &str) -> Vec<crate::MarkdownItem> {
             }
             Event::End(tag) => {
                 match tag {
-                    TagEnd::Paragraph | TagEnd::Heading(_) | TagEnd::CodeBlock | TagEnd::Item => {
+                    TagEnd::Paragraph => {
+                        // Only flush the paragraph block if we aren't in a list item
+                        if !matches!(state, BlockState::Item { .. }) {
+                            flush_state(&mut state, &mut items);
+                        }
+                    }
+                    TagEnd::Heading(_) | TagEnd::CodeBlock | TagEnd::Item => {
                         flush_state(&mut state, &mut items);
                     }
                     _ => {}

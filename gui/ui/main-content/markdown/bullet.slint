@@ -4,16 +4,16 @@ export component MarkdownBullet inherits HorizontalLayout {
     in property <string> text: "";
     in property <string> font-family-custom: Tokens.serif-font-family;
     
-    spacing: 8px;
-    padding-left: 8px;
+    spacing: 12px;
+    padding-left: 24px;
     alignment: start;
     
     // Bullet character
     Text {
         text: "•";
-        color: Tokens.accent-blue;
+        color: #8b949e; // GitHub muted grey
         font-size: Tokens.body-font-size;
-        font-weight: 900;
+        font-weight: 600;
         vertical-alignment: top;
     }
     
