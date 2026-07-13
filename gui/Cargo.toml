@@ -22,6 +22,7 @@ operon-rs = { path = "../operon-rs" }
 rfd = "0.15"
 arboard = "3.6.1"
 pulldown-cmark = "0.11"
+syntect = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy", "default-themes", "default-syntaxes"] }
 
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 

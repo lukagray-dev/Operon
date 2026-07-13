@@ -1,7 +1,7 @@
 import { Tokens } from "../../shared/tokens.slint";
 import { MarkdownParagraph } from "./paragraph.slint";
 import { MarkdownHeading } from "./heading.slint";
-import { MarkdownCode } from "./code.slint";
+import { MarkdownCode, CodeLine } from "./code.slint";
 import { MarkdownBullet } from "./bullet.slint";
 
 // Struct representing a single block-level markdown item
@@ -9,6 +9,7 @@ export struct MarkdownItem {
     kind: string, // "p", "h1", "h2", "h3", "code", "bullet"
     text: string,
     lang: string,
+    code-lines: [CodeLine],
 }
 
 // Markdown renderer container that loops over MarkdownItems
@@ -48,6 +49,7 @@ export component MarkdownContent inherits VerticalLayout {
         if (item.kind == "code") : MarkdownCode {
             text: item.text + (is-last && root.show-cursor ? "|" : "");
             lang: item.lang;
+            code-lines: item.code-lines;
             copy-clicked => {
                 root.code-copied(idx);
             }

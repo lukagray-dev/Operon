@@ -1,8 +1,18 @@
 import { Tokens } from "../../shared/tokens.slint";
 
+export struct CodeToken {
+    text: string,
+    color: color,
+}
+
+export struct CodeLine {
+    tokens: [CodeToken],
+}
+
 export component MarkdownCode inherits Rectangle {
     in property <string> text: "";
     in property <string> lang: "";
+    in property <[CodeLine]> code-lines: [];
     
     // Tracks copy feedback state
     in-out property <bool> is-copied: false;
@@ -15,8 +25,8 @@ export component MarkdownCode inherits Rectangle {
     // Callback fired when copy icon is clicked
     callback copy-clicked();
     
-    // Dynamic height based on code text
-    height: 32px + code-text-element.preferred-height + 24px;
+    // Dynamic height based on header height (28px) plus code content height
+    height: 28px + content-layout.preferred-height;
     
     // Timer to reset copy feedback after 3 seconds
     timer := Timer {
@@ -89,21 +99,44 @@ export component MarkdownCode inherits Rectangle {
             }
         }
         
-        // Code Text container with correct padding layout
+        // Code Text container with Flickable horizontal scrollbar support
         Rectangle {
-            VerticalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                padding-top: 12px;
-                padding-bottom: 12px;
+            Flickable {
+                viewport-width: max(400px, content-layout.preferred-width);
+                viewport-height: content-layout.preferred-height;
                 
-                code-text-element := Text {
-                    text: root.text;
-                    font-family: Tokens.mono-font-family;
-                    font-size: Tokens.body-font-size;
-                    color: #f0f6fc;
-                    wrap: word-wrap;
-                    vertical-alignment: top;
+                content-layout := VerticalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    
+                    // Render highlighted token spans if available
+                    if (root.code-lines.length > 0) : VerticalLayout {
+                        alignment: start;
+                        spacing: 2px;
+                        
+                        for line in root.code-lines : HorizontalLayout {
+                            alignment: start;
+                            spacing: 0;
+                            
+                            for token in line.tokens : Text {
+                                text: token.text;
+                                font-family: Tokens.mono-font-family;
+                                font-size: Tokens.body-font-size;
+                                color: token.color;
+                            }
+                        }
+                    }
+                    
+                    // Fallback to plain text rendering
+                    if (root.code-lines.length == 0) : Text {
+                        text: root.text;
+                        font-family: Tokens.mono-font-family;
+                        font-size: Tokens.body-font-size;
+                        color: #f0f6fc;
+                        wrap: no-wrap;
+                    }
                 }
             }
         }
