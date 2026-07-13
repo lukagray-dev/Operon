@@ -154,6 +154,10 @@ export component MainContent inherits Rectangle {
                     
                     // Smooth scroll target tracking (mimics VS Code smooth-scrolling physics)
                     property <length> target-scroll-y: 0px;
+                    
+                    // Tracks if viewport is currently scrolled near the bottom (within 60px)
+                    property <bool> is-near-bottom: true;
+                    
                     viewport-y: self.target-scroll-y;
                     
                     animate viewport-y {
@@ -161,9 +165,16 @@ export component MainContent inherits Rectangle {
                         easing: ease-out;
                     }
                     
+                    changed target-scroll-y => {
+                        // Detect if user has manually scrolled away from the bottom
+                        self.is-near-bottom = self.target-scroll-y <= min(0px, self.height - self.viewport-height) + 60px;
+                    }
+                    
                     changed viewport-height => {
-                        // Auto-scroll to bottom when new content is added (streaming/loading turns)
-                        self.target-scroll-y = min(0px, self.height - self.viewport-height);
+                        // Auto-scroll to bottom only if the viewport was already near the bottom
+                        if (self.is-near-bottom) {
+                            self.target-scroll-y = min(0px, self.height - self.viewport-height);
+                        }
                     }
                     
                     // Custom TouchArea to handle direct mouse wheel scrolling with smooth ease-out target tracking
