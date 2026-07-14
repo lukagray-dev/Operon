@@ -28,6 +28,7 @@ import { WarningText } from "./input/warning.slint";
 import { TerminalPanel } from "./terminal/terminal.slint";
 import { MarkdownItem } from "./markdown/markdown.slint";
 import { ChatLoadingSkeleton } from "./messages/loading.slint";
+import { EmptyState } from "./empty-state/empty-state.slint";
 
 export struct ChatMessage {
     id: string,
@@ -149,7 +150,7 @@ export component MainContent inherits Rectangle {
                 background: transparent;
                 
                 messages-flickable := Flickable {
-                    visible: !root.is-loading-session;
+                    visible: !root.is-loading-session && root.chat-messages.length > 0;
                     width: parent.width;
                     height: parent.height;
                     
@@ -344,6 +345,13 @@ export component MainContent inherits Rectangle {
                 ChatLoadingSkeleton {
                     visible: root.is-loading-session;
                     active: root.is-loading-session;
+                    width: parent.width;
+                    height: parent.height;
+                }
+
+                // Empty state shown when no conversation is active and not loading
+                EmptyState {
+                    visible: !root.is-loading-session && root.chat-messages.length == 0;
                     width: parent.width;
                     height: parent.height;
                 }

@@ -1,33 +1,76 @@
 // Empty state component for the main content area.
 //
-// This component is displayed when there are no messages in the conversation
-// or when a new session is started. It consists of:
-// 1. Large Operon logo (120px) - centered
-// 2. Introductory text - two lines below the logo
-//
-// The entire empty state is centered both horizontally and vertically within
-// the main content area, creating a welcoming and balanced initial state.
+// Displayed when no conversation session is active or loaded.
+// Shows the Operon brand logo centered in the viewport with a
+// tagline underneath. Matches the Tauri reference design exactly:
+//   - 64px brand logo at 0.9 opacity, centered
+//   - Tagline text in muted gray (#6e6e6e), 16px, centered
+//   - Max container width of 400px for readable line lengths
+//   - Vertically + horizontally centered in the full viewport
 
 import { Tokens } from "../../shared/tokens.slint";
-import { OperonLogo } from "./operon.slint";
-import { IntroText } from "./intro.slint";
 
-// Empty state display for new conversations.
-// Centered in the main content area with logo and intro text.
-export component EmptyState {
-    // Use VerticalLayout as the root to stack logo and text
+// The root empty state component. Place it as a sibling of the
+// messages area inside main-content and toggle its visibility
+// based on whether a session is active.
+export component EmptyState inherits Rectangle {
+    background: transparent;
+
+    // Full-size flex container that centers its children both axes
     VerticalLayout {
         alignment: center;
-        spacing: 24px;  // Space between logo and text
-        
-        // Operon brand logo
-        OperonLogo {
-            // Logo is already sized at 120x120px
-        }
-        
-        // Introductory text
-        IntroText {
-            // Text component is already configured with proper styling
+
+        HorizontalLayout {
+            alignment: center;
+
+            // Inner container constrains tagline width for readability
+            VerticalLayout {
+                alignment: center;
+                spacing: 24px;
+                max-width: 400px;
+
+                // ===== BRAND LOGO =====
+                // Centered Operon logo at 64x64, slightly dimmed (0.9 opacity)
+                HorizontalLayout {
+                    alignment: center;
+
+                    Image {
+                        source: @image-url("../../../assets/brand/operon.svg");
+                        width: 64px;
+                        height: 64px;
+                        image-fit: contain;
+                        opacity: 0.9;
+                    }
+                }
+
+                // ===== TAGLINE =====
+                // Two-line tagline matching the Tauri reference wording.
+                // Uses the primary app font (Google Sans) at muted color.
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 2px;
+
+                    // Line 1: "Agent that is built for everyone,"
+                    Text {
+                        text: "Agent that is built for everyone,";
+                        font-family: Tokens.font-family;
+                        font-size: 16px;
+                        font-weight: 400;
+                        color: #6e6e6e;
+                        horizontal-alignment: center;
+                    }
+
+                    // Line 2: "— not just for developers."
+                    Text {
+                        text: "— not just for developers.";
+                        font-family: Tokens.font-family;
+                        font-size: 16px;
+                        font-weight: 400;
+                        color: #6e6e6e;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
         }
     }
 }
