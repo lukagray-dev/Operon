@@ -351,65 +351,34 @@ pub fn submit_prompt(
                             });
                         }
                         operon_rs::SessionEvent::ApprovalRequired { id, tool, path, reason, args_json } => {
-                            response_state.append_approval_required(&id, &tool, &path.unwrap_or_default(), &reason, &args_json);
-                            let parsed_items = response_state.build_parsed_items();
+                            let path_str = path.clone().unwrap_or_default();
+                            let (display_action, display_target) = get_permission_display_info(&tool, &path_str, &args_json);
                             let win_weak_update = win_weak_event.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(win) = win_weak_update.upgrade() {
-                                    let model = win.get_chat_messages();
-                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
-                                    for i in 0..model.row_count() {
-                                        if let Some(msg) = model.row_data(i) {
-                                            msgs.push(msg);
-                                        }
-                                    }
-                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
-                                    if let Some(last) = msgs.last_mut() {
-                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
-                                    }
-                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                    win.set_pending_permission_id(id.into());
+                                    win.set_pending_permission_tool(tool.into());
+                                    win.set_pending_permission_path(path_str.into());
+                                    win.set_pending_permission_reason(reason.into());
+                                    win.set_pending_permission_action(display_action.into());
+                                    win.set_pending_permission_target(display_target.into());
+                                    win.set_has_pending_permission(true);
                                 }
                             });
                         }
-                        operon_rs::SessionEvent::ApprovalGranted { id, tool: _, path: _ } => {
-                            response_state.append_approval_resolved(&id, true);
-                            let parsed_items = response_state.build_parsed_items();
+                        operon_rs::SessionEvent::ApprovalGranted { id: _, tool: _, path: _ } => {
                             let win_weak_update = win_weak_event.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(win) = win_weak_update.upgrade() {
-                                    let model = win.get_chat_messages();
-                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
-                                    for i in 0..model.row_count() {
-                                        if let Some(msg) = model.row_data(i) {
-                                            msgs.push(msg);
-                                        }
-                                    }
-                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
-                                    if let Some(last) = msgs.last_mut() {
-                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
-                                    }
-                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                    win.set_has_pending_permission(false);
                                 }
                             });
                         }
-                        operon_rs::SessionEvent::PermissionDenied { tool, path, reason } => {
-                            response_state.append_permission_denied_event(&tool, &path.unwrap_or_default(), &reason);
-                            let parsed_items = response_state.build_parsed_items();
+                        operon_rs::SessionEvent::PermissionDenied { tool: _, path: _, reason: _ } => {
                             let win_weak_update = win_weak_event.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(win) = win_weak_update.upgrade() {
-                                    let model = win.get_chat_messages();
-                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
-                                    for i in 0..model.row_count() {
-                                        if let Some(msg) = model.row_data(i) {
-                                            msgs.push(msg);
-                                        }
-                                    }
-                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
-                                    if let Some(last) = msgs.last_mut() {
-                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
-                                    }
-                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                    win.set_has_pending_permission(false);
                                 }
                             });
                         }
@@ -467,6 +436,7 @@ pub fn submit_prompt(
                             }
                         }
                         win.set_is_responding(false);
+                        win.set_has_pending_permission(false);
                         crate::left_sidebar::sidebar::refresh_sidebar(&win, Some(session_id_final));
                     }
                 });
@@ -493,8 +463,57 @@ pub fn submit_prompt(
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(win) = window_weak.upgrade() {
                     win.set_is_responding(false);
+                    win.set_has_pending_permission(false);
                 }
             });
         }
     });
+}
+
+/// Helper function to parse tool permissions into user-friendly action and target descriptions.
+fn get_permission_display_info(tool: &str, path: &str, args_json: &str) -> (String, String) {
+    let filename = if !path.is_empty() {
+        let parts: Vec<&str> = path.split(|c| c == '/' || c == '\\').collect();
+        parts.last().copied().unwrap_or(path).to_string()
+    } else {
+        let val: serde_json::Value = serde_json::from_str(args_json).unwrap_or_default();
+        if let Some(p) = val.get("path")
+            .or_else(|| val.get("paths"))
+            .or_else(|| val.get("dir"))
+            .and_then(|v| v.as_str())
+        {
+            let parts: Vec<&str> = p.split(|c| c == '/' || c == '\\').collect();
+            parts.last().copied().unwrap_or(p).to_string()
+        } else if let Some(cmd) = val.get("CommandLine")
+            .or_else(|| val.get("command"))
+            .and_then(|v| v.as_str())
+        {
+            cmd.to_string()
+        } else {
+            String::new()
+        }
+    };
+
+    let action = match tool {
+        "write" | "edit" | "append" => "edit".to_string(),
+        "read" => "read".to_string(),
+        "delete" => "delete".to_string(),
+        "ls" | "list_dir" => "list files in".to_string(),
+        "grep" | "grep_search" => "search directory".to_string(),
+        "bash" | "run_command" => "execute command".to_string(),
+        "web_search" | "search_web" => "search the web".to_string(),
+        "web_fetch" | "read_url_content" => "fetch web page".to_string(),
+        _ => format!("run {}", tool),
+    };
+
+    let target = if filename.is_empty() {
+        match tool {
+            "load_tools" | "list_tools" => "available tools".to_string(),
+            _ => String::new(),
+        }
+    } else {
+        filename
+    };
+
+    (action, target)
 }

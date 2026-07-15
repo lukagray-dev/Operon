@@ -29,6 +29,7 @@ import { TerminalPanel } from "./terminal/terminal.slint";
 import { MarkdownItem } from "./markdown/markdown.slint";
 import { ChatLoadingSkeleton } from "./messages/loading.slint";
 import { EmptyState } from "./empty-state/empty-state.slint";
+import { FloatingPermissionPanel } from "./permission/permission.slint";
 
 export struct ChatMessage {
     id: string,
@@ -83,6 +84,15 @@ export component MainContent inherits Rectangle {
     // ===== Message Properties =====
     // Array of user and assistant messages to display in the chat
     in property <[ChatMessage]> chat-messages: [];
+
+    // ===== Active/Pending Permission Properties =====
+    in property <bool> has-pending-permission: false;
+    in property <string> pending-permission-id: "";
+    in property <string> pending-permission-tool: "";
+    in property <string> pending-permission-path: "";
+    in property <string> pending-permission-reason: "";
+    in property <string> pending-permission-action: "";
+    in property <string> pending-permission-target: "";
     
     // Session title property
     in property <string> session-title: "New Session";
@@ -390,6 +400,37 @@ export component MainContent inherits Rectangle {
 
                 floating-layout := VerticalLayout {
                     padding-top: 16px; // Smooth transition zone for the fading text
+                    spacing: 8px;
+
+                    // Centered Floating Permission Panel
+                    if (root.has-pending-permission) : HorizontalLayout {
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            background: transparent;
+                        }
+                        
+                        FloatingPermissionPanel {
+                            width: input-panel.width;
+                            permission-id: root.pending-permission-id;
+                            permission-tool: root.pending-permission-tool;
+                            permission-path: root.pending-permission-path;
+                            permission-reason: root.pending-permission-reason;
+                            display-action: root.pending-permission-action;
+                            display-target: root.pending-permission-target;
+                            
+                            approved => {
+                                root.permission_approved(root.pending-permission-id);
+                            }
+                            denied => {
+                                root.permission_denied(root.pending-permission-id);
+                            }
+                        }
+                        
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            background: transparent;
+                        }
+                    }
 
                     // Center the input panel horizontally
                     HorizontalLayout {

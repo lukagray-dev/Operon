@@ -6,7 +6,6 @@ import { MarkdownBullet } from "./bullet.slint";
 import { ThinkingCard } from "../reasoning/reasoning.slint";
 import { DiffLine } from "../tools/diff.slint";
 import { ToolCard } from "../tools/cards.slint";
-import { PermissionCard } from "../permission/permission.slint";
 
 // Struct representing a single block-level markdown item
 export struct MarkdownItem {
@@ -102,21 +101,6 @@ export component MarkdownContent inherits VerticalLayout {
             tool-diff-lines: item.tool_diff_lines;
             tool-added-count: item.tool_added_count;
             tool-deleted-count: item.tool_deleted_count;
-        }
-        if (item.kind == "permission") : PermissionCard {
-            permission-id: item.permission_id;
-            permission-tool: item.permission_tool;
-            permission-path: item.permission_path;
-            permission-reason: item.permission_reason;
-            permission-args: item.permission_args;
-            permission-status: item.permission_status;
-            
-            approved => {
-                root.permission-approved(item.permission_id);
-            }
-            denied => {
-                root.permission-denied(item.permission_id);
-            }
         }
     }
 }

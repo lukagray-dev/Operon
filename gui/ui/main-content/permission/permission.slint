@@ -5,219 +5,175 @@
 
 import { Tokens } from "../../shared/tokens.slint";
 
-export component PermissionCard inherits Rectangle {
-    // Permission parameters
+
+// Hover target text component that exposes the hover state of the filename/command cleanly.
+component HoverableTarget inherits Rectangle {
+    in property <string> text;
+    in-out property <bool> hovered: touch.has-hover;
+
+    width: text-el.preferred-width;
+    height: text-el.preferred-height;
+
+    text-el := Text {
+        text: root.text;
+        color: root.hovered ? #ffb300 : #81c784;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: Tokens.font_family;
+
+        animate color { duration: 100ms; }
+    }
+
+    touch := TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-cursor: pointer;
+    }
+}
+
+// Cleaner, floating panel attached to the prompt input box.
+// Displays a friendly, humanized target summary, and lists absolute paths as tooltips on hover.
+export component FloatingPermissionPanel inherits Rectangle {
     in property <string> permission-id: "";
     in property <string> permission-tool: "";
     in property <string> permission-path: "";
     in property <string> permission-reason: "";
-    in property <string> permission-args: "";
-    in property <string> permission-status: "pending"; // "pending", "approved", "denied"
+    in property <string> display-action: "";
+    in property <string> display-target: "";
 
-    // Callbacks to notify parent layers
     callback approved();
     callback denied();
 
-    background: rgba(255, 255, 255, 0.015);
-    border-radius: 6px;
+    in-out property <bool> target-hovered: false;
+
+    background: Tokens.titlebar-background;
+    border-radius: 8px;
     border-width: 1px;
-    border-color: permission-status == "pending" ? rgba(255, 179, 0, 0.3) : 
-                  permission-status == "approved" ? rgba(76, 175, 80, 0.2) : 
-                  rgba(244, 67, 54, 0.2);
+    border-color: rgba(255, 179, 0, 0.3); // Warm amber glow for pending action
+    
+    drop-shadow-blur: 8px;
+    drop-shadow-color: rgba(0, 0, 0, 0.4);
 
-    VerticalLayout {
-        spacing: 0px;
-        alignment: start;
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 12px;
+        alignment: space-between;
 
-        // ===== ACTION WARNING HEADER =====
-        Rectangle {
-            background: permission-status == "pending" ? rgba(255, 179, 0, 0.04) : 
-                        permission-status == "approved" ? rgba(76, 175, 80, 0.04) : 
-                        rgba(244, 67, 54, 0.04);
-            border-top-left-radius: 5px;
-            border-top-right-radius: 5px;
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            Image {
+                source: @image-url("../../../assets/icons/settings/lock.svg");
+                width: 14px;
+                height: 14px;
+                colorize: #ffb300;
+            }
 
             HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                padding-top: 8px;
-                padding-bottom: 8px;
-                spacing: 8px;
-                alignment: center;
-
-                Image {
-                    source: @image-url("../../../assets/icons/settings/lock.svg");
-                    width: 14px;
-                    height: 14px;
-                    colorize: permission-status == "pending" ? #ffb300 : 
-                              permission-status == "approved" ? #81c784 : 
-                              #e57373;
-                }
+                spacing: 4px;
 
                 Text {
-                    text: permission-status == "pending" ? "Permission Required" : 
-                          permission-status == "approved" ? "Permission Approved" : 
-                          "Permission Denied";
-                    color: permission-status == "pending" ? #ffb300 : 
-                           permission-status == "approved" ? #81c784 : 
-                           #e57373;
-                    font-size: 12.5px;
-                    font-weight: 600;
+                    text: "Operon wants to " + root.display-action;
+                    color: Tokens.text-primary;
+                    font-size: 13px;
+                    font-weight: 500;
                     font-family: Tokens.font_family;
+                }
+
+                if (root.display-target != "") : target-container := HoverableTarget {
+                    text: root.display-target;
+                    hovered <=> root.target-hovered;
                 }
             }
         }
 
-        // Horizontal border line separating header and description
-        Rectangle {
-            height: 1px;
-            background: rgba(255, 255, 255, 0.04);
-        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
 
-        // ===== DETAIL CONTAINER =====
-        VerticalLayout {
-            padding: 12px;
-            spacing: 10px;
+            deny-btn := TouchArea {
+                clicked => { root.denied(); }
+                Rectangle {
+                    background: deny-btn.has-hover ? rgba(244, 67, 54, 0.15) : rgba(244, 67, 54, 0.08);
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: rgba(244, 67, 54, 0.2);
 
-            // Reason/Context explanation
-            Text {
-                text: root.permission-reason;
-                color: #bbbbbb;
-                font-size: 12.5px;
-                font-family: Tokens.font_family;
-                wrap: word-wrap;
-            }
-
-            // Command context box
-            Rectangle {
-                background: rgba(0, 0, 0, 0.15);
-                border-radius: 4px;
-
-                VerticalLayout {
-                    padding: 8px;
-                    spacing: 4px;
-                    
                     HorizontalLayout {
-                        spacing: 6px;
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        padding-top: 5px;
+                        padding-bottom: 5px;
                         Text {
-                            text: "Action:";
-                            color: #666666;
-                            font-size: 11px;
-                            font-weight: 500;
-                            font-family: Tokens.font_family;
-                        }
-                        Text {
-                            text: root.permission-tool;
-                            color: #e6e6e6;
+                            text: "Deny";
+                            color: #ef9a9a;
                             font-size: 11px;
                             font-weight: 600;
                             font-family: Tokens.font_family;
                         }
                     }
+                }
+            }
 
-                    if (root.permission-path != "") : HorizontalLayout {
-                        spacing: 6px;
+            allow-btn := TouchArea {
+                clicked => { root.approved(); }
+                Rectangle {
+                    background: allow-btn.has-hover ? rgba(76, 175, 80, 0.15) : rgba(76, 175, 80, 0.08);
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: rgba(76, 175, 80, 0.2);
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        padding-top: 5px;
+                        padding-bottom: 5px;
                         Text {
-                            text: "Target:";
-                            color: #666666;
-                            font-size: 11px;
-                            font-weight: 500;
-                            font-family: Tokens.font_family;
-                        }
-                        Text {
-                            text: root.permission-path;
+                            text: "Allow";
                             color: #a5d6a7;
                             font-size: 11px;
-                            font-family: Tokens.mono-font-family;
-                            wrap: word-wrap;
+                            font-weight: 600;
+                            font-family: Tokens.font_family;
                         }
                     }
                 }
             }
+        }
+    }
 
-            // Arguments/Context details
-            if (root.permission-args != "") : VerticalLayout {
-                spacing: 4px;
-                Text {
-                    text: "ARGUMENTS";
-                    font-size: 9px;
-                    font-weight: 600;
-                    color: #555555;
-                    font-family: Tokens.font_family;
-                }
-                Rectangle {
-                    background: rgba(0, 0, 0, 0.2);
-                    border-radius: 4px;
-                    
-                    VerticalLayout {
-                        padding: 6px;
-                        Text {
-                            text: root.permission-args;
-                            font-size: 10.5px;
-                            font-family: Tokens.mono-font-family;
-                            color: #888888;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
+    // Hover tooltip to display absolute location or description details
+    if (root.target-hovered && (root.permission-path != "" || root.permission-reason != "")) : Rectangle {
+        x: 40px;
+        y: -42px;
+        background: #1a1a1a;
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: rgba(255, 255, 255, 0.08);
+        drop-shadow-blur: 6px;
+        drop-shadow-color: rgba(0, 0, 0, 0.5);
+
+        VerticalLayout {
+            padding-left: 8px;
+            padding-right: 8px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            spacing: 2px;
+
+            if (root.permission-path != "") : Text {
+                text: root.permission-path;
+                color: #a5d6a7;
+                font-size: 11px;
+                font-family: Tokens.mono-font-family;
             }
-
-            // Interaction buttons (visible only when pending action)
-            if (root.permission-status == "pending") : HorizontalLayout {
-                spacing: 8px;
-                alignment: end;
-
-                // Approve Allow action button
-                allow-btn := TouchArea {
-                    clicked => { root.approved(); }
-                    Rectangle {
-                        background: allow-btn.has-hover ? rgba(76, 175, 80, 0.15) : rgba(76, 175, 80, 0.08);
-                        border-radius: 4px;
-                        border-width: 1px;
-                        border-color: rgba(76, 175, 80, 0.2);
-
-                        HorizontalLayout {
-                            padding-left: 12px;
-                            padding-right: 12px;
-                            padding-top: 6px;
-                            padding-bottom: 6px;
-                            
-                            Text {
-                                text: "Allow Action";
-                                color: #a5d6a7;
-                                font-size: 12px;
-                                font-weight: 600;
-                                font-family: Tokens.font_family;
-                            }
-                        }
-                    }
-                }
-
-                // Disallow Deny action button
-                deny-btn := TouchArea {
-                    clicked => { root.denied(); }
-                    Rectangle {
-                        background: deny-btn.has-hover ? rgba(244, 67, 54, 0.15) : rgba(244, 67, 54, 0.08);
-                        border-radius: 4px;
-                        border-width: 1px;
-                        border-color: rgba(244, 67, 54, 0.2);
-
-                        HorizontalLayout {
-                            padding-left: 12px;
-                            padding-right: 12px;
-                            padding-top: 6px;
-                            padding-bottom: 6px;
-                            
-                            Text {
-                                text: "Deny";
-                                color: #ef9a9a;
-                                font-size: 12px;
-                                font-weight: 600;
-                                font-family: Tokens.font_family;
-                            }
-                        }
-                    }
-                }
+            if (root.permission-reason != "") : Text {
+                text: "Reason: " + root.permission-reason;
+                color: #888888;
+                font-size: 11px;
+                font-family: Tokens.font_family;
             }
         }
     }
