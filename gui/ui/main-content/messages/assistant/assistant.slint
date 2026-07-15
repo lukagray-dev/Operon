@@ -32,6 +32,9 @@ export component AssistantMessage inherits Rectangle {
     in-out property <bool> is-liked: false;
     in-out property <bool> is-disliked: false;
 
+    // Whether to show the separator line at the bottom
+    in property <bool> show-separator: true;
+
     // ===== Callbacks =====
     // Fired when the user clicks the Copy button
     callback copy-clicked();
@@ -93,7 +96,7 @@ export component AssistantMessage inherits Rectangle {
 
             // ===== CONTROLS CONTAINER =====
             controls-container := Rectangle {
-                height: 29px; // 1px separator + 4px spacing + 24px action-bar
+                height: root.show-separator ? 29px : 24px; // 1px separator + 4px spacing + 24px action-bar
                 vertical-stretch: 0;
                 horizontal-stretch: 1;
                 
@@ -110,7 +113,7 @@ export component AssistantMessage inherits Rectangle {
                     spacing: 4px;
 
                     // ===== SEPARATOR LINE =====
-                    separator-line := Separator {
+                    if (root.show-separator) : separator-line := Separator {
                     }
 
                     // ===== ACTION BAR =====

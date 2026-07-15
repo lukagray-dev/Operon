@@ -274,6 +274,7 @@ export component MainContent inherits Rectangle {
                                             time-text: msg.time;
                                             is-thinking: msg.is_thinking;
                                             show-cursor: (idx == root.chat-messages.length - 1) && root.is-responding && root.cursor-blink;
+                                            show-separator: (idx == root.chat-messages.length - 1) ? true : root.chat-messages[idx + 1].is-user;
                                             
                                             permission-approved(id) => {
                                                 root.permission_approved(id);
