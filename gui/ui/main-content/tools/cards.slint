@@ -27,9 +27,6 @@ export component ToolCard inherits Rectangle {
     // Visual state
     property <bool> has-hover: touch.has-hover;
 
-    // Spinner rotation angle for running state indicator
-    in-out property <angle> spinner-angle: 0deg;
-
     background: has-hover ? rgba(255, 255, 255, 0.035) : rgba(255, 255, 255, 0.02);
     border-radius: 6px;
     border-width: 1px;
@@ -37,20 +34,6 @@ export component ToolCard inherits Rectangle {
 
     animate background { duration: 120ms; easing: ease-in-out; }
     animate border-color { duration: 120ms; easing: ease-in-out; }
-
-    // Continuous spinner rotation for running state
-    animate spinner-angle {
-        duration: 800ms;
-        easing: linear;
-    }
-
-    spinner-timer := Timer {
-        interval: 800ms;
-        running: root.tool-status == "running";
-        triggered => {
-            root.spinner-angle = root.spinner-angle + 360deg;
-        }
-    }
 
     // Auto-expand on failure, auto-collapse on completion
     changed tool-status => {
@@ -129,18 +112,17 @@ export component ToolCard inherits Rectangle {
                 }
 
                 // Execution Status Indicator
-                // Running → rotating spinner icon
+                // Running → rotating spinner icon driven by animation-tick().
+                // animation-tick() is a monotonic frame-clock (like requestAnimationFrame
+                // in web browsers). Slint recomputes the angle every rendered frame,
+                // giving perfectly smooth, GPU-driven rotation — no Timer jank.
+                // 1 full revolution per second: tick * 360deg / 1s
                 if (root.tool-status == "running") : Image {
                     source: @image-url("../../../assets/icons/main-content/messages/assistant/tool.svg");
                     width: 14px;
                     height: 14px;
                     colorize: #64b5f6;
-                    transform-rotation: root.spinner-angle;
-
-                    animate transform-rotation {
-                        duration: 800ms;
-                        easing: linear;
-                    }
+                    transform-rotation: mod(animation-tick() * 360deg / 1s, 360deg);
                 }
 
                 // Completed → green checkmark icon
