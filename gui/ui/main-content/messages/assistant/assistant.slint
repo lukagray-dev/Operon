@@ -22,6 +22,9 @@ export component AssistantMessage inherits Rectangle {
     // Whether to show the blinking typing indicator cursor
     in property <bool> show-cursor: false;
 
+    // Whether the model is actively thinking/reasoning
+    in property <bool> is-thinking: false;
+
     // Time text to display (e.g., "2m ago")
     in property <string> time-text: "Just now";
 
@@ -71,6 +74,7 @@ export component AssistantMessage inherits Rectangle {
             message-text-area := MarkdownContent {
                 items: root.markdown-items;
                 show-cursor: root.show-cursor;
+                is-thinking: root.is-thinking;
                 font-size: 14.5px;
                 code-copied(idx) => {
                     root.code-copied(idx);

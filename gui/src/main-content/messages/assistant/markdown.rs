@@ -89,6 +89,12 @@ pub fn parse_markdown_sendable(markdown_text: &str) -> Vec<ParsedMarkdownItem> {
     items
 }
 
+/// Lightweight streaming variant that parses markdown on background/async thread,
+/// skipping expensive syntect highlighting to avoid freezing the UI.
+pub fn parse_markdown_streaming_sendable(markdown_text: &str) -> Vec<ParsedMarkdownItem> {
+    parse_markdown_inner_sendable(markdown_text, true)
+}
+
 /// Converts Send-safe parsed items into Slint MarkdownItems.
 /// Must be called on the Slint UI thread (inside invoke_from_event_loop).
 pub fn to_slint_items(parsed: Vec<ParsedMarkdownItem>) -> Vec<crate::MarkdownItem> {

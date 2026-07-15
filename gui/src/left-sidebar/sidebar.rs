@@ -275,16 +275,28 @@ pub fn load_chat_session(
                             let is_user = msg.role == operon_rs::context::MessageRole::User;
                             let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
                             if is_user || is_assistant {
+                                let mut msg_items = Vec::new();
                                 let mut text_parts = Vec::new();
                                 for block in &msg.content {
-                                    if let operon_rs::context::ContentBlock::Text(s) = block {
-                                        text_parts.push(s.clone());
+                                    match block {
+                                        operon_rs::context::ContentBlock::Text(s) => {
+                                            text_parts.push(s.clone());
+                                            let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(s);
+                                            msg_items.extend(parsed);
+                                        }
+                                        operon_rs::context::ContentBlock::Reasoning(rb) => {
+                                            msg_items.push(crate::main_content::assistant_messages::markdown::ParsedMarkdownItem {
+                                                kind: "thinking".to_string(),
+                                                text: rb.thinking.clone(),
+                                                lang: String::new(),
+                                                code_lines: Vec::new(),
+                                            });
+                                        }
+                                        _ => {}
                                     }
                                 }
                                 let text = text_parts.join("\n");
-                                if !text.is_empty() {
-                                    raw_messages.push((is_user, text));
-                                }
+                                raw_messages.push((is_user, text, msg_items));
                             }
                         }
                     }
@@ -296,22 +308,12 @@ pub fn load_chat_session(
                 let utilization = if context_window > 0 { last_token_count as f32 / context_window as f32 } else { 0.0 };
                 let context_text = crate::main_content::input::context::format_tokens(last_token_count as i32, context_window as i32);
 
-                // Pre-parse all markdown + syntax highlighting on the async/background thread
-                // using Send-safe intermediate types (no Rc) to avoid blocking the UI thread.
-                let pre_parsed: Vec<(bool, String, Vec<crate::main_content::assistant_messages::markdown::ParsedMarkdownItem>)> = raw_messages
-                    .into_iter()
-                    .map(|(is_user, text)| {
-                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(&text);
-                        (is_user, text, parsed)
-                    })
-                    .collect();
-
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = window_weak.upgrade() {
                         ui.set_session_title(title.into());
                         
                         // Convert Send-safe intermediates to Slint types on UI thread (cheap, no parsing)
-                        let slint_messages: Vec<crate::ChatMessage> = pre_parsed.into_iter().map(|(is_user, text, parsed)| {
+                        let slint_messages: Vec<crate::ChatMessage> = raw_messages.into_iter().map(|(is_user, text, parsed)| {
                             let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed);
                             crate::ChatMessage {
                                 id: "".into(),
@@ -319,6 +321,8 @@ pub fn load_chat_session(
                                 text: text.into(),
                                 time: "".into(),
                                 markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items))),
+                                reasoning_text: "".into(),
+                                is_thinking: false,
                             }
                         }).collect();
                         

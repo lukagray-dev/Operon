@@ -15,6 +15,9 @@ pub mod assistant_messages;
 #[path = "messages/loading.rs"]
 pub mod loading;
 
+#[path = "reasoning/mod.rs"]
+pub mod reasoning;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::state::AppState;

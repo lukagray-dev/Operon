@@ -36,6 +36,8 @@ export struct ChatMessage {
     text: string,
     time: string,
     markdown_items: [MarkdownItem],
+    reasoning_text: string,
+    is_thinking: bool,
 }
 
 // Main content area component that contains the chat interface.
@@ -256,6 +258,7 @@ export component MainContent inherits Rectangle {
                                             message-text: msg.text;
                                             markdown-items: msg.markdown_items;
                                             time-text: msg.time;
+                                            is-thinking: msg.is_thinking;
                                             show-cursor: (idx == root.chat-messages.length - 1) && root.is-responding && root.cursor-blink;
                                             
                                             copy-clicked => {

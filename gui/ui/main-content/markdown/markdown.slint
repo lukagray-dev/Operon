@@ -3,6 +3,7 @@ import { MarkdownParagraph } from "./paragraph.slint";
 import { MarkdownHeading } from "./heading.slint";
 import { MarkdownCode, CodeLine } from "./code.slint";
 import { MarkdownBullet } from "./bullet.slint";
+import { ThinkingCard } from "../reasoning/reasoning.slint";
 
 // Struct representing a single block-level markdown item
 export struct MarkdownItem {
@@ -16,6 +17,7 @@ export struct MarkdownItem {
 export component MarkdownContent inherits VerticalLayout {
     in property <[MarkdownItem]> items: [];
     in property <bool> show-cursor: false;
+    in property <bool> is-thinking: false;
     in property <string> font-family: Tokens.serif-font-family;
     in property <length> font-size: Tokens.body-font-size;
     
@@ -58,6 +60,10 @@ export component MarkdownContent inherits VerticalLayout {
             text: item.text + (is-last && root.show-cursor ? "|" : "");
             font-family-custom: root.font-family;
             font-size-custom: root.font-size;
+        }
+        if (item.kind == "thinking") : ThinkingCard {
+            text: item.text;
+            active: is-last && root.is-thinking;
         }
     }
 }

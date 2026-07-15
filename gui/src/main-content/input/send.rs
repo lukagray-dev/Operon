@@ -81,6 +81,8 @@ pub fn submit_prompt(
         text: message_text.clone().into(),
         time: "".into(),
         markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed_user))),
+        reasoning_text: "".into(),
+        is_thinking: false,
     });
     window.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
 
@@ -92,7 +94,6 @@ pub fn submit_prompt(
 
     // 3. Launch tokio prompt task in the background
     tokio::spawn(async move {
-        let session_id_clone = session_id.clone();
         let run_prompt = async {
             let app_config = operon_rs::load()?;
             
@@ -155,12 +156,19 @@ pub fn submit_prompt(
 
             // Spawn task to read events and update context indicators in the UI
             let win_weak_event = window_weak.clone();
+            let session_id_final = session_id.clone();
             tokio::spawn(async move {
+                let mut response_state = crate::main_content::reasoning::ResponseState::new();
+
                 while let Some(event) = event_rx.recv().await {
                     println!("[operon-gui][send] Received session event: {:?}", event);
                     
                     match event {
                         operon_rs::SessionEvent::TextDelta { text } => {
+                            // Hey friend! We append text deltas to our current text accumulator.
+                            response_state.append_text(&text);
+                            let parsed_items = response_state.build_parsed_items();
+                            let text_acc = response_state.current_text_accumulator.clone();
                             let win_weak_update = win_weak_event.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(win) = win_weak_update.upgrade() {
@@ -172,24 +180,60 @@ pub fn submit_prompt(
                                         }
                                     }
                                     
-                                    // Append or merge text delta into assistant message
+                                    // Convert to Slint items safely on the UI thread
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
                                     let needs_new = msgs.last().map_or(true, |m| m.is_user);
                                     if needs_new {
-                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_streaming(&text);
                                         msgs.push(crate::ChatMessage {
                                             id: "".into(),
                                             is_user: false,
-                                            text: text.clone().into(),
+                                            text: text_acc.clone().into(),
                                             time: "".into(),
-                                            markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed))),
+                                            markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items))),
+                                            reasoning_text: "".into(),
+                                            is_thinking: false,
                                         });
                                     } else if let Some(last) = msgs.last_mut() {
-                                        let mut new_text = last.text.to_string();
-                                        new_text.push_str(&text);
-                                        last.text = new_text.clone().into();
-                                        
-                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_streaming(&new_text);
-                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed)));
+                                        last.is_thinking = false;
+                                        last.text = text_acc.into();
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ThinkingDelta { text } => {
+                            // Hey friend! We append reasoning deltas to our current thinking card block.
+                            response_state.append_thinking(&text);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    
+                                    // Convert to Slint items safely on the UI thread
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    let needs_new = msgs.last().map_or(true, |m| m.is_user);
+                                    if needs_new {
+                                        msgs.push(crate::ChatMessage {
+                                            id: "".into(),
+                                            is_user: false,
+                                            text: "".into(),
+                                            time: "".into(),
+                                            markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items))),
+                                            reasoning_text: "".into(),
+                                            is_thinking: true,
+                                        });
+                                    } else if let Some(last) = msgs.last_mut() {
+                                        last.is_thinking = true;
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                                     }
                                     
                                     win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
@@ -219,6 +263,40 @@ pub fn submit_prompt(
                         _ => {}
                     }
                 }
+
+                // Hey friend! Once the event channel is drained, we finalize the response block list
+                // (which runs full syntect syntax highlighting on code blocks for premium aesthetics)
+                // and turn off the responding spinner state.
+                let final_parsed_items = response_state.finalize();
+                let win_weak_final = win_weak_event.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(win) = win_weak_final.upgrade() {
+                        let model = win.get_chat_messages();
+                        let count = model.row_count();
+                        if count > 0 {
+                            if let Some(last_msg) = model.row_data(count - 1) {
+                                if !last_msg.is_user {
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..count {
+                                        if let Some(m) = model.row_data(i) {
+                                            msgs.push(m);
+                                        }
+                                    }
+                                    
+                                    // Convert to Slint items safely on the UI thread
+                                    let final_items = crate::main_content::assistant_messages::markdown::to_slint_items(final_parsed_items);
+                                    if let Some(m) = msgs.last_mut() {
+                                        m.is_thinking = false;
+                                        m.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(final_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            }
+                        }
+                        win.set_is_responding(false);
+                        crate::left_sidebar::sidebar::refresh_sidebar(&win, Some(session_id_final));
+                    }
+                });
             });
 
             // Wait for runner task to complete
@@ -232,38 +310,6 @@ pub fn submit_prompt(
             {
                 *ACTIVE_CMD_TX.lock().unwrap() = None;
             }
-
-            // Finalize: re-parse the last assistant message with full syntax highlighting
-            // now that streaming is complete, then turn off responding flag.
-            let win_weak_sidebar = window_weak.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                if let Some(win) = win_weak_sidebar.upgrade() {
-                    // Re-parse the final assistant message with full syntect highlighting
-                    let model = win.get_chat_messages();
-                    let count = model.row_count();
-                    if count > 0 {
-                        if let Some(last_msg) = model.row_data(count - 1) {
-                            if !last_msg.is_user {
-                                let final_text = last_msg.text.to_string();
-                                let full_parsed = crate::main_content::assistant_messages::markdown::parse_markdown(&final_text);
-                                let mut msgs: Vec<crate::ChatMessage> = Vec::new();
-                                for i in 0..count {
-                                    if let Some(m) = model.row_data(i) {
-                                        msgs.push(m);
-                                    }
-                                }
-                                if let Some(m) = msgs.last_mut() {
-                                    m.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(full_parsed)));
-                                }
-                                win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
-                            }
-                        }
-                    }
-
-                    win.set_is_responding(false);
-                    crate::left_sidebar::sidebar::refresh_sidebar(&win, Some(session_id_clone));
-                }
-            });
 
             anyhow::Ok(())
         }.await;
