@@ -14,6 +14,11 @@ use crate::state::AppState;
 // thread-local Rc<RefCell<AppState>> handles into background tasks.
 static ACTIVE_CMD_TX: Mutex<Option<tokio::sync::mpsc::Sender<operon_rs::SessionCommand>>> = Mutex::new(None);
 
+/// Public getter to retrieve the active session command channel for approvals/denials.
+pub fn get_active_cmd_tx() -> Option<tokio::sync::mpsc::Sender<operon_rs::SessionCommand>> {
+    ACTIVE_CMD_TX.lock().unwrap().clone()
+}
+
 /// Register message submission callback.
 pub fn wire_send(
     window: &crate::OperonWindow,
@@ -236,6 +241,174 @@ pub fn submit_prompt(
                                         last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                                     }
                                     
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ToolCallStart { call_id, name } => {
+                            response_state.append_tool_start(&call_id, &name);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ToolCallArgsReady { call_id, name, args_json } => {
+                            response_state.append_tool_args_ready(&call_id, &name, &args_json);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ToolCallDetected { call_id, name, attrs: _ } => {
+                            response_state.append_tool_start(&call_id, &name);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ToolBodyDelta { call_id, text } => {
+                            response_state.append_tool_body_delta(&call_id, &text);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ToolCallResult { call_id, name, is_error, content_json } => {
+                            response_state.append_tool_result(&call_id, &name, is_error, &content_json);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ApprovalRequired { id, tool, path, reason, args_json } => {
+                            response_state.append_approval_required(&id, &tool, &path.unwrap_or_default(), &reason, &args_json);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::ApprovalGranted { id, tool: _, path: _ } => {
+                            response_state.append_approval_resolved(&id, true);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
+                                    win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                                }
+                            });
+                        }
+                        operon_rs::SessionEvent::PermissionDenied { tool, path, reason } => {
+                            response_state.append_permission_denied_event(&tool, &path.unwrap_or_default(), &reason);
+                            let parsed_items = response_state.build_parsed_items();
+                            let win_weak_update = win_weak_event.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(win) = win_weak_update.upgrade() {
+                                    let model = win.get_chat_messages();
+                                    let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                                    for i in 0..model.row_count() {
+                                        if let Some(msg) = model.row_data(i) {
+                                            msgs.push(msg);
+                                        }
+                                    }
+                                    let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                                    if let Some(last) = msgs.last_mut() {
+                                        last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                                    }
                                     win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
                                 }
                             });

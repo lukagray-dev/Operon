@@ -1,0 +1,312 @@
+// Slint UI component for tool execution details.
+//
+// Renders tool runs, statuses (running/completed/failed), modification stats
+// (+X, -Y), and expandable views containing code diffs or parameters/results.
+
+import { Tokens } from "../../shared/tokens.slint";
+import { DiffLine, DiffLineView } from "./diff.slint";
+
+export component ToolCard inherits Rectangle {
+    // Tool execution parameters
+    in property <string> tool-name: "";
+    in property <string> tool-title: "";
+    in property <string> tool-args: "";
+    in property <string> tool-result: "";
+    in property <string> tool-status: "running"; // "running", "completed", "failed"
+    in property <bool> tool-is-diff: false;
+    in property <[DiffLine]> tool-diff-lines: [];
+    in property <int> tool-added-count: 0;
+    in property <int> tool-deleted-count: 0;
+
+    // Toggle states
+    in-out property <bool> collapsed: tool-status == "completed";
+
+    // Visual state
+    property <bool> has-hover: touch.has-hover;
+    
+    // Pulse animation phase for running state indicator
+    in-out property <float> pulse-opacity: 0.6;
+
+    background: has-hover ? rgba(255, 255, 255, 0.035) : rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: has-hover ? rgba(255, 255, 255, 0.12) : rgba(255, 255, 255, 0.06);
+
+    animate background { duration: 120ms; easing: ease-in-out; }
+    animate border-color { duration: 120ms; easing: ease-in-out; }
+
+    // Pulsing loading state animation
+    animate pulse-opacity {
+        duration: 800ms;
+        easing: ease-in-out;
+    }
+    
+    pulse-timer := Timer {
+        interval: 800ms;
+        running: root.tool-status == "running";
+        triggered => {
+            if (root.pulse-opacity < 0.5) {
+                root.pulse-opacity = 0.8;
+            } else {
+                root.pulse-opacity = 0.3;
+            }
+        }
+    }
+
+    // Expand card automatically when execution failure is detected to draw developer's attention
+    changed tool-status => {
+        if (root.tool-status == "failed") {
+            root.collapsed = false;
+        } else if (root.tool-status == "completed") {
+            root.collapsed = true;
+        }
+    }
+
+    VerticalLayout {
+        spacing: 0px;
+        alignment: start;
+
+        // ===== HEADER BAR (CLICKABLE TOGGLE) =====
+        touch := TouchArea {
+            clicked => {
+                root.collapsed = !root.collapsed;
+            }
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                spacing: 8px;
+                alignment: center;
+
+                // Tool identity icon
+                Image {
+                    source: @image-url("../../../assets/icons/main-content/messages/assistant/tool.svg");
+                    width: 14px;
+                    height: 14px;
+                    colorize: root.tool-status == "failed" ? #ef9a9a : 
+                              root.has-hover ? #cccccc : #999999;
+                    opacity: root.tool-status == "running" ? root.pulse-opacity : 0.7;
+                    
+                    animate colorize { duration: 120ms; }
+                }
+
+                // Friendly text title
+                Text {
+                    text: root.tool-title != "" ? root.tool-title : ("Running " + root.tool-name);
+                    color: root.has-hover ? #e6e6e6 : #cccccc;
+                    font-size: 13px;
+                    font-weight: 500;
+                    font-family: Tokens.font_family;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+
+                    animate color { duration: 120ms; }
+                }
+
+                // Diff Statistics Badge (+Lines, -Lines)
+                if (root.tool-is-diff && (root.tool-added-count > 0 || root.tool-deleted-count > 0)) : HorizontalLayout {
+                    spacing: 6px;
+                    alignment: center;
+                    padding-right: 4px;
+                    
+                    if (root.tool-added-count > 0) : Text {
+                        text: "+" + root.tool-added-count;
+                        color: #81c784;
+                        font-size: 11px;
+                        font-family: Tokens.mono-font-family;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                    if (root.tool-deleted-count > 0) : Text {
+                        text: "-" + root.tool-deleted-count;
+                        color: #e57373;
+                        font-size: 11px;
+                        font-family: Tokens.mono-font-family;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Execution Status Badge
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 4px;
+
+                    if (root.tool-status == "running") : Rectangle {
+                        background: rgba(100, 181, 246, 0.08);
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: rgba(100, 181, 246, 0.2);
+                        
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            padding-top: 2px;
+                            padding-bottom: 2px;
+                            Text {
+                                text: "Running";
+                                color: #64b5f6;
+                                font-size: 11px;
+                                font-weight: 500;
+                                font-family: Tokens.font_family;
+                            }
+                        }
+                    }
+
+                    if (root.tool-status == "completed") : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/check.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: #81c784;
+                    }
+
+                    if (root.tool-status == "failed") : Rectangle {
+                        background: rgba(239, 154, 154, 0.08);
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: rgba(239, 154, 154, 0.2);
+                        
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            padding-top: 2px;
+                            padding-bottom: 2px;
+                            Text {
+                                text: "Failed";
+                                color: #ef9a9a;
+                                font-size: 11px;
+                                font-weight: 500;
+                                font-family: Tokens.font_family;
+                            }
+                        }
+                    }
+                }
+
+                // Collapsible Chevron
+                Image {
+                    source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: root.has-hover ? #999999 : #777777;
+                    opacity: 0.5;
+                    transform-rotation: root.collapsed ? -90deg : 0deg;
+
+                    animate transform-rotation {
+                        duration: 150ms;
+                        easing: ease-in-out;
+                    }
+                    animate colorize { duration: 120ms; }
+                }
+            }
+        }
+
+        // ===== DETAIL CONTAINER (ACCORDION) =====
+        if (!root.collapsed) : VerticalLayout {
+            // Top border separator line
+            Rectangle {
+                height: 1px;
+                background: rgba(255, 255, 255, 0.04);
+            }
+
+            Rectangle {
+                background: rgba(0, 0, 0, 0.12);
+
+                // If tool represents code modifications, show unified diff block
+                if (root.tool-is-diff) : VerticalLayout {
+                    padding: 8px;
+                    
+                    Rectangle {
+                        background: rgba(0, 0, 0, 0.2);
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: rgba(255, 255, 255, 0.03);
+                        height: Math.min(240px, diff-list-layout.preferred-height);
+
+                        Flickable {
+                            viewport-height: diff-list-layout.preferred-height;
+                            interactive: true;
+                            
+                            diff-list-layout := VerticalLayout {
+                                alignment: start;
+                                for line in root.tool-diff-lines : DiffLineView {
+                                    kind: line.kind;
+                                    text: line.text;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // If tool is a generic helper, show inputs and outputs code sections
+                if (!root.tool-is-diff) : VerticalLayout {
+                    padding: 10px;
+                    spacing: 8px;
+
+                    if (root.tool-args != "") : VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "INPUT PARAMETERS";
+                            font-size: 9.5px;
+                            font-weight: 600;
+                            color: #555555;
+                            font-family: Tokens.font_family;
+                        }
+                        Rectangle {
+                            background: rgba(0, 0, 0, 0.25);
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: rgba(255, 255, 255, 0.02);
+                            
+                            VerticalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                padding-top: 6px;
+                                padding-bottom: 6px;
+                                Text {
+                                    text: root.tool-args;
+                                    font-size: 11px;
+                                    font-family: Tokens.mono-font-family;
+                                    color: #bbbbbb;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+
+                    if (root.tool-result != "") : VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "OUTPUT RESULT";
+                            font-size: 9.5px;
+                            font-weight: 600;
+                            color: #555555;
+                            font-family: Tokens.font_family;
+                        }
+                        Rectangle {
+                            background: rgba(0, 0, 0, 0.25);
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: rgba(255, 255, 255, 0.02);
+                            
+                            VerticalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                padding-top: 6px;
+                                padding-bottom: 6px;
+                                Text {
+                                    text: root.tool-result;
+                                    font-size: 11px;
+                                    font-family: Tokens.mono-font-family;
+                                    color: root.tool-status == "failed" ? #ef9a9a : #bbbbbb;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

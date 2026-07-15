@@ -271,6 +271,17 @@ pub fn load_chat_session(
                 let mut raw_messages = Vec::new();
                 if let Ok(history_turns) = store.load_turns(&session_id_str).await {
                     if let Some(last_turn) = history_turns.last() {
+                        let mut tool_results = std::collections::HashMap::new();
+                        for msg in last_turn {
+                            if msg.role == operon_rs::context::MessageRole::Tool {
+                                for block in &msg.content {
+                                    if let operon_rs::context::ContentBlock::ToolResult(tr) = block {
+                                        tool_results.insert(tr.call_id.0.clone(), tr.clone());
+                                    }
+                                }
+                            }
+                        }
+
                         for msg in last_turn {
                             let is_user = msg.role == operon_rs::context::MessageRole::User;
                             let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
@@ -285,12 +296,48 @@ pub fn load_chat_session(
                                             msg_items.extend(parsed);
                                         }
                                         operon_rs::context::ContentBlock::Reasoning(rb) => {
-                                            msg_items.push(crate::main_content::assistant_messages::markdown::ParsedMarkdownItem {
-                                                kind: "thinking".to_string(),
-                                                text: rb.thinking.clone(),
-                                                lang: String::new(),
-                                                code_lines: Vec::new(),
-                                            });
+                                            msg_items.push(crate::main_content::assistant_messages::markdown::ParsedMarkdownItem::new_default(
+                                                "thinking".to_string(),
+                                                rb.thinking.clone(),
+                                                String::new(),
+                                                Vec::new(),
+                                            ));
+                                        }
+                                        operon_rs::context::ContentBlock::ToolCall(tc) => {
+                                            let call_id_str = tc.id.0.clone();
+                                            let mut tool_item = crate::main_content::assistant_messages::markdown::ParsedMarkdownItem::new_default(
+                                                "tool".to_string(),
+                                                String::new(),
+                                                String::new(),
+                                                Vec::new(),
+                                            );
+                                            tool_item.tool_name = tc.name.clone();
+                                            tool_item.tool_call_id = call_id_str.clone();
+
+                                            // Pretty format JSON args
+                                            let args_str = serde_json::to_string_pretty(&tc.arguments).unwrap_or_default();
+                                            tool_item.tool_args = args_str.clone();
+
+                                            if let Some(tr) = tool_results.get(&call_id_str) {
+                                                tool_item.tool_status = if tr.is_error { "failed".to_string() } else { "completed".to_string() };
+                                                let res_text = match &tr.content {
+                                                    operon_rs::context::ToolContent::Text(t) => t.clone(),
+                                                };
+                                                tool_item.tool_result = res_text;
+                                                tool_item.tool_title = crate::main_content::reasoning::get_tool_friendly_title(&tc.name, &args_str, true);
+
+                                                if tc.name == "write" || tc.name == "append" || tc.name == "edit" {
+                                                    tool_item.tool_is_diff = true;
+                                                    let (diff_lines, added, deleted) = crate::main_content::tools::diff::parse_diff(&tc.name, &args_str);
+                                                    tool_item.tool_diff_lines = diff_lines;
+                                                    tool_item.tool_added_count = added;
+                                                    tool_item.tool_deleted_count = deleted;
+                                                }
+                                            } else {
+                                                tool_item.tool_status = "running".to_string();
+                                                tool_item.tool_title = crate::main_content::reasoning::get_tool_friendly_title(&tc.name, &args_str, false);
+                                            }
+                                            msg_items.push(tool_item);
                                         }
                                         _ => {}
                                     }

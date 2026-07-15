@@ -50,6 +50,52 @@ pub struct ParsedMarkdownItem {
     pub text: String,
     pub lang: String,
     pub code_lines: Vec<ParsedCodeLine>,
+    // Tool Call Fields
+    pub tool_name: String,
+    pub tool_title: String,
+    pub tool_args: String,
+    pub tool_result: String,
+    pub tool_status: String, // "running", "completed", "failed"
+    pub tool_is_diff: bool,
+    pub tool_diff_lines: Vec<crate::main_content::tools::diff::ParsedDiffLine>,
+    pub tool_added_count: i32,
+    pub tool_deleted_count: i32,
+    pub tool_call_id: String,
+    // Permission Prompt Fields
+    pub permission_id: String,
+    pub permission_tool: String,
+    pub permission_path: String,
+    pub permission_reason: String,
+    pub permission_args: String,
+    pub permission_status: String, // "pending", "approved", "denied"
+}
+
+impl ParsedMarkdownItem {
+    /// Constructs a standard markdown block with default empty values for tool/permission properties.
+    pub fn new_default(kind: String, text: String, lang: String, code_lines: Vec<ParsedCodeLine>) -> Self {
+        Self {
+            kind,
+            text,
+            lang,
+            code_lines,
+            tool_name: String::new(),
+            tool_title: String::new(),
+            tool_args: String::new(),
+            tool_result: String::new(),
+            tool_status: String::new(),
+            tool_is_diff: false,
+            tool_diff_lines: Vec::new(),
+            tool_added_count: 0,
+            tool_deleted_count: 0,
+            tool_call_id: String::new(),
+            permission_id: String::new(),
+            permission_tool: String::new(),
+            permission_path: String::new(),
+            permission_reason: String::new(),
+            permission_args: String::new(),
+            permission_status: String::new(),
+        }
+    }
 }
 
 /// Highlights a code block into Send-safe intermediate tokens.
@@ -115,11 +161,42 @@ pub fn to_slint_items(parsed: Vec<ParsedMarkdownItem>) -> Vec<crate::MarkdownIte
             }).collect();
             slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(slint_lines)))
         };
+        
+        let tool_diff_lines = if item.tool_diff_lines.is_empty() {
+            slint::ModelRc::default()
+        } else {
+            let lines: Vec<crate::DiffLine> = item.tool_diff_lines.into_iter().map(|line| {
+                crate::DiffLine {
+                    kind: line.kind.into(),
+                    text: line.text.into(),
+                }
+            }).collect();
+            slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(lines)))
+        };
+
         crate::MarkdownItem {
             kind: item.kind.into(),
             text: item.text.into(),
             lang: item.lang.into(),
             code_lines,
+            // Tool Call Fields
+            tool_name: item.tool_name.into(),
+            tool_title: item.tool_title.into(),
+            tool_args: item.tool_args.into(),
+            tool_result: item.tool_result.into(),
+            tool_status: item.tool_status.into(),
+            tool_is_diff: item.tool_is_diff,
+            tool_diff_lines,
+            tool_added_count: item.tool_added_count,
+            tool_deleted_count: item.tool_deleted_count,
+            tool_call_id: item.tool_call_id.into(),
+            // Permission Prompt Fields
+            permission_id: item.permission_id.into(),
+            permission_tool: item.permission_tool.into(),
+            permission_path: item.permission_path.into(),
+            permission_reason: item.permission_reason.into(),
+            permission_args: item.permission_args.into(),
+            permission_status: item.permission_status.into(),
         }
     }).collect()
 }
@@ -214,12 +291,12 @@ fn parse_markdown_inner_sendable(markdown_text: &str, skip_highlighting: bool) -
     flush_state_sendable(&mut state, &mut items, skip_highlighting);
     
     if items.is_empty() {
-        items.push(ParsedMarkdownItem {
-            kind: "p".to_string(),
-            text: String::new(),
-            lang: String::new(),
-            code_lines: Vec::new(),
-        });
+        items.push(ParsedMarkdownItem::new_default(
+            "p".to_string(),
+            String::new(),
+            String::new(),
+            Vec::new(),
+        ));
     }
     
     items
@@ -229,12 +306,12 @@ fn parse_markdown_inner_sendable(markdown_text: &str, skip_highlighting: bool) -
 fn flush_state_sendable(state: &mut BlockState, items: &mut Vec<ParsedMarkdownItem>, skip_highlighting: bool) {
     match state {
         BlockState::Paragraph { text } => {
-            items.push(ParsedMarkdownItem {
-                kind: "p".to_string(),
-                text: text.trim_end().to_string(),
-                lang: String::new(),
-                code_lines: Vec::new(),
-            });
+            items.push(ParsedMarkdownItem::new_default(
+                "p".to_string(),
+                text.trim_end().to_string(),
+                String::new(),
+                Vec::new(),
+            ));
         }
         BlockState::Heading { level, text } => {
             let kind = match level {
@@ -242,12 +319,12 @@ fn flush_state_sendable(state: &mut BlockState, items: &mut Vec<ParsedMarkdownIt
                 2 => "h2",
                 _ => "h3",
             };
-            items.push(ParsedMarkdownItem {
-                kind: kind.to_string(),
-                text: text.trim().to_string(),
-                lang: String::new(),
-                code_lines: Vec::new(),
-            });
+            items.push(ParsedMarkdownItem::new_default(
+                kind.to_string(),
+                text.trim().to_string(),
+                String::new(),
+                Vec::new(),
+            ));
         }
         BlockState::CodeBlock { lang, text } => {
             let code_lines = if skip_highlighting {
@@ -255,20 +332,20 @@ fn flush_state_sendable(state: &mut BlockState, items: &mut Vec<ParsedMarkdownIt
             } else {
                 highlight_code_sendable(&text, &lang)
             };
-            items.push(ParsedMarkdownItem {
-                kind: "code".to_string(),
-                text: text.to_string(),
-                lang: lang.clone(),
+            items.push(ParsedMarkdownItem::new_default(
+                "code".to_string(),
+                text.to_string(),
+                lang.clone(),
                 code_lines,
-            });
+            ));
         }
         BlockState::Item { text } => {
-            items.push(ParsedMarkdownItem {
-                kind: "bullet".to_string(),
-                text: text.trim().to_string(),
-                lang: String::new(),
-                code_lines: Vec::new(),
-            });
+            items.push(ParsedMarkdownItem::new_default(
+                "bullet".to_string(),
+                text.trim().to_string(),
+                String::new(),
+                Vec::new(),
+            ));
         }
         BlockState::None => {}
     }
@@ -315,6 +392,32 @@ pub fn highlight_code(code_text: &str, lang: &str) -> Vec<crate::CodeLine> {
     }
     
     lines
+}
+
+/// Helper function to create a new Slint MarkdownItem with default values for tool and permission properties.
+fn new_slint_markdown_item(kind: String, text: String, lang: String, code_lines: slint::ModelRc<crate::CodeLine>) -> crate::MarkdownItem {
+    crate::MarkdownItem {
+        kind: kind.into(),
+        text: text.into(),
+        lang: lang.into(),
+        code_lines,
+        tool_name: "".into(),
+        tool_title: "".into(),
+        tool_args: "".into(),
+        tool_result: "".into(),
+        tool_status: "".into(),
+        tool_is_diff: false,
+        tool_diff_lines: slint::ModelRc::default(),
+        tool_added_count: 0,
+        tool_deleted_count: 0,
+        tool_call_id: "".into(),
+        permission_id: "".into(),
+        permission_tool: "".into(),
+        permission_path: "".into(),
+        permission_reason: "".into(),
+        permission_args: "".into(),
+        permission_status: "".into(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -436,12 +539,12 @@ fn parse_markdown_inner(markdown_text: &str, skip_highlighting: bool) -> Vec<cra
     
     // Fallback: if list is empty, add a single empty paragraph
     if items.is_empty() {
-        items.push(crate::MarkdownItem {
-            kind: "p".into(),
-            text: "".into(),
-            lang: "".into(),
-            code_lines: slint::ModelRc::default(),
-        });
+        items.push(new_slint_markdown_item(
+            "p".to_string(),
+            "".to_string(),
+            "".to_string(),
+            slint::ModelRc::default(),
+        ));
     }
     
     items
@@ -452,12 +555,12 @@ fn parse_markdown_inner(markdown_text: &str, skip_highlighting: bool) -> Vec<cra
 fn flush_state(state: &mut BlockState, items: &mut Vec<crate::MarkdownItem>, skip_highlighting: bool) {
     match state {
         BlockState::Paragraph { text } => {
-            items.push(crate::MarkdownItem {
-                kind: "p".into(),
-                text: text.trim_end().to_string().into(),
-                lang: "".into(),
-                code_lines: slint::ModelRc::default(),
-            });
+            items.push(new_slint_markdown_item(
+                "p".to_string(),
+                text.trim_end().to_string(),
+                "".to_string(),
+                slint::ModelRc::default(),
+            ));
         }
         BlockState::Heading { level, text } => {
             let kind = match level {
@@ -465,12 +568,12 @@ fn flush_state(state: &mut BlockState, items: &mut Vec<crate::MarkdownItem>, ski
                 2 => "h2",
                 _ => "h3",
             };
-            items.push(crate::MarkdownItem {
-                kind: kind.into(),
-                text: text.trim().to_string().into(),
-                lang: "".into(),
-                code_lines: slint::ModelRc::default(),
-            });
+            items.push(new_slint_markdown_item(
+                kind.to_string(),
+                text.trim().to_string(),
+                "".to_string(),
+                slint::ModelRc::default(),
+            ));
         }
         BlockState::CodeBlock { lang, text } => {
             // Only run expensive syntect tokenization when not in streaming mode
@@ -480,20 +583,20 @@ fn flush_state(state: &mut BlockState, items: &mut Vec<crate::MarkdownItem>, ski
                 let highlighted = highlight_code(&text, &lang);
                 slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(highlighted)))
             };
-            items.push(crate::MarkdownItem {
-                kind: "code".into(),
-                text: text.to_string().into(),
-                lang: lang.clone().into(),
+            items.push(new_slint_markdown_item(
+                "code".to_string(),
+                text.to_string(),
+                lang.clone(),
                 code_lines,
-            });
+            ));
         }
         BlockState::Item { text } => {
-            items.push(crate::MarkdownItem {
-                kind: "bullet".into(),
-                text: text.trim().to_string().into(),
-                lang: "".into(),
-                code_lines: slint::ModelRc::default(),
-            });
+            items.push(new_slint_markdown_item(
+                "bullet".to_string(),
+                text.trim().to_string(),
+                "".to_string(),
+                slint::ModelRc::default(),
+            ));
         }
         BlockState::None => {}
     }

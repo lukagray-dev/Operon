@@ -108,6 +108,10 @@ export component OperonWindow inherits Window {
     callback cancel_clicked();
     callback code_copied(int /* message-index */, int /* item-index */);
     
+    // Callbacks for permission dialog resolutions
+    callback permission_approved(string /* permission_id */);
+    callback permission_denied(string /* permission_id */);
+    
     // Main content properties - bind these from Rust
     in-out property <string> input_text: "";
     in-out property <string> selected_model: "";
@@ -302,6 +306,14 @@ export component OperonWindow inherits Window {
                 
                 assistant-fork-clicked(msg-idx) => {
                     root.assistant_message_fork_clicked(msg-idx);
+                }
+                
+                permission_approved(id) => {
+                    root.permission_approved(id);
+                }
+                
+                permission_denied(id) => {
+                    root.permission_denied(id);
                 }
             }
         }

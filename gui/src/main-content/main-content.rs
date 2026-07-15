@@ -18,6 +18,14 @@ pub mod loading;
 #[path = "reasoning/mod.rs"]
 pub mod reasoning;
 
+#[path = "permission/mod.rs"]
+pub mod permission;
+
+pub mod tools {
+    #[path = "diff.rs"]
+    pub mod diff;
+}
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::state::AppState;
@@ -33,4 +41,7 @@ pub fn wire_main_content(
     // Wire user and assistant message actions
     user_messages::wire_user_messages(window, Rc::clone(&state));
     assistant_messages::wire_assistant_messages(window, Rc::clone(&state));
+
+    // Wire policy permission approvals
+    permission::wire_permission_callbacks(window, Rc::clone(&state));
 }

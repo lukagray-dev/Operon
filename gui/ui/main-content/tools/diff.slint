@@ -1,0 +1,35 @@
+// Slint definition for unified diff line styles.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+export struct DiffLine {
+    kind: string, // "added", "removed", "context"
+    text: string,
+}
+
+export component DiffLineView inherits Rectangle {
+    in property <string> kind;
+    in property <string> text;
+
+    background: kind == "added" ? rgba(76, 175, 80, 0.15) : 
+                kind == "removed" ? rgba(244, 67, 54, 0.15) : 
+                transparent;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+
+        Text {
+            // Re-prefixing allows easier visual alignment for mono text columns
+            text: (root.kind == "added" ? "+ " : root.kind == "removed" ? "- " : "  ") + root.text;
+            font-size: 11px;
+            font-family: Tokens.mono-font-family;
+            color: root.kind == "added" ? #a5d6a7 : 
+                   root.kind == "removed" ? #ef9a9a : 
+                   #cccccc;
+            wrap: word-wrap;
+        }
+    }
+}

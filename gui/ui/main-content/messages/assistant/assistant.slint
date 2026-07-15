@@ -48,8 +48,12 @@ export component AssistantMessage inherits Rectangle {
     // Fired when the user clicks the Fork button
     callback fork-clicked();
 
-    // Fired when a code block's copy button inside markdown is clicked
+    // Callback fired when a code block's copy button is clicked
     callback code-copied(int /* item-index */);
+
+    // Callbacks forwarded when permission prompts are resolved
+    callback permission-approved(string /* permission_id */);
+    callback permission-denied(string /* permission_id */);
 
     // ===== Layout =====
     background: transparent;
@@ -78,6 +82,12 @@ export component AssistantMessage inherits Rectangle {
                 font-size: 14.5px;
                 code-copied(idx) => {
                     root.code-copied(idx);
+                }
+                permission-approved(id) => {
+                    root.permission-approved(id);
+                }
+                permission-denied(id) => {
+                    root.permission-denied(id);
                 }
             }
 

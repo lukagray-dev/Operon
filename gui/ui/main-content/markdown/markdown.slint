@@ -4,13 +4,36 @@ import { MarkdownHeading } from "./heading.slint";
 import { MarkdownCode, CodeLine } from "./code.slint";
 import { MarkdownBullet } from "./bullet.slint";
 import { ThinkingCard } from "../reasoning/reasoning.slint";
+import { DiffLine } from "../tools/diff.slint";
+import { ToolCard } from "../tools/cards.slint";
+import { PermissionCard } from "../permission/permission.slint";
 
 // Struct representing a single block-level markdown item
 export struct MarkdownItem {
-    kind: string, // "p", "h1", "h2", "h3", "code", "bullet"
+    kind: string, // "p" (paragraph), "h1", "h2", "h3", "code", "bullet", "thinking", "tool", "permission"
     text: string,
     lang: string,
-    code-lines: [CodeLine],
+    code_lines: [CodeLine],
+    
+    // Tool Call Fields
+    tool_name: string,
+    tool_title: string,
+    tool_args: string,
+    tool_result: string,
+    tool_status: string, // "running", "completed", "failed"
+    tool_is_diff: bool,
+    tool_diff_lines: [DiffLine],
+    tool_added_count: int,
+    tool_deleted_count: int,
+    tool_call_id: string,
+
+    // Permission Prompt Fields
+    permission_id: string,
+    permission_tool: string,
+    permission_path: string,
+    permission_reason: string,
+    permission_args: string,
+    permission_status: string, // "pending", "approved", "denied"
 }
 
 // Markdown renderer container that loops over MarkdownItems
@@ -23,6 +46,10 @@ export component MarkdownContent inherits VerticalLayout {
     
     // Callback fired when a code block's copy button is clicked
     callback code-copied(int /* item-index */);
+    
+    // Callbacks fired when permission prompts are resolved
+    callback permission-approved(string /* permission_id */);
+    callback permission-denied(string /* permission_id */);
     
     spacing: 8px;
     alignment: start;
@@ -64,6 +91,32 @@ export component MarkdownContent inherits VerticalLayout {
         if (item.kind == "thinking") : ThinkingCard {
             text: item.text;
             active: is-last && root.is-thinking;
+        }
+        if (item.kind == "tool") : ToolCard {
+            tool-name: item.tool_name;
+            tool-title: item.tool_title;
+            tool-args: item.tool_args;
+            tool-result: item.tool_result;
+            tool-status: item.tool_status;
+            tool-is-diff: item.tool_is_diff;
+            tool-diff-lines: item.tool_diff_lines;
+            tool-added-count: item.tool_added_count;
+            tool-deleted-count: item.tool_deleted_count;
+        }
+        if (item.kind == "permission") : PermissionCard {
+            permission-id: item.permission_id;
+            permission-tool: item.permission_tool;
+            permission-path: item.permission_path;
+            permission-reason: item.permission_reason;
+            permission-args: item.permission_args;
+            permission-status: item.permission_status;
+            
+            approved => {
+                root.permission-approved(item.permission_id);
+            }
+            denied => {
+                root.permission-denied(item.permission_id);
+            }
         }
     }
 }
