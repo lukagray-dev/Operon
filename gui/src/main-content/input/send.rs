@@ -288,7 +288,7 @@ pub fn submit_prompt(
                             });
                         }
                         operon_rs::SessionEvent::ToolCallDetected { call_id, name, attrs: _ } => {
-                            response_state.append_tool_start(&call_id, &name);
+                            response_state.append_tool_detected(&call_id, &name);
                             let parsed_items = response_state.build_parsed_items();
                             let win_weak_update = win_weak_event.clone();
                             let _ = slint::invoke_from_event_loop(move || {
