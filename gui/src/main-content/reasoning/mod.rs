@@ -352,7 +352,7 @@ impl ResponseState {
 
 /// Generates a human-friendly tool title matching the Tauri reference layout.
 pub fn get_tool_friendly_title(name: &str, args_json: &str, is_completed: bool) -> String {
-    let val: serde_json::Value = serde_json::from_str(args_json).unwrap_or_default();
+    let val = crate::main_content::tools::diff::parse_tool_args_to_value(args_json);
     let path = val.get("path")
         .or_else(|| val.get("paths"))
         .or_else(|| val.get("dir"))

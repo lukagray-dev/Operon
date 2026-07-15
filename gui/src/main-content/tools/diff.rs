@@ -16,6 +16,28 @@ pub struct ParsedDiffLine {
     pub text: String,
 }
 
+/// Helper to parse tool arguments from either raw JSON or runner-formatted tag stream.
+pub fn parse_tool_args_to_value(args_json: &str) -> Value {
+    if let Ok(val) = serde_json::from_str::<Value>(args_json) {
+        return val;
+    }
+    
+    // Check if the argument is runner-formatted: first line is JSON, followed by __body__:
+    if let Some(idx) = args_json.find("__body__:\n") {
+        let first_part = args_json[..idx].trim();
+        let body = &args_json[idx + "__body__:\n".len()..];
+        if let Ok(mut val) = serde_json::from_str::<Value>(first_part) {
+            if let Some(obj) = val.as_object_mut() {
+                obj.insert("__body__".to_string(), Value::String(body.to_string()));
+                obj.insert("content".to_string(), Value::String(body.to_string()));
+            }
+            return val;
+        }
+    }
+    
+    serde_json::from_str(args_json).unwrap_or_default()
+}
+
 /// Parses tool arguments to extract diff lines and compute modification stats.
 ///
 /// Returns a tuple of:
@@ -23,7 +45,7 @@ pub struct ParsedDiffLine {
 /// 2. Count of added lines.
 /// 3. Count of deleted lines.
 pub fn parse_diff(tool_name: &str, args_json: &str) -> (Vec<ParsedDiffLine>, i32, i32) {
-    let val: Value = serde_json::from_str(args_json).unwrap_or_default();
+    let val = parse_tool_args_to_value(args_json);
     
     match tool_name {
         "write" | "append" => {
