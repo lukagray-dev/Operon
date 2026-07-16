@@ -245,8 +245,10 @@ pub fn load_chat_session(
     // Retrieve conversation title and update Slint title property
     let window_weak = window.as_weak();
     let window_weak_err = window.as_weak();
+    window.set_active_session_id(session_id.into());
     window.set_is_loading_session(true);
     let session_id_str = session_id.to_string();
+    let session_id_str_err = session_id_str.clone();
     
     tokio::spawn(async move {
         let run_load = async {
@@ -378,8 +380,13 @@ pub fn load_chat_session(
                 let utilization = if context_window > 0 { last_token_count as f32 / context_window as f32 } else { 0.0 };
                 let context_text = crate::main_content::input::context::format_tokens(last_token_count as i32, context_window as i32);
 
+                let active_session_check = session_id_str.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = window_weak.upgrade() {
+                        // Skip if the user switched to a different session in the meantime
+                        if ui.get_active_session_id() != active_session_check {
+                            return;
+                        }
                         ui.set_session_title(title.into());
                         
                         // Convert Send-safe intermediates to Slint types on UI thread (cheap, no parsing)
@@ -405,8 +412,12 @@ pub fn load_chat_session(
                     }
                 });
             } else {
+                let active_session_check = session_id_str.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = window_weak.upgrade() {
+                        if ui.get_active_session_id() != active_session_check {
+                            return;
+                        }
                         ui.set_chat_messages(slint::ModelRc::default());
                         ui.set_session_title("New Chat".into());
                         ui.set_is_loading_session(false);
@@ -417,8 +428,12 @@ pub fn load_chat_session(
         }.await;
 
         if run_load.is_err() {
+            let active_session_check = session_id_str_err.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = window_weak_err.upgrade() {
+                    if ui.get_active_session_id() != active_session_check {
+                        return;
+                    }
                     ui.set_is_loading_session(false);
                 }
             });

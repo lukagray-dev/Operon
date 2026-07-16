@@ -58,6 +58,7 @@ pub fn wire_projects(
                     g_state.set_active_session_id(None);
                     g_state.set_current_project_dir(Some(proj_path.to_string()));
                 }
+                win.set_active_session_id("".into());
                 win.set_active_project_index(proj_idx);
                 win.set_active_conversation_index(-1);
                 win.set_active_chat_index(-1);
@@ -111,6 +112,7 @@ pub fn wire_projects(
                         if let Some(win) = win_weak.upgrade() {
                             if win.get_active_project_index() == proj_idx && win.get_active_conversation_index() == conv_idx {
                                 win.set_session_title("New Chat".into());
+                                win.set_active_session_id("".into());
                             }
                             super::sidebar::clear_sidebar_selection(&win);
                             super::sidebar::refresh_sidebar(&win, active_id);
@@ -198,6 +200,7 @@ pub fn wire_projects(
                         if let Some(win) = win_weak.upgrade() {
                             if active_project_deleted {
                                 win.set_session_title("New Chat".into());
+                                win.set_active_session_id("".into());
                             }
                             if win.get_active_project_index() == proj_idx {
                                 super::sidebar::clear_sidebar_selection(&win);
@@ -230,6 +233,9 @@ pub fn wire_projects(
                     g_state.active_session_id().map(String::from)
                 };
 
+                if let Some(win) = window_weak.upgrade() {
+                    win.set_active_session_id("".into());
+                }
                 let win_weak = window_weak.clone();
                 let path_str_clone = path_str.clone();
 

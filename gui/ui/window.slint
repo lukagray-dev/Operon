@@ -49,6 +49,7 @@ export component OperonWindow inherits Window {
     in-out property <int> active_project_index: -1;
     in-out property <int> active_conversation_index: -1;
     in-out property <int> active_chat_index: -1;
+    in-out property <string> active_session_id: "";
 
     // The titlebar only exposes the actions that need Rust-side behavior.
     callback minimize_requested();

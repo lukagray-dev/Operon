@@ -42,6 +42,7 @@ pub fn wire_chats(
                     g_state.set_active_session_id(None);
                     g_state.set_current_project_dir(None);
                 }
+                win.set_active_session_id("".into());
                 super::sidebar::clear_sidebar_selection(&win);
                 win.set_session_title("New Chat".into());
                 win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
@@ -93,6 +94,7 @@ pub fn wire_chats(
                         if let Some(win) = win_weak.upgrade() {
                             if win.get_active_chat_index() == chat_idx {
                                 win.set_session_title("New Chat".into());
+                                win.set_active_session_id("".into());
                             }
                             super::sidebar::clear_sidebar_selection(&win);
                             super::sidebar::refresh_sidebar(&win, active_id);

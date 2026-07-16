@@ -45,6 +45,7 @@ pub fn wire_send(
                 }
             };
 
+            win.set_active_session_id(session_id.clone().into());
             let project_dir = app_state.borrow().current_project_dir().map(String::from);
             submit_prompt(&win, message_text.to_string(), session_id, is_new_session, project_dir);
         }
