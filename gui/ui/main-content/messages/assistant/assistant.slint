@@ -71,7 +71,6 @@ export component AssistantMessage inherits Rectangle {
 
         // Vertical layout for message text and controls container
         VerticalLayout {
-            width: 100%;
             // Add equal padding on left and right to match input panel's internal padding
             padding-left: 12px;
             padding-right: 12px;
@@ -80,7 +79,6 @@ export component AssistantMessage inherits Rectangle {
 
             // ===== MESSAGE TEXT AREA (RENDERED AS MARKDOWN) =====
             message-text-area := MarkdownContent {
-                width: 100%;
                 items: root.markdown-items;
                 show-cursor: root.show-cursor;
                 is-thinking: root.is-thinking;
