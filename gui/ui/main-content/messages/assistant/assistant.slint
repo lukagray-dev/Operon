@@ -96,15 +96,15 @@ export component AssistantMessage inherits Rectangle {
 
             // ===== CONTROLS CONTAINER =====
             controls-container := Rectangle {
-                height: root.show-separator ? 29px : 24px; // 1px separator + 4px spacing + 24px action-bar
+                height: root.show-separator ? 29px : 0px; // Hide controls container completely when show-separator is false
                 vertical-stretch: 0;
                 horizontal-stretch: 1;
                 
-                // Fade effect linked to parent hover state
-                opacity: hover-touch.has-hover ? 1.0 : 0.0;
+                // Fade effect linked to parent hover state (only active when show-separator is true)
+                opacity: (root.show-separator && hover-touch.has-hover) ? 1.0 : 0.0;
                 
-                // Disable interaction and visibility when completely faded out
-                visible: self.opacity > 0.0;
+                // Disable interaction and visibility when completely faded out or show-separator is false
+                visible: root.show-separator && (self.opacity > 0.0);
 
                 // Smooth opacity transition on hover enter/exit
                 animate opacity { duration: 150ms; easing: ease-in-out; }
