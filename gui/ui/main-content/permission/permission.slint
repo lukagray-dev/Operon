@@ -16,7 +16,7 @@ component HoverableTarget inherits Rectangle {
 
     text-el := Text {
         text: root.text;
-        color: root.hovered ? #ffb300 : #81c784;
+        color: root.hovered ? #ffb300 : #00ff0d;
         font-size: 13px;
         font-weight: 600;
         font-family: Tokens.font_family;
@@ -70,7 +70,7 @@ export component FloatingPermissionPanel inherits Rectangle {
                 source: @image-url("../../../assets/icons/settings/lock.svg");
                 width: 14px;
                 height: 14px;
-                colorize: #ffb300;
+                colorize: #ffae00;
             }
 
             HorizontalLayout {
@@ -84,7 +84,7 @@ export component FloatingPermissionPanel inherits Rectangle {
                     font-family: Tokens.font_family;
                 }
 
-                if (root.display-target != "") : target-container := HoverableTarget {
+                if (root.display-target != ""): target-container := HoverableTarget {
                     text: root.display-target;
                     hovered <=> root.target-hovered;
                 }
@@ -146,10 +146,10 @@ export component FloatingPermissionPanel inherits Rectangle {
     }
 
     // Hover tooltip to display absolute location or description details
-    if (root.target-hovered && (root.permission-path != "" || root.permission-reason != "")) : Rectangle {
+    if (root.target-hovered && (root.permission-path != "" || root.permission-reason != "")): Rectangle {
         x: 40px;
         y: -42px;
-        background: #1a1a1a;
+        background: #000000;
         border-radius: 4px;
         border-width: 1px;
         border-color: rgba(255, 255, 255, 0.08);
@@ -163,13 +163,13 @@ export component FloatingPermissionPanel inherits Rectangle {
             padding-bottom: 5px;
             spacing: 2px;
 
-            if (root.permission-path != "") : Text {
+            if (root.permission-path != ""): Text {
                 text: root.permission-path;
                 color: #a5d6a7;
                 font-size: 11px;
                 font-family: Tokens.mono-font-family;
             }
-            if (root.permission-reason != "") : Text {
+            if (root.permission-reason != ""): Text {
                 text: "Reason: " + root.permission-reason;
                 color: #888888;
                 font-size: 11px;
