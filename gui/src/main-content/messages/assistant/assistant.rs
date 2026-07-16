@@ -114,7 +114,7 @@ pub fn wire_assistant_messages(
                                 win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
                                 
                                 // Submit the prompt again
-                                crate::main_content::input::send::submit_prompt(
+                                crate::executor::submit_prompt(
                                     &win,
                                     prompt,
                                     session_id,

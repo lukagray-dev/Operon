@@ -121,3 +121,19 @@ pub fn parse_diff(tool_name: &str, args_json: &str) -> (Vec<ParsedDiffLine>, i32
         _ => (Vec::new(), 0, 0),
     }
 }
+
+/// Applies diff overlay to a markdown item block if the tool is a file editor.
+///
+/// Hey friend! This function separates the GUI-wiring of code diff visualization
+/// from the rest of the parsing steps. It checks if the executed tool modifies files,
+/// parses its unified diff/added lines, and mutates the markdown block's diff properties in-place.
+pub fn apply_diff_overlay(block: &mut crate::main_content::assistant_messages::markdown::ParsedMarkdownItem, name: &str, tool_args: &str) {
+    if name == "write" || name == "append" || name == "edit" {
+        block.tool_is_diff = true;
+        let (diff_lines, added, deleted) = parse_diff(name, tool_args);
+        block.tool_diff_lines = diff_lines;
+        block.tool_added_count = added;
+        block.tool_deleted_count = deleted;
+    }
+}
+

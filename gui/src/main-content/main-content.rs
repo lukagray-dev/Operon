@@ -24,6 +24,8 @@ pub mod permission;
 pub mod tools {
     #[path = "diff.rs"]
     pub mod diff;
+    #[path = "cards.rs"]
+    pub mod cards;
 }
 
 use std::cell::RefCell;

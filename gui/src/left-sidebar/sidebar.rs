@@ -346,7 +346,7 @@ pub fn load_chat_session(
                                                     operon_rs::context::ToolContent::Text(t) => t.clone(),
                                                 };
                                                 tool_item.tool_result = res_text;
-                                                tool_item.tool_title = crate::main_content::reasoning::get_tool_friendly_title(&tc.name, &args_str, true);
+                                                tool_item.tool_title = crate::main_content::tools::cards::get_tool_friendly_title(&tc.name, &args_str, true);
 
                                                 if tc.name == "write" || tc.name == "append" || tc.name == "edit" {
                                                     tool_item.tool_is_diff = true;
@@ -357,7 +357,7 @@ pub fn load_chat_session(
                                                 }
                                             } else {
                                                 tool_item.tool_status = "running".to_string();
-                                                tool_item.tool_title = crate::main_content::reasoning::get_tool_friendly_title(&tc.name, &args_str, false);
+                                                tool_item.tool_title = crate::main_content::tools::cards::get_tool_friendly_title(&tc.name, &args_str, false);
                                             }
                                             current_assistant_items.push(tool_item);
                                         }
