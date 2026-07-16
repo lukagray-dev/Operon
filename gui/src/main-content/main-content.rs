@@ -21,6 +21,9 @@ pub mod reasoning;
 #[path = "permission/mod.rs"]
 pub mod permission;
 
+#[path = "title/title.rs"]
+pub mod title;
+
 pub mod tools {
     #[path = "diff.rs"]
     pub mod diff;

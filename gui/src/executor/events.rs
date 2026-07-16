@@ -281,7 +281,7 @@ pub async fn handle_session_events(
             }
             win.set_is_responding(false);
             win.set_has_pending_permission(false);
-            crate::left_sidebar::sidebar::refresh_sidebar(&win, Some(session_id));
+            crate::left_sidebar::refresh_sidebar(&win, Some(session_id));
         }
     });
 }

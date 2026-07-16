@@ -41,7 +41,7 @@ pub fn wire_projects(
                     project_path = Some(project.workspace.to_string());
                 }
 
-                super::sidebar::load_chat_session(&win, &session_id, project_path.as_deref(), &app_state);
+                crate::left_sidebar::load_chat_session(&win, &session_id, project_path.as_deref(), &app_state);
             }
         }
     });
@@ -62,7 +62,7 @@ pub fn wire_projects(
                 win.set_active_project_index(proj_idx);
                 win.set_active_conversation_index(-1);
                 win.set_active_chat_index(-1);
-                win.set_session_title("New Chat".into());
+                crate::main_content::title::set_session_title(&win, "New Chat");
                 win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
 
                 let app_config = operon_rs::config::load().ok();
@@ -111,11 +111,11 @@ pub fn wire_projects(
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(win) = win_weak.upgrade() {
                             if win.get_active_project_index() == proj_idx && win.get_active_conversation_index() == conv_idx {
-                                win.set_session_title("New Chat".into());
+                                crate::main_content::title::set_session_title(&win, "New Chat");
                                 win.set_active_session_id("".into());
                             }
-                            super::sidebar::clear_sidebar_selection(&win);
-                            super::sidebar::refresh_sidebar(&win, active_id);
+                            crate::left_sidebar::clear_sidebar_selection(&win);
+                            crate::left_sidebar::refresh_sidebar(&win, active_id);
                         }
                     });
                 });
@@ -199,13 +199,13 @@ pub fn wire_projects(
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(win) = win_weak.upgrade() {
                             if active_project_deleted {
-                                win.set_session_title("New Chat".into());
+                                crate::main_content::title::set_session_title(&win, "New Chat");
                                 win.set_active_session_id("".into());
                             }
                             if win.get_active_project_index() == proj_idx {
-                                super::sidebar::clear_sidebar_selection(&win);
+                                crate::left_sidebar::clear_sidebar_selection(&win);
                             }
-                            super::sidebar::refresh_sidebar(&win, active_id);
+                            crate::left_sidebar::refresh_sidebar(&win, active_id);
                         }
                     });
                 });
@@ -245,9 +245,9 @@ pub fn wire_projects(
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(win) = win_weak.upgrade() {
                                 // Clear selections
-                                super::sidebar::clear_sidebar_selection(&win);
-                                win.set_session_title("New Chat".into());
-                                super::sidebar::refresh_sidebar(&win, active_id);
+                                crate::left_sidebar::clear_sidebar_selection(&win);
+                                crate::main_content::title::set_session_title(&win, "New Chat");
+                                crate::left_sidebar::refresh_sidebar(&win, active_id);
                             }
                         });
                     }

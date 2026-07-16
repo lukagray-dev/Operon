@@ -24,7 +24,7 @@ pub fn wire_search(
         move |_query| {
             if let Some(win) = window_weak.upgrade() {
                 let active_id = app_state.borrow().active_session_id().map(String::from);
-                super::sidebar::refresh_sidebar(&win, active_id);
+                crate::left_sidebar::refresh_sidebar(&win, active_id);
             }
         }
     });
@@ -36,7 +36,7 @@ pub fn wire_search(
         move || {
             if let Some(win) = window_weak.upgrade() {
                 let active_id = app_state.borrow().active_session_id().map(String::from);
-                super::sidebar::refresh_sidebar(&win, active_id);
+                crate::left_sidebar::refresh_sidebar(&win, active_id);
             }
         }
     });
