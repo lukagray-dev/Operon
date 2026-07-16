@@ -306,25 +306,31 @@ fn parse_markdown_inner_sendable(markdown_text: &str, skip_highlighting: bool) -
 fn flush_state_sendable(state: &mut BlockState, items: &mut Vec<ParsedMarkdownItem>, skip_highlighting: bool) {
     match state {
         BlockState::Paragraph { text } => {
-            items.push(ParsedMarkdownItem::new_default(
-                "p".to_string(),
-                text.trim_end().to_string(),
-                String::new(),
-                Vec::new(),
-            ));
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                items.push(ParsedMarkdownItem::new_default(
+                    "p".to_string(),
+                    text.trim_end().to_string(),
+                    String::new(),
+                    Vec::new(),
+                ));
+            }
         }
         BlockState::Heading { level, text } => {
-            let kind = match level {
-                1 => "h1",
-                2 => "h2",
-                _ => "h3",
-            };
-            items.push(ParsedMarkdownItem::new_default(
-                kind.to_string(),
-                text.trim().to_string(),
-                String::new(),
-                Vec::new(),
-            ));
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                let kind = match level {
+                    1 => "h1",
+                    2 => "h2",
+                    _ => "h3",
+                };
+                items.push(ParsedMarkdownItem::new_default(
+                    kind.to_string(),
+                    text.trim().to_string(),
+                    String::new(),
+                    Vec::new(),
+                ));
+            }
         }
         BlockState::CodeBlock { lang, text } => {
             let code_lines = if skip_highlighting {
@@ -340,12 +346,15 @@ fn flush_state_sendable(state: &mut BlockState, items: &mut Vec<ParsedMarkdownIt
             ));
         }
         BlockState::Item { text } => {
-            items.push(ParsedMarkdownItem::new_default(
-                "bullet".to_string(),
-                text.trim().to_string(),
-                String::new(),
-                Vec::new(),
-            ));
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                items.push(ParsedMarkdownItem::new_default(
+                    "bullet".to_string(),
+                    text.trim().to_string(),
+                    String::new(),
+                    Vec::new(),
+                ));
+            }
         }
         BlockState::None => {}
     }
@@ -555,25 +564,31 @@ fn parse_markdown_inner(markdown_text: &str, skip_highlighting: bool) -> Vec<cra
 fn flush_state(state: &mut BlockState, items: &mut Vec<crate::MarkdownItem>, skip_highlighting: bool) {
     match state {
         BlockState::Paragraph { text } => {
-            items.push(new_slint_markdown_item(
-                "p".to_string(),
-                text.trim_end().to_string(),
-                "".to_string(),
-                slint::ModelRc::default(),
-            ));
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                items.push(new_slint_markdown_item(
+                    "p".to_string(),
+                    text.trim_end().to_string(),
+                    "".to_string(),
+                    slint::ModelRc::default(),
+                ));
+            }
         }
         BlockState::Heading { level, text } => {
-            let kind = match level {
-                1 => "h1",
-                2 => "h2",
-                _ => "h3",
-            };
-            items.push(new_slint_markdown_item(
-                kind.to_string(),
-                text.trim().to_string(),
-                "".to_string(),
-                slint::ModelRc::default(),
-            ));
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                let kind = match level {
+                    1 => "h1",
+                    2 => "h2",
+                    _ => "h3",
+                };
+                items.push(new_slint_markdown_item(
+                    kind.to_string(),
+                    text.trim().to_string(),
+                    "".to_string(),
+                    slint::ModelRc::default(),
+                ));
+            }
         }
         BlockState::CodeBlock { lang, text } => {
             // Only run expensive syntect tokenization when not in streaming mode
@@ -591,12 +606,15 @@ fn flush_state(state: &mut BlockState, items: &mut Vec<crate::MarkdownItem>, ski
             ));
         }
         BlockState::Item { text } => {
-            items.push(new_slint_markdown_item(
-                "bullet".to_string(),
-                text.trim().to_string(),
-                "".to_string(),
-                slint::ModelRc::default(),
-            ));
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                items.push(new_slint_markdown_item(
+                    "bullet".to_string(),
+                    text.trim().to_string(),
+                    "".to_string(),
+                    slint::ModelRc::default(),
+                ));
+            }
         }
         BlockState::None => {}
     }

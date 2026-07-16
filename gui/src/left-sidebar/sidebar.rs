@@ -281,22 +281,42 @@ pub fn load_chat_session(
                                 }
                             }
                         }
+                        let mut current_assistant_items = Vec::new();
+                        let mut current_assistant_text_parts = Vec::new();
 
                         for msg in last_turn {
                             let is_user = msg.role == operon_rs::context::MessageRole::User;
                             let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
-                            if is_user || is_assistant {
+                            
+                            if is_user {
+                                if !current_assistant_items.is_empty() || !current_assistant_text_parts.is_empty() {
+                                    let text = current_assistant_text_parts.join("\n");
+                                    raw_messages.push((false, text, current_assistant_items.clone()));
+                                    current_assistant_items.clear();
+                                    current_assistant_text_parts.clear();
+                                }
+                                
                                 let mut msg_items = Vec::new();
                                 let mut text_parts = Vec::new();
                                 for block in &msg.content {
+                                    if let operon_rs::context::ContentBlock::Text(s) = block {
+                                        text_parts.push(s.clone());
+                                        let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(s);
+                                        msg_items.extend(parsed);
+                                    }
+                                }
+                                let text = text_parts.join("\n");
+                                raw_messages.push((true, text, msg_items));
+                            } else if is_assistant {
+                                for block in &msg.content {
                                     match block {
                                         operon_rs::context::ContentBlock::Text(s) => {
-                                            text_parts.push(s.clone());
+                                            current_assistant_text_parts.push(s.clone());
                                             let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(s);
-                                            msg_items.extend(parsed);
+                                            current_assistant_items.extend(parsed);
                                         }
                                         operon_rs::context::ContentBlock::Reasoning(rb) => {
-                                            msg_items.push(crate::main_content::assistant_messages::markdown::ParsedMarkdownItem::new_default(
+                                            current_assistant_items.push(crate::main_content::assistant_messages::markdown::ParsedMarkdownItem::new_default(
                                                 "thinking".to_string(),
                                                 rb.thinking.clone(),
                                                 String::new(),
@@ -337,14 +357,17 @@ pub fn load_chat_session(
                                                 tool_item.tool_status = "running".to_string();
                                                 tool_item.tool_title = crate::main_content::reasoning::get_tool_friendly_title(&tc.name, &args_str, false);
                                             }
-                                            msg_items.push(tool_item);
+                                            current_assistant_items.push(tool_item);
                                         }
                                         _ => {}
                                     }
                                 }
-                                let text = text_parts.join("\n");
-                                raw_messages.push((is_user, text, msg_items));
                             }
+                        }
+                        
+                        if !current_assistant_items.is_empty() || !current_assistant_text_parts.is_empty() {
+                            let text = current_assistant_text_parts.join("\n");
+                            raw_messages.push((false, text, current_assistant_items));
                         }
                     }
                 }
