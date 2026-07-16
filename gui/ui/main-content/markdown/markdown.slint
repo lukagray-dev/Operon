@@ -54,6 +54,7 @@ export component MarkdownContent inherits VerticalLayout {
     alignment: start;
     
     for item[idx] in root.items : VerticalLayout {
+        width: 100%;
         // Calculate if this is the very last block element in the model
         property <bool> is-last: idx == root.items.length - 1;
         
@@ -88,10 +89,12 @@ export component MarkdownContent inherits VerticalLayout {
             font-size-custom: root.font-size;
         }
         if (item.kind == "thinking") : ThinkingCard {
+            width: 100%;
             text: item.text;
             active: is-last && root.is-thinking;
         }
         if (item.kind == "tool") : ToolCard {
+            width: 100%;
             tool-name: item.tool_name;
             tool-title: item.tool_title;
             tool-args: item.tool_args;
