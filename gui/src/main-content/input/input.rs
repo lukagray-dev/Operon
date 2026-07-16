@@ -29,7 +29,7 @@ pub fn wire_input_panel(
     // 1. Initial Selected Model & reasoning default
     let active_model = app_config.as_ref()
         .map(|c| c.provider.model.model_id.clone())
-        .unwrap_or_else(|| "Claude Sonnet 4.5".to_string());
+        .unwrap_or_default();
     window.set_selected_model(active_model.into());
     window.set_selected_reasoning("Medium".into()); // Default reasoning level in prompt UI
 

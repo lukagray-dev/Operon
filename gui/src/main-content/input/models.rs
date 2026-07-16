@@ -20,45 +20,12 @@ pub fn load_available_models(window: &crate::OperonWindow) {
             let api_key = app_config.provider.credentials.api_key.clone();
             let api_base = app_config.provider.base_url_override.clone();
             
-            // 1. Get standard models for this provider
-            let mut models = match provider_enum {
-                operon_rs::providers::Provider::Anthropic => vec![
-                    "claude-3-5-sonnet-20241022".to_string(),
-                    "claude-3-5-haiku-20241022".to_string(),
-                    "claude-3-opus-20240229".to_string(),
-                ],
-                operon_rs::providers::Provider::OpenAI => vec![
-                    "gpt-4o".to_string(),
-                    "gpt-4-turbo".to_string(),
-                    "gpt-4o-mini".to_string(),
-                    "o1".to_string(),
-                    "o1-mini".to_string(),
-                ],
-                operon_rs::providers::Provider::Gemini => vec![
-                    "gemini-2.5-pro".to_string(),
-                    "gemini-2.5-flash".to_string(),
-                ],
-                operon_rs::providers::Provider::DeepSeek => vec![
-                    "deepseek-chat".to_string(),
-                    "deepseek-coder".to_string(),
-                ],
-                operon_rs::providers::Provider::Groq => vec![
-                    "llama3-70b-8192".to_string(),
-                    "mixtral-8x7b-32768".to_string(),
-                ],
-                _ => vec![],
-            };
-            
-            // Ensure currently active model is included and at the top
             let active_model = app_config.provider.model.model_id.clone();
-            if !active_model.is_empty() {
-                if let Some(pos) = models.iter().position(|m| m == &active_model) {
-                    models.remove(pos);
-                }
-                models.insert(0, active_model.clone());
-            }
 
-            // Update UI thread-safely with standard models first
+            // Start with only the currently configured active model
+            let models = vec![active_model.clone()];
+
+            // Update UI thread-safely with the active model first
             let slint_models: Vec<SharedString> = models.iter().cloned().map(SharedString::from).collect();
             let active_model_ss = SharedString::from(active_model.clone());
             
