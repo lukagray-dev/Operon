@@ -16,6 +16,7 @@ pub struct AppState {
     reload_generation: i32,
     active_session_id: Option<String>,
     current_project_dir: Option<String>,
+    discovered_models: Vec<operon_rs::DiscoveredModel>,
 }
 
 impl Default for AppState {
@@ -25,6 +26,7 @@ impl Default for AppState {
             reload_generation: 0,
             active_session_id: None,
             current_project_dir: None,
+            discovered_models: Vec::new(),
         }
     }
 }
@@ -89,5 +91,15 @@ impl AppState {
     pub fn mark_reload(&mut self) -> i32 {
         self.reload_generation = self.reload_generation.saturating_add(1);
         self.reload_generation
+    }
+
+    /// Returns the slice of discovered models from live discovery.
+    pub fn discovered_models(&self) -> &[operon_rs::DiscoveredModel] {
+        &self.discovered_models
+    }
+
+    /// Sets the list of discovered models.
+    pub fn set_discovered_models(&mut self, models: Vec<operon_rs::DiscoveredModel>) {
+        self.discovered_models = models;
     }
 }
