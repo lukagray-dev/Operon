@@ -21,25 +21,12 @@
 
 import { Tokens } from "../shared/tokens.slint";
 import { InputPanel } from "./input/input.slint";
-import { UserMessage } from "./messages/user/user.slint";
-import { AssistantMessage } from "./messages/assistant/assistant.slint";
 import { Topbar } from "./topbar/topbar.slint";
 import { WarningText } from "./input/warning.slint";
 import { TerminalPanel } from "./terminal/terminal.slint";
-import { MarkdownItem } from "./markdown/markdown.slint";
-import { ChatLoadingSkeleton } from "./messages/loading.slint";
-import { EmptyState } from "./empty-state/empty-state.slint";
 import { FloatingPermissionPanel } from "./permission/permission.slint";
-
-export struct ChatMessage {
-    id: string,
-    is_user: bool,
-    text: string,
-    time: string,
-    markdown_items: [MarkdownItem],
-    reasoning_text: string,
-    is_thinking: bool,
-}
+import { MessageList, ChatMessage } from "./messages/message-list.slint";
+export { ChatMessage }
 
 // Main content area component that contains the chat interface.
 // This is the primary workspace where users interact with the AI agent.
@@ -152,233 +139,48 @@ export component MainContent inherits Rectangle {
         }
 
         // ===== MAIN CONTENT BODY (Messages scroll area + Floating input panel) =====
-        // This container holds both the scrollable message viewport and the absolute
-        // floating input overlay. Because they are sibling children of a Rectangle (not in a layout),
-        // they overlay each other. The input overlay sits at the bottom, and messages scroll behind it.
         main-body := Rectangle {
             vertical-stretch: 1;
 
             // 1. Messages Scroll Area
-            // Covers the full width and height of the body area.
-            messages-area := Rectangle {
+            messages-area := MessageList {
                 width: 100%;
                 height: 100%;
-                background: transparent;
-                
-                messages-flickable := Flickable {
-                    visible: !root.is-loading-session && root.chat-messages.length > 0;
-                    width: parent.width;
-                    height: parent.height;
-                    
-                    // Viewport height is computed dynamically to match the inner content layout
-                    viewport-height: messages-inner-layout.preferred-height;
-                    interactive: false; // Disable built-in kinetic momentum animations
-                    
-                    // Smooth scroll target tracking (mimics VS Code smooth-scrolling physics)
-                    property <length> target-scroll-y: 0px;
-                    
-                    // Tracks if viewport is currently scrolled near the bottom (within 60px)
-                    property <bool> is-near-bottom: true;
-                    
-                    viewport-y: self.target-scroll-y;
-                    
-                    animate viewport-y {
-                        duration: 120ms;
-                        easing: ease-out;
-                    }
-                    
-                    changed target-scroll-y => {
-                        // Detect if user has manually scrolled away from the bottom
-                        self.is-near-bottom = self.target-scroll-y <= min(0px, self.height - self.viewport-height) + 60px;
-                    }
-                    
-                    changed viewport-height => {
-                        // Auto-scroll to bottom only if the viewport was already near the bottom
-                        if (self.is-near-bottom) {
-                            self.target-scroll-y = min(0px, self.height - self.viewport-height);
-                        }
-                    }
-                    
-                    // Custom TouchArea to handle direct mouse wheel scrolling with smooth ease-out target tracking
-                    TouchArea {
-                        width: 100%;
-                        height: max(messages-flickable.height, messages-flickable.viewport-height);
-                        
-                        clicked => {
-                            focus-scope.focus();
-                        }
-                        
-                        scroll-event(e) => {
-                            messages-flickable.target-scroll-y = max(
-                                min(0px, messages-flickable.height - messages-flickable.viewport-height),
-                                min(0px, messages-flickable.target-scroll-y + e.delta-y)
-                            );
-                            EventResult.accept
-                        }
-                    }
-                    
-                    // Content container for all messages
-                    messages-content := Rectangle {
-                        width: parent.width;
-                        height: messages-inner-layout.preferred-height;
-                        background: transparent;
-                        
-                        // Horizontal layout to center the message column
-                        messages-inner-layout := HorizontalLayout {
-                            padding-top: 12px;
-                            // Large bottom padding of 180px ensures the last message can be scrolled
-                            // completely clear of the floating input panel.
-                            padding-bottom: 180px;
-                            
-                            // Left spacer - matches the input panel side margins
-                            Rectangle {
-                                horizontal-stretch: 1;
-                                background: transparent;
-                            }
-                            
-                            // Messages inner container - matches input panel width limits
-                            messages-inner := Rectangle {
-                                min-width: 400px;
-                                max-width: root.input-panel-max-width;
-                                horizontal-stretch: 1;
-                                background: transparent;
-                                
-                                // Vertical layout for stacking messages
-                                VerticalLayout {
-                                    spacing: 12px;
-                                    alignment: start;
-                                    
-                                    for msg[idx] in root.chat-messages : VerticalLayout {
-                                        cache-rendering-hint: true;
-                                        if (msg.is-user) : UserMessage {
-                                            message-text: msg.text;
-                                            markdown-items: msg.markdown_items;
-                                            max-bubble-width: (root.width < root.input-panel-max-width ? root.width : root.input-panel-max-width) * 0.75;
-                                            
-                                            edit-clicked => {
-                                                root.message-edit-clicked(idx);
-                                            }
-                                            
-                                            copy-clicked => {
-                                                root.message-copy-clicked(idx);
-                                            }
-                                            
-                                            code-copied(item_idx) => {
-                                                root.code-copied(idx, item_idx);
-                                            }
-                                        }
-                                        
-                                        if (!msg.is-user) : AssistantMessage {
-                                            message-text: msg.text;
-                                            markdown-items: msg.markdown_items;
-                                            time-text: msg.time;
-                                            is-thinking: msg.is_thinking;
-                                            show-cursor: (idx == root.chat-messages.length - 1) && root.is-responding && root.cursor-blink;
-                                            show-separator: (idx == root.chat-messages.length - 1) ? true : root.chat-messages[idx + 1].is-user;
-                                            
-                                            permission-approved(id) => {
-                                                root.permission_approved(id);
-                                            }
-                                            permission-denied(id) => {
-                                                root.permission_denied(id);
-                                            }
-                                            
-                                            copy-clicked => {
-                                                root.assistant-copy-clicked(idx);
-                                            }
-                                            
-                                            like-clicked => {
-                                                root.assistant-like-clicked(idx);
-                                            }
-                                            
-                                            dislike-clicked => {
-                                                root.assistant-dislike-clicked(idx);
-                                            }
-                                            
-                                            regenerate-clicked => {
-                                                root.assistant-regenerate-clicked(idx);
-                                            }
-                                            
-                                            fork-clicked => {
-                                                root.assistant-fork-clicked(idx);
-                                            }
-                                            
-                                            code-copied(item_idx) => {
-                                                root.code-copied(idx, item_idx);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Right spacer - matches the input panel side margins
-                            Rectangle {
-                                horizontal-stretch: 1;
-                                background: transparent;
-                            }
-                        }
-                    }
+                input-panel-max-width: root.input-panel-max-width;
+                chat-messages: root.chat-messages;
+                is-loading-session: root.is-loading-session;
+                is-responding: root.is-responding;
+                cursor-blink: root.cursor-blink;
+
+                message-edit-clicked(idx) => {
+                    root.message-edit-clicked(idx);
                 }
-
-                // Custom slim, modern scrollbar (overlay on the right edge)
-                // Synchronized with messages-flickable.
-                // Does not use any easing animations on positioning to avoid lag/rubbery feel.
-                scrollbar-track := Rectangle {
-                    x: parent.width - self.width - 4px;
-                    y: 4px;
-                    width: 6px;
-                    height: parent.height - 8px;
-                    // Only visible when content height is larger than view height and not loading a session
-                    visible: !root.is-loading-session && (messages-flickable.viewport-height > messages-flickable.height);
-                    background: transparent;
-
-                    scrollbar-thumb := Rectangle {
-                        width: 100%;
-                        height: Math.max(20px, parent.height * Math.min(1.0, messages-flickable.height / messages-flickable.viewport-height));
-                        y: -messages-flickable.viewport-y / (messages-flickable.viewport-height - messages-flickable.height) * (parent.height - self.height);
-                        border-radius: 3px;
-                        background: scrollbar-track-touch.has-hover ? rgba(255, 255, 255, 0.25) : rgba(255, 255, 255, 0.12);
-                        
-                        // Smooth highlight transition on hover
-                        animate background { duration: 100ms; }
-                    }
-
-                    scrollbar-track-touch := TouchArea {
-                        width: 100%;
-                        height: 100%;
-                        clicked => {
-                            // Scroll page up or down depending on where they click relative to thumb
-                            if (self.pressed-y < scrollbar-thumb.y) {
-                                // Page up
-                                messages-flickable.viewport-y = Math.min(0px, messages-flickable.viewport-y + messages-flickable.height * 0.8);
-                            } else if (self.pressed-y > scrollbar-thumb.y + scrollbar-thumb.height) {
-                                // Page down
-                                messages-flickable.viewport-y = Math.max(-(messages-flickable.viewport-height - messages-flickable.height), messages-flickable.viewport-y - messages-flickable.height * 0.8);
-                            }
-                        }
-                        
-                        // Drag to scroll logic
-                        moved => {
-                            messages-flickable.viewport-y = -Math.clamp(self.mouse-y - scrollbar-thumb.height / 2, 0px, scrollbar-track.height - scrollbar-thumb.height) 
-                                / (scrollbar-track.height - scrollbar-thumb.height) 
-                                * (messages-flickable.viewport-height - messages-flickable.height);
-                        }
-                    }
+                message-copy-clicked(idx) => {
+                    root.message-copy-clicked(idx);
                 }
-
-                // Chat session loading skeleton component (displayed while loading a previous session)
-                ChatLoadingSkeleton {
-                    visible: root.is-loading-session;
-                    active: root.is-loading-session;
-                    width: parent.width;
-                    height: parent.height;
+                assistant-copy-clicked(idx) => {
+                    root.assistant-copy-clicked(idx);
                 }
-
-                // Empty state shown when no conversation is active and not loading
-                EmptyState {
-                    visible: !root.is-loading-session && root.chat-messages.length == 0;
-                    width: parent.width;
-                    height: parent.height;
+                assistant-like-clicked(idx) => {
+                    root.assistant-like-clicked(idx);
+                }
+                assistant-dislike-clicked(idx) => {
+                    root.assistant-dislike-clicked(idx);
+                }
+                assistant-regenerate-clicked(idx) => {
+                    root.assistant-regenerate-clicked(idx);
+                }
+                assistant-fork-clicked(idx) => {
+                    root.assistant-fork-clicked(idx);
+                }
+                code-copied(msg-idx, item-idx) => {
+                    root.code-copied(msg-idx, item-idx);
+                }
+                permission-approved(id) => {
+                    root.permission-approved(id);
+                }
+                permission-denied(id) => {
+                    root.permission-denied(id);
                 }
             }
 
