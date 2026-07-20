@@ -67,7 +67,18 @@ export component MainContent inherits Rectangle {
     // Discovered models list and inline context indicator values
     in property <string> context-text: "";
     in property <[string]> available-models: [];
-    
+
+    // ===== Terminal Properties & Callbacks =====
+    in property <[string]> terminal-tab-names: [];
+    in-out property <int> terminal-active-tab: -1;
+    in-out property <length> terminal-height: 220px;
+    in property <string> terminal-text: "";
+
+    callback terminal-tab-clicked(int);
+    callback terminal-tab-close-clicked(int);
+    callback terminal-tab-new-clicked();
+    callback terminal-key-pressed(int, string);
+
     // ===== Message Properties =====
     // Array of user and assistant messages to display in the chat
     in property <[ChatMessage]> chat-messages: [];
@@ -135,6 +146,9 @@ export component MainContent inherits Rectangle {
             // Toggle terminal visibility when the terminal button is clicked
             terminal-clicked => {
                 root.is-terminal-open = !root.is-terminal-open;
+                if (root.is-terminal-open && root.terminal-tab-names.length == 0) {
+                    root.terminal-tab-new-clicked();
+                }
             }
         }
 
@@ -345,18 +359,16 @@ export component MainContent inherits Rectangle {
         // ===== TERMINAL PANEL =====
         // Resizable bottom terminal drawer that pushes the chat viewport up when visible
         if (root.is-terminal-open) : terminal-panel := TerminalPanel {
-            // Check if all tabs have been closed to collapse the panel
-            tab-close-clicked(idx) => {
-                if (self.visible-tabs-count == 0) {
-                    // Close/collapse the terminal panel when the last remaining tab is closed
-                    root.is-terminal-open = false;
-                    // Reset tab visibilities to defaults for the next time it opens
-                    self.tab-1-visible = true;
-                    self.tab-2-visible = true;
-                    self.tab-3-visible = false;
-                    self.active-tab = 0;
-                }
-            }
+            max-height-limit: root.height * 0.75;
+            tab-names: root.terminal-tab-names;
+            active-tab <=> root.terminal-active-tab;
+            terminal-height <=> root.terminal-height;
+            terminal-text: root.terminal-text;
+
+            tab-clicked(idx) => { root.terminal-tab-clicked(idx); }
+            tab-close-clicked(idx) => { root.terminal-tab-close-clicked(idx); }
+            tab-new-clicked => { root.terminal-tab-new-clicked(); }
+            key-pressed(idx, key) => { root.terminal-key-pressed(idx, key); }
         }
     }
 

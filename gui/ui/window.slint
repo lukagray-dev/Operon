@@ -42,6 +42,8 @@ export component OperonWindow inherits Window {
     in-out property <int> reload_generation: 0;
     // Visiblity state of the left sidebar, bound to titlebar toggle button
     in-out property <bool> sidebar_open: true;
+    in-out property <length> sidebar_width: 240px;
+    in-out property <length> terminal_height: 220px;
     
     // Sidebar data properties - bind these from Rust
     in property <[SidebarProject]> sidebar_projects: [];
@@ -129,10 +131,21 @@ export component OperonWindow inherits Window {
     
     // Session loading state - when true, shows a shimmer skeleton instead of messages
     in-out property <bool> is_loading_session: false;
-    
+
     // Discovered models list and inline context indicator values
     in property <string> context_text: "";
     in property <[string]> available_models: [];
+
+    // ===== Terminal Properties & Callbacks =====
+    in property <[string]> terminal_tab_names: [];
+    in-out property <int> terminal_active_tab: -1;
+    in property <string> terminal_text: "";
+    in-out property <bool> is_terminal_open: false;
+
+    callback terminal_tab_clicked(int /* idx */);
+    callback terminal_tab_close_clicked(int /* idx */);
+    callback terminal_tab_new_clicked();
+    callback terminal_key_pressed(int /* idx */, string /* key */);
 
     // ===== Active/Pending Permission Properties =====
     in-out property <bool> has_pending_permission: false;
@@ -155,6 +168,7 @@ export component OperonWindow inherits Window {
         // Left sidebar navigation
         sidebar := Sidebar {
             // Bind width dynamically based on sidebar collapse/expand state
+            sidebar-width <=> root.sidebar_width;
             width: root.sidebar_open ? self.sidebar-width : 0px;
             visible: root.sidebar_open;
             horizontal-stretch: 0;
@@ -202,6 +216,7 @@ export component OperonWindow inherits Window {
             delete-project-clicked(proj-path, proj-idx) => { root.sidebar_delete_project_clicked(proj-path, proj-idx); }
             new-session-clicked(proj-path, proj-idx) => { root.sidebar_new_session_clicked(proj-path, proj-idx); }
             width-changed(new-width) => {
+                root.sidebar_width = new-width;
                 root.sidebar_width_changed(new-width);
             }
         }
@@ -240,6 +255,19 @@ export component OperonWindow inherits Window {
                 is-responding <=> root.is-responding;
                 cursor-blink: root.cursor_blink;
                 is-loading-session: root.is_loading_session;
+
+                // Bind terminal properties
+                terminal-tab-names: root.terminal_tab_names;
+                terminal-active-tab <=> root.terminal_active_tab;
+                terminal-height <=> root.terminal_height;
+                terminal-text: root.terminal_text;
+                is-terminal-open <=> root.is_terminal_open;
+
+                // Wire terminal callbacks
+                terminal-tab-clicked(idx) => { root.terminal_tab_clicked(idx); }
+                terminal-tab-close-clicked(idx) => { root.terminal_tab_close_clicked(idx); }
+                terminal-tab-new-clicked => { root.terminal_tab_new_clicked(); }
+                terminal-key-pressed(idx, key) => { root.terminal_key_pressed(idx, key); }
 
                 // Bind pending permission properties
                 has-pending-permission: root.has_pending_permission;

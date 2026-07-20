@@ -24,6 +24,9 @@ pub mod permission;
 #[path = "title/title.rs"]
 pub mod title;
 
+#[path = "terminal/mod.rs"]
+pub mod terminal;
+
 pub mod tools {
     #[path = "diff.rs"]
     pub mod diff;
@@ -49,4 +52,7 @@ pub fn wire_main_content(
 
     // Wire policy permission approvals
     permission::wire_permission_callbacks(window, Rc::clone(&state));
+
+    // Wire bottom resizable PTY terminal drawer panel
+    terminal::wire_terminal(window, Rc::clone(&state));
 }

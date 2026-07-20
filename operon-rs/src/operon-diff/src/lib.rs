@@ -9,7 +9,7 @@
 // you understand how libgit2 features are utilized.
 
 use std::path::Path;
-use git2::{Diff, DiffOptions, Repository, StatusOptions};
+use git2::{Diff, DiffOptions, Repository};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -228,7 +228,7 @@ pub fn get_diff_details<P: AsRef<Path>>(workspace_root: P) -> Result<RepositoryD
 /// Hey buddy! libgit2 provides a Patch builder API which allows us to inspect
 /// files, hunks, and lines easily. We iterate over all diff deltas to retrieve
 /// patch data.
-fn parse_diff(repo: &Repository, diff: &Diff) -> Result<Vec<FileDiff>, DiffError> {
+fn parse_diff(_repo: &Repository, diff: &Diff) -> Result<Vec<FileDiff>, DiffError> {
     let mut file_diffs = Vec::new();
     let num_deltas = diff.deltas().len();
 

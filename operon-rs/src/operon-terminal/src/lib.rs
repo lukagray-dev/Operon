@@ -6,7 +6,7 @@
 
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use portable_pty::{native_pty_system, CommandBuilder, PtySize, MasterPty};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 /// A handle to a running terminal process.
 /// Allows concurrent thread-safe writing and resizing.
