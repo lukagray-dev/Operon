@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
 use slint::{ComponentHandle, ModelRc, VecModel, SharedString};
 
-use windows_sys::Win32::Foundation::{HWND, LPARAM, BOOL};
+use windows_sys::Win32::Foundation::{HWND, LPARAM, BOOL, POINT};
 use crate::state::AppState;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     SetParent, SetWindowLongW, GetWindowLongW, MoveWindow, EnumWindows,
@@ -31,6 +31,81 @@ extern "system" {
     fn AttachThreadInput(id_attach: u32, id_attach_to: u32, f_attach: BOOL) -> BOOL;
     /// Safe FFI declaration for Win32 GetCurrentThreadId
     fn GetCurrentThreadId() -> u32;
+    /// Safe FFI declaration for Win32 SetWindowLongPtrW to hook WndProc subclassing
+    fn SetWindowLongPtrW(hwnd: HWND, nindex: i32, dwnewlong: isize) -> isize;
+    /// Safe FFI declaration for Win32 CallWindowProcW to chain subclassed messages
+    fn CallWindowProcW(prevwndproc: isize, hwnd: HWND, msg: u32, wparam: usize, lparam: isize) -> isize;
+    /// Safe FFI declaration for Win32 GetCursorPos
+    fn GetCursorPos(lppoint: *mut POINT) -> BOOL;
+    /// Safe FFI declaration for Win32 ScreenToClient
+    fn ScreenToClient(hwnd: HWND, lppoint: *mut POINT) -> BOOL;
+}
+
+/// Global atomic storing the original Slint window procedure pointer.
+/// Used to forward messages we don't handle in our custom subclass procedure.
+static PREV_WND_PROC: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+
+/// Physical Y-coordinate threshold of the top edge of the terminal panel.
+/// If a click's Y-coordinate is greater than or equal to this threshold, it is inside the terminal panel.
+static TERM_Y_THRESHOLD: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(99999);
+
+/// Window handle (HWND) of the currently active/focused terminal conhost window.
+static ACTIVE_TERM_HWND: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+
+/// Custom window procedure to subclass the parent Slint window.
+/// Intercepts mouse clicks and activation messages.
+/// If the click falls inside the terminal panel area (Y >= TERM_Y_THRESHOLD), it routes focus to the active terminal conhost window.
+/// If the click falls outside (above it, in the chat viewport or sidebar), it pulls focus back to the Slint parent window.
+unsafe extern "system" fn terminal_parent_wnd_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: usize,
+    lparam: isize,
+) -> isize {
+    // WM_LBUTTONDOWN (0x0201), WM_RBUTTONDOWN (0x0204), WM_MBUTTONDOWN (0x0207), WM_MOUSEACTIVATE (0x0021)
+    if msg == 0x0201 || msg == 0x0204 || msg == 0x0207 || msg == 0x0021 {
+        let active_hwnd = ACTIVE_TERM_HWND.load(Ordering::SeqCst) as HWND;
+        
+        if !active_hwnd.is_null() {
+            let mut is_click_inside_terminal = false;
+            
+            if msg == 0x0201 || msg == 0x0204 || msg == 0x0207 {
+                let y = ((lparam >> 16) & 0xFFFF) as i16 as i32;
+                let threshold = TERM_Y_THRESHOLD.load(Ordering::SeqCst);
+                if y >= threshold {
+                    is_click_inside_terminal = true;
+                }
+            } else if msg == 0x0021 {
+                // WM_MOUSEACTIVATE: query screen cursor position and map to client coordinates
+                let mut pt = POINT { x: 0, y: 0 };
+                if GetCursorPos(&mut pt) != 0 {
+                    ScreenToClient(hwnd, &mut pt);
+                    let threshold = TERM_Y_THRESHOLD.load(Ordering::SeqCst);
+                    if pt.y >= threshold {
+                        is_click_inside_terminal = true;
+                    }
+                }
+            }
+            
+            if is_click_inside_terminal {
+                // Click is inside the terminal panel area (tabs or drag handle) -> route focus to conhost
+                focus_terminal_hwnd(active_hwnd);
+            } else {
+                // Click is outside the terminal panel (chat, sidebar, input panel) -> restore focus to Slint
+                SetFocus(hwnd);
+            }
+        } else {
+            // No active terminal, restore focus to Slint
+            SetFocus(hwnd);
+        }
+    }
+    
+    let prev = PREV_WND_PROC.load(Ordering::SeqCst);
+    if prev != 0 {
+        CallWindowProcW(prev, hwnd, msg, wparam, lparam)
+    } else {
+        0
+    }
 }
 
 /// Shared structure containing all active native console handles.
@@ -246,6 +321,18 @@ async fn create_new_terminal_tab(
                     return;
                 }
                 
+                // Subclass the main Slint window procedure exactly once to intercept focus events.
+                // This ensures clicking outside the terminal correctly shifts focus back to Slint inputs.
+                static SUBCLASSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                if !SUBCLASSED.swap(true, Ordering::SeqCst) {
+                    unsafe {
+                        // GWL_WNDPROC / GWLP_WNDPROC index is -4.
+                        // Replacing the window procedure hooks into parent click notifications.
+                        let prev = SetWindowLongPtrW(parent_hwnd, -4, terminal_parent_wnd_proc as *const () as isize);
+                        PREV_WND_PROC.store(prev, Ordering::SeqCst);
+                    }
+                }
+                
                 // Strip console frames, borders, and set parent to Slint window
                 unsafe {
                     let mut style = GetWindowLongW(console_hwnd, GWL_STYLE) as u32;
@@ -350,15 +437,21 @@ fn sync_terminals_layout(
     let physical_term_height = (clamped_term_height * scale) as i32;
     let physical_tab_bar_height = (32.0 * scale) as i32;
 
+    // Set the Y coordinate threshold: if terminal is open, it is the top edge. Otherwise it is unreachable.
+    let y_threshold = if is_open { (w_height as i32) - physical_term_height } else { 99999 };
+    TERM_Y_THRESHOLD.store(y_threshold, Ordering::SeqCst);
+
     let x = physical_sb_width;
     let y = (w_height as i32) - physical_term_height + physical_tab_bar_height;
     let width = (w_width as i32) - physical_sb_width;
     let height = physical_term_height - physical_tab_bar_height;
 
+    let mut active_hwnd = 0;
     for (idx, id) in tabs.iter().enumerate() {
         if let Some(term) = active_terminals.get(id) {
             let is_active = is_open && (active_tab == idx as i32);
             if is_active {
+                active_hwnd = term.hwnd as isize;
                 unsafe {
                     // Update size and position of active terminal window
                     MoveWindow(term.hwnd, x, y, width, height, 1);
@@ -375,10 +468,21 @@ fn sync_terminals_layout(
             } else {
                 unsafe {
                     ShowWindow(term.hwnd, SW_HIDE);
+                    
+                    // If this terminal session was hidden (collapsed or tab switched),
+                    // pull focus back to the main Slint window.
+                    let parent_hwnd = Win32GetParent(term.hwnd);
+                    if !parent_hwnd.is_null() {
+                        let parent_val = parent_hwnd as isize;
+                        let _ = slint::invoke_from_event_loop(move || {
+                            SetFocus(parent_val as HWND);
+                        });
+                    }
                 }
             }
         }
     }
+    ACTIVE_TERM_HWND.store(active_hwnd, Ordering::SeqCst);
 }
 
 /// Wires the terminal callbacks from the Slint template interface to the Rust controllers.
