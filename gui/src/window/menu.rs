@@ -8,8 +8,7 @@ use std::process::Command;
 use anyhow::{anyhow, bail, Context, Result};
 
 /// The documentation page opened from the Help menu.
-pub const DOCUMENTATION_URL: &str =
-    "https://github.com/lukagray-dev/Operon/tree/main/docs";
+pub const DOCUMENTATION_URL: &str = "https://github.com/lukagray-dev/Operon/tree/main/docs";
 
 /// The issue tracker opened from the Help menu.
 pub const REPORT_BUG_URL: &str = "https://github.com/lukagray-dev/Operon/issues";

@@ -28,21 +28,18 @@ pub mod title;
 pub mod terminal;
 
 pub mod tools {
-    #[path = "diff.rs"]
-    pub mod diff;
     #[path = "cards.rs"]
     pub mod cards;
+    #[path = "diff.rs"]
+    pub mod diff;
 }
 
+use crate::state::AppState;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::state::AppState;
 
 /// Wire all callbacks and update properties inside the main content view.
-pub fn wire_main_content(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_main_content(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     // Wire prompt input area
     input::wire_input_panel(window, Rc::clone(&state));
 

@@ -9,15 +9,12 @@ pub mod models;
 pub mod permissions;
 pub mod skills;
 
+use crate::state::AppState;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::state::AppState;
 
 /// Wires all main settings view category panels.
-pub fn wire_settings_content(
-    window: &crate::SettingsWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_settings_content(window: &crate::SettingsWindow, state: Rc<RefCell<AppState>>) {
     // Wire models configuration settings panel
     models::wire_models_settings(window, Rc::clone(&state));
 

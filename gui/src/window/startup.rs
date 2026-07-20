@@ -4,8 +4,8 @@
 //! deterministic, centered, and comfortable on a laptop display. The math is
 //! isolated in a pure helper so it stays easy to test.
 
-use slint::{ComponentHandle, PhysicalPosition, PhysicalSize, WindowPosition};
 use slint::winit_030::{winit, WinitWindowAccessor};
+use slint::{ComponentHandle, PhysicalPosition, PhysicalSize, WindowPosition};
 
 const STARTUP_FILL_RATIO: f32 = 0.70;
 const TARGET_ASPECT_RATIO: f32 = 16.0 / 9.0;
@@ -30,9 +30,7 @@ pub fn calculate_startup_geometry(
     monitor_x: i32,
     monitor_y: i32,
 ) -> StartupGeometry {
-    let usable_width = (monitor_width as f32 * STARTUP_FILL_RATIO)
-        .round()
-        .max(1.0);
+    let usable_width = (monitor_width as f32 * STARTUP_FILL_RATIO).round().max(1.0);
     let usable_height = (monitor_height as f32 * STARTUP_FILL_RATIO)
         .round()
         .max(1.0);
@@ -65,36 +63,37 @@ pub fn calculate_startup_geometry(
 /// keep the existing fallback geometry and log the situation instead of
 /// inventing coordinates.
 pub fn apply_startup_geometry(app: &crate::OperonWindow) {
-    let geometry = app.window().with_winit_window(|winit_window: &winit::window::Window| {
-        let monitor = winit_window
-            .current_monitor()
-            .or_else(|| winit_window.primary_monitor())
-            .or_else(|| winit_window.available_monitors().next())?;
+    let geometry = app
+        .window()
+        .with_winit_window(|winit_window: &winit::window::Window| {
+            let monitor = winit_window
+                .current_monitor()
+                .or_else(|| winit_window.primary_monitor())
+                .or_else(|| winit_window.available_monitors().next())?;
 
-        let monitor_size = monitor.size();
-        let monitor_position = monitor.position();
+            let monitor_size = monitor.size();
+            let monitor_position = monitor.position();
 
-        Some(calculate_startup_geometry(
-            monitor_size.width,
-            monitor_size.height,
-            monitor_position.x,
-            monitor_position.y,
-        ))
-    });
+            Some(calculate_startup_geometry(
+                monitor_size.width,
+                monitor_size.height,
+                monitor_position.x,
+                monitor_position.y,
+            ))
+        });
 
     match geometry {
         Some(Some(geometry)) => {
             eprintln!(
                 "[operon-gui][window] Startup geometry resolved: window={}x{} at ({}, {})",
-                geometry.width,
-                geometry.height,
-                geometry.x,
-                geometry.y
+                geometry.width, geometry.height, geometry.x, geometry.y
             );
 
             let window = app.window();
             window.set_size(PhysicalSize::new(geometry.width, geometry.height));
-            window.set_position(WindowPosition::Physical(PhysicalPosition::new(geometry.x, geometry.y)));
+            window.set_position(WindowPosition::Physical(PhysicalPosition::new(
+                geometry.x, geometry.y,
+            )));
         }
         Some(None) => {
             eprintln!(

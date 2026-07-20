@@ -5,23 +5,21 @@
 //! inside the Slint layout viewport. Resizes and moves them dynamically to follow scale
 //! and size updates.
 
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::{Mutex, OnceLock};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
-use slint::{ComponentHandle, ModelRc, VecModel, SharedString};
+use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, OnceLock};
 
-use windows_sys::Win32::Foundation::{HWND, LPARAM, BOOL, POINT};
 use crate::state::AppState;
+use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM, POINT};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    SetParent, SetWindowLongW, GetWindowLongW, MoveWindow, EnumWindows,
-    GetWindowThreadProcessId, ShowWindow, GetWindowTextW,
-    GetParent as Win32GetParent, IsWindowVisible, SetWindowPos,
-    GWL_STYLE, WS_CHILD, WS_VISIBLE, WS_BORDER, WS_CAPTION, WS_THICKFRAME, WS_POPUP,
-    SW_SHOW, SW_HIDE,
-    SWP_FRAMECHANGED, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE,
+    EnumWindows, GetParent as Win32GetParent, GetWindowLongW, GetWindowTextW,
+    GetWindowThreadProcessId, IsWindowVisible, MoveWindow, SetParent, SetWindowLongW, SetWindowPos,
+    ShowWindow, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    SW_HIDE, SW_SHOW, WS_BORDER, WS_CAPTION, WS_CHILD, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
 };
 
 extern "system" {
@@ -34,7 +32,13 @@ extern "system" {
     /// Safe FFI declaration for Win32 SetWindowLongPtrW to hook WndProc subclassing
     fn SetWindowLongPtrW(hwnd: HWND, nindex: i32, dwnewlong: isize) -> isize;
     /// Safe FFI declaration for Win32 CallWindowProcW to chain subclassed messages
-    fn CallWindowProcW(prevwndproc: isize, hwnd: HWND, msg: u32, wparam: usize, lparam: isize) -> isize;
+    fn CallWindowProcW(
+        prevwndproc: isize,
+        hwnd: HWND,
+        msg: u32,
+        wparam: usize,
+        lparam: isize,
+    ) -> isize;
     /// Safe FFI declaration for Win32 GetCursorPos
     fn GetCursorPos(lppoint: *mut POINT) -> BOOL;
     /// Safe FFI declaration for Win32 ScreenToClient
@@ -65,10 +69,10 @@ unsafe extern "system" fn terminal_parent_wnd_proc(
     // WM_LBUTTONDOWN (0x0201), WM_RBUTTONDOWN (0x0204), WM_MBUTTONDOWN (0x0207), WM_MOUSEACTIVATE (0x0021)
     if msg == 0x0201 || msg == 0x0204 || msg == 0x0207 || msg == 0x0021 {
         let active_hwnd = ACTIVE_TERM_HWND.load(Ordering::SeqCst) as HWND;
-        
+
         if !active_hwnd.is_null() {
             let mut is_click_inside_terminal = false;
-            
+
             if msg == 0x0201 || msg == 0x0204 || msg == 0x0207 {
                 let y = ((lparam >> 16) & 0xFFFF) as i16 as i32;
                 let threshold = TERM_Y_THRESHOLD.load(Ordering::SeqCst);
@@ -86,7 +90,7 @@ unsafe extern "system" fn terminal_parent_wnd_proc(
                     }
                 }
             }
-            
+
             if is_click_inside_terminal {
                 // Click is inside the terminal panel area (tabs or drag handle) -> route focus to conhost
                 focus_terminal_hwnd(active_hwnd);
@@ -99,7 +103,7 @@ unsafe extern "system" fn terminal_parent_wnd_proc(
             SetFocus(hwnd);
         }
     }
-    
+
     let prev = PREV_WND_PROC.load(Ordering::SeqCst);
     if prev != 0 {
         CallWindowProcW(prev, hwnd, msg, wparam, lparam)
@@ -165,7 +169,10 @@ fn find_hwnd_by_title(substring: &str) -> Option<HWND> {
         hwnd: None,
     };
     unsafe {
-        EnumWindows(Some(enum_title_proc), &mut data as *mut FindTitleData as LPARAM);
+        EnumWindows(
+            Some(enum_title_proc),
+            &mut data as *mut FindTitleData as LPARAM,
+        );
     }
     data.hwnd
 }
@@ -185,25 +192,25 @@ struct FindOwnerData {
 unsafe extern "system" fn enum_owner_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let data = &mut *(lparam as *mut FindOwnerData);
     let mut pid = 0;
-    
+
     // Get the process ID that owns this window handle.
     GetWindowThreadProcessId(hwnd, &mut pid);
-    
+
     // Check if this window belongs to our GUI process.
     if pid == data.pid {
         let parent = Win32GetParent(hwnd);
-        
+
         // Ensure this is a top-level window (no parent).
         if parent.is_null() {
             let mut title_buf = [0u16; 512];
             let len = GetWindowTextW(hwnd, title_buf.as_mut_ptr(), 512);
-            
+
             if len > 0 {
                 let title_str = String::from_utf16_lossy(&title_buf[..len as usize]);
-                
+
                 // Check if this window is currently visible to the user.
                 let is_visible = IsWindowVisible(hwnd);
-                
+
                 // Match the main application title "Operon" and guarantee visibility.
                 if title_str == "Operon" && is_visible != 0 {
                     data.hwnd = Some(hwnd);
@@ -221,7 +228,10 @@ fn get_slint_window_hwnd() -> HWND {
     let mut data = FindOwnerData { pid, hwnd: None };
     unsafe {
         // Enumerate all top-level windows on the desktop to find our main window.
-        EnumWindows(Some(enum_owner_proc), &mut data as *mut FindOwnerData as LPARAM);
+        EnumWindows(
+            Some(enum_owner_proc),
+            &mut data as *mut FindOwnerData as LPARAM,
+        );
     }
     data.hwnd.unwrap_or(std::ptr::null_mut())
 }
@@ -234,12 +244,12 @@ unsafe fn focus_terminal_hwnd(hwnd: HWND) {
     if hwnd.is_null() {
         return;
     }
-    
+
     // Retrieve the thread ID that owns the target console window.
     let target_thread_id = GetWindowThreadProcessId(hwnd, std::ptr::null_mut());
     // Get the current GUI application thread ID.
     let current_thread_id = GetCurrentThreadId();
-    
+
     // If the window belongs to a different thread, attach input queues temporarily, set focus, and detach.
     if current_thread_id != target_thread_id {
         AttachThreadInput(current_thread_id, target_thread_id, 1);
@@ -276,19 +286,29 @@ async fn create_new_terminal_tab(
         if let Some(ref dir) = workdir {
             cmd.current_dir(dir);
         }
-        
+
         // Spawn with CREATE_NEW_CONSOLE to guarantee conhost window creation
         cmd.creation_flags(0x00000010);
-        
+
         // Set unique console window title via PowerShell argument.
         let unique_title = format!("OperonTerminal_{}", session_idx);
-        let title_command = format!("$Host.UI.RawUI.WindowTitle = '{}'; [System.Console]::Title = '{}'", unique_title, unique_title);
-        cmd.args(&["powershell.exe", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", &title_command]);
-        
+        let title_command = format!(
+            "$Host.UI.RawUI.WindowTitle = '{}'; [System.Console]::Title = '{}'",
+            unique_title, unique_title
+        );
+        cmd.args(&[
+            "powershell.exe",
+            "-NoExit",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &title_command,
+        ]);
+
         match cmd.spawn() {
             Ok(child) => {
                 let pid = child.id();
-                
+
                 // Wait for the window handle to be allocated by the OS and titled.
                 // We use up to 100 retries (5 seconds) as PowerShell startup can be slow.
                 let mut console_hwnd = std::ptr::null_mut();
@@ -299,12 +319,12 @@ async fn create_new_terminal_tab(
                     }
                     std::thread::sleep(std::time::Duration::from_millis(50));
                 }
-                
+
                 if console_hwnd.is_null() {
                     eprintln!("[operon-gui][terminal] Failed to find HWND for titled console '{}' (PID {})", unique_title, pid);
                     return;
                 }
-                
+
                 // Retrieve the main Slint window HWND using process enum with retry
                 let mut parent_hwnd = std::ptr::null_mut();
                 for _ in 0..40 {
@@ -315,24 +335,29 @@ async fn create_new_terminal_tab(
                     }
                     std::thread::sleep(std::time::Duration::from_millis(50));
                 }
-                
+
                 if parent_hwnd.is_null() {
                     eprintln!("[operon-gui][terminal] Parent window HWND not found");
                     return;
                 }
-                
+
                 // Subclass the main Slint window procedure exactly once to intercept focus events.
                 // This ensures clicking outside the terminal correctly shifts focus back to Slint inputs.
-                static SUBCLASSED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                static SUBCLASSED: std::sync::atomic::AtomicBool =
+                    std::sync::atomic::AtomicBool::new(false);
                 if !SUBCLASSED.swap(true, Ordering::SeqCst) {
                     unsafe {
                         // GWL_WNDPROC / GWLP_WNDPROC index is -4.
                         // Replacing the window procedure hooks into parent click notifications.
-                        let prev = SetWindowLongPtrW(parent_hwnd, -4, terminal_parent_wnd_proc as *const () as isize);
+                        let prev = SetWindowLongPtrW(
+                            parent_hwnd,
+                            -4,
+                            terminal_parent_wnd_proc as *const () as isize,
+                        );
                         PREV_WND_PROC.store(prev, Ordering::SeqCst);
                     }
                 }
-                
+
                 // Strip console frames, borders, and set parent to Slint window
                 unsafe {
                     let mut style = GetWindowLongW(console_hwnd, GWL_STYLE) as u32;
@@ -345,31 +370,34 @@ async fn create_new_terminal_tab(
                     // Set child and visible styles
                     style |= WS_CHILD;
                     style |= WS_VISIBLE;
-                    
+
                     SetWindowLongW(console_hwnd, GWL_STYLE, style as i32);
                     SetParent(console_hwnd, parent_hwnd);
-                    
+
                     // Force the OS to update window frame style changes immediately
                     SetWindowPos(
                         console_hwnd,
                         std::ptr::null_mut(),
-                        0, 0, 0, 0,
+                        0,
+                        0,
+                        0,
+                        0,
                         SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
                     );
-                    
+
                     ShowWindow(console_hwnd, SW_SHOW);
                 }
-                
+
                 let term = Win32Terminal {
                     process: child,
                     hwnd: console_hwnd,
                     tab_name,
                 };
-                
+
                 {
                     get_active_terminals().lock().unwrap().insert(tab_id, term);
                 }
-                
+
                 refresh_tabs(&win_w);
             }
             Err(e) => {
@@ -380,9 +408,7 @@ async fn create_new_terminal_tab(
 }
 
 /// Refreshes the Slint component properties thread-safely.
-fn refresh_tabs(
-    win_weak: &slint::Weak<crate::OperonWindow>,
-) {
+fn refresh_tabs(win_weak: &slint::Weak<crate::OperonWindow>) {
     let win_w = win_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(win) = win_w.upgrade() {
@@ -394,11 +420,14 @@ fn refresh_tabs(
             // Alphabetical tab order
             tabs.sort_by(|a, b| a.0.cmp(&b.0));
 
-            let names: Vec<SharedString> = tabs.iter().map(|(_, name)| SharedString::from(name.clone())).collect();
+            let names: Vec<SharedString> = tabs
+                .iter()
+                .map(|(_, name)| SharedString::from(name.clone()))
+                .collect();
             win.set_terminal_tab_names(ModelRc::from(Rc::new(VecModel::from(names))));
 
             let active_idx = win.get_terminal_active_tab();
-            
+
             let new_active_idx = if tabs.is_empty() {
                 -1
             } else if active_idx < 0 || active_idx >= tabs.len() as i32 {
@@ -416,10 +445,9 @@ fn refresh_tabs(
     });
 }
 
-fn sync_terminals_layout(
-    layout_data: (u32, u32, f32, bool, i32, bool, f32, f32),
-) {
-    let (w_width, w_height, scale, is_open, active_tab, sb_open, sb_width, term_height) = layout_data;
+fn sync_terminals_layout(layout_data: (u32, u32, f32, bool, i32, bool, f32, f32)) {
+    let (w_width, w_height, scale, is_open, active_tab, sb_open, sb_width, term_height) =
+        layout_data;
 
     let active_terminals = get_active_terminals().lock().unwrap();
     let mut tabs: Vec<String> = active_terminals.keys().cloned().collect();
@@ -432,13 +460,20 @@ fn sync_terminals_layout(
     // This prevents the terminal panel from overflowing when the window is resized.
     let max_logical_height = (w_height as f32 / scale) * 0.75;
     let min_logical_height = 120.0;
-    let clamped_term_height = term_height.clamp(min_logical_height, max_logical_height.max(min_logical_height));
+    let clamped_term_height = term_height.clamp(
+        min_logical_height,
+        max_logical_height.max(min_logical_height),
+    );
 
     let physical_term_height = (clamped_term_height * scale) as i32;
     let physical_tab_bar_height = (32.0 * scale) as i32;
 
     // Set the Y coordinate threshold: if terminal is open, it is the top edge. Otherwise it is unreachable.
-    let y_threshold = if is_open { (w_height as i32) - physical_term_height } else { 99999 };
+    let y_threshold = if is_open {
+        (w_height as i32) - physical_term_height
+    } else {
+        99999
+    };
     TERM_Y_THRESHOLD.store(y_threshold, Ordering::SeqCst);
 
     let x = physical_sb_width;
@@ -456,7 +491,7 @@ fn sync_terminals_layout(
                     // Update size and position of active terminal window
                     MoveWindow(term.hwnd, x, y, width, height, 1);
                     ShowWindow(term.hwnd, SW_SHOW);
-                    
+
                     // Route focus to the terminal conhost HWND on the Slint main event loop thread.
                     // Since raw pointers like HWND are not Send, we cast it to isize to safely pass
                     // it across the thread boundary into the event loop closure, then cast it back.
@@ -468,7 +503,7 @@ fn sync_terminals_layout(
             } else {
                 unsafe {
                     ShowWindow(term.hwnd, SW_HIDE);
-                    
+
                     // If this terminal session was hidden (collapsed or tab switched),
                     // pull focus back to the main Slint window.
                     let parent_hwnd = Win32GetParent(term.hwnd);
@@ -486,10 +521,7 @@ fn sync_terminals_layout(
 }
 
 /// Wires the terminal callbacks from the Slint template interface to the Rust controllers.
-pub fn wire_terminal(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_terminal(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     // 1. Tab select callback
     let window_weak_1 = window.as_weak();
     window.on_terminal_tab_clicked(move |idx| {
@@ -549,13 +581,13 @@ pub fn wire_terminal(
                 let res = if let Some(win) = win_weak_clone.upgrade() {
                     let size = win.window().size();
                     let scale_factor = win.window().scale_factor();
-                    
+
                     let is_open = win.get_is_terminal_open();
                     let active_tab = win.get_terminal_active_tab();
                     let terminal_height = win.get_terminal_height();
                     let sidebar_open = win.get_sidebar_open();
                     let sidebar_width = win.get_sidebar_width();
-                    
+
                     Some((
                         size.width,
                         size.height,

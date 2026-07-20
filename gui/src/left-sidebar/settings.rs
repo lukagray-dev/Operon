@@ -3,21 +3,18 @@
 //! Hey friend! This wires the settings button inside the left sidebar.
 //! When clicked, it modelessly constructs and displays the SettingsWindow component.
 
+use crate::state::AppState;
+use slint::winit_030::WinitWindowAccessor;
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::rc::Rc;
-use slint::ComponentHandle;
-use slint::winit_030::WinitWindowAccessor;
-use crate::state::AppState;
 
 thread_local! {
     static SETTINGS_WINDOW_HANDLE: RefCell<Option<crate::SettingsWindow>> = RefCell::new(None);
 }
 
 /// Registers the settings button click handler on the main window.
-pub fn wire_settings(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_settings(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let app_state = Rc::clone(&state);
 
     window.on_sidebar_settings_clicked(move || {

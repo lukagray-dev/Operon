@@ -4,16 +4,13 @@
 //! Clicking it resets the active session state in both AppState and Slint,
 //! preparing a clean workspace slate for a fresh conversation.
 
+use crate::state::AppState;
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::rc::Rc;
-use slint::ComponentHandle;
-use crate::state::AppState;
 
 /// Registers the handler for starting a new chat.
-pub fn wire_new_chat(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_new_chat(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
     let app_state = Rc::clone(&state);
 
@@ -29,13 +26,18 @@ pub fn wire_new_chat(
             crate::left_sidebar::clear_sidebar_selection(&win);
             crate::main_content::title::set_session_title(&win, "New Chat");
             win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
-            
+
             let app_config = operon_rs::load().ok();
-            let context_window = app_config.as_ref().map(|c| c.provider.model.context_window).unwrap_or(128_000);
+            let context_window = app_config
+                .as_ref()
+                .map(|c| c.provider.model.context_window)
+                .unwrap_or(128_000);
             win.set_context_usage(0.0);
             win.set_tokens_used(0);
             win.set_tokens_total(context_window as i32);
-            win.set_context_text(crate::main_content::input::context::format_tokens(0, context_window as i32).into());
+            win.set_context_text(
+                crate::main_content::input::context::format_tokens(0, context_window as i32).into(),
+            );
         }
     });
 }

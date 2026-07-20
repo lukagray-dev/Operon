@@ -1,0 +1,35 @@
+import { Tokens } from "../../shared/tokens.slint";
+
+export component MarkdownMath inherits Rectangle {
+    in property <string> text: "";
+    in property <bool> display: true;
+    in property <string> font-family-custom: Tokens.serif-font-family;
+    in property <length> font-size-custom: Tokens.body-font-size;
+
+    background: root.display ? rgba(255, 255, 255, 0.035) : transparent;
+    border-width: root.display ? 1px : 0px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: root.display ? 6px : 0px;
+    height: formula-text.preferred-height + (root.display ? 24px : 0px);
+    clip: true;
+
+    Flickable {
+        x: root.display ? 12px : 0px;
+        y: root.display ? 12px : 0px;
+        width: parent.width - (root.display ? 24px : 0px);
+        height: formula-text.preferred-height;
+        viewport-width: max(parent.width - (root.display ? 24px : 0px), formula-text.preferred-width);
+        viewport-height: formula-text.preferred-height;
+        interactive: true;
+
+        formula-text := Text {
+            text: root.display ? ("\\[" + root.text + "\\]") : ("\\(" + root.text + "\\)");
+            color: Tokens.text-primary;
+            font-family: root.font-family-custom;
+            font-size: root.display ? root.font-size-custom + 1px : root.font-size-custom;
+            font-weight: root.display ? 500 : 400;
+            wrap: no-wrap;
+            horizontal-alignment: root.display ? center : left;
+        }
+    }
+}

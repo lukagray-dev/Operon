@@ -16,10 +16,10 @@ use std::collections::HashMap;
 pub struct ResponseState {
     /// Ordered list of blocks generated within this turn.
     pub current_blocks: Vec<ParsedMarkdownItem>,
-    
+
     /// Accumulates text deltas for the currently active text block.
     pub current_text_accumulator: String,
-    
+
     /// Tracks whether the model was actively outputting reasoning in the last delta.
     pub in_thinking: bool,
 
@@ -108,9 +108,10 @@ impl ResponseState {
     pub fn finalize(&mut self) -> Vec<ParsedMarkdownItem> {
         self.in_thinking = false;
         if !self.current_text_accumulator.is_empty() {
-            let text_items = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(
-                &self.current_text_accumulator,
-            );
+            let text_items =
+                crate::main_content::assistant_messages::markdown::parse_markdown_sendable(
+                    &self.current_text_accumulator,
+                );
             self.current_blocks.extend(text_items);
             self.current_text_accumulator.clear();
         }

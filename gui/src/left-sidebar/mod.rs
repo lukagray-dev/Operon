@@ -8,24 +8,21 @@
 //!   and `executor::session::load_session_history`.
 //! - Mod.rs orchestrates all event wiring submodules and handles updating the Slint UI.
 
+pub mod chats;
+pub mod conversation;
 #[path = "new-chat.rs"]
 pub mod new_chat;
-pub mod settings;
-pub mod chats;
 pub mod projects;
 pub mod search;
-pub mod conversation;
+pub mod settings;
 
+use crate::state::AppState;
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
-use slint::{ComponentHandle, ModelRc, VecModel, Model};
-use crate::state::AppState;
 
 /// Setup and wire the left sidebar view actions and data models.
-pub fn wire_left_sidebar(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_left_sidebar(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     // 1. Trigger initial sidebar load
     let active_id = state.borrow().active_session_id().map(String::from);
     refresh_sidebar(window, active_id);
@@ -56,8 +53,10 @@ pub fn refresh_sidebar(window: &crate::OperonWindow, active_session_id: Option<S
             Ok((standalone_chats, projects_data)) => {
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = window_weak.upgrade() {
-                        ui.set_sidebar_chats(ModelRc::from(Rc::new(VecModel::from(standalone_chats.clone()))));
-                        
+                        ui.set_sidebar_chats(ModelRc::from(Rc::new(VecModel::from(
+                            standalone_chats.clone(),
+                        ))));
+
                         let slint_projects: Vec<crate::SidebarProject> = projects_data
                             .into_iter()
                             .map(|(name, workspace, convs)| crate::SidebarProject {
@@ -66,11 +65,15 @@ pub fn refresh_sidebar(window: &crate::OperonWindow, active_session_id: Option<S
                                 conversations: ModelRc::from(Rc::new(VecModel::from(convs))),
                             })
                             .collect();
-                        ui.set_sidebar_projects(ModelRc::from(Rc::new(VecModel::from(slint_projects.clone()))));
+                        ui.set_sidebar_projects(ModelRc::from(Rc::new(VecModel::from(
+                            slint_projects.clone(),
+                        ))));
 
                         // Auto-highlight active session in sidebar if it exists
                         if let Some(ref active_id) = active_session_id {
-                            if let Some(idx) = standalone_chats.iter().position(|c| c.id == *active_id) {
+                            if let Some(idx) =
+                                standalone_chats.iter().position(|c| c.id == *active_id)
+                            {
                                 ui.set_active_chat_index(idx as i32);
                                 ui.set_active_project_index(-1);
                                 ui.set_active_conversation_index(-1);
@@ -114,7 +117,10 @@ pub fn load_chat_session(
         state.set_current_project_dir(project_path.map(String::from));
     }
 
-    println!("[operon-gui][sidebar] Selected session: {}, project: {:?}", session_id, project_path);
+    println!(
+        "[operon-gui][sidebar] Selected session: {}, project: {:?}",
+        session_id, project_path
+    );
 
     // Retrieve conversation title and update Slint title property
     let window_weak = window.as_weak();
@@ -123,15 +129,22 @@ pub fn load_chat_session(
     window.set_is_loading_session(true);
     let session_id_str = session_id.to_string();
     let session_id_str_err = session_id_str.clone();
-    
+
     tokio::spawn(async move {
         let run_load = async {
-            let (title, raw_messages, last_token_count, context_window_opt) = 
+            let (title, raw_messages, last_token_count, context_window_opt) =
                 crate::left_sidebar::conversation::load_session_history(&session_id_str).await?;
-                
+
             let context_window = context_window_opt.unwrap_or(128_000);
-            let utilization = if context_window > 0 { last_token_count as f32 / context_window as f32 } else { 0.0 };
-            let context_text = crate::main_content::input::context::format_tokens(last_token_count as i32, context_window as i32);
+            let utilization = if context_window > 0 {
+                last_token_count as f32 / context_window as f32
+            } else {
+                0.0
+            };
+            let context_text = crate::main_content::input::context::format_tokens(
+                last_token_count as i32,
+                context_window as i32,
+            );
 
             let active_session_check = session_id_str.clone();
             let _ = slint::invoke_from_event_loop(move || {
@@ -141,22 +154,32 @@ pub fn load_chat_session(
                         return;
                     }
                     crate::main_content::title::set_session_title(&ui, &title);
-                    
+
                     // Convert Send-safe intermediates to Slint types on UI thread (cheap, no parsing)
-                    let slint_messages: Vec<crate::ChatMessage> = raw_messages.into_iter().map(|(is_user, text, parsed)| {
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed);
-                        crate::ChatMessage {
-                            id: "".into(),
-                            is_user,
-                            text: text.into(),
-                            time: "".into(),
-                            markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items))),
-                            reasoning_text: "".into(),
-                            is_thinking: false,
-                        }
-                    }).collect();
-                    
-                    ui.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_messages))));
+                    let slint_messages: Vec<crate::ChatMessage> = raw_messages
+                        .into_iter()
+                        .map(|(is_user, text, parsed)| {
+                            let slint_items =
+                                crate::main_content::assistant_messages::markdown::to_slint_items(
+                                    parsed,
+                                );
+                            crate::ChatMessage {
+                                id: "".into(),
+                                is_user,
+                                text: text.into(),
+                                time: "".into(),
+                                markdown_items: slint::ModelRc::from(Rc::new(
+                                    slint::VecModel::from(slint_items),
+                                )),
+                                reasoning_text: "".into(),
+                                is_thinking: false,
+                            }
+                        })
+                        .collect();
+
+                    ui.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(
+                        slint_messages,
+                    ))));
                     ui.set_context_usage(utilization);
                     ui.set_tokens_used(last_token_count as i32);
                     ui.set_tokens_total(context_window as i32);
@@ -165,7 +188,8 @@ pub fn load_chat_session(
                 }
             });
             anyhow::Ok(())
-        }.await;
+        }
+        .await;
 
         if run_load.is_err() {
             let active_session_check = session_id_str_err.clone();

@@ -6,15 +6,12 @@ pub mod left_sidebar;
 #[path = "main-content/mod.rs"]
 pub mod main_content;
 
+use crate::state::AppState;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::state::AppState;
 
 /// Initializes all settings controllers and binds them to the given window.
-pub fn wire_settings_window(
-    window: &crate::SettingsWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_settings_window(window: &crate::SettingsWindow, state: Rc<RefCell<AppState>>) {
     // Wire the settings navigation sidebar
     left_sidebar::wire_settings_sidebar(window, Rc::clone(&state));
 

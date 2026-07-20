@@ -24,8 +24,9 @@ fn watch_tree(path: &Path) {
     if path.is_dir() {
         println!("cargo:rerun-if-changed={}", path.display());
 
-        let entries = fs::read_dir(path)
-            .unwrap_or_else(|error| panic!("failed to scan {path:?} for rebuild tracking: {error}"));
+        let entries = fs::read_dir(path).unwrap_or_else(|error| {
+            panic!("failed to scan {path:?} for rebuild tracking: {error}")
+        });
 
         for entry in entries {
             let entry = entry.unwrap_or_else(|error| {

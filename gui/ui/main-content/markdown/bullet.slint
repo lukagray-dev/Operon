@@ -1,31 +1,37 @@
 import { Tokens } from "../../shared/tokens.slint";
+import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
 
 export component MarkdownBullet inherits HorizontalLayout {
+    in property <[InlineMarkdownSpan]> spans: [];
     in property <string> text: "";
+    in property <styled-text> content: @markdown("");
     in property <string> font-family-custom: Tokens.serif-font-family;
     in property <length> font-size-custom: Tokens.body-font-size;
-    
+    in property <bool> show-cursor: false;
+
     spacing: 12px;
     padding-left: 24px;
     alignment: start;
-    
-    // Bullet character
+
     Text {
-        text: "•";
-        color: #8b949e; // GitHub muted grey
+        text: "\u{2022}";
+        color: #8b949e;
         font-size: root.font-size-custom;
         font-weight: 600;
         vertical-alignment: top;
     }
-    
-    // Text content
-    Text {
-        text: root.text;
-        color: Tokens.text-primary;
-        font-size: root.font-size-custom;
-        font-family: root.font-family-custom;
-        wrap: word-wrap;
+
+    HorizontalLayout {
+        spacing: 0px;
         horizontal-stretch: 1;
-        vertical-alignment: top;
+
+        InlineMarkdown {
+            spans: root.spans;
+            fallback-text: root.text;
+            font-family-custom: root.font-family-custom;
+            font-size-custom: root.font-size-custom;
+            show-cursor: root.show-cursor;
+            horizontal-stretch: 1;
+        }
     }
 }

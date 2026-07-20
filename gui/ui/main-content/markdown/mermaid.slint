@@ -1,0 +1,169 @@
+import { Tokens } from "../../shared/tokens.slint";
+
+export struct MermaidNode {
+    id: string,
+    label: string,
+    x: int,
+    y: int,
+    width_px: int,
+    shape: string,
+}
+
+export struct MermaidEdge {
+    path: string,
+    arrow_path: string,
+    label: string,
+    label_x: int,
+    label_y: int,
+}
+
+component MermaidNodeView inherits Rectangle {
+    in property <MermaidNode> node;
+
+    x: root.node.x * 1px;
+    y: root.node.y * 1px;
+    width: root.node.width-px * 1px;
+    height: 40px;
+    background: rgba(88, 166, 255, 0.10);
+    border-width: 1px;
+    border-color: rgba(88, 166, 255, 0.45);
+    border-radius: root.node.shape == "round" ? 18px : 6px;
+
+    Text {
+        x: 10px;
+        y: 0px;
+        width: parent.width - 20px;
+        height: parent.height;
+        text: root.node.label;
+        color: Tokens.text-primary;
+        font-family: Tokens.serif-font-family;
+        font-size: Tokens.body-font-size;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        wrap: word-wrap;
+    }
+}
+
+export component MarkdownMermaid inherits Rectangle {
+    in property <string> source: "";
+    in property <[MermaidNode]> nodes: [];
+    in property <[MermaidEdge]> edges: [];
+    in property <int> diagram_width_px: 0;
+    in property <int> diagram_height_px: 0;
+
+    property <bool> has-diagram: root.nodes.length > 0;
+    property <length> content-height: root.has-diagram
+        ? min(root.diagram-height-px * 1px + 24px, 360px)
+        : source-measure.preferred-height + 24px;
+
+    background: rgba(30, 30, 30, 0.32);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    clip: true;
+    height: 28px + root.content-height;
+
+    source-measure := Text {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: 0px;
+        opacity: 0;
+        text: root.source;
+        font-family: Tokens.mono-font-family;
+        font-size: Tokens.body-font-size;
+        wrap: word-wrap;
+    }
+
+    VerticalLayout {
+        spacing: 0px;
+
+        Rectangle {
+            height: 28px;
+            background: rgba(255, 255, 255, 0.04);
+
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: rgba(255, 255, 255, 0.08);
+            }
+
+            Text {
+                x: 12px;
+                width: parent.width - 24px;
+                height: parent.height;
+                text: "mermaid";
+                color: #8b949e;
+                font-family: Tokens.font-family;
+                font-size: 11px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+
+        if (root.has-diagram) : Flickable {
+            height: root.content-height;
+            viewport-width: max(parent.width, root.diagram-width-px * 1px + 24px);
+            viewport-height: root.diagram-height-px * 1px + 24px;
+            interactive: true;
+
+            Rectangle {
+                x: 12px;
+                y: 12px;
+                width: root.diagram-width-px * 1px;
+                height: root.diagram-height-px * 1px;
+                background: transparent;
+
+                for edge in root.edges : Path {
+                    commands: edge.path;
+                    stroke: rgba(139, 148, 158, 0.80);
+                    stroke-width: 1.4px;
+                    fill: transparent;
+                }
+
+                for edge in root.edges : Path {
+                    commands: edge.arrow-path;
+                    fill: rgba(139, 148, 158, 0.90);
+                }
+
+                for edge in root.edges : Rectangle {
+                    visible: edge.label != "";
+                    x: edge.label-x * 1px;
+                    y: edge.label-y * 1px;
+                    width: label-text.preferred-width + 8px;
+                    height: label-text.preferred-height + 4px;
+                    background: rgba(30, 30, 30, 0.92);
+                    border-radius: 4px;
+
+                    label-text := Text {
+                        x: 4px;
+                        y: 2px;
+                        text: edge.label;
+                        color: #c9d1d9;
+                        font-family: Tokens.serif-font-family;
+                        font-size: Tokens.body-font-size - 1px;
+                    }
+                }
+
+                for node in root.nodes : MermaidNodeView {
+                    node: node;
+                }
+            }
+        }
+
+        if (!root.has-diagram) : Rectangle {
+            height: root.content-height;
+
+            source-text := Text {
+                x: 12px;
+                y: 12px;
+                width: parent.width - 24px;
+                text: root.source;
+                color: #f0f6fc;
+                font-family: Tokens.mono-font-family;
+                font-size: Tokens.body-font-size;
+                wrap: word-wrap;
+            }
+        }
+    }
+}

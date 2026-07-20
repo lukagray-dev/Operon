@@ -1,18 +1,38 @@
 import { Tokens } from "../../shared/tokens.slint";
+import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
 import { MarkdownParagraph } from "./paragraph.slint";
 import { MarkdownHeading } from "./heading.slint";
 import { MarkdownCode, CodeLine } from "./code.slint";
 import { MarkdownBullet } from "./bullet.slint";
+import { MarkdownTable, MarkdownTableCell, MarkdownTableRow } from "./tables.slint";
+import { MarkdownMath } from "./math.slint";
+import { MarkdownMermaid, MermaidNode, MermaidEdge } from "./mermaid.slint";
+import { MarkdownSvg } from "./svg.slint";
 import { ThinkingCard } from "../reasoning/reasoning.slint";
 import { DiffLine } from "../tools/diff.slint";
 import { ToolCard } from "../tools/cards.slint";
 
 // Struct representing a single block-level markdown item
 export struct MarkdownItem {
-    kind: string, // "p" (paragraph), "h1", "h2", "h3", "code", "bullet", "thinking", "tool", "permission"
+    kind: string, // "p", "h1", "h2", "h3", "code", "bullet", "table", "math", "mermaid", "rule", "thinking", "tool", "permission"
     text: string,
+    styled_text: styled-text,
+    inline_spans: [InlineMarkdownSpan],
     lang: string,
     code_lines: [CodeLine],
+
+    // Rich Markdown Fields
+    table_headers: [MarkdownTableCell],
+    table_rows: [MarkdownTableRow],
+    math_display: bool,
+    mermaid_nodes: [MermaidNode],
+    mermaid_edges: [MermaidEdge],
+    mermaid_width_px: int,
+    mermaid_height_px: int,
+    svg_image: image,
+    svg_valid: bool,
+    svg_width_px: int,
+    svg_height_px: int,
     
     // Tool Call Fields
     tool_name: string,
@@ -58,21 +78,30 @@ export component MarkdownContent inherits VerticalLayout {
         property <bool> is-last: idx == root.items.length - 1;
         
         if (item.kind == "p") : MarkdownParagraph {
-            text: item.text + (is-last && root.show-cursor ? "|" : "");
+            spans: item.inline-spans;
+            text: item.text;
+            content: item.styled-text;
+            show-cursor: is-last && root.show-cursor;
             font-family-custom: root.font-family;
             font-size-custom: root.font-size;
         }
         if (item.kind == "h1") : MarkdownHeading {
             level: 1;
-            text: item.text + (is-last && root.show-cursor ? "|" : "");
+            spans: item.inline-spans;
+            text: item.text;
+            show-cursor: is-last && root.show-cursor;
         }
         if (item.kind == "h2") : MarkdownHeading {
             level: 2;
-            text: item.text + (is-last && root.show-cursor ? "|" : "");
+            spans: item.inline-spans;
+            text: item.text;
+            show-cursor: is-last && root.show-cursor;
         }
         if (item.kind == "h3") : MarkdownHeading {
             level: 3;
-            text: item.text + (is-last && root.show-cursor ? "|" : "");
+            spans: item.inline-spans;
+            text: item.text;
+            show-cursor: is-last && root.show-cursor;
         }
         if (item.kind == "code") : MarkdownCode {
             text: item.text + (is-last && root.show-cursor ? "|" : "");
@@ -83,9 +112,69 @@ export component MarkdownContent inherits VerticalLayout {
             }
         }
         if (item.kind == "bullet") : MarkdownBullet {
-            text: item.text + (is-last && root.show-cursor ? "|" : "");
+            spans: item.inline-spans;
+            text: item.text;
+            content: item.styled-text;
+            show-cursor: is-last && root.show-cursor;
             font-family-custom: root.font-family;
             font-size-custom: root.font-size;
+        }
+        if (item.kind == "table") : MarkdownTable {
+            headers: item.table-headers;
+            rows: item.table-rows;
+        }
+        if (item.kind == "math") : MarkdownMath {
+            text: item.text + (is-last && root.show-cursor ? "|" : "");
+            display: item.math-display;
+            font-family-custom: root.font-family;
+            font-size-custom: root.font-size;
+        }
+        if (item.kind == "mermaid") : MarkdownMermaid {
+            source: item.text + (is-last && root.show-cursor ? "|" : "");
+            nodes: item.mermaid-nodes;
+            edges: item.mermaid-edges;
+            diagram-width-px: item.mermaid-width-px;
+            diagram-height-px: item.mermaid-height-px;
+        }
+        if (item.kind == "svg") : MarkdownSvg {
+            source: item.text + (is-last && root.show-cursor ? "|" : "");
+            svg-image: item.svg-image;
+            svg-valid: item.svg-valid;
+            svg-width-px: item.svg-width-px;
+            svg-height-px: item.svg-height-px;
+        }
+        if (item.kind == "quote") : Rectangle {
+            border-width: 0px;
+            background: transparent;
+            height: quote-layout.preferred-height;
+
+            Rectangle {
+                width: 4px;
+                height: parent.height;
+                background: rgba(255, 255, 255, 0.20);
+            }
+
+            quote-layout := HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 4px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+                spacing: 0px;
+
+                InlineMarkdown {
+                    spans: item.inline-spans;
+                    fallback-text: item.text;
+                    default-color: #8b949e;
+                    font-size-custom: root.font-size;
+                    font-family-custom: root.font-family;
+                    show-cursor: is-last && root.show-cursor;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+        if (item.kind == "rule") : Rectangle {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.15);
         }
         if (item.kind == "thinking") : ThinkingCard {
             text: item.text;

@@ -2,10 +2,10 @@
 //!
 //! This module separates the general chats setup from project configuration.
 
+use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
+use slint::{ComponentHandle, Model};
 use std::cell::RefCell;
 use std::rc::Rc;
-use rfd::{MessageDialog, MessageLevel, MessageButtons, MessageDialogResult};
-use slint::{ComponentHandle, Model};
 
 use crate::state::AppState;
 
@@ -19,10 +19,7 @@ fn clean_unc_path(s: String) -> String {
 }
 
 /// Register project folder list operations, session configurations, and native dialogs.
-pub fn wire_projects(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_projects(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
 
     // Callback 1: Project conversation clicked
@@ -34,14 +31,19 @@ pub fn wire_projects(
                 win.set_active_project_index(proj_idx);
                 win.set_active_conversation_index(conv_idx);
                 win.set_active_chat_index(-1);
-                
+
                 // Read the workspace path dynamically from the projects array in Slint
                 let mut project_path = None;
                 if let Some(project) = win.get_sidebar_projects().row_data(proj_idx as usize) {
                     project_path = Some(project.workspace.to_string());
                 }
 
-                crate::left_sidebar::load_chat_session(&win, &session_id, project_path.as_deref(), &app_state);
+                crate::left_sidebar::load_chat_session(
+                    &win,
+                    &session_id,
+                    project_path.as_deref(),
+                    &app_state,
+                );
             }
         }
     });
@@ -52,7 +54,10 @@ pub fn wire_projects(
         let app_state = Rc::clone(&state);
         move |proj_path, proj_idx| {
             if let Some(win) = window_weak.upgrade() {
-                println!("[operon-gui][sidebar-projects] Creating new project chat for workspace: {}", proj_path);
+                println!(
+                    "[operon-gui][sidebar-projects] Creating new project chat for workspace: {}",
+                    proj_path
+                );
                 {
                     let mut g_state = app_state.borrow_mut();
                     g_state.set_active_session_id(None);
@@ -66,11 +71,17 @@ pub fn wire_projects(
                 win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
 
                 let app_config = operon_rs::config::load().ok();
-                let context_window = app_config.as_ref().map(|c| c.provider.model.context_window).unwrap_or(128_000);
+                let context_window = app_config
+                    .as_ref()
+                    .map(|c| c.provider.model.context_window)
+                    .unwrap_or(128_000);
                 win.set_context_usage(0.0);
                 win.set_tokens_used(0);
                 win.set_tokens_total(context_window as i32);
-                win.set_context_text(crate::main_content::input::context::format_tokens(0, context_window as i32).into());
+                win.set_context_text(
+                    crate::main_content::input::context::format_tokens(0, context_window as i32)
+                        .into(),
+                );
             }
         }
     });
@@ -110,7 +121,9 @@ pub fn wire_projects(
 
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(win) = win_weak.upgrade() {
-                            if win.get_active_project_index() == proj_idx && win.get_active_conversation_index() == conv_idx {
+                            if win.get_active_project_index() == proj_idx
+                                && win.get_active_conversation_index() == conv_idx
+                            {
                                 crate::main_content::title::set_session_title(&win, "New Chat");
                                 win.set_active_session_id("".into());
                             }
@@ -218,12 +231,14 @@ pub fn wire_projects(
         let window_weak = window_weak.clone();
         let app_state = Rc::clone(&state);
         move || {
-            let picked_folder = rfd::FileDialog::new()
-                .pick_folder();
+            let picked_folder = rfd::FileDialog::new().pick_folder();
 
             if let Some(path_buf) = picked_folder {
                 let path_str = path_buf.to_string_lossy().to_string();
-                println!("[operon-gui][sidebar-projects] User picked folder to open project: {}", path_str);
+                println!(
+                    "[operon-gui][sidebar-projects] User picked folder to open project: {}",
+                    path_str
+                );
 
                 // Update AppState directly on the main thread!
                 let active_id = {

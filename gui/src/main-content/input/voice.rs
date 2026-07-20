@@ -2,17 +2,14 @@
 //!
 //! Handles microphone toggling and voice transcription services.
 
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::rc::Rc;
-use slint::ComponentHandle;
 
 use crate::state::AppState;
 
 /// Register voice recording event callbacks.
-pub fn wire_voice(
-    window: &crate::OperonWindow,
-    _state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_voice(window: &crate::OperonWindow, _state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
 
     window.on_voice_clicked({
@@ -20,7 +17,10 @@ pub fn wire_voice(
         move || {
             if let Some(win) = window_weak.upgrade() {
                 let recording = !win.get_is_recording();
-                println!("[operon-gui][input] Voice button clicked. Recording state: {}", recording);
+                println!(
+                    "[operon-gui][input] Voice button clicked. Recording state: {}",
+                    recording
+                );
                 win.set_is_recording(recording);
             }
         }

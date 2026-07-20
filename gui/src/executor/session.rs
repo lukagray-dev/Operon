@@ -14,7 +14,7 @@ pub async fn start_agent_session(
     cmd_rx: tokio::sync::mpsc::Receiver<operon_rs::SessionCommand>,
 ) -> anyhow::Result<(operon_rs::session::SessionRunner, usize, Option<usize>)> {
     let app_config = operon_rs::load()?;
-    
+
     let workspace_root = if let Some(ref proj) = project_dir {
         std::path::PathBuf::from(proj)
     } else {
@@ -22,7 +22,7 @@ pub async fn start_agent_session(
     };
 
     let store_path = app_config.paths.session_db(session_id);
-    
+
     let config = operon_rs::session::SessionConfig {
         provider_config: app_config.provider.clone(),
         policy: app_config.policy.clone(),
@@ -35,14 +35,16 @@ pub async fn start_agent_session(
     };
 
     let store = operon_rs::session::store::SessionStore::open(&store_path).await?;
-    
+
     if is_new_session {
-        store.create_session(
-            session_id,
-            &config.workspace_root.to_string_lossy(),
-            config.provider_config.model_id(),
-            &format!("{:?}", config.provider_config.provider),
-        ).await?;
+        store
+            .create_session(
+                session_id,
+                &config.workspace_root.to_string_lossy(),
+                config.provider_config.model_id(),
+                &format!("{:?}", config.provider_config.provider),
+            )
+            .await?;
     }
 
     let history_turns = store.load_turns(session_id).await?;
@@ -74,10 +76,13 @@ pub fn clean_unc_path(s: String) -> String {
 /// them into standalone chats vs project conversations.
 pub async fn query_sidebar_data(
     search_query: String,
-) -> anyhow::Result<(Vec<crate::SidebarConversation>, Vec<(String, String, Vec<crate::SidebarConversation>)>)> {
+) -> anyhow::Result<(
+    Vec<crate::SidebarConversation>,
+    Vec<(String, String, Vec<crate::SidebarConversation>)>,
+)> {
     let paths = operon_rs::config::OperonPaths::resolve()?;
     let sessions_dir = paths.sessions_dir;
-    
+
     let default_workspace = {
         let p = paths
             .workspace_dir
@@ -116,8 +121,15 @@ pub async fn query_sidebar_data(
                 if let Ok(store) = operon_rs::session::store::SessionStore::open(&path).await {
                     if let Ok(rows) = store.list_sessions().await {
                         if let Some(row) = rows.first() {
-                            let first_msg = store.get_first_user_message_text(&row.id).await.ok().flatten();
-                            let title = crate::main_content::title::determine_session_title(first_msg.as_deref(), "Untitled Chat");
+                            let first_msg = store
+                                .get_first_user_message_text(&row.id)
+                                .await
+                                .ok()
+                                .flatten();
+                            let title = crate::main_content::title::determine_session_title(
+                                first_msg.as_deref(),
+                                "Untitled Chat",
+                            );
 
                             let session_workspace_canon = {
                                 let p = std::path::PathBuf::from(&row.workspace)
@@ -165,7 +177,8 @@ pub async fn query_sidebar_data(
 
     // Separate into standalone chats vs project conversations
     let mut standalone_chats = Vec::new();
-    let mut project_chats_map: std::collections::HashMap<String, Vec<crate::SidebarConversation>> = std::collections::HashMap::new();
+    let mut project_chats_map: std::collections::HashMap<String, Vec<crate::SidebarConversation>> =
+        std::collections::HashMap::new();
 
     for p in &projects_list {
         project_chats_map.insert(p.clone(), Vec::new());
@@ -178,7 +191,9 @@ pub async fn query_sidebar_data(
                 title: s.title.clone().into(),
             });
         } else {
-            let entry_chats = project_chats_map.entry(s.workspace.clone()).or_insert_with(Vec::new);
+            let entry_chats = project_chats_map
+                .entry(s.workspace.clone())
+                .or_insert_with(Vec::new);
             entry_chats.push(crate::SidebarConversation {
                 id: s.id.clone().into(),
                 title: s.title.clone().into(),
@@ -196,7 +211,7 @@ pub async fn query_sidebar_data(
             .to_string();
 
         let conversations = project_chats_map.remove(&p).unwrap_or_default();
-        
+
         let project_matches = search_query.is_empty()
             || name.to_lowercase().contains(&search_query)
             || !conversations.is_empty();
@@ -208,4 +223,3 @@ pub async fn query_sidebar_data(
 
     Ok((standalone_chats, projects_data))
 }
-

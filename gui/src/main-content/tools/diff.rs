@@ -11,7 +11,7 @@ use serde_json::Value;
 pub struct ParsedDiffLine {
     /// The style classification: "added", "removed", or "context".
     pub kind: String,
-    
+
     /// The clean text payload (excluding unified diff prefixes).
     pub text: String,
 }
@@ -21,7 +21,7 @@ pub fn parse_tool_args_to_value(args_json: &str) -> Value {
     if let Ok(val) = serde_json::from_str::<Value>(args_json) {
         return val;
     }
-    
+
     // Check if the argument is runner-formatted: first line is JSON, followed by __body__:
     if let Some(idx) = args_json.find("__body__:\n") {
         let first_part = args_json[..idx].trim();
@@ -34,7 +34,7 @@ pub fn parse_tool_args_to_value(args_json: &str) -> Value {
             return val;
         }
     }
-    
+
     serde_json::from_str(args_json).unwrap_or_default()
 }
 
@@ -46,50 +46,50 @@ pub fn parse_tool_args_to_value(args_json: &str) -> Value {
 /// 3. Count of deleted lines.
 pub fn parse_diff(tool_name: &str, args_json: &str) -> (Vec<ParsedDiffLine>, i32, i32) {
     let val = parse_tool_args_to_value(args_json);
-    
+
     match tool_name {
         "write" | "append" => {
             // For write/append, the text is the full content body
-            let body = val.get("__body__")
+            let body = val
+                .get("__body__")
                 .or_else(|| val.get("content"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-                
+
             if body.is_empty() {
                 return (Vec::new(), 0, 0);
             }
-            
+
             let lines: Vec<&str> = body.split('\n').collect();
             let added_count = lines.len() as i32;
-            let diff_lines = lines.into_iter()
+            let diff_lines = lines
+                .into_iter()
                 .map(|line| ParsedDiffLine {
                     kind: "added".to_string(),
                     text: line.to_string(),
                 })
                 .collect();
-                
+
             (diff_lines, added_count, 0)
         }
         "edit" => {
             // For edit, the text is a unified diff hunk structure in __body__
-            let body = val.get("__body__")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-                
+            let body = val.get("__body__").and_then(|v| v.as_str()).unwrap_or("");
+
             if body.is_empty() {
                 return (Vec::new(), 0, 0);
             }
-            
+
             let mut diff_lines = Vec::new();
             let mut added = 0;
             let mut deleted = 0;
-            
+
             for line in body.split('\n') {
                 // Per user request, skip @@ hunk descriptor lines to keep card visual presentation clean.
                 if line.starts_with("@@") {
                     continue;
                 }
-                
+
                 if line.starts_with('+') {
                     added += 1;
                     diff_lines.push(ParsedDiffLine {
@@ -115,7 +115,7 @@ pub fn parse_diff(tool_name: &str, args_json: &str) -> (Vec<ParsedDiffLine>, i32
                     });
                 }
             }
-            
+
             (diff_lines, added, deleted)
         }
         _ => (Vec::new(), 0, 0),
@@ -127,7 +127,11 @@ pub fn parse_diff(tool_name: &str, args_json: &str) -> (Vec<ParsedDiffLine>, i32
 /// Hey friend! This function separates the GUI-wiring of code diff visualization
 /// from the rest of the parsing steps. It checks if the executed tool modifies files,
 /// parses its unified diff/added lines, and mutates the markdown block's diff properties in-place.
-pub fn apply_diff_overlay(block: &mut crate::main_content::assistant_messages::markdown::ParsedMarkdownItem, name: &str, tool_args: &str) {
+pub fn apply_diff_overlay(
+    block: &mut crate::main_content::assistant_messages::markdown::ParsedMarkdownItem,
+    name: &str,
+    tool_args: &str,
+) {
     if name == "write" || name == "append" || name == "edit" {
         block.tool_is_diff = true;
         let (diff_lines, added, deleted) = parse_diff(name, tool_args);
@@ -136,4 +140,3 @@ pub fn apply_diff_overlay(block: &mut crate::main_content::assistant_messages::m
         block.tool_deleted_count = deleted;
     }
 }
-

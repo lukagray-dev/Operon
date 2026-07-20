@@ -20,10 +20,7 @@ pub fn format_tokens(used: i32, total: i32) -> String {
 }
 
 /// Register context indicator click callback.
-pub fn wire_context(
-    window: &crate::OperonWindow,
-    _state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_context(window: &crate::OperonWindow, _state: Rc<RefCell<AppState>>) {
     window.on_context_clicked(move || {
         println!("[operon-gui][input] Context indicator clicked.");
     });

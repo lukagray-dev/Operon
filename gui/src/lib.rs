@@ -6,9 +6,9 @@
 slint::include_modules!();
 
 pub mod app;
+pub mod settings;
 pub mod state;
 pub mod window;
-pub mod settings;
 
 #[path = "left-sidebar/mod.rs"]
 pub mod left_sidebar;

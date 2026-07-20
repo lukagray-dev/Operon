@@ -40,7 +40,8 @@ pub fn run() -> anyhow::Result<()> {
 
     // `run()` is the easiest Slint entry path for a normal desktop window:
     // it shows the component, runs the event loop, and hides it on shutdown.
-    ui.run().context("failed while running the Operon event loop")?;
+    ui.run()
+        .context("failed while running the Operon event loop")?;
 
     eprintln!("[operon-gui] GUI event loop exited cleanly.");
     Ok(())

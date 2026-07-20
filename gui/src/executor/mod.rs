@@ -5,17 +5,18 @@
 //! - `session.rs` manages loading configuration, checking session database state, and initializing the SessionRunner.
 //! - `events.rs` handles the event dispatch loop from the agent and updates the Slint GUI.
 
-pub mod session;
 pub mod events;
+pub mod session;
 
-use std::sync::Mutex;
-use std::rc::Rc;
 use slint::{ComponentHandle, Model};
+use std::rc::Rc;
+use std::sync::Mutex;
 
 /// Global thread-safe reference to the active session's command channel.
 /// This allows permission approvals/denials and cancellation from other UI parts
 /// without passing thread-local Rc<RefCell<AppState>> handles into background tasks.
-pub static ACTIVE_CMD_TX: Mutex<Option<tokio::sync::mpsc::Sender<operon_rs::SessionCommand>>> = Mutex::new(None);
+pub static ACTIVE_CMD_TX: Mutex<Option<tokio::sync::mpsc::Sender<operon_rs::SessionCommand>>> =
+    Mutex::new(None);
 
 /// Public getter to retrieve the active session command channel for approvals/denials.
 pub fn get_active_cmd_tx() -> Option<tokio::sync::mpsc::Sender<operon_rs::SessionCommand>> {
@@ -83,12 +84,12 @@ pub fn submit_prompt(
                 project_dir,
                 event_tx,
                 cmd_rx,
-            ).await?;
+            )
+            .await?;
 
             // Spawn runner thread.
-            let runner_handle = tokio::spawn(async move {
-                runner.run(message_text.to_string()).await
-            });
+            let runner_handle =
+                tokio::spawn(async move { runner.run(message_text.to_string()).await });
 
             // Spawn event handler loop.
             let win_weak_event = window_weak.clone();
@@ -100,7 +101,10 @@ pub fn submit_prompt(
             // Wait for runner task to complete.
             if let Ok(res) = runner_handle.await {
                 if let Err(e) = res {
-                    eprintln!("[operon-gui][executor] Runner failed to process message: {}", e);
+                    eprintln!(
+                        "[operon-gui][executor] Runner failed to process message: {}",
+                        e
+                    );
                 }
             }
 
@@ -110,7 +114,8 @@ pub fn submit_prompt(
             }
 
             anyhow::Ok(())
-        }.await;
+        }
+        .await;
 
         if let Err(e) = run_prompt {
             eprintln!("[operon-gui][executor] Failed to launch prompt run: {}", e);

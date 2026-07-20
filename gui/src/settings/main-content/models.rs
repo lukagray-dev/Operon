@@ -6,11 +6,11 @@
 //! - Executes dynamic model discovery using the `operon-rs` provider discovery APIs.
 //! - Persists updated provider credentials and selected active models to `config.toml`.
 
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Mutex, OnceLock};
-use slint::{ComponentHandle, ModelRc, VecModel, SharedString};
 
 use crate::state::AppState;
 use crate::ProviderSummary; // Slint-generated struct
@@ -77,20 +77,27 @@ fn requires_api_key(id: &str) -> bool {
 pub fn get_providers_list() -> Vec<ProviderSummary> {
     // 1. Attempt to load the active configuration from ~/.operon/config.toml
     let app_config = operon_rs::load().ok();
-    
-    let active_provider_id = app_config.as_ref().map(|c| provider_to_id(&c.provider.provider));
-    let active_model = app_config.as_ref().map(|c| c.provider.model.model_id.clone()).unwrap_or_default();
+
+    let active_provider_id = app_config
+        .as_ref()
+        .map(|c| provider_to_id(&c.provider.provider));
+    let active_model = app_config
+        .as_ref()
+        .map(|c| c.provider.model.model_id.clone())
+        .unwrap_or_default();
 
     // 2. Iterate over all providers supported by the backend
     operon_rs::providers::Provider::all()
         .iter()
         .map(|&provider| {
             let provider_id = provider_to_id(&provider);
-            let is_active = active_provider_id.as_ref().map_or(false, |id| id == &provider_id);
-            
+            let is_active = active_provider_id
+                .as_ref()
+                .map_or(false, |id| id == &provider_id);
+
             // Check if this provider has a configured API key in the config
             let is_configured = if let Some(ref config) = app_config {
-                provider_to_id(&config.provider.provider) == provider_id 
+                provider_to_id(&config.provider.provider) == provider_id
                     && !config.provider.credentials.api_key.is_empty()
             } else {
                 false
@@ -109,7 +116,11 @@ pub fn get_providers_list() -> Vec<ProviderSummary> {
                 id: provider_id.into(),
                 label: provider.display_name().into(),
                 status: status.into(),
-                active_model: if is_active { active_model.clone().into() } else { "".into() },
+                active_model: if is_active {
+                    active_model.clone().into()
+                } else {
+                    "".into()
+                },
                 is_active,
             }
         })
@@ -137,11 +148,19 @@ fn trigger_model_discovery(
     let api_base_str = api_base.to_string();
 
     tokio::spawn(async move {
-        let base_opt = if api_base_str.trim().is_empty() { None } else { Some(api_base_str.as_str()) };
+        let base_opt = if api_base_str.trim().is_empty() {
+            None
+        } else {
+            Some(api_base_str.as_str())
+        };
         match operon_rs::discover_models(provider_enum, &api_key_str, base_opt).await {
             Ok(result) => {
-                println!("[operon-gui][settings] Model auto-discovery succeeded: found {} models", result.models.len());
-                let model_ids: Vec<String> = result.models.into_iter().map(|m| m.model_id).collect();
+                println!(
+                    "[operon-gui][settings] Model auto-discovery succeeded: found {} models",
+                    result.models.len()
+                );
+                let model_ids: Vec<String> =
+                    result.models.into_iter().map(|m| m.model_id).collect();
 
                 // Cache the list
                 {
@@ -150,14 +169,17 @@ fn trigger_model_discovery(
                 }
 
                 // Update the UI thread-safely
-                let slint_models: Vec<SharedString> = model_ids.into_iter().map(SharedString::from).collect();
+                let slint_models: Vec<SharedString> =
+                    model_ids.into_iter().map(SharedString::from).collect();
                 let active_model = slint_models.first().cloned().unwrap_or_default();
-                
+
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = weak_window.upgrade() {
                         // Only apply the updates if the active configured provider in the view has not changed
                         if win.get_selected_provider_id() == provider_id_str {
-                            win.set_provider_models(ModelRc::from(Rc::new(VecModel::from(slint_models))));
+                            win.set_provider_models(ModelRc::from(Rc::new(VecModel::from(
+                                slint_models,
+                            ))));
                             if win.get_active_model().is_empty() {
                                 win.set_active_model(active_model);
                             }
@@ -181,10 +203,7 @@ fn trigger_model_discovery(
 }
 
 /// Registers the callback handlers on the Settings window for Models category settings.
-pub fn wire_models_settings(
-    window: &crate::SettingsWindow,
-    _state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_models_settings(window: &crate::SettingsWindow, _state: Rc<RefCell<AppState>>) {
     let weak_window = window.as_weak();
 
     // Populate initial providers list in the UI
@@ -195,15 +214,19 @@ pub fn wire_models_settings(
     window.on_provider_selected({
         let weak_window = weak_window.clone();
         move |provider_id, provider_label| {
-            println!("[operon-gui][settings] Selected provider: {} ({})", provider_label, provider_id);
+            println!(
+                "[operon-gui][settings] Selected provider: {} ({})",
+                provider_label, provider_id
+            );
             if let Some(win) = weak_window.upgrade() {
                 win.set_selected_provider_id(provider_id.clone());
                 win.set_selected_provider_label(provider_label);
 
                 // Load active config to see if we have credentials saved for this provider
                 let app_config = operon_rs::load().ok();
-                let is_matching_active = app_config.as_ref()
-                    .map_or(false, |c| provider_to_id(&c.provider.provider) == provider_id.as_str());
+                let is_matching_active = app_config.as_ref().map_or(false, |c| {
+                    provider_to_id(&c.provider.provider) == provider_id.as_str()
+                });
 
                 let mut saved_base = String::new();
                 let mut saved_key = String::new();
@@ -211,7 +234,11 @@ pub fn wire_models_settings(
 
                 if is_matching_active {
                     if let Some(ref config) = app_config {
-                        saved_base = config.provider.base_url_override.clone().unwrap_or_default();
+                        saved_base = config
+                            .provider
+                            .base_url_override
+                            .clone()
+                            .unwrap_or_default();
                         saved_key = config.provider.credentials.api_key.expose().to_string();
                         saved_model = config.provider.model.model_id.clone();
                     }
@@ -232,7 +259,8 @@ pub fn wire_models_settings(
                     cache.get(provider_id.as_str()).cloned().unwrap_or_default()
                 };
 
-                let slint_models: Vec<SharedString> = cached_models.into_iter().map(SharedString::from).collect();
+                let slint_models: Vec<SharedString> =
+                    cached_models.into_iter().map(SharedString::from).collect();
                 win.set_provider_models(ModelRc::from(Rc::new(VecModel::from(slint_models))));
                 win.set_models_active_view(1); // Transition to setup form view
 
@@ -248,12 +276,18 @@ pub fn wire_models_settings(
     window.on_provider_save_clicked({
         let weak_window = weak_window.clone();
         move |provider_id, api_base, api_key, selected_model| {
-            println!("[operon-gui][settings] Saving provider setup for id={}", provider_id);
-            
+            println!(
+                "[operon-gui][settings] Saving provider setup for id={}",
+                provider_id
+            );
+
             let provider_enum = match id_to_provider(provider_id.as_str()) {
                 Some(p) => p,
                 None => {
-                    eprintln!("[operon-gui][settings] Cannot save: Unknown provider ID: {}", provider_id);
+                    eprintln!(
+                        "[operon-gui][settings] Cannot save: Unknown provider ID: {}",
+                        provider_id
+                    );
                     return;
                 }
             };
@@ -277,13 +311,19 @@ pub fn wire_models_settings(
                 provider: provider_enum,
                 credentials,
                 model: model_config,
-                base_url_override: if api_base.trim().is_empty() { None } else { Some(api_base.to_string()) },
+                base_url_override: if api_base.trim().is_empty() {
+                    None
+                } else {
+                    Some(api_base.to_string())
+                },
             };
 
             // Save the provider config using the backend's helper
             match operon_rs::save_provider(&provider_config) {
                 Ok(_) => {
-                    println!("[operon-gui][settings] Configuration saved successfully to config.toml");
+                    println!(
+                        "[operon-gui][settings] Configuration saved successfully to config.toml"
+                    );
                     if let Some(win) = weak_window.upgrade() {
                         // Refresh the providers list view with updated states
                         let providers = get_providers_list();

@@ -1,0 +1,130 @@
+import { Tokens } from "../../shared/tokens.slint";
+
+export struct InlineMarkdownSpan {
+    kind: string, // "text", "code", "math", or "break"
+    text: string,
+    bold: bool,
+    italic: bool,
+    link: string,
+}
+
+component InlineSpanView inherits Rectangle {
+    in property <InlineMarkdownSpan> span;
+    in property <string> font-family-custom: Tokens.serif-font-family;
+    in property <length> font-size-custom: Tokens.body-font-size;
+    in property <color> default-color: Tokens.text-primary;
+    in property <bool> default-bold: false;
+
+    property <bool> is-code: root.span.kind == "code";
+    property <bool> is-math: root.span.kind == "math";
+    property <bool> is-break: root.span.kind == "break";
+    property <length> code-font-size: max(9px, root.font-size-custom - 2px);
+    property <length> text-width: text-measure.preferred-width;
+    property <length> text-height: text-measure.preferred-height;
+    property <length> code-width: code-measure.preferred-width + 12px;
+    property <length> code-height: code-measure.preferred-height + 6px;
+
+    width: root.is-break
+        ? 0px
+        : (root.is-code ? root.code-width : root.text-width);
+    height: root.is-break
+        ? 0px
+        : (root.is-code ? root.code-height : root.text-height);
+    background: transparent;
+
+    text-measure := Text {
+        opacity: 0;
+        text: root.span.text;
+        color: root.default-color;
+        font-family: root.font-family-custom;
+        font-size: root.font-size-custom;
+        font-weight: (root.default-bold || root.span.bold) ? 600 : 400;
+        font-italic: root.span.italic;
+    }
+
+    code-measure := Text {
+        opacity: 0;
+        text: root.span.text;
+        color: #e06c75;
+        font-family: Tokens.mono-font-family;
+        font-size: root.code-font-size;
+    }
+
+    if (!root.is-code && !root.is-break) : Text {
+        text: root.is-math ? ("$" + root.span.text + "$") : root.span.text;
+        color: root.span.link != "" ? #58a6ff : root.default-color;
+        font-family: root.font-family-custom;
+        font-size: root.font-size-custom;
+        font-weight: (root.default-bold || root.span.bold) ? 600 : 400;
+        font-italic: root.span.italic;
+        vertical-alignment: center;
+    }
+
+    if (root.is-code) : Rectangle {
+        width: root.code-width;
+        height: root.code-height;
+        background: rgba(110, 118, 129, 0.40);
+        border-radius: 6px;
+
+        Text {
+            x: 6px;
+            y: 3px;
+            text: root.span.text;
+            color: #e06c75;
+            font-family: Tokens.mono-font-family;
+            font-size: root.code-font-size;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component InlineMarkdown inherits Rectangle {
+    in property <[InlineMarkdownSpan]> spans: [];
+    in property <string> fallback-text: "";
+    in property <string> font-family-custom: Tokens.serif-font-family;
+    in property <length> font-size-custom: Tokens.body-font-size;
+    in property <color> default-color: Tokens.text-primary;
+    in property <bool> default-bold: false;
+    in property <bool> show-cursor: false;
+    in property <LayoutAlignment> alignment-custom: start;
+
+    background: transparent;
+    height: root.spans.length > 0
+        ? inline-layout.preferred-height
+        : fallback.preferred-height;
+
+    inline-layout := HorizontalLayout {
+        visible: root.spans.length > 0;
+        width: parent.width;
+        height: self.preferred-height;
+        spacing: 0px;
+        alignment: root.alignment-custom;
+
+        for span in root.spans : InlineSpanView {
+            span: span;
+            font-family-custom: root.font-family-custom;
+            font-size-custom: root.font-size-custom;
+            default-color: root.default-color;
+            default-bold: root.default-bold;
+        }
+
+        if (root.show-cursor) : Text {
+            text: "|";
+            color: root.default-color;
+            font-family: root.font-family-custom;
+            font-size: root.font-size-custom;
+            font-weight: root.default-bold ? 600 : 400;
+        }
+    }
+
+    fallback := Text {
+        visible: root.spans.length == 0;
+        width: parent.width;
+        text: root.fallback-text + (root.show-cursor ? "|" : "");
+        color: root.default-color;
+        font-family: root.font-family-custom;
+        font-size: root.font-size-custom;
+        font-weight: root.default-bold ? 600 : 400;
+        wrap: word-wrap;
+    }
+}

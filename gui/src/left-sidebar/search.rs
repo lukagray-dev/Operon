@@ -3,17 +3,14 @@
 //! This module binds search query changes and search cancellation callbacks to
 //! dynamic list filtering.
 
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::rc::Rc;
-use slint::ComponentHandle;
 
 use crate::state::AppState;
 
 /// Wire sidebar search query change and cancel event callbacks.
-pub fn wire_search(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_search(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
     let app_state = Rc::clone(&state);
 

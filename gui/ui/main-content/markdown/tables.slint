@@ -1,0 +1,85 @@
+import { Tokens } from "../../shared/tokens.slint";
+import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
+
+export struct MarkdownTableCell {
+    text: string,
+    styled_text: styled-text,
+    spans: [InlineMarkdownSpan],
+    alignment: string,
+    width_px: int,
+}
+
+export struct MarkdownTableRow {
+    cells: [MarkdownTableCell],
+}
+
+component MarkdownTableCellView inherits Rectangle {
+    in property <MarkdownTableCell> cell;
+    in property <bool> is-header: false;
+    in property <bool> is-even-row: false;
+
+    width: max(96px, root.cell.width-px * 1px);
+    height: cell-text.preferred-height + 14px;
+    background: root.is-header
+        ? rgba(255, 255, 255, 0.08)
+        : (root.is-even-row ? rgba(255, 255, 255, 0.02) : transparent);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+
+    cell-text := InlineMarkdown {
+        x: 13px;
+        y: 6px;
+        width: parent.width - 26px;
+        spans: root.cell.spans;
+        fallback-text: root.cell.text;
+        default-color: root.is-header ? #ffffff : Tokens.text-primary;
+        font-family-custom: Tokens.serif-font-family;
+        font-size-custom: Tokens.body-font-size;
+        default-bold: root.is-header;
+        alignment-custom: root.cell.alignment == "right"
+            ? end
+            : (root.cell.alignment == "center" ? center : start);
+    }
+}
+
+export component MarkdownTable inherits Rectangle {
+    in property <[MarkdownTableCell]> headers: [];
+    in property <[MarkdownTableRow]> rows: [];
+
+    background: transparent;
+    height: table-content.preferred-height;
+    clip: true;
+
+    Flickable {
+        width: parent.width;
+        height: table-content.preferred-height;
+        viewport-width: max(parent.width, table-content.preferred-width);
+        viewport-height: table-content.preferred-height;
+        interactive: true;
+
+        table-content := VerticalLayout {
+            spacing: 0px;
+            alignment: start;
+
+            if (root.headers.length > 0) : HorizontalLayout {
+                spacing: 0px;
+                alignment: start;
+
+                for header in root.headers : MarkdownTableCellView {
+                    cell: header;
+                    is-header: true;
+                }
+            }
+
+            for row[row-idx] in root.rows : HorizontalLayout {
+                spacing: 0px;
+                alignment: start;
+
+                for cell in row.cells : MarkdownTableCellView {
+                    cell: cell;
+                    is-even-row: mod(row-idx, 2) == 1;
+                }
+            }
+        }
+    }
+}

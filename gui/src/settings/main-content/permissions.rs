@@ -4,10 +4,10 @@
 //! switches, adding/removing allowed directories, expanding tool groups, and editing Allow/Ask/Deny
 //! settings) to the `operon-rs` backend configuration system.
 
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
-use slint::{ComponentHandle, ModelRc, VecModel, SharedString};
 
 use crate::state::AppState;
 
@@ -35,18 +35,25 @@ fn refresh_directories(window: &crate::SettingsWindow) {
     match operon_rs::get_allowed_directories_list() {
         Ok((directories, workspace_directory)) => {
             let mut dirs_list = directories;
-            
+
             // Clean paths on Windows to avoid raw UNC path formatting in the UI
             #[cfg(target_os = "windows")]
             {
-                dirs_list = dirs_list.into_iter().map(|d| clean_windows_path(&d)).collect();
+                dirs_list = dirs_list
+                    .into_iter()
+                    .map(|d| clean_windows_path(&d))
+                    .collect();
             }
 
             let cleaned_workspace = {
                 #[cfg(target_os = "windows")]
-                { clean_windows_path(&workspace_directory) }
+                {
+                    clean_windows_path(&workspace_directory)
+                }
                 #[cfg(not(target_os = "windows"))]
-                { workspace_directory }
+                {
+                    workspace_directory
+                }
             };
 
             // Ensure workspace directory is included at the start of the list
@@ -54,33 +61,42 @@ fn refresh_directories(window: &crate::SettingsWindow) {
                 dirs_list.insert(0, cleaned_workspace.clone());
             }
 
-            let slint_dirs: Vec<SharedString> = dirs_list.into_iter().map(SharedString::from).collect();
+            let slint_dirs: Vec<SharedString> =
+                dirs_list.into_iter().map(SharedString::from).collect();
             window.set_allowed_directories(ModelRc::from(Rc::new(VecModel::from(slint_dirs))));
             window.set_workspace_directory(cleaned_workspace.into());
         }
         Err(e) => {
-            eprintln!("[operon-gui][settings] Failed to load allowed directories: {}", e);
+            eprintln!(
+                "[operon-gui][settings] Failed to load allowed directories: {}",
+                e
+            );
         }
     }
 }
 
 /// Re-queries permission settings for the active tab (global/directory) and scope (owner/external),
 /// flattens group-nested tool configurations based on expansion state, and refreshes the Slint model.
-fn refresh_permissions(
-    window: &crate::SettingsWindow,
-    perm_state: &Rc<RefCell<PermissionsState>>,
-) {
+fn refresh_permissions(window: &crate::SettingsWindow, perm_state: &Rc<RefCell<PermissionsState>>) {
     let active_tab = window.get_permissions_active_tab();
     let configure_dir = window.get_configure_directory();
     let is_dir_view = !configure_dir.is_empty();
 
     // Check scope (0 = owner, 1 = external)
     let scope_index = window.get_permissions_active_scope();
-    let scope = if scope_index == 0 { "owner" } else { "external" };
+    let scope = if scope_index == 0 {
+        "owner"
+    } else {
+        "external"
+    };
 
     // Permissions list is only visible in the Global tab (active-tab == 1) OR inside a directory configure view
     if active_tab == 1 || is_dir_view {
-        let directory_param = if is_dir_view { Some(configure_dir.as_str()) } else { None };
+        let directory_param = if is_dir_view {
+            Some(configure_dir.as_str())
+        } else {
+            None
+        };
 
         match operon_rs::get_permission_rows(scope, directory_param) {
             Ok(rows) => {
@@ -126,7 +142,11 @@ fn refresh_permissions(
                                 flat_items.push(crate::PermissionItem {
                                     key: t.key.clone().into(),
                                     label: t.label.clone().into(),
-                                    subtitle: format!("tool key: {} · default: {}", t.key, t.base_mode).into(),
+                                    subtitle: format!(
+                                        "tool key: {} · default: {}",
+                                        t.key, t.base_mode
+                                    )
+                                    .into(),
                                     mode: t.mode.clone().into(),
                                     base_mode: t.base_mode.clone().into(),
                                     is_explicit: t.is_explicit,
@@ -143,7 +163,10 @@ fn refresh_permissions(
                 window.set_permission_items(ModelRc::from(Rc::new(VecModel::from(flat_items))));
             }
             Err(e) => {
-                eprintln!("[operon-gui][settings] Failed to load permission rows: {}", e);
+                eprintln!(
+                    "[operon-gui][settings] Failed to load permission rows: {}",
+                    e
+                );
                 window.set_permission_items(ModelRc::from(Rc::new(VecModel::default())));
             }
         }
@@ -151,10 +174,7 @@ fn refresh_permissions(
 }
 
 /// Registers the callback handlers on the Settings window for Permissions category settings.
-pub fn wire_permissions_settings(
-    window: &crate::SettingsWindow,
-    _state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_permissions_settings(window: &crate::SettingsWindow, _state: Rc<RefCell<AppState>>) {
     let weak_window = window.as_weak();
     let permissions_state = Rc::new(RefCell::new(PermissionsState {
         expanded_groups: HashSet::new(),
@@ -229,7 +249,10 @@ pub fn wire_permissions_settings(
                         }
                     }
                     Err(e) => {
-                        eprintln!("[operon-gui][settings] Failed to add allowed directory: {}", e);
+                        eprintln!(
+                            "[operon-gui][settings] Failed to add allowed directory: {}",
+                            e
+                        );
                     }
                 }
             }
@@ -250,7 +273,10 @@ pub fn wire_permissions_settings(
                         }
                     }
                     Err(e) => {
-                        eprintln!("[operon-gui][settings] Failed to remove allowed directory: {}", e);
+                        eprintln!(
+                            "[operon-gui][settings] Failed to remove allowed directory: {}",
+                            e
+                        );
                     }
                 }
             }
@@ -283,28 +309,49 @@ pub fn wire_permissions_settings(
         move |key, kind, mode| {
             if let Some(win) = weak_win.upgrade() {
                 let active_scope = win.get_permissions_active_scope();
-                let scope = if active_scope == 0 { "owner" } else { "external" };
-                
+                let scope = if active_scope == 0 {
+                    "owner"
+                } else {
+                    "external"
+                };
+
                 let configure_dir = win.get_configure_directory();
                 let is_dir_view = !configure_dir.is_empty();
-                let directory_param = if is_dir_view { Some(configure_dir.as_str()) } else { None };
+                let directory_param = if is_dir_view {
+                    Some(configure_dir.as_str())
+                } else {
+                    None
+                };
 
                 // If user resets the mode back to the default inherited mode, we clear explicit override
                 // by passing None to the backend update_permission call.
                 let mut target_mode = Some(mode.as_str());
-                if let Some(row) = perm_state.borrow().rows.iter().find(|r| r.key == key.as_str() && r.kind == kind.as_str()) {
+                if let Some(row) = perm_state
+                    .borrow()
+                    .rows
+                    .iter()
+                    .find(|r| r.key == key.as_str() && r.kind == kind.as_str())
+                {
                     if row.base_mode == mode.as_str() {
                         target_mode = None;
                     }
                 }
 
-                match operon_rs::update_permission(scope, directory_param, key.as_str(), target_mode) {
+                match operon_rs::update_permission(
+                    scope,
+                    directory_param,
+                    key.as_str(),
+                    target_mode,
+                ) {
                     Ok(_) => {
                         println!("[operon-gui][settings] Set mode successfully for: {}", key);
                         refresh_permissions(&win, &perm_state);
                     }
                     Err(e) => {
-                        eprintln!("[operon-gui][settings] Failed to set permission mode: {}", e);
+                        eprintln!(
+                            "[operon-gui][settings] Failed to set permission mode: {}",
+                            e
+                        );
                     }
                 }
             }

@@ -3,8 +3,8 @@
 //! These functions are intentionally tiny and direct. They do the window state
 //! change, log what happened, and leave callback wiring to the bootstrap layer.
 
-use slint::ComponentHandle;
 use slint::winit_030::{winit, WinitWindowAccessor};
+use slint::ComponentHandle;
 
 /// Minimizes the app window.
 pub fn minimize_window(app: &crate::OperonWindow) {
@@ -18,9 +18,7 @@ pub fn toggle_maximize_window(app: &crate::OperonWindow) -> bool {
     let previous = window.is_maximized();
     let next = !previous;
 
-    eprintln!(
-        "[operon-gui][window] Maximize toggle requested: previous={previous}, next={next}"
-    );
+    eprintln!("[operon-gui][window] Maximize toggle requested: previous={previous}, next={next}");
 
     window.set_maximized(next);
     next
@@ -39,11 +37,9 @@ pub fn close_window(app: &crate::OperonWindow) -> Result<(), slint::PlatformErro
 /// moving is delegated to the underlying winit window so the operating system
 /// handles it like a native titlebar drag.
 pub fn drag_window(app: &crate::OperonWindow) {
-    let drag_result =
-        app.window()
-            .with_winit_window(|winit_window: &winit::window::Window| {
-                winit_window.drag_window()
-            });
+    let drag_result = app
+        .window()
+        .with_winit_window(|winit_window: &winit::window::Window| winit_window.drag_window());
 
     match drag_result {
         Some(Ok(())) => {

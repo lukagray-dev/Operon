@@ -19,22 +19,21 @@ use std::rc::Rc;
 use crate::state::AppState;
 
 /// Initialize and wire all input panel components.
-pub fn wire_input_panel(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_input_panel(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     // Expose initial values from config to the UI
     let app_config = operon_rs::load().ok();
-    
+
     // 1. Initial Selected Model & reasoning default
-    let active_model = app_config.as_ref()
+    let active_model = app_config
+        .as_ref()
         .map(|c| c.provider.model.model_id.clone())
         .unwrap_or_default();
     window.set_selected_model(active_model.into());
     window.set_selected_reasoning("Medium".into()); // Default reasoning level in prompt UI
 
     // 2. Initial Auto-Approve state
-    let auto_approve = app_config.as_ref()
+    let auto_approve = app_config
+        .as_ref()
         .map(|_c| {
             // Find global policy auto-approve or similar
             false
@@ -43,7 +42,8 @@ pub fn wire_input_panel(
     window.set_auto_approve_enabled(auto_approve);
 
     // 3. Initial context usage
-    let context_window = app_config.as_ref()
+    let context_window = app_config
+        .as_ref()
         .map(|c| c.provider.model.context_window as i32)
         .unwrap_or(128_000);
     window.set_context_usage(0.0);

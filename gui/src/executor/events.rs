@@ -18,7 +18,7 @@ pub async fn handle_session_events(
 
     while let Some(event) = event_rx.recv().await {
         println!("[operon-gui][executor] Received session event: {:?}", event);
-        
+
         match event {
             operon_rs::SessionEvent::TextDelta { text } => {
                 response_state.append_text(&text);
@@ -34,8 +34,11 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+
+                        let slint_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                parsed_items,
+                            );
                         let needs_new = msgs.last().map_or(true, |m| m.is_user);
                         if needs_new {
                             msgs.push(crate::ChatMessage {
@@ -43,17 +46,22 @@ pub async fn handle_session_events(
                                 is_user: false,
                                 text: text_acc.clone().into(),
                                 time: "".into(),
-                                markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items))),
+                                markdown_items: slint::ModelRc::from(Rc::new(
+                                    slint::VecModel::from(slint_items),
+                                )),
                                 reasoning_text: "".into(),
                                 is_thinking: false,
                             });
                         } else if let Some(last) = msgs.last_mut() {
                             last.is_thinking = false;
                             last.text = text_acc.into();
-                            last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_items =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                         }
-                        
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 });
             }
@@ -70,8 +78,11 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+
+                        let slint_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                parsed_items,
+                            );
                         let needs_new = msgs.last().map_or(true, |m| m.is_user);
                         if needs_new {
                             msgs.push(crate::ChatMessage {
@@ -79,21 +90,30 @@ pub async fn handle_session_events(
                                 is_user: false,
                                 text: "".into(),
                                 time: "".into(),
-                                markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items))),
+                                markdown_items: slint::ModelRc::from(Rc::new(
+                                    slint::VecModel::from(slint_items),
+                                )),
                                 reasoning_text: "".into(),
                                 is_thinking: true,
                             });
                         } else if let Some(last) = msgs.last_mut() {
                             last.is_thinking = true;
-                            last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_items =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                         }
-                        
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 });
             }
             operon_rs::SessionEvent::ToolCallStart { call_id, name } => {
-                crate::main_content::tools::cards::append_tool_start(&mut response_state, &call_id, &name);
+                crate::main_content::tools::cards::append_tool_start(
+                    &mut response_state,
+                    &call_id,
+                    &name,
+                );
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -105,16 +125,31 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                        let slint_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                parsed_items,
+                            );
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_items =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                         }
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 });
             }
-            operon_rs::SessionEvent::ToolCallArgsReady { call_id, name, args_json } => {
-                crate::main_content::tools::cards::append_tool_args_ready(&mut response_state, &call_id, &name, &args_json);
+            operon_rs::SessionEvent::ToolCallArgsReady {
+                call_id,
+                name,
+                args_json,
+            } => {
+                crate::main_content::tools::cards::append_tool_args_ready(
+                    &mut response_state,
+                    &call_id,
+                    &name,
+                    &args_json,
+                );
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -126,16 +161,30 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                        let slint_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                parsed_items,
+                            );
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_items =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                         }
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 });
             }
-            operon_rs::SessionEvent::ToolCallDetected { call_id, name, attrs: _ } => {
-                crate::main_content::tools::cards::append_tool_detected(&mut response_state, &call_id, &name);
+            operon_rs::SessionEvent::ToolCallDetected {
+                call_id,
+                name,
+                attrs: _,
+            } => {
+                crate::main_content::tools::cards::append_tool_detected(
+                    &mut response_state,
+                    &call_id,
+                    &name,
+                );
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -147,16 +196,26 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                        let slint_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                parsed_items,
+                            );
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_items =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                         }
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 });
             }
             operon_rs::SessionEvent::ToolBodyDelta { call_id, text } => {
-                crate::main_content::tools::cards::append_tool_body_delta(&mut response_state, &call_id, &text);
+                crate::main_content::tools::cards::append_tool_body_delta(
+                    &mut response_state,
+                    &call_id,
+                    &text,
+                );
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -168,16 +227,33 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                        let slint_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                parsed_items,
+                            );
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_items =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                         }
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 });
             }
-            operon_rs::SessionEvent::ToolCallResult { call_id, name, is_error, content_json } => {
-                crate::main_content::tools::cards::append_tool_result(&mut response_state, &call_id, &name, is_error, &content_json);
+            operon_rs::SessionEvent::ToolCallResult {
+                call_id,
+                name,
+                is_error,
+                content_json,
+            } => {
+                crate::main_content::tools::cards::append_tool_result(
+                    &mut response_state,
+                    &call_id,
+                    &name,
+                    is_error,
+                    &content_json,
+                );
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -189,17 +265,30 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items = crate::main_content::assistant_messages::markdown::to_slint_items(parsed_items);
+                        let slint_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                parsed_items,
+                            );
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_items =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
                         }
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 });
             }
-            operon_rs::SessionEvent::ApprovalRequired { id, tool, path, reason, args_json } => {
+            operon_rs::SessionEvent::ApprovalRequired {
+                id,
+                tool,
+                path,
+                reason,
+                args_json,
+            } => {
                 let path_str = path.clone().unwrap_or_default();
-                let (display_action, display_target) = get_permission_display_info(&tool, &path_str, &args_json);
+                let (display_action, display_target) =
+                    get_permission_display_info(&tool, &path_str, &args_json);
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = win_weak_update.upgrade() {
@@ -213,7 +302,11 @@ pub async fn handle_session_events(
                     }
                 });
             }
-            operon_rs::SessionEvent::ApprovalGranted { id: _, tool: _, path: _ } => {
+            operon_rs::SessionEvent::ApprovalGranted {
+                id: _,
+                tool: _,
+                path: _,
+            } => {
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = win_weak_update.upgrade() {
@@ -221,7 +314,11 @@ pub async fn handle_session_events(
                     }
                 });
             }
-            operon_rs::SessionEvent::PermissionDenied { tool: _, path: _, reason: _ } => {
+            operon_rs::SessionEvent::PermissionDenied {
+                tool: _,
+                path: _,
+                reason: _,
+            } => {
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = win_weak_update.upgrade() {
@@ -269,13 +366,20 @@ pub async fn handle_session_events(
                                 msgs.push(m);
                             }
                         }
-                        
-                        let final_items = crate::main_content::assistant_messages::markdown::to_slint_items(final_parsed_items);
+
+                        let final_items =
+                            crate::main_content::assistant_messages::markdown::to_slint_items(
+                                final_parsed_items,
+                            );
                         if let Some(m) = msgs.last_mut() {
                             m.is_thinking = false;
-                            m.markdown_items = slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(final_items)));
+                            m.markdown_items = slint::ModelRc::from(std::rc::Rc::new(
+                                slint::VecModel::from(final_items),
+                            ));
                         }
-                        win.set_chat_messages(slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(msgs))));
+                        win.set_chat_messages(slint::ModelRc::from(std::rc::Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                     }
                 }
             }
@@ -293,14 +397,16 @@ fn get_permission_display_info(tool: &str, path: &str, args_json: &str) -> (Stri
         parts.last().copied().unwrap_or(path).to_string()
     } else {
         let val: serde_json::Value = serde_json::from_str(args_json).unwrap_or_default();
-        if let Some(p) = val.get("path")
+        if let Some(p) = val
+            .get("path")
             .or_else(|| val.get("paths"))
             .or_else(|| val.get("dir"))
             .and_then(|v| v.as_str())
         {
             let parts: Vec<&str> = p.split(|c| c == '/' || c == '\\').collect();
             parts.last().copied().unwrap_or(p).to_string()
-        } else if let Some(cmd) = val.get("CommandLine")
+        } else if let Some(cmd) = val
+            .get("CommandLine")
             .or_else(|| val.get("command"))
             .and_then(|v| v.as_str())
         {

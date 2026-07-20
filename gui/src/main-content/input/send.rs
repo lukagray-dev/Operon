@@ -5,18 +5,15 @@
 //! and event handling loops have been moved to `executor.rs` to maintain clean separation
 //! of concerns and a high level of maintainability.
 
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::rc::Rc;
-use slint::ComponentHandle;
 
-use crate::state::AppState;
 use crate::executor;
+use crate::state::AppState;
 
 /// Register message submission callback.
-pub fn wire_send(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_send(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
     let app_state = Rc::clone(&state);
 
@@ -28,10 +25,13 @@ pub fn wire_send(
                 match s.active_session_id() {
                     Some(id) => (id.to_string(), false),
                     None => {
-                        let new_id = format!("{:x}", std::time::SystemTime::now()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_nanos());
+                        let new_id = format!(
+                            "{:x}",
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_nanos()
+                        );
                         s.set_active_session_id(Some(new_id.clone()));
                         (new_id, true)
                     }
@@ -40,7 +40,13 @@ pub fn wire_send(
 
             win.set_active_session_id(session_id.clone().into());
             let project_dir = app_state.borrow().current_project_dir().map(String::from);
-            executor::submit_prompt(&win, message_text.to_string(), session_id, is_new_session, project_dir);
+            executor::submit_prompt(
+                &win,
+                message_text.to_string(),
+                session_id,
+                is_new_session,
+                project_dir,
+            );
         }
     });
 

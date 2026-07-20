@@ -2,17 +2,14 @@
 //!
 //! This module manages the auto-approve policy configuration state for prompt execution.
 
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::rc::Rc;
-use slint::ComponentHandle;
 
 use crate::state::AppState;
 
 /// Register auto-approve toggle callback.
-pub fn wire_auto_approve(
-    window: &crate::OperonWindow,
-    _state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_auto_approve(window: &crate::OperonWindow, _state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
 
     window.on_auto_approve_toggled(move |enabled| {

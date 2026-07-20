@@ -2,18 +2,15 @@
 //!
 //! This module separates the general chats setup from project configuration.
 
+use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
+use slint::ComponentHandle;
 use std::cell::RefCell;
 use std::rc::Rc;
-use rfd::{MessageDialog, MessageLevel, MessageButtons, MessageDialogResult};
-use slint::ComponentHandle;
 
 use crate::state::AppState;
 
 /// Register standalone chat setup and selection actions.
-pub fn wire_chats(
-    window: &crate::OperonWindow,
-    state: Rc<RefCell<AppState>>,
-) {
+pub fn wire_chats(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
 
     // Callback 1: Standalone chat clicked
@@ -54,7 +51,7 @@ pub fn wire_chats(
 
                 let win_weak = window_weak.clone();
                 let session_id_clone = session_id.clone();
-                
+
                 tokio::spawn(async move {
                     if let Ok(paths) = operon_rs::config::OperonPaths::resolve() {
                         let json_path = paths.session_db(&session_id_clone);

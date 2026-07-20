@@ -1,14 +1,23 @@
 import { Tokens } from "../../shared/tokens.slint";
+import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
 
-export component MarkdownParagraph inherits Text {
+export component MarkdownParagraph inherits Rectangle {
+    in property <[InlineMarkdownSpan]> spans: [];
+    in property <string> text: "";
+    in property <styled-text> content: @markdown("");
     in property <string> font-family-custom: Tokens.serif-font-family;
     in property <length> font-size-custom: Tokens.body-font-size;
-    
-    text: "";
-    color: Tokens.text-primary;
-    font-size: root.font-size-custom;
-    font-family: root.font-family-custom;
-    wrap: word-wrap;
-    vertical-alignment: top;
-    horizontal-alignment: left;
+    in property <bool> show-cursor: false;
+
+    background: transparent;
+    height: inline-content.preferred-height;
+
+    inline-content := InlineMarkdown {
+        width: parent.width;
+        spans: root.spans;
+        fallback-text: root.text;
+        font-family-custom: root.font-family-custom;
+        font-size-custom: root.font-size-custom;
+        show-cursor: root.show-cursor;
+    }
 }
