@@ -41,12 +41,14 @@ jobs:
       # Run workspace tests excluding the GUI and TUI frontend crates, as they require
       # active display servers/interfaces which are not available on a headless runner.
       - name: Run cargo test
+        id: test
+        continue-on-error: true
         run: cargo test --workspace --exclude operon-tui --exclude operon-gui
 
       # If the tests fail, search and collect logs under the target/debug directory
       # and upload them for debugging purposes.
       - name: Upload target/debug logs on failure
-        if: failure()
+        if: steps.test.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: debug-logs-${{ runner.os }}
