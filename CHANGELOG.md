@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [0.1.0-beta] - 2026-07-21
+## [0.0.2-beta] - 2026-07-21
 
 This release marks the migration of the desktop GUI framework from Tauri v2 to Slint, achieving a truly native graphics-rendered desktop interface with zero browser/WebView overhead, alongside significant markdown rendering and UI improvements.
 
