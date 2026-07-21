@@ -5,20 +5,22 @@ export component MarkdownHeading inherits VerticalLayout {
     in property <int> level: 1;
     in property <[InlineMarkdownSpan]> spans: [];
     in property <string> text: "";
+    in property <styled-text> content: @markdown("");
+    // Pre-compiled styled text with the trailing cursor parsed on the Rust side
+    in property <styled-text> content-with-cursor: @markdown("");
     in property <bool> show-cursor: false;
     
     spacing: 4px;
     padding-top: 8px;
     padding-bottom: 4px;
+    horizontal-stretch: 1;
     
-    InlineMarkdown {
-        spans: root.spans;
-        fallback-text: root.text;
+    StyledText {
+        width: parent.width;
+        text: root.show-cursor ? root.content-with-cursor : root.content;
         default-color: #ffffff;
-        font-family-custom: Tokens.serif-font-family;
-        font-size-custom: root.level == 1 ? 20px : (root.level == 2 ? 18px : 16px);
-        default-bold: true;
-        show-cursor: root.show-cursor;
+        default-font-family: Tokens.serif-font-family;
+        default-font-size: root.level == 1 ? 20px : (root.level == 2 ? 18px : 16px);
     }
     
     // Bottom border for h1 and h2 (GitHub / Tauri reference style)

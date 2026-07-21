@@ -60,6 +60,7 @@ export component AssistantMessage inherits Rectangle {
 
     // ===== Layout =====
     background: transparent;
+    horizontal-stretch: 1;
 
     // Dynamic height based on message text and controls container height
     height: message-text-area.preferred-height + controls-container.height + 16px;
@@ -79,6 +80,7 @@ export component AssistantMessage inherits Rectangle {
 
             // ===== MESSAGE TEXT AREA (RENDERED AS MARKDOWN) =====
             message-text-area := MarkdownContent {
+                horizontal-stretch: 1;
                 items: root.markdown-items;
                 show-cursor: root.show-cursor;
                 is-thinking: root.is-thinking;

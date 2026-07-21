@@ -10,6 +10,7 @@ export component MarkdownMath inherits Rectangle {
     border-width: root.display ? 1px : 0px;
     border-color: rgba(255, 255, 255, 0.08);
     border-radius: root.display ? 6px : 0px;
+    horizontal-stretch: 1;
     height: formula-text.preferred-height + (root.display ? 24px : 0px);
     clip: true;
 

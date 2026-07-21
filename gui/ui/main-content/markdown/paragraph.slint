@@ -2,22 +2,30 @@ import { Tokens } from "../../shared/tokens.slint";
 import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
 
 export component MarkdownParagraph inherits Rectangle {
+    // List of individual spans (fallback option)
     in property <[InlineMarkdownSpan]> spans: [];
+    // Plain text representation of the paragraph
     in property <string> text: "";
+    // Pre-compiled styled text parsed from the markdown on the Rust side
     in property <styled-text> content: @markdown("");
+    // Pre-compiled styled text with the trailing cursor parsed on the Rust side
+    in property <styled-text> content-with-cursor: @markdown("");
+    // Custom font family for assistant message (PT Serif)
     in property <string> font-family-custom: Tokens.serif-font-family;
+    // Custom font size for readability
     in property <length> font-size-custom: Tokens.body-font-size;
+    // Show trailing cursor if this is the active/streaming chunk
     in property <bool> show-cursor: false;
 
     background: transparent;
-    height: inline-content.preferred-height;
+    horizontal-stretch: 1;
+    height: styled-view.preferred-height;
 
-    inline-content := InlineMarkdown {
+    styled-view := StyledText {
         width: parent.width;
-        spans: root.spans;
-        fallback-text: root.text;
-        font-family-custom: root.font-family-custom;
-        font-size-custom: root.font-size-custom;
-        show-cursor: root.show-cursor;
+        text: root.show-cursor ? root.content-with-cursor : root.content;
+        default-font-family: root.font-family-custom;
+        default-font-size: root.font-size-custom;
+        default-color: Tokens.text-primary;
     }
 }

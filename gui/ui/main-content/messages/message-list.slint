@@ -155,6 +155,7 @@ export component MessageList inherits Rectangle {
                             }
                             
                             if (!msg.is-user) : AssistantMessage {
+                                horizontal-stretch: 1;
                                 message-text: msg.text;
                                 markdown-items: msg.markdown_items;
                                 time-text: msg.time;

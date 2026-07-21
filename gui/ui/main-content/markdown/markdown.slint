@@ -17,6 +17,7 @@ export struct MarkdownItem {
     kind: string, // "p", "h1", "h2", "h3", "code", "bullet", "table", "math", "mermaid", "rule", "thinking", "tool", "permission"
     text: string,
     styled_text: styled-text,
+    styled_text_with_cursor: styled-text,
     inline_spans: [InlineMarkdownSpan],
     lang: string,
     code_lines: [CodeLine],
@@ -72,38 +73,52 @@ export component MarkdownContent inherits VerticalLayout {
     
     spacing: 8px;
     alignment: start;
+    horizontal-stretch: 1;
     
     for item[idx] in root.items : VerticalLayout {
         // Calculate if this is the very last block element in the model
         property <bool> is-last: idx == root.items.length - 1;
+        horizontal-stretch: 1;
         
         if (item.kind == "p") : MarkdownParagraph {
+            horizontal-stretch: 1;
             spans: item.inline-spans;
             text: item.text;
             content: item.styled-text;
+            content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
             font-family-custom: root.font-family;
             font-size-custom: root.font-size;
         }
         if (item.kind == "h1") : MarkdownHeading {
+            horizontal-stretch: 1;
             level: 1;
             spans: item.inline-spans;
             text: item.text;
+            content: item.styled-text;
+            content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
         }
         if (item.kind == "h2") : MarkdownHeading {
+            horizontal-stretch: 1;
             level: 2;
             spans: item.inline-spans;
             text: item.text;
+            content: item.styled-text;
+            content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
         }
         if (item.kind == "h3") : MarkdownHeading {
+            horizontal-stretch: 1;
             level: 3;
             spans: item.inline-spans;
             text: item.text;
+            content: item.styled-text;
+            content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
         }
         if (item.kind == "code") : MarkdownCode {
+            horizontal-stretch: 1;
             text: item.text + (is-last && root.show-cursor ? "|" : "");
             lang: item.lang;
             code-lines: item.code-lines;
@@ -112,24 +127,29 @@ export component MarkdownContent inherits VerticalLayout {
             }
         }
         if (item.kind == "bullet") : MarkdownBullet {
+            horizontal-stretch: 1;
             spans: item.inline-spans;
             text: item.text;
             content: item.styled-text;
+            content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
             font-family-custom: root.font-family;
             font-size-custom: root.font-size;
         }
         if (item.kind == "table") : MarkdownTable {
+            horizontal-stretch: 1;
             headers: item.table-headers;
             rows: item.table-rows;
         }
         if (item.kind == "math") : MarkdownMath {
+            horizontal-stretch: 1;
             text: item.text + (is-last && root.show-cursor ? "|" : "");
             display: item.math-display;
             font-family-custom: root.font-family;
             font-size-custom: root.font-size;
         }
         if (item.kind == "mermaid") : MarkdownMermaid {
+            horizontal-stretch: 1;
             source: item.text + (is-last && root.show-cursor ? "|" : "");
             nodes: item.mermaid-nodes;
             edges: item.mermaid-edges;
@@ -137,6 +157,7 @@ export component MarkdownContent inherits VerticalLayout {
             diagram-height-px: item.mermaid-height-px;
         }
         if (item.kind == "svg") : MarkdownSvg {
+            horizontal-stretch: 1;
             source: item.text + (is-last && root.show-cursor ? "|" : "");
             svg-image: item.svg-image;
             svg-valid: item.svg-valid;
@@ -144,6 +165,7 @@ export component MarkdownContent inherits VerticalLayout {
             svg-height-px: item.svg-height-px;
         }
         if (item.kind == "quote") : Rectangle {
+            horizontal-stretch: 1;
             border-width: 0px;
             background: transparent;
             height: quote-layout.preferred-height;
@@ -161,26 +183,27 @@ export component MarkdownContent inherits VerticalLayout {
                 padding-bottom: 2px;
                 spacing: 0px;
 
-                InlineMarkdown {
-                    spans: item.inline-spans;
-                    fallback-text: item.text;
+                StyledText {
+                    text: (is-last && root.show-cursor) ? item.styled-text-with-cursor : item.styled-text;
                     default-color: #8b949e;
-                    font-size-custom: root.font-size;
-                    font-family-custom: root.font-family;
-                    show-cursor: is-last && root.show-cursor;
+                    default-font-size: root.font-size;
+                    default-font-family: root.font-family;
                     horizontal-stretch: 1;
                 }
             }
         }
         if (item.kind == "rule") : Rectangle {
+            horizontal-stretch: 1;
             height: 4px;
             background: rgba(255, 255, 255, 0.15);
         }
         if (item.kind == "thinking") : ThinkingCard {
+            horizontal-stretch: 1;
             text: item.text;
             active: is-last && root.is-thinking;
         }
         if (item.kind == "tool") : ToolCard {
+            horizontal-stretch: 1;
             tool-name: item.tool_name;
             tool-title: item.tool_title;
             tool-args: item.tool_args;

@@ -198,7 +198,10 @@ impl InlineAccumulator {
 
     fn push_code(&mut self, text: &str) {
         self.plain.push_str(text);
-        self.markdown.push_str(&code_span_markdown(text));
+        // Style the inline code with a red accent color (#e06c75) using the HTML-like font tag,
+        // while preserving the monospace rendering triggered by backticks.
+        let styled_code = format!("<font color='#e06c75'>{}</font>", code_span_markdown(text));
+        self.markdown.push_str(&styled_code);
         self.push_span("code", text);
     }
 
@@ -505,7 +508,27 @@ pub fn to_slint_items(parsed: Vec<ParsedMarkdownItem>) -> Vec<crate::MarkdownIte
                     .map(to_slint_mermaid_edge)
                     .collect(),
             );
-            let styled_text = styled_text_from_markdown(&item.inline_markdown, &item.text);
+            // For headings, we wrap the inline markdown in bold syntax ("**") so that
+            // Slint's StyledText renders the entire heading text bold, while the Slint
+            // heading component manages the specific font-size for h1, h2, or h3.
+            let (md_str, plain_str) = match item.kind.as_str() {
+                "h1" | "h2" | "h3" => (format!("**{}**", item.inline_markdown), item.text.clone()),
+                _ => (item.inline_markdown.clone(), item.text.clone()),
+            };
+
+            // Pre-compile the rich text without the typing cursor.
+            let styled_text = styled_text_from_markdown(&md_str, &plain_str);
+
+            // Pre-compile the rich text with the typing cursor ('|') appended.
+            // This is used by the Slint frontend to toggle the cursor blinks dynamically
+            // without requiring a full re-parse from the Rust side.
+            let (md_cursor_str, plain_cursor_str) = if !md_str.is_empty() {
+                (format!("{}|", md_str), format!("{}|", plain_str))
+            } else {
+                ("".to_string(), "|".to_string())
+            };
+            let styled_text_with_cursor = styled_text_from_markdown(&md_cursor_str, &plain_cursor_str);
+
             let (svg_image, svg_valid, svg_width_px, svg_height_px) =
                 svg_fields_for_item(&item.kind, &item.text);
 
@@ -513,6 +536,7 @@ pub fn to_slint_items(parsed: Vec<ParsedMarkdownItem>) -> Vec<crate::MarkdownIte
                 kind: item.kind.into(),
                 text: item.text.into(),
                 styled_text,
+                styled_text_with_cursor,
                 inline_spans,
                 lang: item.lang.into(),
                 code_lines,

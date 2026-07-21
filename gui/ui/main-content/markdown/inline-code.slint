@@ -89,6 +89,7 @@ export component InlineMarkdown inherits Rectangle {
     in property <LayoutAlignment> alignment-custom: start;
 
     background: transparent;
+    horizontal-stretch: 1;
     height: root.spans.length > 0
         ? inline-layout.preferred-height
         : fallback.preferred-height;
