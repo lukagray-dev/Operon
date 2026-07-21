@@ -21,19 +21,12 @@ export component MessageBubble inherits Rectangle {
     // Callback fired when code block copy button is clicked
     callback code-copied(int /* item-index */);
     
-    // Calculate if the message needs truncation
-    property <bool> needs-truncation: message-text.character-count > 500;
+    // Calculate if the message needs truncation based on its rendered height exceeding 10 lines (200px)
+    property <bool> needs-truncation: message-text-area.preferred-height > root.max-collapsed-height;
     
     // Dynamic height calculation
     property <length> line-height: 20px;
     property <length> max-collapsed-height: 200px;
-    
-    height: is-expanded 
-        ? (message-text-area.preferred-height + 32px)  // Full height + padding
-        : min(message-text-area.preferred-height + 32px, max-collapsed-height + 32px);
-    
-    // Smooth height transition when expanding/collapsing
-    animate height { duration: 250ms; easing: ease-in-out; }
     
     // Background color matches titlebar for consistency
     background: Tokens.titlebar-background;
@@ -55,8 +48,16 @@ export component MessageBubble inherits Rectangle {
             background: transparent;
             vertical-stretch: 1;
             
+            // Constrain and animate the text container's height instead of the bubble itself
+            height: root.is-expanded 
+                ? message-text-area.preferred-height 
+                : min(message-text-area.preferred-height, root.max-collapsed-height);
+            
             // Clip content when collapsed to hide overflow
-            clip: !root.is-expanded;
+            clip: true;
+            
+            // Smooth height transition when expanding/collapsing
+            animate height { duration: 250ms; easing: ease-in-out; }
             
             // The markdown text element
             message-text-area := MarkdownContent {

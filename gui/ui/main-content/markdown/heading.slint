@@ -9,6 +9,7 @@ export component MarkdownHeading inherits VerticalLayout {
     // Pre-compiled styled text with the trailing cursor parsed on the Rust side
     in property <styled-text> content-with-cursor: @markdown("");
     in property <bool> show-cursor: false;
+    in property <string> font-family: Tokens.serif-font-family;
     
     spacing: 4px;
     padding-top: 8px;
@@ -19,7 +20,7 @@ export component MarkdownHeading inherits VerticalLayout {
         width: parent.width;
         text: root.show-cursor ? root.content-with-cursor : root.content;
         default-color: #ffffff;
-        default-font-family: Tokens.serif-font-family;
+        default-font-family: root.font-family;
         default-font-size: root.level == 1 ? 20px : (root.level == 2 ? 18px : 16px);
     }
     

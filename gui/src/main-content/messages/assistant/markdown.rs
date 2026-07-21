@@ -487,7 +487,7 @@ pub fn to_slint_items(parsed: Vec<ParsedMarkdownItem>) -> Vec<crate::MarkdownIte
             let table_headers = to_model_rc(
                 item.table_headers
                     .into_iter()
-                    .map(to_slint_table_cell)
+                    .map(|c| to_slint_table_cell(c, true))
                     .collect(),
             );
             let table_rows = to_model_rc(
@@ -1066,10 +1066,17 @@ fn to_slint_inline_span(span: ParsedInlineSpan) -> crate::InlineMarkdownSpan {
     }
 }
 
-fn to_slint_table_cell(cell: ParsedTableCell) -> crate::MarkdownTableCell {
+fn to_slint_table_cell(cell: ParsedTableCell, is_header: bool) -> crate::MarkdownTableCell {
+    // If this is a table header cell, wrap the parsed markdown in bold tags ("**")
+    // so that Slint's StyledText natively renders the header text bold.
+    let (md_str, plain_str) = if is_header {
+        (format!("**{}**", cell.inline_markdown), cell.text.clone())
+    } else {
+        (cell.inline_markdown.clone(), cell.text.clone())
+    };
     crate::MarkdownTableCell {
         text: cell.text.clone().into(),
-        styled_text: styled_text_from_markdown(&cell.inline_markdown, &cell.text),
+        styled_text: styled_text_from_markdown(&md_str, &plain_str),
         spans: to_model_rc(
             cell.inline_spans
                 .into_iter()
@@ -1083,7 +1090,12 @@ fn to_slint_table_cell(cell: ParsedTableCell) -> crate::MarkdownTableCell {
 
 fn to_slint_table_row(row: ParsedTableRow) -> crate::MarkdownTableRow {
     crate::MarkdownTableRow {
-        cells: to_model_rc(row.cells.into_iter().map(to_slint_table_cell).collect()),
+        cells: to_model_rc(
+            row.cells
+                .into_iter()
+                .map(|c| to_slint_table_cell(c, false))
+                .collect(),
+        ),
     }
 }
 

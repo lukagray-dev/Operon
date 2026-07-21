@@ -98,6 +98,7 @@ export component MarkdownContent inherits VerticalLayout {
             content: item.styled-text;
             content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
+            font-family: root.font-family;
         }
         if (item.kind == "h2") : MarkdownHeading {
             horizontal-stretch: 1;
@@ -107,6 +108,7 @@ export component MarkdownContent inherits VerticalLayout {
             content: item.styled-text;
             content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
+            font-family: root.font-family;
         }
         if (item.kind == "h3") : MarkdownHeading {
             horizontal-stretch: 1;
@@ -116,6 +118,7 @@ export component MarkdownContent inherits VerticalLayout {
             content: item.styled-text;
             content-with-cursor: item.styled-text-with-cursor;
             show-cursor: is-last && root.show-cursor;
+            font-family: root.font-family;
         }
         if (item.kind == "code") : MarkdownCode {
             horizontal-stretch: 1;

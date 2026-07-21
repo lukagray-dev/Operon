@@ -37,91 +37,89 @@ export component UserMessage inherits Rectangle {
     callback code-copied(int /* item-index */);
     
     // ===== Layout =====
+    // Background is transparent
     background: transparent;
     
-    // Dynamic height based on bubble and buttons
-    height: bubble.height + action-buttons-container.height + 4px;
-    
-    // Outer TouchArea wrapping the entire component.
+    // Outer TouchArea as a sibling overlay wrapping the entire area for hover detection.
     hover-touch := TouchArea {
         width: 100%;
         height: 100%;
-
-        // Horizontal layout to position content on the right side
-        HorizontalLayout {
-            // Add 12px padding on the right to match assistant message padding
-            padding-right: 12px;
+    }
+    
+    // Main layout determining the height of the component
+    HorizontalLayout {
+        // Add 12px padding on the right to match assistant message padding
+        padding-right: 12px;
+        
+        // Left spacer - pushes content to the right
+        Rectangle {
+            horizontal-stretch: 1;
+            background: transparent;
+        }
+        
+        // Right section containing the message bubble and buttons
+        right-section := Rectangle {
+            width: root.max-bubble-width;
+            horizontal-stretch: 0;
+            background: transparent;
+            height: right-section-layout.preferred-height;
             
-            // Left spacer - pushes content to the right
-            Rectangle {
-                horizontal-stretch: 1;
-                background: transparent;
-            }
-            
-            // Right section containing the message bubble and buttons
-            right-section := Rectangle {
-                width: root.max-bubble-width;
-                horizontal-stretch: 0;
-                background: transparent;
+            // Vertical layout for bubble and buttons
+            right-section-layout := VerticalLayout {
+                spacing: 4px;
+                alignment: start;
                 
-                // Vertical layout for bubble and buttons
-                VerticalLayout {
-                    spacing: 4px;
-                    alignment: start;
+                // ===== MESSAGE BUBBLE =====
+                bubble := MessageBubble {
+                    message-text: root.message-text;
+                    markdown-items: root.markdown-items;
+                    is-expanded <=> root.is-expanded;
                     
-                    // ===== MESSAGE BUBBLE =====
-                    bubble := MessageBubble {
-                        message-text: root.message-text;
-                        markdown-items: root.markdown-items;
-                        is-expanded <=> root.is-expanded;
-                        
-                        // Forward the expand callback
-                        expand-clicked => {
-                            root.expand-clicked();
-                        }
-
-                        code-copied(idx) => {
-                            root.code-copied(idx);
-                        }
+                    // Forward the expand callback
+                    expand-clicked => {
+                        root.expand-clicked();
                     }
-                    
-                    // ===== ACTION BUTTONS =====
-                    action-buttons-container := Rectangle {
-                        height: 28px;
-                        vertical-stretch: 0;
-                        horizontal-stretch: 1;
 
-                        action-buttons := Rectangle {
-                            width: 100%;
-                            height: 100%;
-                            background: transparent;
+                    code-copied(idx) => {
+                        root.code-copied(idx);
+                    }
+                }
+                
+                action-buttons-container := Rectangle {
+                    height: 28px;
+                    vertical-stretch: 0;
+                    horizontal-stretch: 1;
 
-                            // Fade effect linked to parent hover state
-                            opacity: hover-touch.has-hover ? 1.0 : 0.0;
+                    action-buttons := Rectangle {
+                        width: 100%;
+                        height: 100%;
+                        background: transparent;
+
+                        // Fade effect linked to parent hover state
+                        opacity: hover-touch.has-hover ? 1.0 : 0.0;
+                        
+                        // Fully disable interactions when completely faded out
+                        visible: self.opacity > 0.0;
+
+                        // Smooth opacity transition on hover enter/exit
+                        animate opacity { duration: 150ms; easing: ease-in-out; }
+
+                        // Horizontal layout for buttons
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
                             
-                            // Fully disable interactions when completely faded out
-                            visible: self.opacity > 0.0;
-
-                            // Smooth opacity transition on hover enter/exit
-                            animate opacity { duration: 150ms; easing: ease-in-out; }
-
-                            // Horizontal layout for buttons
-                            HorizontalLayout {
-                                spacing: 8px;
-                                alignment: start;
-                                
-                                // Edit button
-                                EditButton {
-                                    clicked => {
-                                        root.edit-clicked();
-                                    }
+                            // Edit button
+                            EditButton {
+                                clicked => {
+                                    root.edit-clicked();
                                 }
-                                
-                                // Copy button
-                                CopyButton {
-                                    clicked => {
-                                        root.copy-clicked();
-                                    }
+                            }
+                            
+                            // Copy button
+                            CopyButton {
+                                clicked => {
+                                    root.copy-clicked();
                                 }
                             }
                         }

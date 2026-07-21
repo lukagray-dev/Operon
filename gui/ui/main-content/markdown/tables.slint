@@ -26,17 +26,15 @@ component MarkdownTableCellView inherits Rectangle {
     border-width: 1px;
     border-color: rgba(255, 255, 255, 0.15);
 
-    cell-text := InlineMarkdown {
+    cell-text := StyledText {
         x: 13px;
         y: 6px;
         width: parent.width - 26px;
-        spans: root.cell.spans;
-        fallback-text: root.cell.text;
+        text: root.cell.styled-text;
         default-color: root.is-header ? #ffffff : Tokens.text-primary;
-        font-family-custom: Tokens.serif-font-family;
-        font-size-custom: Tokens.body-font-size;
-        default-bold: root.is-header;
-        alignment-custom: root.cell.alignment == "right"
+        default-font-family: Tokens.serif-font-family;
+        default-font-size: Tokens.body-font-size;
+        horizontal-alignment: root.cell.alignment == "right"
             ? end
             : (root.cell.alignment == "center" ? center : start);
     }
