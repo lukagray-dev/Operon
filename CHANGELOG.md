@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [0.1.0-beta] - 2026-07-21
+
+This release marks the migration of the desktop GUI framework from Tauri v2 to Slint, achieving a truly native graphics-rendered desktop interface with zero browser/WebView overhead, alongside significant markdown rendering and UI improvements.
+
+### Added
+- **Slint GUI Framework Migration**:
+  - Migrated the entire GUI application from Tauri v2/Web HTML/CSS to Slint, utilizing direct-to-GPU graphics rendering (Skia/FemtoVG) and dropping the memory footprint to ~70 MB idle / <90 MB under load.
+  - Configured Windows executable builds to run in the `windows` subsystem for production release, hiding the console terminal window on startup.
+  - Refactored GitHub Actions workflows (`ci.yml`, `pre-release.yml`, `stable-release.yml`) to support Slint system dependencies on Linux and standard cargo release builds.
+
+### Fixed
+- **Markdown Text Wrapping**:
+  - Replaced the custom non-wrapping `InlineMarkdown` layout loop with the native `StyledText` element in paragraphs, bullet points, headers, blockquotes, and table cells to enable proper line wrapping of long formatted text.
+  - Added support for dynamic blinking cursor rendering on the Slint side by compiling styled text variants with and without the cursor in Rust.
+  - Fixed literal markdown heading hash (`#`) display by bolding heading strings on the Rust side rather than prepending hashes.
+  - Styled inline code spans with a soft red color (`#e06c75`) within `StyledText` using HTML-style font tags.
+- **User Message Bubble**:
+  - Resolved user bubble layout constraints and vertical overflow by bounding and animating height constraints directly on the `text-container` element with explicit clipping.
+  - Resolved UI height binding loops by placing the hover touch overlay as a sibling to the user message layout structure.
+  - Propagated custom font settings to headings within user messages to ensure they correctly use the `"Google Sans"` application font rather than hardcoding serif fonts.
+
 ## [0.0.1-beta] - 2026-06-07
 
 This is the initial pre-release of **Operon**, featuring the core Rust-based agent runtime and a high-performance Tauri-based desktop GUI interface.
