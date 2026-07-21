@@ -69,22 +69,21 @@ So in early 2026, I started building **Operon**. 🎉
 
 ## ⚡ Performance
 
-Operon's backend is written in Rust. No Electron. No V8 heap. No garbage collector.
+Operon is built with Rust and Slint. No Electron, no V8 heap, and no garbage collection.
 
 | | Operon | Claude Code | Codex | OpenClaw |
 |---|---|---|---|---|
-| **Runtime** | Rust + Tauri | Node.js + Electron | Node.js + Electron | Node.js |
-| **Idle RAM** | **4 MB** | ~300 MB | ~1 GB | ~512 MB |
-| **Under load** | **< 15 MB** | 500 MB – 2+ GB | 2+ GB | 512 MB – 7 GB |
-| **Known memory leaks** | None (under development) | [Yes](https://github.com/anthropics/claude-code/issues/33211) | [Yes](https://github.com/openai/codex/issues/20740) | — |
+| **Runtime** | Rust + Slint | Node.js + Electron | Node.js + Electron | Node.js |
+| **Idle RAM** | **~70 MB** | ~300 MB | ~1 GB | ~512 MB |
+| **Under load** | **< 90 MB** | 500 MB – 2+ GB | 2+ GB | 512 MB – 7 GB |
 
-Claude Code and Codex app are built on Electron, their memory floor is the Node.js runtime plus a full Chromium renderer, regardless of what the agent is doing.  
-Operon uses the OS-native WebView for its UI (WebView2 on Windows, WebKit on macOS/Linux), which runs in a separate system process and is not counted in Operon's footprint.  
-The Rust backend itself, session runner, tool dispatcher, snapshot watcher, async runtime, idles at **4 MB** and stays under **15 MB** even during active tool use.
+Electron-based apps require a full Chromium renderer and Node.js runtime.  
+Operon compiles down to a single, truly native binary utilizing Slint's direct-to-GPU graphics rendering (no WebViews or browser engines). The entire application (GUI + session runner + tool dispatcher) runs in a single lightweight process.
 
-> *Idle numbers for Claude Code and Codex are sourced from their respective GitHub issue trackers. OpenClaw minimum from official deployment docs.*
+#### Why Slint?
 
----
+> We migrated from web-based frameworks (like Tauri) to [`Slint`](https://github.com/SlintSDK/slint) to achieve true native performance. Slint compiles directly to machine code and draws UI elements directly using the GPU (via Skia/FemtoVG), entirely bypassing browser engines, WebViews, or Node.js runtimes.  
+> This results in instant startup (<50ms) and keeps the total memory footprint under 90 MB.
 
 ## 🛡️ Permission Model
 
@@ -103,63 +102,6 @@ Every sender is classified as one of two roles:
 This classification happens at the channel level. A message from your own device is Owner. A message arriving through a public WhatsApp number is External — unless you've explicitly marked that contact as trusted.
 
 Once the role is known, Operon checks what it's permitted to do for that role. If the permission isn't explicitly granted, the answer is no.
-
-### Tools and Permissions
-
-Operon's capabilities are delivered through **tools** — discrete actions like reading a file, running a shell command, or searching the web. Permissions are set per tool, per role, across two scopes:
-
-**Global Tools** — don't touch your file system. Permissions are set once, globally.
-
-| Tool | What it does |
-|---|---|
-| Web | Search the web and fetch URLs |
-| Sub-agents | Spin up child agents to handle subtasks |
-| Ask Question | Request clarification from the user |
-| Task Management | Create, track, and manage ongoing tasks |
-| Load Tools | Load available tool groups |
-
-**Directory-Scoped Tools** — interact with your files and system. Permissions are tied to specific directories you choose to add. Anything outside an added directory is completely inaccessible.
-
-| Tool Group | What it does |
-|---|---|
-| File System | Read, write, list, create, and delete files |
-| Shell | Run commands and scripts |
-
-### The Three Permission Modes
-
-Every tool permission is set to one of three modes:
-
-| Mode | Meaning |
-|---|---|
-| **Allow** | Operon may use this tool freely for this role |
-| **Ask** | Operon must request your confirmation before acting |
-| **Deny** | Operon cannot use this tool for this role under any circumstances |
-
-**Ask** is the practical middle ground. It lets external users initiate actions without giving them unsupervised access — Operon pauses and checks with you before proceeding.
-
-### A Concrete Example
-
-Say you're a doctor. You've added two directories:
-
-```
-~/clinic/appointments
-~/clinic/patient-records
-```
-
-You configure them like this:
-
-| Directory | Tool | Owner | External |
-|---|---|---|---|
-| `appointments` | File System | Allow | Ask |
-| `appointments` | Shell | Allow | Deny |
-| `patient-records` | File System | Allow | Deny |
-| `patient-records` | Shell | Deny | Deny |
-
-A patient messages Operon on WhatsApp asking to book an appointment. Operon can act on `appointments` — but only after your confirmation. It cannot touch `patient-records` at all. It cannot run any shell commands on their behalf.
-
-When *you* send the same request, Operon has full access and can act immediately.
-
-Same agent. Same prompt. Different role → different outcome.
 
 ### Why This Matters
 
@@ -212,7 +154,7 @@ Operon is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**
 
 <br/>
 
-Built by **Soumo Mukherjee (aka Luka Gray)** • West Bengal, India • 2026  
+Built by **Luka Gray (aka Soumo Mukherjee)** • West Bengal, India • 2026  
 *"The best tools disappear. You stop thinking about the tool and start thinking about the work."*
 
 <br/>
