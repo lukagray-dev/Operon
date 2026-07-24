@@ -1,0 +1,13 @@
+// =============================================================================
+// Markdown Line Spacer Component (`ui/markdown/spacer.slint`)
+// =============================================================================
+// Renders dynamic blank vertical space for line break gaps (e.g. 6 empty lines).
+
+import { Tokens } from "../../shared/tokens.slint";
+
+export component MarkdownSpacer inherits Rectangle {
+    // level property holds the count of blank lines to preserve
+    in property <int> level: 1;
+
+    height: (root.level * 24) * 1px;
+}

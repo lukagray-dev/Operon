@@ -1,41 +1,69 @@
+// =============================================================================
+// Master Markdown Renderer Component (`ui/markdown/markdown.slint`)
+// =============================================================================
+// Entry point component for rendering GitHub-flavored Markdown documents in Slint.
+// Uses Slint 1.17's built-in `StyledText` element with the `styled-text` property
+// type for native rich inline formatting.
+
 import { Tokens } from "../../shared/tokens.slint";
-import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
-import { MarkdownParagraph } from "./paragraph.slint";
+import { MarkdownTableRow } from "./types.slint";
 import { MarkdownHeading } from "./heading.slint";
-import { MarkdownCode, CodeLine } from "./code.slint";
-import { MarkdownBullet } from "./bullet.slint";
-import { MarkdownTable, MarkdownTableCell, MarkdownTableRow } from "./tables.slint";
-import { MarkdownMath } from "./math.slint";
-import { MarkdownMermaid, MermaidNode, MermaidEdge } from "./mermaid.slint";
-import { MarkdownSvg } from "./svg.slint";
+import { MarkdownParagraph } from "./paragraph.slint";
+import { MarkdownList } from "./list.slint";
+import { MarkdownRule } from "./rule.slint";
+import { MarkdownSpacer } from "./spacer.slint";
+import { MarkdownTable } from "./table.slint";
+import { MarkdownCodeBlock } from "./code_block.slint";
+import { MarkdownDisplayMath } from "./math.slint";
+import { MarkdownBlockQuote } from "./blockquote.slint";
+import { MarkdownLink } from "./link.slint";
+import { MarkdownMermaid } from "./mermaid.slint";
 import { ThinkingCard } from "../reasoning/reasoning.slint";
-import { DiffLine } from "../tools/diff.slint";
 import { ToolCard } from "../tools/cards.slint";
+import { DiffLine } from "../tools/diff.slint";
 
-// Struct representing a single block-level markdown item
-export struct MarkdownItem {
-    kind: string, // "p", "h1", "h2", "h3", "code", "bullet", "table", "math", "mermaid", "rule", "thinking", "tool", "permission"
+// Enum specifying the block type of a Markdown AST element
+export enum MarkdownBlockType {
+    Heading,
+    Paragraph,
+    ListItem,
+    Rule,
+    Spacer,
+    Table,
+    CodeBlock,
+    DisplayMath,
+    BlockQuote,
+    Link,
+    Mermaid,
+    Thinking,
+    Tool,
+}
+
+// Struct representing a single parsed Markdown block element.
+export struct MarkdownElement {
+    block_type: MarkdownBlockType,
+    // `text` is the plain-text fallback string (or target URL for links)
     text: string,
-    styled_text: styled-text,
-    styled_text_with_cursor: styled-text,
-    inline_spans: [InlineMarkdownSpan],
-    lang: string,
-    code_lines: [CodeLine],
+    // `rich_text` carries full inline bold/italic/code formatting
+    rich_text: styled-text,
+    level: int,
+    is_ordered: bool,
+    prefix: string,
+    is_task: bool,
+    is_checked: bool,
+    depth: int,
+    // Table rows for MarkdownBlockType.Table
+    rows: [MarkdownTableRow],
+    // Language identifier for MarkdownBlockType.CodeBlock (e.g. "rust", "js")
+    language: string,
+    // Rendered vector image for MarkdownBlockType.Mermaid
+    diagram_image: image,
 
-    // Rich Markdown Fields
-    table_headers: [MarkdownTableCell],
-    table_rows: [MarkdownTableRow],
-    math_display: bool,
-    mermaid_nodes: [MermaidNode],
-    mermaid_edges: [MermaidEdge],
-    mermaid_width_px: int,
-    mermaid_height_px: int,
-    svg_image: image,
-    svg_valid: bool,
-    svg_width_px: int,
-    svg_height_px: int,
-    
-    // Tool Call Fields
+    // Thinking Card fields
+    thinking_text: string,
+    is_thinking_active: bool,
+
+    // Tool Call fields
     tool_name: string,
     tool_title: string,
     tool_args: string,
@@ -47,7 +75,7 @@ export struct MarkdownItem {
     tool_deleted_count: int,
     tool_call_id: string,
 
-    // Permission Prompt Fields
+    // Permission Prompt fields
     permission_id: string,
     permission_tool: string,
     permission_path: string,
@@ -56,166 +84,95 @@ export struct MarkdownItem {
     permission_status: string, // "pending", "approved", "denied"
 }
 
-// Markdown renderer container that loops over MarkdownItems
-export component MarkdownContent inherits VerticalLayout {
-    in property <[MarkdownItem]> items: [];
-    in property <bool> show-cursor: false;
-    in property <bool> is-thinking: false;
-    in property <string> font-family: Tokens.serif-font-family;
-    in property <length> font-size: Tokens.body-font-size;
-    
-    // Callback fired when a code block's copy button is clicked
-    callback code-copied(int /* item-index */);
-    
-    // Callbacks fired when permission prompts are resolved
-    callback permission-approved(string /* permission_id */);
-    callback permission-denied(string /* permission_id */);
-    
-    spacing: 8px;
-    alignment: start;
-    horizontal-stretch: 1;
-    
-    for item[idx] in root.items : VerticalLayout {
-        // Calculate if this is the very last block element in the model
-        property <bool> is-last: idx == root.items.length - 1;
-        horizontal-stretch: 1;
-        
-        if (item.kind == "p") : MarkdownParagraph {
-            horizontal-stretch: 1;
-            spans: item.inline-spans;
-            text: item.text;
-            content: item.styled-text;
-            content-with-cursor: item.styled-text-with-cursor;
-            show-cursor: is-last && root.show-cursor;
-            font-family-custom: root.font-family;
-            font-size-custom: root.font-size;
+// Main exported view component rendering the array of Markdown blocks
+export component MarkdownView inherits VerticalLayout {
+    in property <[MarkdownElement]> elements: [];
+    in property <string> font_family: Tokens.font_family;
+    callback open-url(string);
+
+    spacing: 0px;
+    padding: 0px;
+    width: 100%;
+
+    for element in root.elements : VerticalLayout {
+        spacing: 0px;
+        padding: 0px;
+
+        if (element.block_type == MarkdownBlockType.Heading) : MarkdownHeading {
+            level: element.level;
+            rich_text: element.rich_text;
+            font_family: root.font_family;
         }
-        if (item.kind == "h1") : MarkdownHeading {
-            horizontal-stretch: 1;
-            level: 1;
-            spans: item.inline-spans;
-            text: item.text;
-            content: item.styled-text;
-            content-with-cursor: item.styled-text-with-cursor;
-            show-cursor: is-last && root.show-cursor;
-            font-family: root.font-family;
+
+        if (element.block_type == MarkdownBlockType.Paragraph) : MarkdownParagraph {
+            rich_text: element.rich_text;
+            font_family: root.font_family;
         }
-        if (item.kind == "h2") : MarkdownHeading {
-            horizontal-stretch: 1;
-            level: 2;
-            spans: item.inline-spans;
-            text: item.text;
-            content: item.styled-text;
-            content-with-cursor: item.styled-text-with-cursor;
-            show-cursor: is-last && root.show-cursor;
-            font-family: root.font-family;
+
+        if (element.block_type == MarkdownBlockType.ListItem) : MarkdownList {
+            text: element.text;
+            rich_text: element.rich_text;
+            depth: element.depth;
+            is_ordered: element.is_ordered;
+            prefix: element.prefix;
+            is_task: element.is_task;
+            is_checked: element.is_checked;
+            font_family: root.font_family;
         }
-        if (item.kind == "h3") : MarkdownHeading {
-            horizontal-stretch: 1;
-            level: 3;
-            spans: item.inline-spans;
-            text: item.text;
-            content: item.styled-text;
-            content-with-cursor: item.styled-text-with-cursor;
-            show-cursor: is-last && root.show-cursor;
-            font-family: root.font-family;
+
+        if (element.block_type == MarkdownBlockType.Rule) : MarkdownRule {}
+
+        if (element.block_type == MarkdownBlockType.Spacer) : MarkdownSpacer {
+            level: element.level;
         }
-        if (item.kind == "code") : MarkdownCode {
-            horizontal-stretch: 1;
-            text: item.text + (is-last && root.show-cursor ? "|" : "");
-            lang: item.lang;
-            code-lines: item.code-lines;
-            copy-clicked => {
-                root.code-copied(idx);
+
+        if (element.block_type == MarkdownBlockType.Table) : MarkdownTable {
+            rows: element.rows;
+        }
+
+        if (element.block_type == MarkdownBlockType.CodeBlock) : MarkdownCodeBlock {
+            rich_text: element.rich_text;
+            language: element.language;
+        }
+
+        if (element.block_type == MarkdownBlockType.DisplayMath) : MarkdownDisplayMath {
+            rich_text: element.rich_text;
+        }
+
+        if (element.block_type == MarkdownBlockType.BlockQuote) : MarkdownBlockQuote {
+            rich_text: element.rich_text;
+            depth: element.depth;
+            font_family: root.font_family;
+        }
+
+        if (element.block_type == MarkdownBlockType.Link) : MarkdownLink {
+            rich_text: element.rich_text;
+            url: element.text;
+
+            open-url(url) => {
+                root.open-url(url);
             }
         }
-        if (item.kind == "bullet") : MarkdownBullet {
-            horizontal-stretch: 1;
-            spans: item.inline-spans;
-            text: item.text;
-            content: item.styled-text;
-            content-with-cursor: item.styled-text-with-cursor;
-            show-cursor: is-last && root.show-cursor;
-            font-family-custom: root.font-family;
-            font-size-custom: root.font-size;
-        }
-        if (item.kind == "table") : MarkdownTable {
-            horizontal-stretch: 1;
-            headers: item.table-headers;
-            rows: item.table-rows;
-        }
-        if (item.kind == "math") : MarkdownMath {
-            horizontal-stretch: 1;
-            text: item.text + (is-last && root.show-cursor ? "|" : "");
-            display: item.math-display;
-            font-family-custom: root.font-family;
-            font-size-custom: root.font-size;
-        }
-        if (item.kind == "mermaid") : MarkdownMermaid {
-            horizontal-stretch: 1;
-            source: item.text + (is-last && root.show-cursor ? "|" : "");
-            nodes: item.mermaid-nodes;
-            edges: item.mermaid-edges;
-            diagram-width-px: item.mermaid-width-px;
-            diagram-height-px: item.mermaid-height-px;
-        }
-        if (item.kind == "svg") : MarkdownSvg {
-            horizontal-stretch: 1;
-            source: item.text + (is-last && root.show-cursor ? "|" : "");
-            svg-image: item.svg-image;
-            svg-valid: item.svg-valid;
-            svg-width-px: item.svg-width-px;
-            svg-height-px: item.svg-height-px;
-        }
-        if (item.kind == "quote") : Rectangle {
-            horizontal-stretch: 1;
-            border-width: 0px;
-            background: transparent;
-            height: quote-layout.preferred-height;
 
-            Rectangle {
-                width: 4px;
-                height: parent.height;
-                background: rgba(255, 255, 255, 0.20);
-            }
+        if (element.block_type == MarkdownBlockType.Mermaid) : MarkdownMermaid {
+            diagram_image: element.diagram_image;
+        }
 
-            quote-layout := HorizontalLayout {
-                padding-left: 14px;
-                padding-right: 4px;
-                padding-top: 2px;
-                padding-bottom: 2px;
-                spacing: 0px;
+        if (element.block_type == MarkdownBlockType.Thinking) : ThinkingCard {
+            text: element.thinking_text;
+            active: element.is_thinking_active;
+        }
 
-                StyledText {
-                    text: (is-last && root.show-cursor) ? item.styled-text-with-cursor : item.styled-text;
-                    default-color: #8b949e;
-                    default-font-size: root.font-size;
-                    default-font-family: root.font-family;
-                    horizontal-stretch: 1;
-                }
-            }
-        }
-        if (item.kind == "rule") : Rectangle {
-            horizontal-stretch: 1;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.15);
-        }
-        if (item.kind == "thinking") : ThinkingCard {
-            horizontal-stretch: 1;
-            text: item.text;
-            active: is-last && root.is-thinking;
-        }
-        if (item.kind == "tool") : ToolCard {
-            horizontal-stretch: 1;
-            tool-name: item.tool_name;
-            tool-title: item.tool_title;
-            tool-args: item.tool_args;
-            tool-result: item.tool_result;
-            tool-status: item.tool_status;
-            tool-is-diff: item.tool_is_diff;
-            tool-diff-lines: item.tool_diff_lines;
-            tool-added-count: item.tool_added_count;
-            tool-deleted-count: item.tool_deleted_count;
+        if (element.block_type == MarkdownBlockType.Tool) : ToolCard {
+            tool-name: element.tool_name;
+            tool-title: element.tool_title;
+            tool-args: element.tool_args;
+            tool-result: element.tool_result;
+            tool-status: element.tool_status;
+            tool-is-diff: element.tool_is_diff;
+            tool-diff-lines: element.tool_diff_lines;
+            tool-added-count: element.tool_added_count;
+            tool-deleted-count: element.tool_deleted_count;
         }
     }
 }

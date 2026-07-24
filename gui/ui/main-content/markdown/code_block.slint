@@ -1,0 +1,60 @@
+// =============================================================================
+// Markdown Fenced Code Block Renderer Component (`ui/markdown/code_block.slint`)
+// =============================================================================
+// Renders GitHub-style syntax-highlighted code blocks with rounded borders,
+// header language label strip, and `Kode Mono` monospace typography.
+
+import { Tokens } from "../../shared/tokens.slint";
+
+export component MarkdownCodeBlock inherits VerticalLayout {
+    in property <styled-text> rich_text;
+    in property <string> language: "";
+
+    padding-top: 12px;
+    padding-bottom: 12px;
+
+    Rectangle {
+        clip: true;
+        background: #161b22;
+
+        VerticalLayout {
+            spacing: 0px;
+            padding: 0px;
+
+            // Header language strip (shown when language tag exists)
+            if (root.language != "") : Rectangle {
+                height: 28px;
+                background: #0d1117;
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+
+                    Text {
+                        text: root.language;
+                        font-family: Tokens.mono_font_family;
+                        font-size: 11px;
+                        color: #8b949e;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Code content container
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                padding-top: 12px;
+                padding-bottom: 12px;
+
+                StyledText {
+                    text: root.rich_text;
+                    default-font-family: Tokens.mono_font_family;
+                    default-font-size: Tokens.body_font_size;
+                    default-color: #c9d1d9;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

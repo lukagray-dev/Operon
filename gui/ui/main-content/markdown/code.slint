@@ -1,145 +1,44 @@
+// =============================================================================
+// Markdown Inline Code Styling Component (`ui/markdown/code.slint`)
+// =============================================================================
+// Defines tokens and styling constants for monospaced inline code snippets (`Kode Mono`).
+
 import { Tokens } from "../../shared/tokens.slint";
 
-export struct CodeToken {
-    text: string,
-    color: color,
+export global CodeTokens {
+    // Monospace font family for inline code & technical text
+    in property <string> font_family: Tokens.mono_font_family;
+    // GitHub-style dark inline code text color (#79c0ff)
+    in property <color> text_color: Tokens.code_text_color;
+    // GitHub-style dark inline code background container (#6e768133)
+    in property <color> bg_code: Tokens.code_bg_color;
+    // Border radius for capsule-like inline code container chips (6px)
+    in property <length> border_radius: 6px;
+    // Padding inside inline code chips
+    in property <length> padding_x: 4px;
+    in property <length> padding_y: 2px;
 }
 
-export struct CodeLine {
-    tokens: [CodeToken],
-}
-
-export component MarkdownCode inherits Rectangle {
-    in property <string> text: "";
-    in property <string> lang: "";
-    in property <[CodeLine]> code-lines: [];
-    
-    // Tracks copy feedback state
-    in-out property <bool> is-copied: false;
-    
-    background: rgba(30, 30, 30, 0.4);
+// Exported component for rendering standalone capsule inline code chips
+export component MarkdownCodeSnippet inherits Rectangle {
+    in property <string> code: "";
+    background: CodeTokens.bg_code;
+    border-radius: CodeTokens.border_radius;
     border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    horizontal-stretch: 1;
-    
-    // Callback fired when copy icon is clicked
-    callback copy-clicked();
-    
-    // Dynamic height based on header height (28px) plus code content height
-    height: 28px + content-layout.preferred-height;
-    
-    // Timer to reset copy feedback after 3 seconds
-    timer := Timer {
-        interval: 3s;
-        running: false;
-        triggered => {
-            root.is-copied = false;
-            self.running = false;
-        }
-    }
-    
-    VerticalLayout {
-        // Header
-        Rectangle {
-            height: 28px;
-            background: rgba(255, 255, 255, 0.04);
-            
-            // Bottom border inside header
-            Rectangle {
-                y: parent.height - 1px;
-                height: 1px;
-                background: rgba(255, 255, 255, 0.08);
-            }
-            
-            HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                alignment: space-between;
-                
-                // Language label
-                Text {
-                    text: root.lang != "" ? root.lang : "code";
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: #8b949e;
-                    vertical-alignment: center;
-                }
-                
-                // Copy button container to center vertically
-                VerticalLayout {
-                    alignment: center;
-                    
-                    copy-touch := TouchArea {
-                        width: 20px;
-                        height: 20px;
-                        mouse-cursor: pointer;
-                        
-                        VerticalLayout {
-                            alignment: center;
-                            HorizontalLayout {
-                                alignment: center;
-                                Image {
-                                    source: root.is-copied
-                                        ? @image-url("../../../assets/icons/main-content/messages/assistant/check.svg")
-                                        : @image-url("../../../assets/icons/main-content/messages/assistant/copy.svg");
-                                    width: 14px;
-                                    height: 14px;
-                                    colorize: copy-touch.has-hover ? #ffffff : #8b949e;
-                                }
-                            }
-                        }
-                        
-                        clicked => {
-                            root.is-copied = true;
-                            timer.running = true;
-                            root.copy-clicked();
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Code Text container with Flickable horizontal scrollbar support
-        Rectangle {
-            Flickable {
-                viewport-width: max(400px, content-layout.preferred-width);
-                viewport-height: content-layout.preferred-height;
-                
-                content-layout := VerticalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 12px;
-                    padding-bottom: 12px;
-                    
-                    // Render highlighted token spans if available
-                    if (root.code-lines.length > 0) : VerticalLayout {
-                        alignment: start;
-                        spacing: 2px;
-                        
-                        for line in root.code-lines : HorizontalLayout {
-                            alignment: start;
-                            spacing: 0;
-                            
-                            for token in line.tokens : Text {
-                                text: token.text;
-                                font-family: Tokens.mono-font-family;
-                                font-size: Tokens.body-font-size;
-                                color: token.color;
-                            }
-                        }
-                    }
-                    
-                    // Fallback to plain text rendering
-                    if (root.code-lines.length == 0) : Text {
-                        text: root.text;
-                        font-family: Tokens.mono-font-family;
-                        font-size: Tokens.body-font-size;
-                        color: #f0f6fc;
-                        wrap: no-wrap;
-                    }
-                }
-            }
+    border-color: #30363d;
+
+    HorizontalLayout {
+        padding-left: CodeTokens.padding_x;
+        padding-right: CodeTokens.padding_x;
+        padding-top: CodeTokens.padding_y;
+        padding-bottom: CodeTokens.padding_y;
+
+        Text {
+            text: root.code;
+            font-family: CodeTokens.font_family;
+            font-size: Tokens.body_font_size;
+            color: CodeTokens.text_color;
+            vertical-alignment: center;
         }
     }
 }

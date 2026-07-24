@@ -121,6 +121,7 @@ globset      = "0.4"
 trash        = "5"
 duckduckgo           = "0.3"
 htmd                 = "0.5"
+pulldown-cmark = "0.11.3"
 spider               = { version = "2.52.0", features = ["chrome"] }
 spider_transformations = "2.39.13"
 

@@ -1,7 +1,7 @@
 // Assistant message component that combines all assistant message elements.
 
 import { Tokens } from "../../../shared/tokens.slint";
-import { MarkdownItem, MarkdownContent } from "../../markdown/markdown.slint";
+import { MarkdownElement, MarkdownView } from "../../markdown/markdown.slint";
 import { Separator } from "./separator.slint";
 import { OperonLogo } from "./operon.slint";
 import { CopyButton } from "./copy.slint";
@@ -16,8 +16,8 @@ export component AssistantMessage inherits Rectangle {
     // The message text content
     in property <string> message-text: "";
     
-    // Parsed markdown items
-    in property <[MarkdownItem]> markdown-items: [];
+    // Parsed markdown elements
+    in property <[MarkdownElement]> markdown-elements: [];
     
     // Whether to show the blinking typing indicator cursor
     in property <bool> show-cursor: false;
@@ -79,20 +79,22 @@ export component AssistantMessage inherits Rectangle {
             alignment: start;
 
             // ===== MESSAGE TEXT AREA (RENDERED AS MARKDOWN) =====
-            message-text-area := MarkdownContent {
+            message-text-area := MarkdownView {
                 horizontal-stretch: 1;
-                items: root.markdown-items;
-                show-cursor: root.show-cursor;
-                is-thinking: root.is-thinking;
-                font-size: 14.5px;
-                code-copied(idx) => {
-                    root.code-copied(idx);
-                }
-                permission-approved(id) => {
-                    root.permission-approved(id);
-                }
-                permission-denied(id) => {
-                    root.permission-denied(id);
+                elements: root.markdown-elements;
+                font-family: Tokens.serif_font_family;
+            }
+
+            if (root.show-cursor) : HorizontalLayout {
+                padding-top: 2px;
+                padding-bottom: 2px;
+                alignment: start;
+
+                Text {
+                    text: "▋";
+                    color: Tokens.accent_blue;
+                    font-size: 15px;
+                    font-family: Tokens.serif_font_family;
                 }
             }
 

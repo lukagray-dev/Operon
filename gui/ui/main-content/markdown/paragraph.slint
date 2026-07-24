@@ -1,31 +1,27 @@
+// =============================================================================
+// Markdown Paragraph Component (`ui/markdown/paragraph.slint`)
+// =============================================================================
+// Renders standard body paragraph blocks with Slint's built-in StyledText for
+// native bold/italic/code/link inline formatting.
+
 import { Tokens } from "../../shared/tokens.slint";
-import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
 
 export component MarkdownParagraph inherits Rectangle {
-    // List of individual spans (fallback option)
-    in property <[InlineMarkdownSpan]> spans: [];
-    // Plain text representation of the paragraph
-    in property <string> text: "";
-    // Pre-compiled styled text parsed from the markdown on the Rust side
-    in property <styled-text> content: @markdown("");
-    // Pre-compiled styled text with the trailing cursor parsed on the Rust side
-    in property <styled-text> content-with-cursor: @markdown("");
-    // Custom font family for assistant message (PT Serif)
-    in property <string> font-family-custom: Tokens.serif-font-family;
-    // Custom font size for readability
-    in property <length> font-size-custom: Tokens.body-font-size;
-    // Show trailing cursor if this is the active/streaming chunk
-    in property <bool> show-cursor: false;
+    // rich_text carries parsed inline formatting via styled-text type
+    in property <styled-text> rich_text: @markdown("");
+    in property <string> font_family: Tokens.font_family;
 
-    background: transparent;
     horizontal-stretch: 1;
-    height: styled-view.preferred-height;
+    height: paragraph_text.preferred-height + 12px;
 
-    styled-view := StyledText {
+    // StyledText renders bold/italic/code/link inline formatting natively.
+    paragraph_text := StyledText {
+        x: 0px;
+        y: 0px;
         width: parent.width;
-        text: root.show-cursor ? root.content-with-cursor : root.content;
-        default-font-family: root.font-family-custom;
-        default-font-size: root.font-size-custom;
-        default-color: Tokens.text-primary;
+        text: root.rich_text;
+        default-font-family: root.font_family;
+        default-font-size: Tokens.editor_font_size;
+        default-color: Tokens.text_primary;
     }
 }

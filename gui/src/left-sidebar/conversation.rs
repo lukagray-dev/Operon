@@ -4,7 +4,7 @@
 //! all historic messages, formatting reasoning and tool blocks, and generating
 //! a clean user/assistant/tool messages structure.
 
-use crate::main_content::assistant_messages::markdown::ParsedMarkdownItem;
+use crate::main_content::markdown::ParsedMarkdownItem;
 
 /// Loads session history from the database and returns the conversation title,
 /// processed messages list, and token counts.
@@ -25,7 +25,6 @@ pub async fn load_session_history(
 
     let store = operon_rs::session::store::SessionStore::open(&json_path).await?;
 
-    // Get title
     let first_msg = store
         .get_first_user_message_text(session_id)
         .await
@@ -34,7 +33,6 @@ pub async fn load_session_history(
     let title =
         crate::main_content::title::determine_session_title(first_msg.as_deref(), "New Chat");
 
-    // Get conversation history turns
     let mut raw_messages = Vec::new();
     if let Ok(history_turns) = store.load_turns(session_id).await {
         if let Some(last_turn) = history_turns.last() {
@@ -48,6 +46,7 @@ pub async fn load_session_history(
                     }
                 }
             }
+
             let mut current_assistant_items = Vec::new();
             let mut current_assistant_text_parts = Vec::new();
 
@@ -70,42 +69,46 @@ pub async fn load_session_history(
                     for block in &msg.content {
                         if let operon_rs::context::ContentBlock::Text(s) = block {
                             text_parts.push(s.clone());
-                            let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(s);
-                            msg_items.extend(parsed);
+                            msg_items.push(ParsedMarkdownItem::new_default(
+                                "text".to_string(),
+                                s.clone(),
+                            ));
                         }
                     }
                     let text = text_parts.join("\n");
-                    raw_messages.push((true, text, msg_items));
+                    if !text.is_empty() || !msg_items.is_empty() {
+                        raw_messages.push((true, text, msg_items));
+                    }
                 } else if is_assistant {
                     for block in &msg.content {
                         match block {
                             operon_rs::context::ContentBlock::Text(s) => {
                                 current_assistant_text_parts.push(s.clone());
-                                let parsed = crate::main_content::assistant_messages::markdown::parse_markdown_sendable(s);
-                                current_assistant_items.extend(parsed);
+                                current_assistant_items.push(ParsedMarkdownItem::new_default(
+                                    "text".to_string(),
+                                    s.clone(),
+                                ));
                             }
                             operon_rs::context::ContentBlock::Reasoning(rb) => {
-                                current_assistant_items.push(ParsedMarkdownItem::new_default(
+                                let mut item = ParsedMarkdownItem::new_default(
                                     "thinking".to_string(),
-                                    rb.thinking.clone(),
                                     String::new(),
-                                    Vec::new(),
-                                ));
+                                );
+                                item.thinking_text = rb.thinking.clone();
+                                item.is_thinking_active = false;
+                                current_assistant_items.push(item);
                             }
                             operon_rs::context::ContentBlock::ToolCall(tc) => {
                                 let call_id_str = tc.id.0.clone();
                                 let mut tool_item = ParsedMarkdownItem::new_default(
                                     "tool".to_string(),
                                     String::new(),
-                                    String::new(),
-                                    Vec::new(),
                                 );
                                 tool_item.tool_name = tc.name.clone();
                                 tool_item.tool_call_id = call_id_str.clone();
 
-                                // Pretty format JSON args
-                                let args_str =
-                                    serde_json::to_string_pretty(&tc.arguments).unwrap_or_default();
+                                let args_str = serde_json::to_string_pretty(&tc.arguments)
+                                    .unwrap_or_default();
                                 tool_item.tool_args = args_str.clone();
 
                                 if let Some(tr) = tool_results.get(&call_id_str) {
@@ -123,19 +126,11 @@ pub async fn load_session_history(
                                             &tc.name, &args_str, true,
                                         );
 
-                                    if tc.name == "write"
-                                        || tc.name == "append"
-                                        || tc.name == "edit"
-                                    {
-                                        tool_item.tool_is_diff = true;
-                                        let (diff_lines, added, deleted) =
-                                            crate::main_content::tools::diff::parse_diff(
-                                                &tc.name, &args_str,
-                                            );
-                                        tool_item.tool_diff_lines = diff_lines;
-                                        tool_item.tool_added_count = added;
-                                        tool_item.tool_deleted_count = deleted;
-                                    }
+                                    crate::main_content::tools::diff::apply_diff_overlay(
+                                        &mut tool_item,
+                                        &tc.name,
+                                        &args_str,
+                                    );
                                 } else {
                                     tool_item.tool_status = "running".to_string();
                                     tool_item.tool_title =

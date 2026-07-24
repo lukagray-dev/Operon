@@ -153,23 +153,24 @@ pub fn load_chat_session(
                     if ui.get_active_session_id() != active_session_check {
                         return;
                     }
+                    if ui.get_is_responding() {
+                        ui.set_is_loading_session(false);
+                        return;
+                    }
                     crate::main_content::title::set_session_title(&ui, &title);
 
                     // Convert Send-safe intermediates to Slint types on UI thread (cheap, no parsing)
                     let slint_messages: Vec<crate::ChatMessage> = raw_messages
                         .into_iter()
-                        .map(|(is_user, text, parsed)| {
-                            let slint_items =
-                                crate::main_content::assistant_messages::markdown::to_slint_items(
-                                    parsed,
-                                );
+                        .map(|(is_user, text, items)| {
+                            let elements = crate::main_content::markdown::to_slint_elements(items);
                             crate::ChatMessage {
                                 id: "".into(),
                                 is_user,
                                 text: text.into(),
                                 time: "".into(),
-                                markdown_items: slint::ModelRc::from(Rc::new(
-                                    slint::VecModel::from(slint_items),
+                                markdown_elements: slint::ModelRc::from(Rc::new(
+                                    slint::VecModel::from(elements),
                                 )),
                                 reasoning_text: "".into(),
                                 is_thinking: false,

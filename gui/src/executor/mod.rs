@@ -52,7 +52,7 @@ pub fn submit_prompt(
         is_user: true,
         text: message_text.clone().into(),
         time: "".into(),
-        markdown_items: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed_user))),
+        markdown_elements: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed_user))),
         reasoning_text: "".into(),
         is_thinking: false,
     });

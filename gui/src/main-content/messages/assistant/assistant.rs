@@ -9,8 +9,6 @@ use std::rc::Rc;
 
 use crate::state::AppState;
 
-pub mod markdown;
-
 /// Wire assistant message actions.
 pub fn wire_assistant_messages(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
@@ -167,7 +165,7 @@ pub fn wire_assistant_messages(window: &crate::OperonWindow, state: Rc<RefCell<A
         if let Some(win) = window_weak.upgrade() {
             let model = win.get_chat_messages();
             if let Some(msg) = model.row_data(msg_idx as usize) {
-                if let Some(item) = msg.markdown_items.row_data(item_idx as usize) {
+                if let Some(item) = msg.markdown_elements.row_data(item_idx as usize) {
                     match arboard::Clipboard::new() {
                         Ok(mut clipboard) => {
                             if let Err(e) = clipboard.set_text(item.text.to_string()) {

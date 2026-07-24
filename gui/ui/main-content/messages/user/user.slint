@@ -1,7 +1,7 @@
 // User message component that combines all user message elements.
 
 import { Tokens } from "../../../shared/tokens.slint";
-import { MarkdownItem } from "../../markdown/markdown.slint";
+import { MarkdownElement } from "../../markdown/markdown.slint";
 import { MessageBubble } from "./message.slint";
 import { EditButton } from "./edit.slint";
 import { CopyButton } from "./copy.slint";
@@ -13,8 +13,8 @@ export component UserMessage inherits Rectangle {
     // The message text content
     in property <string> message-text: "";
     
-    // Parsed markdown items
-    in property <[MarkdownItem]> markdown-items: [];
+    // Parsed markdown elements
+    in property <[MarkdownElement]> markdown-elements: [];
     
     // Whether the message is currently expanded (showing all content)
     in-out property <bool> is-expanded: false;
@@ -72,7 +72,7 @@ export component UserMessage inherits Rectangle {
                 // ===== MESSAGE BUBBLE =====
                 bubble := MessageBubble {
                     message-text: root.message-text;
-                    markdown-items: root.markdown-items;
+                    markdown-elements: root.markdown-elements;
                     is-expanded <=> root.is-expanded;
                     
                     // Forward the expand callback

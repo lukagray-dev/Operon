@@ -5,50 +5,54 @@
 // fragments that just happen to live in the same window.
 
 // Import the custom fonts globally
-import "../../assets/fonts/kode_mono/KodeMono-Regular.ttf";
-import "../../assets/fonts/google_sans/GoogleSans-Regular.ttf";
-import "../../assets/fonts/pt_serif/PTSerif.ttf";
+import "../../assets/fonts/OpenSans/static/OpenSans-Regular.ttf";
+import "../../assets/fonts/OpenSans/static/OpenSans-Bold.ttf";
+import "../../assets/fonts/OpenSans/static/OpenSans-Italic.ttf";
+import "../../assets/fonts/Literata/static/Literata-Regular.ttf";
+import "../../assets/fonts/Literata/static/Literata-Bold.ttf";
+import "../../assets/fonts/Literata/static/Literata-Italic.ttf";
+import "../../assets/fonts/Literata/static/Literata-BoldItalic.ttf";
+import "../../assets/fonts/KodeMono/KodeMono-Regular.ttf";
 
 export global Tokens {
-    // Font family used throughout the native shell. Changing this affects all
-    // text that does not override `font-family` locally.
-    in property <string> font_family: "Google Sans";
+    // OpenSans for the entire UI.
+    in property <string> font_family: "Open Sans";
     
-    // Serif font family for assistant messages. PT Serif provides a more
-    // readable and distinguished appearance for AI-generated content.
-    in property <string> serif_font_family: "PT Serif";
+    // Literata only for assistant messages.
+    in property <string> serif_font_family: "Literata";
     
-    // Monospace font family for integrated terminal viewports and console output.
+    // KodeMono for inline code and code blocks and all other mono fonts.
     in property <string> mono_font_family: "Kode Mono";
+
+    // Dedicated inline code styling tokens
+    in property <length> editor_font_size: 14px;
+    in property <color> border_default: #30363d;
+    in property <color> code_text_color: #79c0ff;
+    in property <color> code_bg_color: #6e768133;
 
     // The main app canvas behind the titlebar and content. Darkening this makes
     // the entire window feel heavier and less exposed.
     in property <color> window_background: #000000;
 
-    // The titlebar strip itself. This is the token you asked about: darkening
-    // this value makes the top chrome darker without touching the rest of the
-    // window.
+    // The titlebar strip itself. Darkening this value makes the top chrome darker
+    // without touching the rest of the window.
     in property <color> titlebar_background: #191919;
 
-    // A slightly softer companion shade used for future chrome gradients and
-    // hover surfaces, so the titlebar can stay monochrome without looking flat.
+    // A slightly softer companion shade used for chrome gradients and hover surfaces.
     in property <color> titlebar_background_soft: #202020;
 
-    // Primary foreground colors. These control the contrast of labels, helper
-    // text, and hover states throughout the GUI.
+    // Primary foreground colors.
     in property <color> text_primary: #ffffff;
     in property <color> text_secondary: #d3d3d3;
     in property <color> text_muted: #888888;
 
-    // Accent colors. Blue is reserved for interactive affordances, while red
-    // is reserved for destructive or high-risk actions.
+    // Accent colors.
     in property <color> accent_blue: #0800ff;
     in property <color> accent_blue_hover: #1f2bff;
     in property <color> danger_red: #ff0000;
     in property <color> danger_red_hover: #ff4747;
 
-    // Dropdown and popover styling. These are used by the menu surfaces and
-    // their hover/pressed rows.
+    // Dropdown and popover styling.
     in property <color> dropdown_surface: #1f1f1f;
     in property <color> dropdown_surface_hover: #2b2b2b;
     in property <color> dropdown_surface_pressed: #2a2a2a;
@@ -56,19 +60,13 @@ export global Tokens {
     in property <color> dropdown_separator: #474747;
     in property <color> shadow_color: #000000b8;
 
-    // Base font sizes. Increase these when you want the whole chrome to feel
-    // larger; the titlebar uses the titlebar size and the menu items use the
-    // dropdown size.
+    // Base font sizes.
     in property <length> body_font_size: 13px;
     in property <length> titlebar_font_size: 14px;
     in property <length> dropdown_font_size: 13px;
 
-    // Titlebar geometry. This controls the overall chrome height, the brand
-    // logo size, and the clickable area of the buttons and menu headers.
+    // Titlebar geometry.
     in property <length> titlebar_height: 36px;
-    // Borderless windows still need a thin invisible resize strip. On desktop
-    // this lets the top edge show the height-resize cursor instead of being
-    // swallowed by the custom titlebar drag region.
     in property <length> window_resize_border_width: 6px;
     in property <length> titlebar_padding_x: 12px;
     in property <length> titlebar_logo_size: 20px;
@@ -82,8 +80,7 @@ export global Tokens {
     in property <length> titlebar_menu_hit_height: 22px;
     in property <length> titlebar_menu_trigger_padding_x: 4px;
 
-    // Dropdown geometry. These values control the shared menu panel width,
-    // corner radius, row spacing, and horizontal padding.
+    // Dropdown geometry.
     in property <length> dropdown_surface_width: 220px;
     in property <length> dropdown_surface_radius: 10px;
     in property <length> dropdown_surface_padding: 6px;
@@ -93,8 +90,7 @@ export global Tokens {
     in property <length> dropdown_trigger_padding_x: 4px;
     in property <length> dropdown_trigger_hit_height: 22px;
 
-    // Input panel geometry. These values control the prompt input area at the
-    // bottom of the main content, including button sizes and spacing.
+    // Input panel geometry.
     in property <length> input_panel_padding: 12px;
     in property <length> input_panel_border_radius: 12px;
     in property <length> input_button_size: 32px;

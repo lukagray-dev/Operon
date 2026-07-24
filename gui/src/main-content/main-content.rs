@@ -3,6 +3,9 @@
 //! This module orchestrates the wiring of main content callbacks (prompt input, message actions)
 //! and delegates sub-component wiring to child modules.
 
+#[path = "markdown/mod.rs"]
+pub mod markdown;
+
 #[path = "input/input.rs"]
 pub mod input;
 

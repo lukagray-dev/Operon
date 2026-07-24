@@ -21,8 +21,10 @@ serde_json.workspace  = true
 operon-rs = { path = "../operon-rs" }
 rfd = "0.15"
 arboard = "3.6.1"
-pulldown-cmark = "0.11"
+pulldown-cmark.workspace = true
 syntect = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy", "default-themes", "default-syntaxes"] }
+merman = { version = "0.7", features = ["render"] }
+regex = "1.10"
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading"] }
 
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────

@@ -3,7 +3,9 @@
 //! Hey friend! This file manages listening to agent loop events in the background
 //! and translating them to GUI state updates, calling slint invoke_from_event_loop.
 
+use crate::main_content::permission as perm;
 use crate::main_content::reasoning::ResponseState;
+use crate::main_content::tools::cards;
 use slint::Model;
 use std::rc::Rc;
 
@@ -23,7 +25,6 @@ pub async fn handle_session_events(
             operon_rs::SessionEvent::TextDelta { text } => {
                 response_state.append_text(&text);
                 let parsed_items = response_state.build_parsed_items();
-                let text_acc = response_state.current_text_accumulator.clone();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = win_weak_update.upgrade() {
@@ -35,28 +36,25 @@ pub async fn handle_session_events(
                             }
                         }
 
-                        let slint_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
                         let needs_new = msgs.last().map_or(true, |m| m.is_user);
                         if needs_new {
                             msgs.push(crate::ChatMessage {
                                 id: "".into(),
                                 is_user: false,
-                                text: text_acc.clone().into(),
+                                text: "".into(),
                                 time: "".into(),
-                                markdown_items: slint::ModelRc::from(Rc::new(
-                                    slint::VecModel::from(slint_items),
+                                markdown_elements: slint::ModelRc::from(Rc::new(
+                                    slint::VecModel::from(elements),
                                 )),
                                 reasoning_text: "".into(),
                                 is_thinking: false,
                             });
                         } else if let Some(last) = msgs.last_mut() {
                             last.is_thinking = false;
-                            last.text = text_acc.into();
-                            last.markdown_items =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
                         }
 
                         win.set_chat_messages(slint::ModelRc::from(Rc::new(
@@ -79,10 +77,8 @@ pub async fn handle_session_events(
                             }
                         }
 
-                        let slint_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
                         let needs_new = msgs.last().map_or(true, |m| m.is_user);
                         if needs_new {
                             msgs.push(crate::ChatMessage {
@@ -90,16 +86,16 @@ pub async fn handle_session_events(
                                 is_user: false,
                                 text: "".into(),
                                 time: "".into(),
-                                markdown_items: slint::ModelRc::from(Rc::new(
-                                    slint::VecModel::from(slint_items),
+                                markdown_elements: slint::ModelRc::from(Rc::new(
+                                    slint::VecModel::from(elements),
                                 )),
                                 reasoning_text: "".into(),
                                 is_thinking: true,
                             });
                         } else if let Some(last) = msgs.last_mut() {
                             last.is_thinking = true;
-                            last.markdown_items =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
                         }
 
                         win.set_chat_messages(slint::ModelRc::from(Rc::new(
@@ -109,11 +105,7 @@ pub async fn handle_session_events(
                 });
             }
             operon_rs::SessionEvent::ToolCallStart { call_id, name } => {
-                crate::main_content::tools::cards::append_tool_start(
-                    &mut response_state,
-                    &call_id,
-                    &name,
-                );
+                cards::append_tool_start(&mut response_state, &call_id, &name);
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -125,13 +117,11 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
                         }
                         win.set_chat_messages(slint::ModelRc::from(Rc::new(
                             slint::VecModel::from(msgs),
@@ -144,7 +134,7 @@ pub async fn handle_session_events(
                 name,
                 args_json,
             } => {
-                crate::main_content::tools::cards::append_tool_args_ready(
+                cards::append_tool_args_ready(
                     &mut response_state,
                     &call_id,
                     &name,
@@ -161,13 +151,11 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
                         }
                         win.set_chat_messages(slint::ModelRc::from(Rc::new(
                             slint::VecModel::from(msgs),
@@ -180,11 +168,7 @@ pub async fn handle_session_events(
                 name,
                 attrs: _,
             } => {
-                crate::main_content::tools::cards::append_tool_detected(
-                    &mut response_state,
-                    &call_id,
-                    &name,
-                );
+                cards::append_tool_detected(&mut response_state, &call_id, &name);
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -196,13 +180,11 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
                         }
                         win.set_chat_messages(slint::ModelRc::from(Rc::new(
                             slint::VecModel::from(msgs),
@@ -211,11 +193,7 @@ pub async fn handle_session_events(
                 });
             }
             operon_rs::SessionEvent::ToolBodyDelta { call_id, text } => {
-                crate::main_content::tools::cards::append_tool_body_delta(
-                    &mut response_state,
-                    &call_id,
-                    &text,
-                );
+                cards::append_tool_body_delta(&mut response_state, &call_id, &text);
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -227,13 +205,11 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
                         }
                         win.set_chat_messages(slint::ModelRc::from(Rc::new(
                             slint::VecModel::from(msgs),
@@ -247,7 +223,7 @@ pub async fn handle_session_events(
                 is_error,
                 content_json,
             } => {
-                crate::main_content::tools::cards::append_tool_result(
+                cards::append_tool_result(
                     &mut response_state,
                     &call_id,
                     &name,
@@ -265,13 +241,11 @@ pub async fn handle_session_events(
                                 msgs.push(msg);
                             }
                         }
-                        let slint_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
                         if let Some(last) = msgs.last_mut() {
-                            last.markdown_items =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(slint_items)));
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
                         }
                         win.set_chat_messages(slint::ModelRc::from(Rc::new(
                             slint::VecModel::from(msgs),
@@ -287,11 +261,37 @@ pub async fn handle_session_events(
                 args_json,
             } => {
                 let path_str = path.clone().unwrap_or_default();
+                perm::append_approval_required(
+                    &mut response_state,
+                    &id,
+                    &tool,
+                    &path_str,
+                    &reason,
+                    &args_json,
+                );
+                let parsed_items = response_state.build_parsed_items();
                 let (display_action, display_target) =
                     get_permission_display_info(&tool, &path_str, &args_json);
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = win_weak_update.upgrade() {
+                        let model = win.get_chat_messages();
+                        let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                        for i in 0..model.row_count() {
+                            if let Some(msg) = model.row_data(i) {
+                                msgs.push(msg);
+                            }
+                        }
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
+                        if let Some(last) = msgs.last_mut() {
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
+                        }
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
+
                         win.set_pending_permission_id(id.into());
                         win.set_pending_permission_tool(tool.into());
                         win.set_pending_permission_path(path_str.into());
@@ -302,26 +302,64 @@ pub async fn handle_session_events(
                     }
                 });
             }
-            operon_rs::SessionEvent::ApprovalGranted {
-                id: _,
-                tool: _,
-                path: _,
-            } => {
+            operon_rs::SessionEvent::ApprovalGranted { id, .. } => {
+                perm::append_approval_resolved(&mut response_state, &id, true);
+                let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = win_weak_update.upgrade() {
+                        let model = win.get_chat_messages();
+                        let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                        for i in 0..model.row_count() {
+                            if let Some(msg) = model.row_data(i) {
+                                msgs.push(msg);
+                            }
+                        }
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
+                        if let Some(last) = msgs.last_mut() {
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
+                        }
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                         win.set_has_pending_permission(false);
                     }
                 });
             }
             operon_rs::SessionEvent::PermissionDenied {
-                tool: _,
-                path: _,
-                reason: _,
+                tool,
+                path,
+                reason,
             } => {
+                let path_str = path.unwrap_or_default();
+                perm::append_permission_denied_event(
+                    &mut response_state,
+                    &tool,
+                    &path_str,
+                    &reason,
+                );
+                let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(win) = win_weak_update.upgrade() {
+                        let model = win.get_chat_messages();
+                        let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+                        for i in 0..model.row_count() {
+                            if let Some(msg) = model.row_data(i) {
+                                msgs.push(msg);
+                            }
+                        }
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(parsed_items);
+                        if let Some(last) = msgs.last_mut() {
+                            last.markdown_elements =
+                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
+                        }
+                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(msgs),
+                        )));
                         win.set_has_pending_permission(false);
                     }
                 });
@@ -350,7 +388,6 @@ pub async fn handle_session_events(
         }
     }
 
-    // Finalize the response block list (which runs full syntect syntax highlighting).
     let final_parsed_items = response_state.finalize();
     let win_weak_final = win_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
@@ -367,14 +404,12 @@ pub async fn handle_session_events(
                             }
                         }
 
-                        let final_items =
-                            crate::main_content::assistant_messages::markdown::to_slint_items(
-                                final_parsed_items,
-                            );
+                        let elements =
+                            crate::main_content::markdown::to_slint_elements(final_parsed_items);
                         if let Some(m) = msgs.last_mut() {
                             m.is_thinking = false;
-                            m.markdown_items = slint::ModelRc::from(std::rc::Rc::new(
-                                slint::VecModel::from(final_items),
+                            m.markdown_elements = slint::ModelRc::from(std::rc::Rc::new(
+                                slint::VecModel::from(elements),
                             ));
                         }
                         win.set_chat_messages(slint::ModelRc::from(std::rc::Rc::new(
@@ -390,7 +425,6 @@ pub async fn handle_session_events(
     });
 }
 
-/// Helper function to parse tool permissions into user-friendly action and target descriptions.
 fn get_permission_display_info(tool: &str, path: &str, args_json: &str) -> (String, String) {
     let filename = if !path.is_empty() {
         let parts: Vec<&str> = path.split(|c| c == '/' || c == '\\').collect();
@@ -437,9 +471,5 @@ fn get_permission_display_info(tool: &str, path: &str, args_json: &str) -> (Stri
         filename
     };
 
-    (display_action(action), target)
-}
-
-fn display_action(action: String) -> String {
-    action
+    (action, target)
 }

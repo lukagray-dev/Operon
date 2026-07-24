@@ -1,32 +1,25 @@
-import { Tokens } from "../../shared/tokens.slint";
-import { InlineMarkdown, InlineMarkdownSpan } from "./inline-code.slint";
+// =============================================================================
+// Markdown Heading Component (`ui/markdown/heading.slint`)
+// =============================================================================
+// Renders headings (# h1, ## h2, ### h3) with native StyledText rich text.
 
-export component MarkdownHeading inherits VerticalLayout {
+import { Tokens } from "../../shared/tokens.slint";
+
+export component MarkdownHeading inherits Rectangle {
     in property <int> level: 1;
-    in property <[InlineMarkdownSpan]> spans: [];
-    in property <string> text: "";
-    in property <styled-text> content: @markdown("");
-    // Pre-compiled styled text with the trailing cursor parsed on the Rust side
-    in property <styled-text> content-with-cursor: @markdown("");
-    in property <bool> show-cursor: false;
-    in property <string> font-family: Tokens.serif-font-family;
-    
-    spacing: 4px;
-    padding-top: 8px;
-    padding-bottom: 4px;
+    in property <styled-text> rich_text: @markdown("");
+    in property <string> font_family: Tokens.font_family;
+
     horizontal-stretch: 1;
-    
-    StyledText {
+    height: heading_text.preferred-height + (level == 1 ? 16px : level == 2 ? 12px : 8px);
+
+    heading_text := StyledText {
+        x: 0px;
+        y: 0px;
         width: parent.width;
-        text: root.show-cursor ? root.content-with-cursor : root.content;
-        default-color: #ffffff;
-        default-font-family: root.font-family;
-        default-font-size: root.level == 1 ? 20px : (root.level == 2 ? 18px : 16px);
-    }
-    
-    // Bottom border for h1 and h2 (GitHub / Tauri reference style)
-    if (root.level == 1 || root.level == 2) : Rectangle {
-        height: 1px;
-        background: rgba(255, 255, 255, 0.15);
+        text: root.rich_text;
+        default-font-family: root.font_family;
+        default-font-size: level == 1 ? 26px : level == 2 ? 20px : 16px;
+        default-color: Tokens.text_primary;
     }
 }

@@ -5,14 +5,14 @@ import { UserMessage } from "./user/user.slint";
 import { AssistantMessage } from "./assistant/assistant.slint";
 import { ChatLoadingSkeleton } from "./loading.slint";
 import { EmptyState } from "../empty-state/empty-state.slint";
-import { MarkdownItem } from "../markdown/markdown.slint";
+import { MarkdownElement } from "../markdown/markdown.slint";
 
 export struct ChatMessage {
     id: string,
     is_user: bool,
     text: string,
     time: string,
-    markdown_items: [MarkdownItem],
+    markdown_elements: [MarkdownElement],
     reasoning_text: string,
     is_thinking: bool,
 }
@@ -58,50 +58,24 @@ export component MessageList inherits Rectangle {
         width: parent.width;
         height: parent.height;
         
-        // Viewport height is computed dynamically to match the inner content layout
         viewport-height: messages-inner-layout.preferred-height;
-        interactive: false; // Disable built-in kinetic momentum animations
-        
-        // Smooth scroll target tracking (mimics VS Code smooth-scrolling physics)
-        property <length> target-scroll-y: 0px;
-        
-        // Tracks if viewport is currently scrolled near the bottom (within 60px)
-        property <bool> is-near-bottom: true;
-        
-        viewport-y: self.target-scroll-y;
-        
+        interactive: true;
+
+        // Smooth ease-out animated interpolation on scroll position for web-like fluid scrolling
         animate viewport-y {
-            duration: 120ms;
+            duration: 150ms;
             easing: ease-out;
         }
         
-        changed target-scroll-y => {
-            // Detect if user has manually scrolled away from the bottom
-            self.is-near-bottom = self.target-scroll-y <= min(0px, self.height - self.viewport-height) + 60px;
+        property <bool> is-near-bottom: true;
+        
+        changed viewport-y => {
+            self.is-near-bottom = self.viewport-y <= min(0px, self.height - self.viewport-height) + 60px;
         }
         
         changed viewport-height => {
-            // Auto-scroll to bottom only if the viewport was already near the bottom
             if (self.is-near-bottom) {
-                self.target-scroll-y = min(0px, self.height - self.viewport-height);
-            }
-        }
-        
-        // Custom TouchArea to handle direct mouse wheel scrolling with smooth ease-out target tracking
-        TouchArea {
-            width: 100%;
-            height: max(messages-flickable.height, messages-flickable.viewport-height);
-            
-            clicked => {
-                focus-scope.focus();
-            }
-            
-            scroll-event(e) => {
-                messages-flickable.target-scroll-y = max(
-                    min(0px, messages-flickable.height - messages-flickable.viewport-height),
-                    min(0px, messages-flickable.target-scroll-y + e.delta-y)
-                );
-                EventResult.accept
+                self.viewport-y = min(0px, self.height - self.viewport-height);
             }
         }
         
@@ -138,7 +112,7 @@ export component MessageList inherits Rectangle {
                             cache-rendering-hint: true;
                             if (msg.is-user) : UserMessage {
                                 message-text: msg.text;
-                                markdown-items: msg.markdown_items;
+                                markdown-elements: msg.markdown_elements;
                                 max-bubble-width: (root.width < root.input-panel-max-width ? root.width : root.input-panel-max-width) * 0.75;
                                 
                                 edit-clicked => {
@@ -157,7 +131,7 @@ export component MessageList inherits Rectangle {
                             if (!msg.is-user) : AssistantMessage {
                                 horizontal-stretch: 1;
                                 message-text: msg.text;
-                                markdown-items: msg.markdown_items;
+                                markdown-elements: msg.markdown_elements;
                                 time-text: msg.time;
                                 is-thinking: msg.is_thinking;
                                 show-cursor: (idx == root.chat-messages.length - 1) && root.is-responding && root.cursor-blink;
@@ -207,48 +181,33 @@ export component MessageList inherits Rectangle {
         }
     }
 
-    // Custom slim, modern scrollbar (overlay on the right edge)
-    // Synchronized with messages-flickable.
-    // Does not use any easing animations on positioning to avoid lag/rubbery feel.
+    // Custom slim, modern theme scrollbar matching Oryn
     scrollbar-track := Rectangle {
-        x: parent.width - self.width - 4px;
-        y: 4px;
+        x: parent.width - 10px;
+        y: 6px;
         width: 6px;
-        height: parent.height - 8px;
-        // Only visible when content height is larger than view height and not loading a session
-        visible: !root.is-loading-session && (messages-flickable.viewport-height > messages-flickable.height);
+        height: parent.height - 12px;
         background: transparent;
+        visible: !root.is-loading-session && (messages-flickable.viewport-height > messages-flickable.height);
 
         scrollbar-thumb := Rectangle {
-            width: 100%;
-            height: Math.max(20px, parent.height * Math.min(1.0, messages-flickable.height / messages-flickable.viewport-height));
-            y: -messages-flickable.viewport-y / (messages-flickable.viewport-height - messages-flickable.height) * (parent.height - self.height);
+            x: thumb-touch.has-hover || thumb-touch.pressed ? 0px : 1px;
+            width: thumb-touch.has-hover || thumb-touch.pressed ? 6px : 4px;
             border-radius: 3px;
-            background: scrollbar-track-touch.has-hover ? rgba(255, 255, 255, 0.25) : rgba(255, 255, 255, 0.12);
             
-            // Smooth highlight transition on hover
-            animate background { duration: 100ms; }
-        }
+            height: max(32px, parent.height * (messages-flickable.height / max(1px, messages-flickable.viewport-height)));
+            y: max(0px, min(parent.height - self.height, (parent.height - self.height) * (-messages-flickable.viewport-y / max(1px, messages-flickable.viewport-height - messages-flickable.height))));
+            
+            background: thumb-touch.pressed
+                ? Tokens.accent_blue
+                : (thumb-touch.has-hover ? #4a4a4a : #2e2e2e);
+                
+            animate background { duration: 150ms; }
+            animate width { duration: 150ms; }
+            animate x { duration: 150ms; }
 
-        scrollbar-track-touch := TouchArea {
-            width: 100%;
-            height: 100%;
-            clicked => {
-                // Scroll page up or down depending on where they click relative to thumb
-                if (self.pressed-y < scrollbar-thumb.y) {
-                    // Page up
-                    messages-flickable.viewport-y = Math.min(0px, messages-flickable.viewport-y + messages-flickable.height * 0.8);
-                } else if (self.pressed-y > scrollbar-thumb.y + scrollbar-thumb.height) {
-                    // Page down
-                    messages-flickable.viewport-y = Math.max(-(messages-flickable.viewport-height - messages-flickable.height), messages-flickable.viewport-y - messages-flickable.height * 0.8);
-                }
-            }
-            
-            // Drag to scroll logic
-            moved => {
-                messages-flickable.viewport-y = -Math.clamp(self.mouse-y - scrollbar-thumb.height / 2, 0px, scrollbar-track.height - scrollbar-thumb.height) 
-                    / (scrollbar-track.height - scrollbar-thumb.height) 
-                    * (messages-flickable.viewport-height - messages-flickable.height);
+            thumb-touch := TouchArea {
+                mouse-cursor: pointer;
             }
         }
     }

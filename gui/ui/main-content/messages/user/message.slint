@@ -1,7 +1,7 @@
 // Message bubble component for user messages.
 
 import { Tokens } from "../../../shared/tokens.slint";
-import { MarkdownItem, MarkdownContent } from "../../markdown/markdown.slint";
+import { MarkdownElement, MarkdownView } from "../../markdown/markdown.slint";
 
 // Message bubble displaying user's text content.
 // This is the main visual container for user messages in the chat.
@@ -9,8 +9,8 @@ export component MessageBubble inherits Rectangle {
     // The message text content to display (kept for backwards-compatibility or reference)
     in property <string> message-text: "";
     
-    // Parsed markdown items
-    in property <[MarkdownItem]> markdown-items: [];
+    // Parsed markdown elements
+    in property <[MarkdownElement]> markdown-elements: [];
     
     // Whether the message is currently expanded (showing all content)
     in-out property <bool> is-expanded: false;
@@ -60,12 +60,9 @@ export component MessageBubble inherits Rectangle {
             animate height { duration: 250ms; easing: ease-in-out; }
             
             // The markdown text element
-            message-text-area := MarkdownContent {
-                items: root.markdown-items;
-                font-family: Tokens.font-family;
-                code-copied(idx) => {
-                    root.code-copied(idx);
-                }
+            message-text-area := MarkdownView {
+                elements: root.markdown-elements;
+                font-family: Tokens.font_family;
                 width: parent.width;
             }
         }

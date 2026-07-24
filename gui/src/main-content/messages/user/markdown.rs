@@ -1,5 +1,5 @@
 //! User message markdown module.
 //!
-//! Re-exports parsing utilities from assistant module to share code.
+//! Re-exports parsing utilities from main_content::markdown module.
 
-pub use crate::main_content::assistant_messages::markdown::parse_markdown;
+pub use crate::main_content::markdown::parse_markdown;
