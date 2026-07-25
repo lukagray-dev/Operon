@@ -19,7 +19,7 @@ dirs.workspace        = true
 # ── TUI-only deps (not shared — terminal/UI specific) ─────────────────────────
 
 # Production-grade text input widget — cursor, undo/redo, multi-line editing
-tui-textarea = { path = "../vendor/tui-textarea" }
+tui-textarea = { path = "src/vendor/tui-textarea" }
 
 # Terminal UI framework
 ratatui = "0.30.0"
