@@ -71,7 +71,8 @@ export component MainContent inherits Rectangle {
     // ===== Terminal Properties & Callbacks =====
     in property <[string]> terminal-tab-names: [];
     in-out property <int> terminal-active-tab: -1;
-    in-out property <length> terminal-height: 220px;
+    // Default terminal panel height to 30% of main content area height when opened
+    in-out property <length> terminal-height: root.height * 0.3;
     in property <string> terminal-text: "";
 
     callback terminal-tab-clicked(int);
@@ -144,10 +145,14 @@ export component MainContent inherits Rectangle {
             title: root.session-title;
             
             // Toggle terminal visibility when the terminal button is clicked
+            // Sets terminal height to capture exactly 30% of the main content area
             terminal-clicked => {
                 root.is-terminal-open = !root.is-terminal-open;
-                if (root.is-terminal-open && root.terminal-tab-names.length == 0) {
-                    root.terminal-tab-new-clicked();
+                if (root.is-terminal-open) {
+                    root.terminal-height = root.height * 0.3;
+                    if (root.terminal-tab-names.length == 0) {
+                        root.terminal-tab-new-clicked();
+                    }
                 }
             }
         }
@@ -155,6 +160,8 @@ export component MainContent inherits Rectangle {
         // ===== MAIN CONTENT BODY (Messages scroll area + Floating input panel) =====
         main-body := Rectangle {
             vertical-stretch: 1;
+            min-height: 160px;
+            clip: true;
 
             // 1. Messages Scroll Area
             messages-area := MessageList {
@@ -203,7 +210,7 @@ export component MainContent inherits Rectangle {
             // Spans the full width, but has a transparent background so messages and the scrollbar
             // remain fully visible underneath it.
             floating-input-overlay := Rectangle {
-                y: parent.height - self.height;
+                y: max(0px, parent.height - self.height);
                 width: parent.width;
                 height: floating-layout.preferred-height;
                 background: transparent;
@@ -217,7 +224,8 @@ export component MainContent inherits Rectangle {
 
                 floating-layout := VerticalLayout {
                     padding-top: 16px; // Smooth transition zone for the fading text
-                    spacing: 8px;
+                    padding-bottom: 5px; // Exact 5px vertical space below warning text (matches 5px space above)
+                    spacing: 5px; // Reduced top spacing by 1px (5px vertical spacing above warning text)
 
                     // Centered Floating Permission Panel
                     if (root.has-pending-permission) : HorizontalLayout {
@@ -327,13 +335,14 @@ export component MainContent inherits Rectangle {
                     }
                     
                     // Center the warning text below the input panel
+                    // Symmetrical 5px padding above and below matching official Claude/ChatGPT UI
                     warning-container := Rectangle {
-                        height: 22px;
+                        height: warning-text.preferred-height;
                         background: transparent;
                         
                         HorizontalLayout {
-                            padding-top: 6px;
-                            padding-bottom: 6px;
+                            padding-top: 0px;
+                            padding-bottom: 0px;
                             
                             Rectangle {
                                 horizontal-stretch: 1;
@@ -359,6 +368,7 @@ export component MainContent inherits Rectangle {
         // ===== TERMINAL PANEL =====
         // Resizable bottom terminal drawer that pushes the chat viewport up when visible
         if (root.is-terminal-open) : terminal-panel := TerminalPanel {
+            vertical-stretch: 0;
             max-height-limit: root.height * 0.75;
             tab-names: root.terminal-tab-names;
             active-tab <=> root.terminal-active-tab;

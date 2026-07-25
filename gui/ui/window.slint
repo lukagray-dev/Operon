@@ -40,10 +40,11 @@ export component OperonWindow inherits Window {
     in-out property <bool> window_maximized: false;
     in-out property <float> ui_scale: 1.0;
     in-out property <int> reload_generation: 0;
-    // Visiblity state of the left sidebar, bound to titlebar toggle button
+    // Visibility state of the left sidebar, bound to titlebar toggle button
     in-out property <bool> sidebar_open: true;
     in-out property <length> sidebar_width: 240px;
-    in-out property <length> terminal_height: 220px;
+    // Default terminal panel height to 30% of window height
+    in-out property <length> terminal_height: root.height * 0.3;
     
     // Sidebar data properties - bind these from Rust
     in property <[SidebarProject]> sidebar_projects: [];

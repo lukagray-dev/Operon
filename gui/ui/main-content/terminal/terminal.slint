@@ -12,11 +12,12 @@ import { TerminalTab } from "./terminal-tabs.slint";
 import { NewTerminalTab } from "./new-terminal-tab.slint";
 
 export component TerminalPanel inherits Rectangle {
-    // Current height of the terminal panel (resizable)
+    // Current height of the terminal panel (resizable by user drag or toggle)
     in-out property <length> terminal-height: 220px;
     
     // Bounds for terminal drawer resizing
-    property <length> min-panel-height: 120px;
+    // Lower minimum height allows full visibility even on lower screen resolutions
+    property <length> min-panel-height: 100px;
     in property <length> max-height-limit: 600px;
     property <length> max-panel-height: root.max-height-limit;
     
@@ -29,15 +30,17 @@ export component TerminalPanel inherits Rectangle {
     // Terminal output text for the active session
     in property <string> terminal-text: "";
 
-    // Callbacks
+    // Callbacks for terminal interaction
     callback tab-clicked(int);
     callback tab-close-clicked(int);
     callback tab-new-clicked();
     callback key-pressed(int, string);
 
+    // Layout configuration: do not stretch vertically so VerticalLayout respects explicit height
+    vertical-stretch: 0;
+    horizontal-stretch: 1;
     height: Math.clamp(root.terminal-height, root.min-panel-height, root.max-panel-height);
     background: #0f0f0f; // Dark chrome border background
-    horizontal-stretch: 1;
     
     // Subtle top border line to separate terminal from the messaging viewport
     border-width: 1px;
