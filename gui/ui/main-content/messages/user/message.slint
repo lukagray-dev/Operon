@@ -64,6 +64,10 @@ export component MessageBubble inherits Rectangle {
                 elements: root.markdown-elements;
                 font-family: Tokens.font_family;
                 width: parent.width;
+
+                copy-code(item_idx) => {
+                    root.code-copied(item_idx);
+                }
             }
         }
         

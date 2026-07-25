@@ -83,6 +83,10 @@ export component AssistantMessage inherits Rectangle {
                 horizontal-stretch: 1;
                 elements: root.markdown-elements;
                 font-family: Tokens.serif_font_family;
+
+                copy-code(item_idx) => {
+                    root.code-copied(item_idx);
+                }
             }
 
             if (root.show-cursor) : HorizontalLayout {

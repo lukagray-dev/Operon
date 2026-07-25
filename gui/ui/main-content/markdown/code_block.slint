@@ -2,42 +2,104 @@
 // Markdown Fenced Code Block Renderer Component (`ui/markdown/code_block.slint`)
 // =============================================================================
 // Renders GitHub-style syntax-highlighted code blocks with rounded borders,
-// header language label strip, and `Kode Mono` monospace typography.
+// header language label strip, interactive icon-only copy button, and `Kode Mono` monospace typography.
 
 import { Tokens } from "../../shared/tokens.slint";
 
 export component MarkdownCodeBlock inherits VerticalLayout {
     in property <styled-text> rich_text;
     in property <string> language: "";
+    callback copy-clicked();
 
-    padding-top: 12px;
-    padding-bottom: 12px;
+    in-out property <bool> is-copied: false;
+
+    padding-top: 8px;
+    padding-bottom: 8px;
 
     Rectangle {
         clip: true;
         background: #161b22;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: #30363d;
 
         VerticalLayout {
             spacing: 0px;
             padding: 0px;
 
-            // Header language strip (shown when language tag exists)
-            if (root.language != "") : Rectangle {
-                height: 28px;
+            // Header strip with language label and copy button
+            Rectangle {
+                height: 32px;
                 background: #0d1117;
 
                 HorizontalLayout {
                     padding-left: 14px;
-                    padding-right: 14px;
+                    padding-right: 8px;
+                    alignment: space-between;
 
                     Text {
-                        text: root.language;
+                        text: root.language != "" ? root.language : "CODE";
                         font-family: Tokens.mono_font_family;
                         font-size: 11px;
+                        font-weight: 600;
                         color: #8b949e;
                         vertical-alignment: center;
                     }
+
+                    // Interactive Icon-Only Copy button vertically centered in header strip
+                    VerticalLayout {
+                        alignment: center;
+
+                        copy-btn := TouchArea {
+                            width: 24px;
+                            height: 24px;
+                            mouse-cursor: pointer;
+
+                            clicked => {
+                                root.is-copied = true;
+                                reset-timer.running = true;
+                                root.copy-clicked();
+                            }
+
+                            Rectangle {
+                                background: copy-btn.has-hover ? rgba(255, 255, 255, 0.08) : transparent;
+                                border-radius: 4px;
+
+                                HorizontalLayout {
+                                    alignment: center;
+
+                                    VerticalLayout {
+                                        alignment: center;
+
+                                        Image {
+                                            source: root.is-copied
+                                                ? @image-url("../../../assets/icons/main-content/messages/assistant/check.svg")
+                                                : @image-url("../../../assets/icons/main-content/messages/assistant/copy.svg");
+                                            width: 14px;
+                                            height: 14px;
+                                            colorize: root.is-copied ? #3fb950 : (copy-btn.has-hover ? #c9d1d9 : #8b949e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    reset-timer := Timer {
+                        interval: 2.5s;
+                        running: false;
+                        triggered => {
+                            root.is-copied = false;
+                            self.running = false;
+                        }
+                    }
                 }
+            }
+
+            // Divider line
+            Rectangle {
+                height: 1px;
+                background: #21262d;
             }
 
             // Code content container

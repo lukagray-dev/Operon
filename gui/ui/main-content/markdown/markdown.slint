@@ -89,12 +89,13 @@ export component MarkdownView inherits VerticalLayout {
     in property <[MarkdownElement]> elements: [];
     in property <string> font_family: Tokens.font_family;
     callback open-url(string);
+    callback copy-code(int /* element_index */);
 
     spacing: 0px;
     padding: 0px;
     width: 100%;
 
-    for element in root.elements : VerticalLayout {
+    for element[idx] in root.elements : VerticalLayout {
         spacing: 0px;
         padding: 0px;
 
@@ -133,6 +134,10 @@ export component MarkdownView inherits VerticalLayout {
         if (element.block_type == MarkdownBlockType.CodeBlock) : MarkdownCodeBlock {
             rich_text: element.rich_text;
             language: element.language;
+
+            copy-clicked => {
+                root.copy-code(idx);
+            }
         }
 
         if (element.block_type == MarkdownBlockType.DisplayMath) : MarkdownDisplayMath {
