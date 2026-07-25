@@ -17,6 +17,7 @@ pub use operon_terminal as terminal;
 pub use operon_diff as diff;
 pub use operon_tools as tools;
 pub use operon_tools_core as tools_core;
+pub use operon_channels as channels;
 
 pub use config::{
     add_allowed_directory, get_allowed_directories_list, get_permission_rows, load,

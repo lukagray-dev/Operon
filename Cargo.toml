@@ -94,6 +94,10 @@ members = [
     # Terminal Crate
     "operon-rs/src/operon-terminal",
     "operon-rs/src/operon-diff",
+
+    # Channels facade & sub-crates
+    "operon-rs/src/operon-channels",
+    "operon-rs/src/operon-channels/src/whatsapp",
 ]
 
 [workspace.dependencies]
@@ -181,9 +185,12 @@ operon-session   = { path = "operon-rs/src/operon-session" }
 operon-markdown  = { path = "operon-rs/src/operon-markdown" }
 operon-terminal  = { path = "operon-rs/src/operon-terminal" }
 operon-diff      = { path = "operon-rs/src/operon-diff" }
+operon-channels  = { path = "operon-rs/src/operon-channels" }
+operon-channels-whatsapp = { path = "operon-rs/src/operon-channels/src/whatsapp" }
 
 # Third party dependencies
 portable-pty     = "0.8"
+qrcode           = "0.14"
 
 # SQLite persistence (used by operon-session)
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }

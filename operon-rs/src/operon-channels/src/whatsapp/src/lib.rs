@@ -1,0 +1,30 @@
+//! # operon-channels-whatsapp
+//!
+//! WhatsApp channel integration sub-crate for Operon backend.
+//!
+//! Handles QR pairing, contact allowlist role classification (`Owner` vs `External`),
+//! per-contact workspace isolation (`~/.operon/channels/whatsapp/workspace/<phone>/`),
+//! JSON session history management, `/new` session resets, onboarding documentation,
+//! and response streaming over WhatsApp.
+
+pub mod auth;
+pub mod client;
+pub mod config;
+pub mod error;
+pub mod outbound;
+pub mod router;
+pub mod runner_bridge;
+pub mod types;
+pub mod workspace;
+
+pub use auth::WhatsAppAuth;
+pub use client::WhatsAppClient;
+pub use config::WhatsAppConfig;
+pub use error::WhatsAppError;
+pub use outbound::OutboundMessage;
+pub use router::{RouteOutcome, WhatsAppRouter};
+pub use runner_bridge::SessionRunnerBridge;
+pub use types::{ConnectionStatus, ContactId, QrCodeState, WhatsAppMessage};
+pub use workspace::WhatsAppWorkspaceManager;
+
+
