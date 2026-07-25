@@ -95,6 +95,11 @@ export component MainContent inherits Rectangle {
     
     // Session title property
     in property <string> session-title: "New Session";
+
+    // Project session & Git diff status properties
+    in property <bool> is-project-session: false;
+    in property <int> git-insertions: 0;
+    in property <int> git-deletions: 0;
     
     // State of terminal drawer panel
     in-out property <bool> is-terminal-open: false;
@@ -113,6 +118,7 @@ export component MainContent inherits Rectangle {
     callback voice-recording-stopped();
     callback model-selected(string /* selected-model */);
     callback cancel-clicked();
+    callback git-commit-clicked();
     
     // Message action callbacks
     callback message-edit-clicked(int /* message-index */);
@@ -143,6 +149,13 @@ export component MainContent inherits Rectangle {
         // Unified header containing session title and potential top bar actions
         topbar := Topbar {
             title: root.session-title;
+            is-project-session: root.is-project-session;
+            git-insertions: root.git-insertions;
+            git-deletions: root.git-deletions;
+
+            git-commit-clicked => {
+                root.git-commit-clicked();
+            }
             
             // Toggle terminal visibility when the terminal button is clicked
             // Sets terminal height to capture exactly 30% of the main content area
@@ -265,7 +278,7 @@ export component MainContent inherits Rectangle {
                         }
                         
                         input-panel := InputPanel {
-                            min-width: 400px;
+                            min-width: Math.min(400px, parent.width - 32px);
                             max-width: root.input-panel-max-width;
                             horizontal-stretch: 1;
                             

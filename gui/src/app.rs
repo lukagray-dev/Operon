@@ -38,6 +38,9 @@ pub fn run() -> anyhow::Result<()> {
     // Wire main content area callbacks (input panel, message display, etc.)
     crate::main_content::wire_main_content(&ui, Rc::clone(&state));
 
+    // Wire right sidebar Git diff callbacks
+    crate::right_sidebar::wire_right_sidebar(&ui, Rc::clone(&state));
+
     // `run()` is the easiest Slint entry path for a normal desktop window:
     // it shows the component, runs the event loop, and hides it on shutdown.
     ui.run()

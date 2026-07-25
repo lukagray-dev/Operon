@@ -1,0 +1,830 @@
+// Right sidebar component (Git Diff preview panel) for Operon GUI.
+//
+// This component displays:
+// - A top header bar with "CHANGES" title and total insertion/deletion counts.
+// - An Unstaged Changes accordion section (file list with status tags, insertions/deletions, stage (+), revert buttons).
+// - A Staged Changes accordion section (file list with status tags, insertions/deletions, unstage (-) buttons).
+// - Expandable hunk diff viewer with KodeMono font, syntax highlighting, red deletion lines, and vertically centered text.
+// - Bottom action footer with "Revert All" and "Stage All" bulk action buttons.
+// - Left-edge resize handle for dragging to adjust sidebar width.
+
+import { Tokens } from "../shared/tokens.slint";
+import { ScrollView } from "std-widgets.slint";
+
+// Line-by-line diff entry in a hunk
+export struct GitDiffLine {
+    line_type: string,     // "+" for insertion, "-" for deletion, " " for context
+    content: string,       // syntax-highlighted line content (HTML)
+    old_line_num: string,  // line number in old file
+    new_line_num: string,  // line number in new file
+}
+
+// Hunk of modifications in a file diff
+export struct GitDiffHunk {
+    header: string,        // e.g. "@@ -10,4 +10,6 @@"
+    lines: [GitDiffLine],  // lines inside this hunk
+}
+
+// File diff structure representing a modified or untracked file
+export struct GitFileDiff {
+    path: string,          // relative file path from workspace root
+    file_name: string,     // basename of the file
+    status: string,        // "modified", "added", "deleted", "untracked"
+    insertions: int,       // count of inserted lines (+X)
+    deletions: int,        // count of deleted lines (-Y)
+    hunks: [GitDiffHunk],  // list of hunks in this file
+    is_expanded: bool,     // whether the hunk diff viewer is expanded for this file
+}
+
+// Main RightSidebar component for Git Diff management
+export component RightSidebar inherits Rectangle {
+    // Current width of the sidebar (resizable via left drag handle)
+    in-out property <length> sidebar-width: 340px;
+    property <length> min-sidebar-width: 240px;
+    property <length> max-sidebar-width: 650px;
+    
+    // Overall repository diff stats
+    in property <int> total-insertions: 0;
+    in property <int> total-deletions: 0;
+    in property <bool> has-repo: true;
+
+    // Files lists bound from Rust
+    in property <[GitFileDiff]> unstaged-files: [];
+    in property <[GitFileDiff]> staged-files: [];
+
+    // Accordion section collapse/expand states
+    in-out property <bool> unstaged-expanded: true;
+    in-out property <bool> staged-expanded: true;
+
+    // Callbacks for user actions
+    callback stage-file-clicked(string /* path */);
+    callback unstage-file-clicked(string /* path */);
+    callback revert-file-clicked(string /* path */);
+    callback stage-all-clicked();
+    callback revert-all-clicked();
+    callback file-expanded-toggled(bool /* is_staged */, int /* file_index */);
+    callback width-changed(length);
+
+    width: root.sidebar-width;
+    background: Tokens.titlebar-background;
+    clip: true;
+
+    VerticalLayout {
+        width: 100%;
+        height: 100%;
+        spacing: 0px;
+
+        // ===== PANEL HEADER =====
+        header := Rectangle {
+            height: 40px;
+            background: #0f0f0f;
+            border-width: 1px;
+            border-color: Tokens.dropdown-border;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                alignment: space-between;
+
+                // Title and changes stats badge
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    Text {
+                        text: "CHANGES";
+                        font-size: 11px;
+                        font-weight: 700;
+                        font-family: Tokens.font-family;
+                        color: Tokens.text-muted;
+                        vertical-alignment: center;
+                    }
+
+                    if (root.total-insertions > 0 || root.total-deletions > 0) : HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        
+                        if (root.total-insertions > 0) : Text {
+                            text: "+" + root.total-insertions;
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: #23d18b;
+                            vertical-alignment: center;
+                        }
+                        if (root.total-deletions > 0) : Text {
+                            text: "-" + root.total-deletions;
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: #f14c4c;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== PANEL BODY =====
+        body := Rectangle {
+            vertical-stretch: 1;
+            background: transparent;
+
+            if (!root.has-repo) : Rectangle {
+                Text {
+                    text: "No git repository found in workspace.";
+                    font-size: 12px;
+                    color: Tokens.text-muted;
+                    font-family: Tokens.font-family;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            if (root.has-repo) : ScrollView {
+                width: 100%;
+                height: 100%;
+
+                VerticalLayout {
+                    padding: 8px;
+                    spacing: 12px;
+
+                    // ===== UNSTAGED SECTION =====
+                    unstaged-section := VerticalLayout {
+                        spacing: 4px;
+
+                        // Section Header
+                        unstaged-header := Rectangle {
+                            height: 28px;
+                            background: unstaged-header-touch.has-hover ? rgba(255, 255, 255, 0.04) : transparent;
+                            border-radius: 4px;
+
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                spacing: 6px;
+                                alignment: space-between;
+
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    alignment: start;
+
+                                    Image {
+                                        source: root.unstaged-expanded 
+                                            ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
+                                            : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
+                                        width: 14px;
+                                        height: 14px;
+                                        colorize: Tokens.text-muted;
+                                    }
+
+                                    Text {
+                                        text: "Unstaged Changes";
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        color: Tokens.text-primary;
+                                        font-family: Tokens.font-family;
+                                        vertical-alignment: center;
+                                    }
+
+                                    // Count badge
+                                    Rectangle {
+                                        background: rgba(255, 255, 255, 0.08);
+                                        border-radius: 10px;
+                                        height: 16px;
+                                        width: count-text.preferred-width + 10px;
+
+                                        count-text := Text {
+                                            text: root.unstaged-files.length;
+                                            font-size: 10px;
+                                            font-weight: 600;
+                                            color: Tokens.text-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            unstaged-header-touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.unstaged-expanded = !root.unstaged-expanded;
+                                }
+                            }
+                        }
+
+                        // File List
+                        if (root.unstaged-expanded) : VerticalLayout {
+                            spacing: 2px;
+
+                            if (root.unstaged-files.length == 0) : Text {
+                                text: "No unstaged changes";
+                                font-size: 11px;
+                                color: Tokens.text-muted;
+                                font-family: Tokens.font-family;
+                            }
+
+                            for file[file-idx] in root.unstaged-files : VerticalLayout {
+                                spacing: 0px;
+
+                                // File Row Header
+                                file-row := Rectangle {
+                                    height: 28px;
+                                    background: file-row-touch.has-hover ? rgba(255, 255, 255, 0.05) : transparent;
+                                    border-radius: 4px;
+
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        spacing: 6px;
+
+                                        // Expand chevron icon
+                                        Image {
+                                            source: file.is_expanded 
+                                                ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
+                                                : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: Tokens.text-muted;
+                                        }
+
+                                        // File path / name
+                                        Text {
+                                            text: file.file_name != "" ? file.file_name : file.path;
+                                            font-size: 12px;
+                                            color: Tokens.text-primary;
+                                            font-family: Tokens.font-family;
+                                            horizontal-stretch: 1;
+                                            overflow: elide;
+                                            vertical-alignment: center;
+                                        }
+
+                                        // Stats (+X -Y)
+                                        if (file.insertions > 0 || file.deletions > 0) : HorizontalLayout {
+                                            spacing: 4px;
+                                            if (file.insertions > 0) : Text {
+                                                text: "+" + file.insertions;
+                                                font-size: 10px;
+                                                color: #23d18b;
+                                                vertical-alignment: center;
+                                            }
+                                            if (file.deletions > 0) : Text {
+                                                text: "-" + file.deletions;
+                                                font-size: 10px;
+                                                color: #f14c4c;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        // Status tag (M, A, D, U)
+                                        status-tag := Rectangle {
+                                            height: 16px;
+                                            width: 18px;
+                                            border-radius: 3px;
+                                            background: file.status == "added" ? rgba(35, 209, 139, 0.2) :
+                                                        (file.status == "deleted" ? rgba(241, 76, 76, 0.2) :
+                                                        (file.status == "untracked" ? rgba(255, 255, 255, 0.1) : rgba(245, 245, 67, 0.2)));
+
+                                            Text {
+                                                text: file.status == "added" ? "A" :
+                                                      (file.status == "deleted" ? "D" :
+                                                      (file.status == "untracked" ? "U" : "M"));
+                                                font-size: 9px;
+                                                font-weight: 700;
+                                                color: file.status == "added" ? #23d18b :
+                                                       (file.status == "deleted" ? #f14c4c :
+                                                       (file.status == "untracked" ? #cccccc : #f5f543));
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        // Action buttons (Revert, Stage)
+                                        HorizontalLayout {
+                                            spacing: 4px;
+
+                                            // Revert button
+                                            revert-btn := Rectangle {
+                                                width: 20px;
+                                                height: 20px;
+                                                border-radius: 3px;
+                                                background: revert-touch.has-hover ? rgba(241, 76, 76, 0.2) : transparent;
+
+                                                Image {
+                                                    source: @image-url("../../assets/icons/right-sidebar/trash-2.svg");
+                                                    width: 14px;
+                                                    height: 14px;
+                                                    colorize: revert-touch.has-hover ? #f14c4c : Tokens.text-muted;
+                                                }
+
+                                                revert-touch := TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => {
+                                                        root.revert-file-clicked(file.path);
+                                                    }
+                                                }
+                                            }
+
+                                            // Stage button (+)
+                                            stage-btn := Rectangle {
+                                                width: 20px;
+                                                height: 20px;
+                                                border-radius: 3px;
+                                                background: stage-touch.has-hover ? rgba(35, 209, 139, 0.2) : transparent;
+
+                                                Image {
+                                                    source: @image-url("../../assets/icons/right-sidebar/plus.svg");
+                                                    width: 14px;
+                                                    height: 14px;
+                                                    colorize: stage-touch.has-hover ? #23d18b : Tokens.text-muted;
+                                                }
+
+                                                stage-touch := TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => {
+                                                        root.stage-file-clicked(file.path);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    file-row-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.file-expanded-toggled(false, file-idx);
+                                        }
+                                    }
+                                }
+
+                                // Hunk Diff View (KodeMono font & Syntax Highlighted lines)
+                                if (file.is_expanded) : Rectangle {
+                                    background: #050505;
+                                    border-radius: 4px;
+                                    clip: true;
+
+                                    VerticalLayout {
+                                        padding: 4px;
+                                        spacing: 2px;
+
+                                        for hunk in file.hunks : VerticalLayout {
+                                            spacing: 1px;
+
+                                            // Hunk Header
+                                            Rectangle {
+                                                height: 22px;
+                                                background: rgba(255, 255, 255, 0.03);
+
+                                                HorizontalLayout {
+                                                    padding-left: 6px;
+                                                    padding-right: 6px;
+                                                    alignment: start;
+
+                                                    Text {
+                                                        text: hunk.header;
+                                                        font-size: 11px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: #79c0ff;
+                                                        vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+
+                                            // Hunk Lines
+                                            for line in hunk.lines : Rectangle {
+                                                height: 22px;
+                                                background: line.line_type == "+" ? rgba(35, 209, 139, 0.15) :
+                                                            (line.line_type == "-" ? rgba(241, 76, 76, 0.18) : transparent);
+
+                                                HorizontalLayout {
+                                                    padding-left: 6px;
+                                                    padding-right: 6px;
+                                                    spacing: 8px;
+
+                                                    // Old Line Number
+                                                    Text {
+                                                        text: line.old_line_num;
+                                                        font-size: 10px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: line.line_type == "-" ? #f14c4c : Tokens.text-muted;
+                                                        width: 28px;
+                                                        horizontal-alignment: right;
+                                                        vertical-alignment: center;
+                                                    }
+
+                                                    // New Line Number
+                                                    Text {
+                                                        text: line.new_line_num;
+                                                        font-size: 10px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: line.line_type == "+" ? #23d18b : Tokens.text-muted;
+                                                        width: 28px;
+                                                        horizontal-alignment: right;
+                                                        vertical-alignment: center;
+                                                    }
+
+                                                    // Line type sign (+ / - / space)
+                                                    Text {
+                                                        text: line.line_type;
+                                                        font-size: 11px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: line.line_type == "+" ? #23d18b :
+                                                               (line.line_type == "-" ? #f14c4c : Tokens.text-muted);
+                                                        width: 10px;
+                                                        horizontal-alignment: center;
+                                                        vertical-alignment: center;
+                                                    }
+
+                                                    // Code Content (Syntax Highlighted HTML)
+                                                    Text {
+                                                        text: line.content;
+                                                        font-size: 11px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        horizontal-stretch: 1;
+                                                        vertical-alignment: center;
+                                                        overflow: elide;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ===== STAGED SECTION =====
+                    staged-section := VerticalLayout {
+                        spacing: 4px;
+
+                        // Section Header
+                        staged-header := Rectangle {
+                            height: 28px;
+                            background: staged-header-touch.has-hover ? rgba(255, 255, 255, 0.04) : transparent;
+                            border-radius: 4px;
+
+                            HorizontalLayout {
+                                padding-left: 6px;
+                                padding-right: 6px;
+                                spacing: 6px;
+                                alignment: space-between;
+
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    alignment: start;
+
+                                    Image {
+                                        source: root.staged-expanded 
+                                            ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
+                                            : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
+                                        width: 14px;
+                                        height: 14px;
+                                        colorize: Tokens.text-muted;
+                                    }
+
+                                    Text {
+                                        text: "Staged Changes";
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        color: Tokens.text-primary;
+                                        font-family: Tokens.font-family;
+                                        vertical-alignment: center;
+                                    }
+
+                                    // Count badge
+                                    Rectangle {
+                                        background: rgba(255, 255, 255, 0.08);
+                                        border-radius: 10px;
+                                        height: 16px;
+                                        width: staged-count-text.preferred-width + 10px;
+
+                                        staged-count-text := Text {
+                                            text: root.staged-files.length;
+                                            font-size: 10px;
+                                            font-weight: 600;
+                                            color: Tokens.text-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            staged-header-touch := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.staged-expanded = !root.staged-expanded;
+                                }
+                            }
+                        }
+
+                        // File List
+                        if (root.staged-expanded) : VerticalLayout {
+                            spacing: 2px;
+
+                            if (root.staged-files.length == 0) : Text {
+                                text: "No staged changes";
+                                font-size: 11px;
+                                color: Tokens.text-muted;
+                                font-family: Tokens.font-family;
+                            }
+
+                            for file[file-idx] in root.staged-files : VerticalLayout {
+                                spacing: 0px;
+
+                                file-staged-row := Rectangle {
+                                    height: 28px;
+                                    background: file-staged-touch.has-hover ? rgba(255, 255, 255, 0.05) : transparent;
+                                    border-radius: 4px;
+
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        spacing: 6px;
+
+                                        Image {
+                                            source: file.is_expanded 
+                                                ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
+                                                : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
+                                            width: 12px;
+                                            height: 12px;
+                                            colorize: Tokens.text-muted;
+                                        }
+
+                                        Text {
+                                            text: file.file_name != "" ? file.file_name : file.path;
+                                            font-size: 12px;
+                                            color: Tokens.text-primary;
+                                            font-family: Tokens.font-family;
+                                            horizontal-stretch: 1;
+                                            overflow: elide;
+                                            vertical-alignment: center;
+                                        }
+
+                                        if (file.insertions > 0 || file.deletions > 0) : HorizontalLayout {
+                                            spacing: 4px;
+                                            if (file.insertions > 0) : Text {
+                                                text: "+" + file.insertions;
+                                                font-size: 10px;
+                                                color: #23d18b;
+                                                vertical-alignment: center;
+                                            }
+                                            if (file.deletions > 0) : Text {
+                                                text: "-" + file.deletions;
+                                                font-size: 10px;
+                                                color: #f14c4c;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        // Status tag
+                                        Rectangle {
+                                            height: 16px;
+                                            width: 18px;
+                                            border-radius: 3px;
+                                            background: file.status == "added" ? rgba(35, 209, 139, 0.2) :
+                                                        (file.status == "deleted" ? rgba(241, 76, 76, 0.2) : rgba(245, 245, 67, 0.2));
+
+                                            Text {
+                                                text: file.status == "added" ? "A" :
+                                                      (file.status == "deleted" ? "D" : "M");
+                                                font-size: 9px;
+                                                font-weight: 700;
+                                                color: file.status == "added" ? #23d18b :
+                                                       (file.status == "deleted" ? #f14c4c : #f5f543);
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+
+                                        // Unstage (-) button
+                                        Rectangle {
+                                            width: 20px;
+                                            height: 20px;
+                                            border-radius: 3px;
+                                            background: unstage-touch.has-hover ? rgba(255, 255, 255, 0.1) : transparent;
+
+                                            Image {
+                                                source: @image-url("../../assets/icons/right-sidebar/minus.svg");
+                                                width: 14px;
+                                                height: 14px;
+                                                colorize: unstage-touch.has-hover ? Tokens.text-primary : Tokens.text-muted;
+                                            }
+
+                                            unstage-touch := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => {
+                                                    root.unstage-file-clicked(file.path);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    file-staged-touch := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.file-expanded-toggled(true, file-idx);
+                                        }
+                                    }
+                                }
+
+                                // Hunk diff for staged files
+                                if (file.is_expanded) : Rectangle {
+                                    background: #050505;
+                                    border-radius: 4px;
+                                    clip: true;
+
+                                    VerticalLayout {
+                                        padding: 4px;
+                                        spacing: 2px;
+
+                                        for hunk in file.hunks : VerticalLayout {
+                                            spacing: 1px;
+
+                                            Rectangle {
+                                                height: 22px;
+                                                background: rgba(255, 255, 255, 0.03);
+
+                                                HorizontalLayout {
+                                                    padding-left: 6px;
+                                                    padding-right: 6px;
+                                                    alignment: start;
+
+                                                    Text {
+                                                        text: hunk.header;
+                                                        font-size: 11px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: #79c0ff;
+                                                        vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+
+                                            for line in hunk.lines : Rectangle {
+                                                height: 22px;
+                                                background: line.line_type == "+" ? rgba(35, 209, 139, 0.15) :
+                                                            (line.line_type == "-" ? rgba(241, 76, 76, 0.18) : transparent);
+
+                                                HorizontalLayout {
+                                                    padding-left: 6px;
+                                                    padding-right: 6px;
+                                                    spacing: 8px;
+
+                                                    Text {
+                                                        text: line.old_line_num;
+                                                        font-size: 10px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: line.line_type == "-" ? #f14c4c : Tokens.text-muted;
+                                                        width: 28px;
+                                                        horizontal-alignment: right;
+                                                        vertical-alignment: center;
+                                                    }
+
+                                                    Text {
+                                                        text: line.new_line_num;
+                                                        font-size: 10px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: line.line_type == "+" ? #23d18b : Tokens.text-muted;
+                                                        width: 28px;
+                                                        horizontal-alignment: right;
+                                                        vertical-alignment: center;
+                                                    }
+
+                                                    Text {
+                                                        text: line.line_type;
+                                                        font-size: 11px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        color: line.line_type == "+" ? #23d18b :
+                                                               (line.line_type == "-" ? #f14c4c : Tokens.text-muted);
+                                                        width: 10px;
+                                                        horizontal-alignment: center;
+                                                        vertical-alignment: center;
+                                                    }
+
+                                                    Text {
+                                                        text: line.content;
+                                                        font-size: 11px;
+                                                        font-family: Tokens.mono_font_family;
+                                                        horizontal-stretch: 1;
+                                                        vertical-alignment: center;
+                                                        overflow: elide;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== PANEL FOOTER =====
+        if (root.has-repo) : Rectangle {
+            height: 48px;
+            background: #0c0c0c;
+            border-width: 1px;
+            border-color: Tokens.dropdown-border;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 8px;
+                alignment: center;
+
+                // Revert All button
+                revert-all-btn := Rectangle {
+                    horizontal-stretch: 1;
+                    height: 28px;
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: revert-all-touch.has-hover ? rgba(241, 76, 76, 0.5) : Tokens.dropdown-border;
+                    background: revert-all-touch.has-hover ? rgba(241, 76, 76, 0.1) : transparent;
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: center;
+
+                        Image {
+                            source: @image-url("../../assets/icons/right-sidebar/rotate-ccw.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: revert-all-touch.has-hover ? #f14c4c : Tokens.text-primary;
+                        }
+
+                        Text {
+                            text: "Revert All";
+                            font-size: 11px;
+                            font-weight: 500;
+                            color: revert-all-touch.has-hover ? #f14c4c : Tokens.text-primary;
+                            font-family: Tokens.font-family;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    revert-all-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.revert-all-clicked();
+                        }
+                    }
+                }
+
+                // Stage All button
+                stage-all-btn := Rectangle {
+                    horizontal-stretch: 1;
+                    height: 28px;
+                    border-radius: 4px;
+                    background: stage-all-touch.has-hover ? #e5e5e5 : #ffffff;
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: center;
+
+                        Image {
+                            source: @image-url("../../assets/icons/right-sidebar/plus.svg");
+                            width: 12px;
+                            height: 12px;
+                            colorize: #000000;
+                        }
+
+                        Text {
+                            text: "Stage All";
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: #000000;
+                            font-family: Tokens.font-family;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    stage-all-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.stage-all-clicked();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Left-edge drag handle for resizing the right sidebar
+    drag-handle := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: 8px;
+        height: 100%;
+        mouse-cursor: ew-resize;
+
+        moved => {
+            if (self.pressed) {
+                let max-allowed = Math.min(650px, root.width * 0.5);
+                let new-width = Math.clamp(root.sidebar-width - (self.mouse-x - self.pressed-x), root.min-sidebar-width, max-allowed);
+                root.sidebar-width = new-width;
+                root.width-changed(new-width);
+            }
+        }
+    }
+}

@@ -25,7 +25,7 @@ fn get_theme_set() -> &'static ThemeSet {
 }
 
 /// Escapes HTML special characters in code strings to prevent XML/HTML parse errors.
-fn escape_html(input: &str) -> String {
+pub fn escape_html(input: &str) -> String {
     input
         .replace('&', "&amp;")
         .replace('<', "&lt;")

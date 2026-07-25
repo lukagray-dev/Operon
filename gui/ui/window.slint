@@ -9,6 +9,7 @@ import { Titlebar } from "./window/titlebar.slint";
 import { Sidebar } from "./left-sidebar/sidebar.slint";
 import { SidebarConversation, SidebarProject } from "./left-sidebar/types.slint";
 import { MainContent, ChatMessage } from "./main-content/main-content.slint";
+import { RightSidebar, GitFileDiff, GitDiffHunk, GitDiffLine } from "./right-sidebar/right-sidebar.slint";
 export { SettingsWindow } from "./settings/settings.slint";
 
 export component OperonWindow inherits Window {
@@ -157,6 +158,25 @@ export component OperonWindow inherits Window {
     in-out property <string> pending_permission_action: "";
     in-out property <string> pending_permission_target: "";
     
+    // ===== Right Sidebar / Git Diff Properties & Callbacks =====
+    in-out property <bool> right_sidebar_open: false;
+    in-out property <length> right_sidebar_width: 340px;
+    in-out property <bool> is_project_session: false;
+    in property <bool> git_has_repo: false;
+    in property <int> git_total_insertions: 0;
+    in property <int> git_total_deletions: 0;
+    in property <[GitFileDiff]> git_unstaged_files: [];
+    in property <[GitFileDiff]> git_staged_files: [];
+
+    callback git_stage_file_requested(string /* path */);
+    callback git_unstage_file_requested(string /* path */);
+    callback git_revert_file_requested(string /* path */);
+    callback git_stage_all_requested();
+    callback git_revert_all_requested();
+    callback git_refresh_requested();
+    callback git_file_expanded_toggled(bool /* is_staged */, int /* file_index */);
+    callback right_sidebar_width_changed(length /* new-width */);
+
     // Fired when user selects a model from the dropdown
     callback model_selected(string /* selected-model */);
 
@@ -233,6 +253,7 @@ export component OperonWindow inherits Window {
         content_area := Rectangle {
             horizontal-stretch: 1;
             background: Tokens.window_background;
+            clip: true;
 
             
             // Main content component with input panel
@@ -269,6 +290,18 @@ export component OperonWindow inherits Window {
                 terminal-tab-close-clicked(idx) => { root.terminal_tab_close_clicked(idx); }
                 terminal-tab-new-clicked => { root.terminal_tab_new_clicked(); }
                 terminal-key-pressed(idx, key) => { root.terminal_key_pressed(idx, key); }
+
+                // Bind project session & git diff status properties
+                is-project-session: root.is_project_session;
+                git-insertions: root.git_total_insertions;
+                git-deletions: root.git_total_deletions;
+
+                git-commit-clicked => {
+                    root.right_sidebar_open = !root.right_sidebar_open;
+                    if (root.right_sidebar_open) {
+                        root.git_refresh_requested();
+                    }
+                }
 
                 // Bind pending permission properties
                 has-pending-permission: root.has_pending_permission;
@@ -363,6 +396,49 @@ export component OperonWindow inherits Window {
                 permission_denied(id) => {
                     root.permission_denied(id);
                 }
+            }
+        }
+
+        // Vertical separator between main content and right sidebar
+        Rectangle {
+            width: root.right_sidebar_open ? 1px : 0px;
+            visible: root.right_sidebar_open;
+            background: Tokens.dropdown-border;
+        }
+
+        // Right sidebar (Git diff preview panel)
+        right_sidebar := RightSidebar {
+            visible: root.right_sidebar_open;
+            width: root.right_sidebar_open ? self.sidebar-width : 0px;
+            sidebar-width <=> root.right_sidebar_width;
+
+            total-insertions: root.git_total_insertions;
+            total-deletions: root.git_total_deletions;
+            has-repo: root.git_has_repo;
+            unstaged-files: root.git_unstaged_files;
+            staged-files: root.git_staged_files;
+
+            stage-file-clicked(path) => {
+                root.git_stage_file_requested(path);
+            }
+            unstage-file-clicked(path) => {
+                root.git_unstage_file_requested(path);
+            }
+            revert-file-clicked(path) => {
+                root.git_revert_file_requested(path);
+            }
+            stage-all-clicked => {
+                root.git_stage_all_requested();
+            }
+            revert-all-clicked => {
+                root.git_revert_all_requested();
+            }
+            file-expanded-toggled(is-staged, file-idx) => {
+                root.git_file_expanded_toggled(is-staged, file-idx);
+            }
+            width-changed(new-width) => {
+                root.right_sidebar_width = new-width;
+                root.right_sidebar_width_changed(new-width);
             }
         }
     }

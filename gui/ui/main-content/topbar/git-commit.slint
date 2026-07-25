@@ -11,8 +11,13 @@ export component GitCommitButton inherits Rectangle {
     // Callback fired when the button is clicked
     callback clicked();
 
-    width: 28px;
+    // Quick stats properties for changes badge (+X -Y)
+    in property <int> insertions: 0;
+    in property <int> deletions: 0;
+
     height: 28px;
+    min-width: 28px;
+    horizontal-stretch: 0;
     border-radius: 4px;
     
     // Background highlight on hover
@@ -23,11 +28,14 @@ export component GitCommitButton inherits Rectangle {
     // Smooth transition for background hover state
     animate background { duration: 150ms; easing: ease-in-out; }
 
-    HorizontalLayout {
+    content-layout := HorizontalLayout {
         alignment: center;
+        padding-left: 4px;
+        padding-right: 4px;
+        spacing: 6px;
+
         VerticalLayout {
             alignment: center;
-            
             // Git commit icon
             Image {
                 source: @image-url("../../../assets/icons/main-content/topbar/git-commit.svg");
@@ -41,6 +49,29 @@ export component GitCommitButton inherits Rectangle {
                 
                 // Smooth transition for icon color change
                 animate colorize { duration: 150ms; easing: ease-in-out; }
+            }
+        }
+
+        // Quick insertions/deletions badge
+        if (root.insertions > 0 || root.deletions > 0) : VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 4px;
+
+                if (root.insertions > 0) : Text {
+                    text: "+" + root.insertions;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #23d18b;
+                    vertical-alignment: center;
+                }
+                if (root.deletions > 0) : Text {
+                    text: "-" + root.deletions;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #f14c4c;
+                    vertical-alignment: center;
+                }
             }
         }
     }

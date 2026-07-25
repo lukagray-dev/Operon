@@ -16,6 +16,9 @@ pub mod left_sidebar;
 #[path = "main-content/main-content.rs"]
 pub mod main_content;
 
+#[path = "right-sidebar/mod.rs"]
+pub mod right_sidebar;
+
 pub mod executor;
 
 /// Starts the Operon GUI application.

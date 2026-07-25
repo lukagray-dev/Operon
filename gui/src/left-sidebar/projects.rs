@@ -63,12 +63,14 @@ pub fn wire_projects(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                     g_state.set_active_session_id(None);
                     g_state.set_current_project_dir(Some(proj_path.to_string()));
                 }
+                win.set_is_project_session(true);
                 win.set_active_session_id("".into());
                 win.set_active_project_index(proj_idx);
                 win.set_active_conversation_index(-1);
                 win.set_active_chat_index(-1);
                 crate::main_content::title::set_session_title(&win, "New Chat");
                 win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::default())));
+                crate::right_sidebar::refresh_git_details(&win, Rc::clone(&app_state));
 
                 let app_config = operon_rs::config::load().ok();
                 let context_window = app_config
@@ -249,7 +251,9 @@ pub fn wire_projects(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                 };
 
                 if let Some(win) = window_weak.upgrade() {
+                    win.set_is_project_session(true);
                     win.set_active_session_id("".into());
+                    crate::right_sidebar::refresh_git_details(&win, Rc::clone(&app_state));
                 }
                 let win_weak = window_weak.clone();
                 let path_str_clone = path_str.clone();

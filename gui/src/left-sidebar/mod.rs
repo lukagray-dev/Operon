@@ -110,12 +110,20 @@ pub fn load_chat_session(
     project_path: Option<&str>,
     app_state: &Rc<RefCell<AppState>>,
 ) {
+    let is_project = project_path.map(|p| !p.trim().is_empty()).unwrap_or(false);
+
     // Update global state variables
     {
         let mut state = app_state.borrow_mut();
         state.set_active_session_id(Some(session_id.to_string()));
         state.set_current_project_dir(project_path.map(String::from));
     }
+
+    window.set_is_project_session(is_project);
+    if !is_project {
+        window.set_right_sidebar_open(false);
+    }
+    crate::right_sidebar::refresh_git_details(window, Rc::clone(app_state));
 
     println!(
         "[operon-gui][sidebar] Selected session: {}, project: {:?}",

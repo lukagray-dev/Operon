@@ -15,6 +15,11 @@ export component Topbar inherits Rectangle {
     // Active session/conversation title to display
     in property <string> title: "New Session";
 
+    // Project session indicator and quick git diff stats
+    in property <bool> is-project-session: false;
+    in property <int> git-insertions: 0;
+    in property <int> git-deletions: 0;
+
     // Callbacks for the action buttons
     callback terminal-clicked();
     callback git-commit-clicked();
@@ -62,8 +67,10 @@ export component Topbar inherits Rectangle {
                     }
                 }
 
-                // Git Commit button
+                // Git Commit / Diff button (always visible in topbar)
                 GitCommitButton {
+                    insertions: root.git-insertions;
+                    deletions: root.git-deletions;
                     clicked => {
                         root.git-commit-clicked();
                     }
