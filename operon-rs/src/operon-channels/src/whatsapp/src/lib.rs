@@ -21,7 +21,7 @@ pub use auth::WhatsAppAuth;
 pub use client::WhatsAppClient;
 pub use config::WhatsAppConfig;
 pub use error::WhatsAppError;
-pub use outbound::OutboundMessage;
+pub use outbound::{OutboundMessage, OutboundQueue};
 pub use router::{RouteOutcome, WhatsAppRouter};
 pub use runner_bridge::SessionRunnerBridge;
 pub use types::{ConnectionStatus, ContactId, QrCodeState, WhatsAppMessage};

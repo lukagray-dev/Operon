@@ -87,17 +87,26 @@ impl WhatsAppWorkspaceManager {
         }
 
         let agents_md_path = dir.join("AGENTS.md");
-        if !agents_md_path.exists() {
-            let content = if is_owner {
-                generate_owner_agents_md(contact)
-            } else {
-                generate_external_agents_md(contact)
-            };
+        let expected_content = if is_owner {
+            generate_owner_agents_md(contact)
+        } else {
+            generate_external_agents_md(contact)
+        };
 
-            std::fs::write(&agents_md_path, content).map_err(|e| {
+        let needs_write = match std::fs::read_to_string(&agents_md_path) {
+            Ok(existing) => existing != expected_content,
+            Err(_) => true,
+        };
+
+        if needs_write {
+            std::fs::write(&agents_md_path, &expected_content).map_err(|e| {
                 WhatsAppError::Workspace(format!("Failed to write AGENTS.md for {:?}: {e}", contact))
             })?;
-            info!("Auto-generated {} AGENTS.md for contact {}", if is_owner { "Owner" } else { "External" }, contact);
+            info!(
+                "Updated AGENTS.md ({}) for contact {}",
+                if is_owner { "Owner" } else { "External" },
+                contact
+            );
         }
 
         Ok(dir)

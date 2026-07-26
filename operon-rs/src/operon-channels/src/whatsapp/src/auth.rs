@@ -11,6 +11,11 @@ use crate::error::WhatsAppError;
 use crate::types::QrCodeState;
 
 /// Authentication and pairing manager for WhatsApp Web multi-device connection.
+///
+/// # Security & Credential Storage Note
+/// Full credential encryption at rest is not yet implemented in this pass. File-permission hardening
+/// (`0600` on Unix for files, `0700` for directories) is the current mitigation applied to all secret
+/// files saved under `auth_dir`.
 pub struct WhatsAppAuth {
     /// Directory where auth keys and credentials are stored on disk.
     auth_dir: PathBuf,
@@ -22,12 +27,13 @@ impl WhatsAppAuth {
         Self { auth_dir }
     }
 
-    /// Initializes the credentials directory, ensuring parent folders exist.
+    /// Initializes the credentials directory, ensuring parent folders exist with secure permissions (`0700` on Unix).
     pub fn init(&self) -> Result<(), WhatsAppError> {
         if !self.auth_dir.exists() {
             std::fs::create_dir_all(&self.auth_dir).map_err(|e| {
                 WhatsAppError::AuthFailed(format!("Failed to create auth dir {:?}: {e}", self.auth_dir))
             })?;
+            let _ = harden_directory_permissions(&self.auth_dir);
         }
         Ok(())
     }
@@ -77,11 +83,46 @@ impl WhatsAppAuth {
             std::fs::remove_dir_all(&self.auth_dir).map_err(|e| {
                 WhatsAppError::AuthFailed(format!("Failed to clear auth dir {:?}: {e}", self.auth_dir))
             })?;
-            std::fs::create_dir_all(&self.auth_dir)?;
+            info!("Cleared WhatsApp authentication credentials.");
         }
-        info!("Cleared WhatsApp authentication credentials.");
         Ok(())
     }
+    /// Writes an authentication credential file under `auth_dir` with restrictive file permissions (`0600` on Unix).
+    pub fn write_credential(&self, filename: &str, content: &[u8]) -> Result<PathBuf, WhatsAppError> {
+        self.init()?;
+        let path = self.auth_dir.join(filename);
+        std::fs::write(&path, content).map_err(|e| {
+            WhatsAppError::AuthFailed(format!("Failed to write credential file {:?}: {e}", path))
+        })?;
+        let _ = harden_file_permissions(&path);
+        Ok(path)
+    }
+}
+
+/// Helper function to set file permissions to 0600 (owner read/write only) on Unix systems.
+#[cfg(unix)]
+fn harden_file_permissions(path: &std::path::Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let permissions = std::fs::Permissions::from_mode(0o600);
+    std::fs::set_permissions(path, permissions)
+}
+
+#[cfg(not(unix))]
+fn harden_file_permissions(_path: &std::path::Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+/// Helper function to set directory permissions to 0700 (owner read/write/exec only) on Unix systems.
+#[cfg(unix)]
+fn harden_directory_permissions(path: &std::path::Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let permissions = std::fs::Permissions::from_mode(0o700);
+    std::fs::set_permissions(path, permissions)
+}
+
+#[cfg(not(unix))]
+fn harden_directory_permissions(_path: &std::path::Path) -> std::io::Result<()> {
+    Ok(())
 }
 
 /// Helper function to get wall clock time in seconds.
