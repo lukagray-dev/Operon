@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-tokio.workspace = true
+tokio = { workspace = true, features = ["full"] }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -17,6 +17,18 @@ tracing.workspace = true
 dirs.workspace = true
 reqwest.workspace = true
 qrcode.workspace = true
+parking_lot = "0.12"
+bytes = "1"
+prost = "0.14"
+chrono = "0.4"
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+whatsapp-rust = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false, features = ["tokio-runtime"] }
+whatsapp-rust-tokio-transport = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
+whatsapp-rust-ureq-http-client = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3" }
+wacore = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
+wacore-binary = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
+waproto = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
 
 operon-context.workspace = true
 operon-events.workspace = true

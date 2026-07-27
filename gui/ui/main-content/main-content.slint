@@ -104,6 +104,9 @@ export component MainContent inherits Rectangle {
     // State of terminal drawer panel
     in-out property <bool> is-terminal-open: false;
 
+    // Read-only session posture (WhatsApp channel sessions)
+    in property <bool> is-read-only-session: false;
+
     
     // ===== Callbacks =====
     // Forward all input panel callbacks to parent
@@ -219,14 +222,13 @@ export component MainContent inherits Rectangle {
             }
 
             // 2. Floating Input Overlay
-            // Positioned absolutely at the bottom of the body viewport, rendering on top of messages.
-            // Spans the full width, but has a transparent background so messages and the scrollbar
-            // remain fully visible underneath it.
+            // Hidden when viewing WhatsApp read-only sessions
             floating-input-overlay := Rectangle {
                 y: max(0px, parent.height - self.height);
                 width: parent.width;
                 height: floating-layout.preferred-height;
                 background: transparent;
+                visible: !root.is-read-only-session;
 
                 // Click background outside input box to deselect input panel
                 TouchArea {
@@ -373,6 +375,38 @@ export component MainContent inherits Rectangle {
                                 background: transparent;
                             }
                         }
+                    }
+                }
+            }
+
+            // 3. Read-Only Banner for WhatsApp Channel Sessions
+            if (root.is-read-only-session) : Rectangle {
+                y: max(0px, parent.height - self.height - 16px);
+                x: (parent.width - self.width) / 2;
+                width: Math.min(500px, parent.width - 32px);
+                height: 40px;
+                background: #141414;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.12);
+
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 8px;
+
+                    Image {
+                        source: @image-url("../../assets/icons/settings/category-channels.svg");
+                        width: 16px;
+                        height: 16px;
+                        colorize: Tokens.text_muted;
+                    }
+
+                    Text {
+                        text: "WhatsApp Session — Read-only in Operon GUI/TUI";
+                        color: Tokens.text_muted;
+                        font-size: Tokens.body_font_size - 1px;
+                        font-weight: 500;
+                        vertical-alignment: center;
                     }
                 }
             }

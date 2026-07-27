@@ -1,0 +1,611 @@
+// whatsapp.slint — WhatsApp channel setup view component.
+import { Tokens } from "../../../shared/tokens.slint";
+import { ScrollView } from "std-widgets.slint";
+
+component InputField inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in property <string> placeholder: "";
+    clip: true;
+
+    callback edited(string);
+
+    height: 32px;
+    background: #0d0d0d;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+
+        input := TextInput {
+            font-size: Tokens.body_font_size - 1px;
+            font-family: Tokens.font_family;
+            color: Tokens.text_primary;
+            vertical-alignment: center;
+            single-line: true;
+            edited => { root.edited(self.text); }
+        }
+    }
+
+    if (input.text == "") : Text {
+        x: 8px;
+        text: root.placeholder;
+        color: Tokens.text_muted;
+        font-size: Tokens.body_font_size - 1px;
+        font-family: Tokens.font_family;
+        vertical-alignment: center;
+    }
+}
+
+component SettingRow inherits Rectangle {
+    in property <string> label;
+    in property <string> subtitle;
+
+    HorizontalLayout {
+        spacing: 16px;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+
+            Text {
+                text: root.label;
+                color: #e8e8e8;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 600;
+            }
+
+            Text {
+                text: root.subtitle;
+                color: Tokens.text_muted;
+                font-size: Tokens.body_font_size - 3px;
+            }
+        }
+
+        VerticalLayout {
+            width: 280px;
+            alignment: center;
+            @children
+        }
+    }
+}
+
+export component WhatsAppSetup inherits Rectangle {
+    background: transparent;
+
+    in property <string> connection-status: "Disconnected"; // "Connected", "Connecting", "QrRequired", "Disconnected"
+    in-out property <string> owner-number: "";
+    in-out property <[string]> allowlist: [];
+    in-out property <string> new-allowlist-number: "";
+    in-out property <image> qr-code-image;
+    in-out property <bool> show-qr-popup: false;
+    in-out property <string> pairing-code: "";
+    in-out property <bool> show-pairing-code-popup: false;
+
+    callback back-clicked();
+    callback save-clicked();
+    callback scan-qr-clicked();
+    callback add-allowlist-number(string);
+    callback remove-allowlist-number(int);
+    callback close-qr-popup();
+    callback pair-account-clicked();
+    callback generate-pairing-code-clicked();
+    callback close-pairing-code-popup();
+
+    VerticalLayout {
+        spacing: 16px;
+
+        // 1. Navigation Header
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            Rectangle {
+                width: 60px;
+                height: 28px;
+                border-radius: 6px;
+                background: back_touch.has-hover ? #242424 : #1a1a1a;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.08);
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    alignment: center;
+
+                    Text {
+                        text: "Back";
+                        color: back_touch.has-hover ? #e0e0e0 : #888888;
+                        font-size: Tokens.body_font_size - 2px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                back_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.back-clicked(); }
+                }
+            }
+
+            Text {
+                text: "WhatsApp Channel Setup";
+                color: #e8e8e8;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+
+            // Connection Badge
+            Rectangle {
+                border-radius: 4px;
+                background: root.connection-status == "Connected" 
+                    ? rgba(46, 204, 113, 0.15) 
+                    : rgba(231, 76, 60, 0.15);
+                border-width: 1px;
+                border-color: root.connection-status == "Connected" 
+                    ? rgba(46, 204, 113, 0.4) 
+                    : rgba(231, 76, 60, 0.4);
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 2px;
+                    padding-bottom: 2px;
+
+                    Text {
+                        text: root.connection-status;
+                        color: root.connection-status == "Connected" ? #2ecc71 : #e74c3c;
+                        font-size: Tokens.body_font_size - 3px;
+                        font-weight: 700;
+                    }
+                }
+            }
+        }
+
+        // 2. Owner Phone Number Row
+        SettingRow {
+            label: "Owner Mobile Number";
+            subtitle: "Mobile number used by Operon to send and receive messages";
+
+            InputField {
+                placeholder: "+1 (555) 019-2834";
+                text <=> root.owner-number;
+            }
+        }
+
+        // 3. Allowlist Numbers Row
+        SettingRow {
+            label: "Allowlist Numbers";
+            subtitle: "Numbers granted Owner permissions (Full administrative access)";
+
+            VerticalLayout {
+                spacing: 6px;
+
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    InputField {
+                        horizontal-stretch: 1;
+                        placeholder: "+1 (555) 999-0000";
+                        text <=> root.new-allowlist-number;
+                    }
+
+                    Rectangle {
+                        width: 50px;
+                        height: 32px;
+                        border-radius: 6px;
+                        background: add_touch.has-hover ? #2ecc71 : #27ae60;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Add";
+                                color: #ffffff;
+                                font-size: Tokens.body_font_size - 2px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        add_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                if (root.new-allowlist-number != "") {
+                                    root.add-allowlist-number(root.new-allowlist-number);
+                                    root.new-allowlist-number = "";
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Allowlist items
+                Rectangle {
+                    height: 100px;
+                    background: #0d0d0d;
+                    border-width: 1px;
+                    border-color: rgba(255, 255, 255, 0.08);
+                    border-radius: 6px;
+
+                    ScrollView {
+                        width: 100%;
+                        height: 100%;
+
+                        VerticalLayout {
+                            padding: 4px;
+                            spacing: 4px;
+
+                            for num[idx] in root.allowlist : Rectangle {
+                                height: 28px;
+                                background: #1a1a1a;
+                                border-radius: 4px;
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    alignment: space-between;
+
+                                    Text {
+                                        text: num;
+                                        color: #e8e8e8;
+                                        font-size: Tokens.body_font_size - 2px;
+                                        font-family: Tokens.mono_font_family;
+                                        vertical-alignment: center;
+                                    }
+
+                                    // Trash Icon to remove allowlist number
+                                    Image {
+                                        source: @image-url("../../../../assets/icons/sidebar/trash.svg");
+                                        width: 14px;
+                                        height: 14px;
+                                        colorize: del_touch.has-hover ? #e74c3c : #888888;
+                                        y: (parent.height - self.height) / 2;
+
+                                        del_touch := TouchArea {
+                                            mouse-cursor: pointer;
+                                            clicked => {
+                                                root.remove-allowlist-number(idx);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Pairing & Actions Row
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: end;
+
+            // Generate Pair Code Button
+            Rectangle {
+                width: 155px;
+                height: 32px;
+                border-radius: 6px;
+                background: pair_code_btn_touch.has-hover ? #2ecc71 : #27ae60;
+
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: "Generate Pair Code";
+                        color: #ffffff;
+                        font-size: Tokens.body_font_size - 2px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                pair_code_btn_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.generate-pairing-code-clicked(); }
+                }
+            }
+
+            // Scan QR Code Button
+            Rectangle {
+                width: 130px;
+                height: 32px;
+                border-radius: 6px;
+                background: scan_touch.has-hover ? #2980b9 : #3498db;
+
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: "Scan QR Code";
+                        color: #ffffff;
+                        font-size: Tokens.body_font_size - 2px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                scan_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.scan-qr-clicked(); }
+                }
+            }
+
+            // Save Config Button
+            Rectangle {
+                width: 110px;
+                height: 32px;
+                border-radius: 6px;
+                background: save_touch.has-hover ? rgba(255, 255, 255, 0.15) : rgba(255, 255, 255, 0.08);
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.15);
+
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: "Save Config";
+                        color: #ffffff;
+                        font-size: Tokens.body_font_size - 2px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                save_touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.save-clicked(); }
+                }
+            }
+        }
+    }
+
+    // ── 5. QR Code Pop-Up Dialog Modal Overlay ──────────────────────────────
+    if (root.show-qr-popup) : Rectangle {
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.80);
+
+        // Centered Modal Box with spacious sizing for QR Image
+        Rectangle {
+            width: 380px;
+            height: 420px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: #141414;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: rgba(255, 255, 255, 0.15);
+
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+
+                // Header
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "Scan WhatsApp QR Code";
+                        color: #ffffff;
+                        font-size: Tokens.body_font_size;
+                        font-weight: 700;
+                    }
+
+                    Text {
+                        text: "✕";
+                        color: top_close_touch.has-hover ? #ffffff : #888888;
+                        font-size: Tokens.body_font_size + 2px;
+                        vertical-alignment: center;
+
+                        top_close_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.close-qr-popup(); }
+                        }
+                    }
+                }
+
+                // Crisp Vector SVG Image Container
+                Rectangle {
+                    horizontal-stretch: 1;
+                    vertical-stretch: 1;
+                    background: #ffffff;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: rgba(255, 255, 255, 0.2);
+
+                    VerticalLayout {
+                        alignment: center;
+                        padding: 12px;
+
+                        Image {
+                            source: root.qr-code-image;
+                            width: 260px;
+                            height: 260px;
+                            image-fit: contain;
+                        }
+                    }
+                }
+
+                // Footer with Close Button
+                HorizontalLayout {
+                    alignment: space-between;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Waiting for authorization on phone...";
+                        color: Tokens.text_muted;
+                        font-size: Tokens.body_font_size - 3px;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle {
+                        width: 60px;
+                        height: 28px;
+                        border-radius: 6px;
+                        background: btn_close_touch.has-hover ? #242424 : #1a1a1a;
+                        border-width: 1px;
+                        border-color: rgba(255, 255, 255, 0.12);
+
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Close";
+                                color: #e0e0e0;
+                                font-size: Tokens.body_font_size - 2px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        btn_close_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.close-qr-popup(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── 6. Pairing Code Pop-Up Dialog Modal Overlay ─────────────────────────
+    if (root.show-pairing-code-popup) : Rectangle {
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.80);
+
+        Rectangle {
+            width: 400px;
+            height: 340px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: #141414;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: rgba(46, 204, 113, 0.4);
+
+            VerticalLayout {
+                padding: 18px;
+                spacing: 14px;
+
+                // Modal Header
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "WhatsApp Pairing Code";
+                        color: #ffffff;
+                        font-size: Tokens.body_font_size + 1px;
+                        font-weight: 700;
+                    }
+
+                    Text {
+                        text: "✕";
+                        color: pair_close_icon.has-hover ? #ffffff : #888888;
+                        font-size: Tokens.body_font_size + 2px;
+                        vertical-alignment: center;
+
+                        pair_close_icon := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.close-pairing-code-popup(); }
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Enter this 8-character pairing code in WhatsApp on your primary phone:";
+                    color: Tokens.text_muted;
+                    font-size: Tokens.body_font_size - 2px;
+                    wrap: TextWrap.word-wrap;
+                }
+
+                // Prominent Pairing Code Display Card
+                Rectangle {
+                    height: 64px;
+                    background: #091a10;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: rgba(46, 204, 113, 0.5);
+
+                    HorizontalLayout {
+                        alignment: center;
+
+                        Text {
+                            text: root.pairing-code;
+                            color: #2ecc71;
+                            font-size: 26px;
+                            font-weight: 800;
+                            font-family: Tokens.mono_font_family;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Instructions List
+                VerticalLayout {
+                    spacing: 4px;
+
+                    Text {
+                        text: "1. Open WhatsApp on your primary phone";
+                        color: #d0d0d0;
+                        font-size: Tokens.body_font_size - 3px;
+                    }
+                    Text {
+                        text: "2. Tap Settings (or 3 dots) → Linked Devices → Link a Device";
+                        color: #d0d0d0;
+                        font-size: Tokens.body_font_size - 3px;
+                    }
+                    Text {
+                        text: "3. Tap 'Link with phone number instead'";
+                        color: #2ecc71;
+                        font-weight: 600;
+                        font-size: Tokens.body_font_size - 3px;
+                    }
+                    Text {
+                        text: "4. Enter the 8-character code shown above";
+                        color: #d0d0d0;
+                        font-size: Tokens.body_font_size - 3px;
+                    }
+                }
+
+                // Footer Actions
+                HorizontalLayout {
+                    alignment: space-between;
+
+                    Text {
+                        text: "Waiting for code entry on phone...";
+                        color: Tokens.text_muted;
+                        font-size: Tokens.body_font_size - 3px;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle {
+                        width: 60px;
+                        height: 28px;
+                        border-radius: 6px;
+                        background: close_code_touch.has-hover ? #242424 : #1a1a1a;
+                        border-width: 1px;
+                        border-color: rgba(255, 255, 255, 0.12);
+
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Close";
+                                color: #e0e0e0;
+                                font-size: Tokens.body_font_size - 2px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        close_code_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.close-pairing-code-popup(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

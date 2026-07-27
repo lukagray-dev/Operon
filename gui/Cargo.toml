@@ -19,6 +19,7 @@ dirs.workspace        = true
 serde_json.workspace  = true
 
 operon-rs = { path = "../operon-rs" }
+operon-channels-whatsapp = { path = "../operon-rs/src/operon-channels/src/whatsapp" }
 rfd = "0.15"
 arboard = "3.6.1"
 pulldown-cmark.workspace = true

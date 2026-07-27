@@ -1,13 +1,11 @@
-// auth.rs — QR code generation and auth credential persistence for WhatsApp.
-//
-// Hey friend! This file manages authentication credentials, session pairing keys, and
-// QR code payload generation for the WhatsApp channel.
+//! Authentication credentials and permission management for WhatsApp Web.
 
-use std::path::PathBuf;
-use qrcode::QrCode;
+use std::fs;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 use crate::error::WhatsAppError;
+use crate::storage::persisted_device_exists;
 use crate::types::QrCodeState;
 
 /// Authentication and pairing manager for WhatsApp Web multi-device connection.
@@ -27,109 +25,148 @@ impl WhatsAppAuth {
         Self { auth_dir }
     }
 
-    /// Initializes the credentials directory, ensuring parent folders exist with secure permissions (`0700` on Unix).
+    /// Returns a reference to the auth directory path.
+    pub fn auth_dir(&self) -> &Path {
+        &self.auth_dir
+    }
+
+    /// Initializes the credentials directory on disk with restricted 0700 Unix permissions.
     pub fn init(&self) -> Result<(), WhatsAppError> {
         if !self.auth_dir.exists() {
-            std::fs::create_dir_all(&self.auth_dir).map_err(|e| {
-                WhatsAppError::AuthFailed(format!("Failed to create auth dir {:?}: {e}", self.auth_dir))
-            })?;
-            let _ = harden_directory_permissions(&self.auth_dir);
+            fs::create_dir_all(&self.auth_dir)?;
+            info!(
+                path = %self.auth_dir.display(),
+                "Created WhatsApp auth directory"
+            );
         }
+
+        self.apply_directory_permissions(&self.auth_dir)?;
         Ok(())
     }
 
-    /// Checks if saved credentials already exist in the auth directory.
+    /// Returns `true` if a linked session database exists in `auth_dir/session.db`.
     pub fn has_credentials(&self) -> bool {
-        let creds_file = self.auth_dir.join("creds.json");
-        creds_file.exists() && creds_file.metadata().map(|m| m.len() > 0).unwrap_or(false)
+        let db_path = self.auth_dir.join("session.db");
+        persisted_device_exists(&db_path)
     }
 
-    /// Generates a QR code state object and converts the raw string payload into an ASCII
-    /// or SVG representation.
-    pub fn generate_qr_state(raw_payload: &str, valid_seconds: i64) -> Result<QrCodeState, WhatsAppError> {
-        let now = unix_timestamp_secs() as i64;
-        let expires_at = now + valid_seconds;
+    /// Helper to convert a raw QR code string into a structured [`QrCodeState`].
+    pub fn generate_qr_state(payload: impl Into<String>, ttl_secs: u64) -> QrCodeState {
+        let payload_str = payload.into();
+        let expires_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            + ttl_secs;
 
-        // Verify that the payload can be validly encoded into a QR code.
-        let _code = QrCode::new(raw_payload.as_bytes()).map_err(|e| {
-            WhatsAppError::AuthFailed(format!("Failed to encode QR code: {e}"))
-        })?;
-
-        Ok(QrCodeState {
-            payload: raw_payload.to_string(),
-            expires_at,
-        })
+        QrCodeState {
+            payload: payload_str,
+            expires_at: expires_at as i64,
+        }
     }
 
-    /// Helper to render a QR code string as an ASCII string for terminal display.
-    pub fn render_ascii(raw_payload: &str) -> Result<String, WhatsAppError> {
-        let code = QrCode::new(raw_payload.as_bytes()).map_err(|e| {
-            WhatsAppError::AuthFailed(format!("Failed to encode QR code: {e}"))
-        })?;
+    /// Generates a initial fallback QR payload for pairing UI display.
+    pub fn generate_whatsapp_md_qr_payload() -> String {
+        format!("https://web.whatsapp.com/pair/{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos())
+    }
 
-        // Render as unicode blocks (ideal for terminal output)
-        let string = code
-            .render::<char>()
-            .quiet_zone(true)
-            .module_dimensions(2, 1)
+    /// Generates a formatted 8-character pairing code (`XXXX-XXXX`).
+    pub fn generate_pairing_code() -> String {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+        let mut code = String::with_capacity(9);
+        let mut val = nanos;
+        for i in 0..8 {
+            if i == 4 {
+                code.push('-');
+            }
+            let idx = (val % (chars.len() as u128)) as usize;
+            code.push(chars.chars().nth(idx).unwrap_or('X'));
+            val /= 10;
+        }
+        code
+    }
+
+    /// Renders a QR code payload into an SVG string for GUI rendering.
+    pub fn render_svg(payload: &str) -> Result<String, WhatsAppError> {
+        use qrcode::render::svg;
+        let qr = qrcode::QrCode::new(payload.as_bytes())
+            .map_err(|e| WhatsAppError::QrGenerationFailed(e.to_string()))?;
+        let image = qr
+            .render::<svg::Color>()
+            .min_dimensions(260, 260)
+            .dark_color(svg::Color("#000000"))
+            .light_color(svg::Color("#ffffff"))
             .build();
-
-        Ok(string)
+        Ok(image)
     }
 
-    /// Clears saved credentials (used during sign-out / unlink).
+    /// Renders a QR code payload into an ASCII string for terminal (TUI) display.
+    pub fn render_ascii(payload: &str) -> Result<String, WhatsAppError> {
+        let qr = qrcode::QrCode::new(payload.as_bytes())
+            .map_err(|e| WhatsAppError::QrGenerationFailed(e.to_string()))?;
+        let ascii = qr
+            .render::<qrcode::render::unicode::Dense1x2>()
+            .quiet_zone(true)
+            .build();
+        Ok(ascii)
+    }
+
+    /// Clears session credentials by removing `session.db` and its sidecar files (`-wal`, `-shm`).
     pub fn clear_credentials(&self) -> Result<(), WhatsAppError> {
-        if self.auth_dir.exists() {
-            std::fs::remove_dir_all(&self.auth_dir).map_err(|e| {
-                WhatsAppError::AuthFailed(format!("Failed to clear auth dir {:?}: {e}", self.auth_dir))
-            })?;
-            info!("Cleared WhatsApp authentication credentials.");
+        let primary = self.auth_dir.join("session.db");
+        let wal = self.auth_dir.join("session.db-wal");
+        let shm = self.auth_dir.join("session.db-shm");
+
+        for path in &[primary, wal, shm] {
+            if path.exists() {
+                fs::remove_file(path)?;
+                info!(path = %path.display(), "Removed WhatsApp session file");
+            }
         }
         Ok(())
     }
-    /// Writes an authentication credential file under `auth_dir` with restrictive file permissions (`0600` on Unix).
+
+    /// Writes a credential file inside `auth_dir` with `0600` permissions on Unix.
     pub fn write_credential(&self, filename: &str, content: &[u8]) -> Result<PathBuf, WhatsAppError> {
         self.init()?;
         let path = self.auth_dir.join(filename);
-        std::fs::write(&path, content).map_err(|e| {
-            WhatsAppError::AuthFailed(format!("Failed to write credential file {:?}: {e}", path))
-        })?;
-        let _ = harden_file_permissions(&path);
+        fs::write(&path, content)?;
+        self.apply_file_permissions(&path)?;
         Ok(path)
     }
-}
 
-/// Helper function to set file permissions to 0600 (owner read/write only) on Unix systems.
-#[cfg(unix)]
-fn harden_file_permissions(path: &std::path::Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let permissions = std::fs::Permissions::from_mode(0o600);
-    std::fs::set_permissions(path, permissions)
-}
+    /// Restricts Unix file permissions to `0600` (owner read/write only).
+    #[allow(dead_code)]
+    #[cfg(unix)]
+    fn apply_file_permissions(&self, path: &Path) -> Result<(), WhatsAppError> {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = fs::Permissions::from_mode(0o600);
+        fs::set_permissions(path, permissions)?;
+        Ok(())
+    }
 
-#[cfg(not(unix))]
-fn harden_file_permissions(_path: &std::path::Path) -> std::io::Result<()> {
-    Ok(())
-}
+    #[allow(dead_code)]
+    #[cfg(not(unix))]
+    fn apply_file_permissions(&self, _path: &Path) -> Result<(), WhatsAppError> {
+        Ok(())
+    }
 
-/// Helper function to set directory permissions to 0700 (owner read/write/exec only) on Unix systems.
-#[cfg(unix)]
-fn harden_directory_permissions(path: &std::path::Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let permissions = std::fs::Permissions::from_mode(0o700);
-    std::fs::set_permissions(path, permissions)
-}
+    /// Restricts Unix directory permissions to `0700` (owner read/write/execute only).
+    #[cfg(unix)]
+    fn apply_directory_permissions(&self, path: &Path) -> Result<(), WhatsAppError> {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = fs::Permissions::from_mode(0o700);
+        fs::set_permissions(path, permissions)?;
+        Ok(())
+    }
 
-#[cfg(not(unix))]
-fn harden_directory_permissions(_path: &std::path::Path) -> std::io::Result<()> {
-    Ok(())
-}
-
-/// Helper function to get wall clock time in seconds.
-fn unix_timestamp_secs() -> u64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
+    #[cfg(not(unix))]
+    fn apply_directory_permissions(&self, _path: &Path) -> Result<(), WhatsAppError> {
+        Ok(())
+    }
 }

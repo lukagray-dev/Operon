@@ -14,6 +14,7 @@ pub mod error;
 pub mod outbound;
 pub mod router;
 pub mod runner_bridge;
+pub mod storage;
 pub mod types;
 pub mod workspace;
 

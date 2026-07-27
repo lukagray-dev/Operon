@@ -1,38 +1,259 @@
 // Channels settings category page for the Operon GUI.
 import { Tokens } from "../../shared/tokens.slint";
+import { ScrollView } from "std-widgets.slint";
+import { WhatsAppSetup } from "./channels/whatsapp.slint";
+
+export struct ChannelSummary {
+    id: string,
+    label: string,
+    status: string, // "Connected", "Disconnected", "Pairing Required"
+    is-active: bool,
+    description: string,
+}
+
+component ChannelCard inherits Rectangle {
+    in property <ChannelSummary> channel;
+
+    callback clicked();
+
+    height: 64px;
+    background: touch_area.has-hover ? #1a1a1a : #0d0d0d;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.04);
+
+    animate background { duration: 150ms; }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+
+        // Icon
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                background: rgba(255, 255, 255, 0.03);
+                border-radius: 6px;
+
+                Image {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    source: @image-url("../../../assets/icons/settings/category-channels.svg");
+                    width: 20px;
+                    height: 20px;
+                    colorize: Tokens.text_primary;
+                }
+            }
+        }
+
+        // Details
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+
+            Text {
+                text: root.channel.label;
+                color: #e8e8e8;
+                font-size: Tokens.body_font_size;
+                font-weight: 600;
+            }
+
+            Text {
+                text: root.channel.description;
+                color: Tokens.text_muted;
+                font-size: Tokens.body_font_size - 3px;
+            }
+        }
+
+        // Status Badge / Chevron
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                Rectangle {
+                    border-radius: 4px;
+                    background: root.channel.is-active 
+                        ? rgba(46, 204, 113, 0.15) 
+                        : rgba(255, 255, 255, 0.05);
+                    border-width: 1px;
+                    border-color: root.channel.is-active 
+                        ? rgba(46, 204, 113, 0.4) 
+                        : rgba(255, 255, 255, 0.1);
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        padding-top: 3px;
+                        padding-bottom: 3px;
+
+                        Text {
+                            text: root.channel.status;
+                            color: root.channel.is-active ? #2ecc71 : #888888;
+                            font-size: Tokens.body_font_size - 3px;
+                            font-weight: 700;
+                        }
+                    }
+                }
+
+                Image {
+                    source: @image-url("../../../assets/icons/settings/chevron-right.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: touch_area.has-hover ? #e0e0e0 : #555555;
+                }
+            }
+        }
+    }
+
+    touch_area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
 
 export component ChannelsSettings inherits Rectangle {
     background: transparent;
-    
-    VerticalLayout {
-        padding: 24px;
-        spacing: 16px;
-        alignment: start;
-        
-        HorizontalLayout {
-            spacing: 12px;
-            alignment: start;
-            
-            Image {
-                source: @image-url("../../../assets/icons/settings/category-channels.svg");
-                width: 20px;
-                height: 20px;
-                colorize: Tokens.text_primary;
-            }
-            
-            Text {
-                text: "Channels Settings";
-                color: Tokens.text_primary;
-                font-size: Tokens.body_font_size + 4px;
-                font-weight: 600;
-            }
+
+    // View state: 0 = Channels List, 1 = WhatsApp Setup
+    in-out property <int> active-view: 0;
+
+    // List of channels from Rust
+    in property <[ChannelSummary]> channels: [
+        {
+            id: "whatsapp",
+            label: "WhatsApp Channel",
+            status: "Disconnected",
+            is-active: false,
+            description: "Connect Operon to WhatsApp to receive and execute commands over mobile chat"
         }
-        
-        Text {
-            text: "Set up messaging channel integrations such as Slack, Discord, or Email.";
-            color: Tokens.text_muted;
-            font-size: Tokens.body_font_size;
-            wrap: TextWrap.word-wrap;
+    ];
+
+    // WhatsApp configuration state properties
+    in-out property <string> whatsapp-connection-status: "Disconnected";
+    in-out property <string> whatsapp-owner-number: "";
+    in-out property <[string]> whatsapp-allowlist: [];
+    in-out property <image> whatsapp-qr-code-image;
+    in-out property <bool> whatsapp-show-qr-popup: false;
+    in-out property <string> whatsapp-pairing-code: "";
+    in-out property <bool> whatsapp-show-pairing-code-popup: false;
+
+    // Callbacks
+    callback channel-selected(string);
+    callback whatsapp-save-clicked(string, [string]);
+    callback whatsapp-scan-qr-clicked();
+    callback whatsapp-add-allowlist(string);
+    callback whatsapp-remove-allowlist(int);
+    callback whatsapp-close-qr-popup();
+    callback whatsapp-pair-account-clicked();
+    callback whatsapp-generate-pairing-code-clicked();
+    callback whatsapp-close-pairing-code-popup();
+
+    ScrollView {
+        width: 100%;
+        height: 100%;
+        vertical-scrollbar-policy: always-off;
+        horizontal-scrollbar-policy: always-off;
+
+        VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+            alignment: start;
+
+            // 1. Header
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+
+                Image {
+                    source: @image-url("../../../assets/icons/settings/category-channels.svg");
+                    width: 20px;
+                    height: 20px;
+                    colorize: Tokens.text_primary;
+                }
+
+                Text {
+                    text: root.active-view == 0 
+                        ? "Channels Settings" 
+                        : "Channels Settings | WhatsApp Setup";
+                    color: Tokens.text_primary;
+                    font-size: Tokens.body_font_size + 4px;
+                    font-weight: 600;
+                }
+            }
+
+            Text {
+                text: root.active-view == 0 
+                    ? "Set up messaging channel integrations such as WhatsApp, Telegram, or Discord."
+                    : "Configure WhatsApp mobile pairing, Owner number, and access permission allowlist.";
+                color: Tokens.text_muted;
+                font-size: Tokens.body_font_size;
+                wrap: TextWrap.word-wrap;
+            }
+
+            Rectangle {
+                height: 1px;
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            // 2. View Switcher
+            if (root.active-view == 0) : VerticalLayout {
+                spacing: 10px;
+
+                for ch in root.channels : ChannelCard {
+                    channel: ch;
+                    clicked => {
+                        root.channel-selected(ch.id);
+                        if (ch.id == "whatsapp") {
+                            root.active-view = 1;
+                        }
+                    }
+                }
+            }
+
+            if (root.active-view == 1) : WhatsAppSetup {
+                connection-status: root.whatsapp-connection-status;
+                owner-number <=> root.whatsapp-owner-number;
+                allowlist <=> root.whatsapp-allowlist;
+                qr-code-image <=> root.whatsapp-qr-code-image;
+                show-qr-popup <=> root.whatsapp-show-qr-popup;
+                pairing-code <=> root.whatsapp-pairing-code;
+                show-pairing-code-popup <=> root.whatsapp-show-pairing-code-popup;
+
+                back-clicked => {
+                    root.active-view = 0;
+                }
+                save-clicked => {
+                    root.whatsapp-save-clicked(root.whatsapp-owner-number, root.whatsapp-allowlist);
+                }
+                scan-qr-clicked => {
+                    root.whatsapp-scan-qr-clicked();
+                }
+                add-allowlist-number(num) => {
+                    root.whatsapp-add-allowlist(num);
+                }
+                remove-allowlist-number(idx) => {
+                    root.whatsapp-remove-allowlist(idx);
+                }
+                close-qr-popup => {
+                    root.whatsapp-close-qr-popup();
+                }
+                pair-account-clicked => {
+                    root.whatsapp-pair-account-clicked();
+                }
+                generate-pairing-code-clicked => {
+                    root.whatsapp-generate-pairing-code-clicked();
+                }
+                close-pairing-code-popup => {
+                    root.whatsapp-close-pairing-code-popup();
+                }
+            }
         }
     }
 }

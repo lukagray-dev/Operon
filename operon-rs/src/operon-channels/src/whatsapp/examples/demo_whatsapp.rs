@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let workspace_mgr = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
 
     // 1. Connect Client & Render QR Code
-    let client = WhatsAppClient::new(config);
+    let client = WhatsAppClient::new(&config);
     client.connect().await?;
 
     println!("📡 Connection status: {:?}", client.status().await);

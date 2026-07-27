@@ -164,3 +164,24 @@ Built by **Luka Gray (aka Soumo Mukherjee)** • West Bengal, India • 2026
 <br/>
 
 </div>
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User
+    participant App as Operon Client
+    participant Phone as WhatsApp Phone App
+    participant WAServer as WhatsApp Web Server (wss://web.whatsapp.com)
+
+    User->>App: 1. Input Owner Phone Number (+1 555-019-2834)
+    User->>App: 2. Click "Generate Pair Code"
+    App->>WAServer: 3. requestPairingCode("+15550192834") via WebSocket
+    WAServer->>WAServer: 4. Register session & generate 8-char code
+    WAServer-->>App: 5. Emits pair code "K8P2-9X4L"
+    App->>User: 6. Displays "K8P2-9X4L" in popup
+    User->>Phone: 7. Enter "K8P2-9X4L" under Linked Devices
+    Phone->>WAServer: 8. Send phone auth token for "K8P2-9X4L"
+    WAServer->>WAServer: 9. Match code to active WebSocket session
+    WAServer-->>App: 10. Handshake complete & emit session keys
+    App->>App: 11. Save creds.json & auto-close popup -> Connected
+```

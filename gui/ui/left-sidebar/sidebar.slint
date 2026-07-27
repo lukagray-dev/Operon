@@ -17,6 +17,7 @@ import { Search } from "./search.slint";
 import { Plugins } from "./plugins.slint";
 import { Projects } from "./projects.slint";
 import { Chats } from "./chats.slint";
+import { WhatsAppSection } from "./whatsapp.slint";
 import { Settings } from "./settings.slint";
 import { SidebarConversation, SidebarProject } from "./types.slint";
 
@@ -35,6 +36,9 @@ export component Sidebar inherits Rectangle {
     
     // Standalone chats: array of chat title strings
     in property <[SidebarConversation]> chats: [];
+
+    // WhatsApp contacts & sessions
+    in property <[SidebarProject]> whatsapp-contacts: [];
     
     // Active selection state
     in-out property <int> active-project-index: -1;
@@ -57,6 +61,7 @@ export component Sidebar inherits Rectangle {
     callback delete-conversation-clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
     callback delete-project-clicked(string /* project-workspace-path */, int /* project-index */);
     callback new-session-clicked(string /* project-workspace-path */, int /* project-index */);
+    callback whatsapp-session-clicked(string /* session-id */, string /* contact-number */);
     callback width-changed(length /* new-width */);
     
     // Set the sidebar width from the property
@@ -188,6 +193,18 @@ export component Sidebar inherits Rectangle {
                         }
                         new-chat-clicked => {
                             root.new-chat-clicked();
+                        }
+                    }
+
+                    // WhatsApp Channels Section
+                    if root.whatsapp-contacts.length > 0 : WhatsAppSection {
+                        contacts: root.whatsapp-contacts;
+
+                        session-clicked(session-id, contact-num) => {
+                            root.active-project-index = -1;
+                            root.active-conversation-index = -1;
+                            root.active-chat-index = -1;
+                            root.whatsapp-session-clicked(session-id, contact-num);
                         }
                     }
                     

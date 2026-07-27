@@ -50,6 +50,7 @@ export component OperonWindow inherits Window {
     // Sidebar data properties - bind these from Rust
     in property <[SidebarProject]> sidebar_projects: [];
     in property <[SidebarConversation]> sidebar_chats: [];
+    in property <[SidebarProject]> sidebar_whatsapp_contacts: [];
     in-out property <int> active_project_index: -1;
     in-out property <int> active_conversation_index: -1;
     in-out property <int> active_chat_index: -1;
@@ -87,6 +88,7 @@ export component OperonWindow inherits Window {
     callback sidebar_delete_conversation_clicked(string /* session-id */, int /* project-index */, int /* conversation-index */);
     callback sidebar_delete_project_clicked(string /* project-workspace-path */, int /* project-index */);
     callback sidebar_new_session_clicked(string /* project-workspace-path */, int /* project-index */);
+    callback sidebar_whatsapp_session_clicked(string /* session-id */, string /* contact-number */);
     callback sidebar_width_changed(length /* new-width */);
     
     // Main content / input panel callbacks - wire these to Rust handlers
@@ -133,6 +135,9 @@ export component OperonWindow inherits Window {
     
     // Session loading state - when true, shows a shimmer skeleton instead of messages
     in-out property <bool> is_loading_session: false;
+
+    // Read-only session posture (WhatsApp channel sessions)
+    in-out property <bool> is_read_only_session: false;
 
     // Discovered models list and inline context indicator values
     in property <string> context_text: "";
@@ -197,6 +202,7 @@ export component OperonWindow inherits Window {
             // Bind data from Rust
             projects: root.sidebar_projects;
             chats: root.sidebar_chats;
+            whatsapp-contacts: root.sidebar_whatsapp_contacts;
             active-project-index: root.active_project_index;
             active-conversation-index: root.active_conversation_index;
             active-chat-index: root.active_chat_index;
@@ -236,6 +242,9 @@ export component OperonWindow inherits Window {
             }
             delete-project-clicked(proj-path, proj-idx) => { root.sidebar_delete_project_clicked(proj-path, proj-idx); }
             new-session-clicked(proj-path, proj-idx) => { root.sidebar_new_session_clicked(proj-path, proj-idx); }
+            whatsapp-session-clicked(session-id, contact-num) => {
+                root.sidebar_whatsapp_session_clicked(session-id, contact-num);
+            }
             width-changed(new-width) => {
                 root.sidebar_width = new-width;
                 root.sidebar_width_changed(new-width);
@@ -277,6 +286,7 @@ export component OperonWindow inherits Window {
                 is-responding <=> root.is-responding;
                 cursor-blink: root.cursor_blink;
                 is-loading-session: root.is_loading_session;
+                is-read-only-session: root.is_read_only_session;
 
                 // Bind terminal properties
                 terminal-tab-names: root.terminal_tab_names;

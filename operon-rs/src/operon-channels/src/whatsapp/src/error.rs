@@ -11,6 +11,21 @@ pub enum WhatsAppError {
     #[error("Socket connection closed: {0}")]
     SocketClosed(String),
 
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
+
+    #[error("Not connected")]
+    NotConnected,
+
+    #[error("Invalid contact: {0}")]
+    InvalidContact(String),
+
+    #[error("Send failed: {0}")]
+    SendFailed(String),
+
+    #[error("QR generation failed: {0}")]
+    QrGenerationFailed(String),
+
     #[error("Workspace error: {0}")]
     Workspace(String),
 

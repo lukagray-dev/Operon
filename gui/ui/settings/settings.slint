@@ -84,6 +84,25 @@ export component SettingsWindow inherits Window {
     callback permission-toggle-group-expanded(string);
     callback permission-set-mode(string, string, string);
 
+    // WhatsApp configuration properties
+    in-out property <string> whatsapp-owner-number: "";
+    in-out property <[string]> whatsapp-allowlist: [];
+    in-out property <string> whatsapp-connection-status: "Disconnected";
+    in-out property <image> whatsapp-qr-code-image;
+    in-out property <bool> whatsapp-show-qr-popup: false;
+    in-out property <string> whatsapp-pairing-code: "";
+    in-out property <bool> whatsapp-show-pairing-code-popup: false;
+
+    // WhatsApp callbacks
+    callback whatsapp-save-clicked(string, [string]);
+    callback whatsapp-scan-qr-clicked();
+    callback whatsapp-add-allowlist(string);
+    callback whatsapp-remove-allowlist(int);
+    callback whatsapp-close-qr-popup();
+    callback whatsapp-pair-account-clicked();
+    callback whatsapp-generate-pairing-code-clicked();
+    callback whatsapp-close-pairing-code-popup();
+
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
         spacing: 0px;
@@ -171,6 +190,25 @@ export component SettingsWindow inherits Window {
                     permission-remove-directory-clicked(dir) => { root.permission-remove-directory-clicked(dir); }
                     permission-toggle-group-expanded(gk) => { root.permission-toggle-group-expanded(gk); }
                     permission-set-mode(k, kind, m) => { root.permission-set-mode(k, kind, m); }
+
+                    // Bind WhatsApp configuration properties
+                    whatsapp-owner-number <=> root.whatsapp-owner-number;
+                    whatsapp-allowlist <=> root.whatsapp-allowlist;
+                    whatsapp-connection-status <=> root.whatsapp-connection-status;
+                    whatsapp-qr-code-image <=> root.whatsapp-qr-code-image;
+                    whatsapp-show-qr-popup <=> root.whatsapp-show-qr-popup;
+                    whatsapp-pairing-code <=> root.whatsapp-pairing-code;
+                    whatsapp-show-pairing-code-popup <=> root.whatsapp-show-pairing-code-popup;
+
+                    // Bind WhatsApp callbacks
+                    whatsapp-save-clicked(num, list) => { root.whatsapp-save-clicked(num, list); }
+                    whatsapp-scan-qr-clicked() => { root.whatsapp-scan-qr-clicked(); }
+                    whatsapp-add-allowlist(num) => { root.whatsapp-add-allowlist(num); }
+                    whatsapp-remove-allowlist(idx) => { root.whatsapp-remove-allowlist(idx); }
+                    whatsapp-close-qr-popup() => { root.whatsapp-close-qr-popup(); }
+                    whatsapp-pair-account-clicked() => { root.whatsapp-pair-account-clicked(); }
+                    whatsapp-generate-pairing-code-clicked() => { root.whatsapp-generate-pairing-code-clicked(); }
+                    whatsapp-close-pairing-code-popup() => { root.whatsapp-close-pairing-code-popup(); }
                     
                     github_requested => { root.github_requested(); }
                     documentation_requested => { root.documentation_requested(); }
