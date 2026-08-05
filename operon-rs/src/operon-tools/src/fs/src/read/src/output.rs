@@ -65,11 +65,51 @@ pub struct LineRange {
 }
 
 /// The complete output of a `read` tool call — one entry per requested path.
-///
-/// This is the top-level structure that gets serialized into ToolContent::Json
-/// and returned to the model.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReadOutput {
     /// Results for each file that was requested, in the same order as the input.
     pub files: Vec<FileReadResult>,
 }
+
+impl ReadOutput {
+    /// Formats the read output as raw plain text with section headers.
+    pub fn to_plain_text(&self) -> String {
+        let mut out = String::new();
+        for (i, file) in self.files.iter().enumerate() {
+            if i > 0 {
+                out.push_str("\n\n");
+            }
+
+            if file.success {
+                let header = match (&file.lines_returned, file.total_lines) {
+                    (Some(range), Some(total)) => {
+                        format!("=== {} (lines {}-{} of {}) ===", file.path, range.start, range.end, total)
+                    }
+                    (Some(range), None) => {
+                        format!("=== {} (lines {}-{}) ===", file.path, range.start, range.end)
+                    }
+                    (None, Some(total)) => {
+                        format!("=== {} ({} lines) ===", file.path, total)
+                    }
+                    (None, None) => {
+                        format!("=== {} ===", file.path)
+                    }
+                };
+                out.push_str(&header);
+                out.push('\n');
+                if let Some(content) = &file.content {
+                    out.push_str(content);
+                }
+            } else {
+                out.push_str(&format!("=== {} ===\n", file.path));
+                if let Some(err) = &file.error {
+                    out.push_str(&format!("Error: {}", err));
+                } else {
+                    out.push_str("Error: Failed to read file");
+                }
+            }
+        }
+        out
+    }
+}
+

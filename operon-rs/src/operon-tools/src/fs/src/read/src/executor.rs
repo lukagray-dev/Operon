@@ -35,9 +35,18 @@ pub async fn execute(call_id: ToolCallId, args: ReadArgs) -> ToolResult {
     const MAX_CONCURRENT_READS: usize = 16;
     let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_READS));
 
+    let targets = args.into_targets();
+    if targets.is_empty() {
+        return ToolResult {
+            call_id,
+            name: "read".to_string(),
+            content: ToolContent::Text("Error: No file paths provided to read.".to_string()),
+            is_error: true,
+        };
+    }
+
     // Read all files concurrently using join_all, bounded by the semaphore.
-    let futures: Vec<_> = args
-        .paths
+    let futures: Vec<_> = targets
         .into_iter()
         .map(|target| {
             let sem = Arc::clone(&semaphore);
@@ -50,35 +59,18 @@ pub async fn execute(call_id: ToolCallId, args: ReadArgs) -> ToolResult {
 
     let results = futures::future::join_all(futures).await;
 
-    // Assemble the final output structure.
+    // Assemble the final output structure and convert to plain text.
     let output = ReadOutput { files: results };
 
-    // Serialize to JSON. This should never fail because all our types are Serialize.
-    // If it does fail (e.g., due to a bug in our Serialize impl), we return an error ToolResult.
-    let output_value = match serde_json::to_value(&output) {
-        Ok(v) => v,
-        Err(e) => {
-            // This is a bug in our code, not a user error. Return an error ToolResult.
-            return ToolResult {
-                call_id,
-                name: "read".to_string(),
-                content: ToolContent::Text(format!(
-                    "Internal error: failed to serialize read output: {}",
-                    e
-                )),
-                is_error: true,
-            };
-        }
-    };
-
-    // Return the successful ToolResult with JSON content.
+    // Return the successful ToolResult with plain text content.
     ToolResult {
         call_id,
         name: "read".to_string(),
-        content: ToolContent::Json(output_value),
+        content: ToolContent::Text(output.to_plain_text()),
         is_error: false,
     }
 }
+
 
 /// Reads a single file and returns a FileReadResult.
 ///
@@ -97,7 +89,19 @@ async fn read_single_file(target: ReadTarget) -> FileReadResult {
     let path_str = target.path.clone();
     let path = Path::new(&path_str);
 
+    if !path.is_absolute() {
+        return FileReadResult {
+            path: path_str,
+            success: false,
+            content: None,
+            error: Some("Path must be an absolute path. Relative paths are not supported.".to_string()),
+            total_lines: None,
+            lines_returned: None,
+        };
+    }
+
     // Determine if this is a line-range read or a full-file read.
+
     let is_range_read = target.start_line.is_some() || target.end_line.is_some();
 
     // For full-file reads, check the size first to avoid loading huge files.

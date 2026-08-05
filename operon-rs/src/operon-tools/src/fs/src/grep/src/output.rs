@@ -64,32 +64,68 @@ pub struct FileGrepResult {
 }
 
 /// Top-level output returned to the model.
-///
-/// This is the complete result of a grep tool call, containing summary statistics
-/// and per-file results.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GrepOutput {
     /// Total number of matching lines across all files.
-    ///
-    /// This is the sum of `match_count` from all FileGrepResult entries.
-    /// Does not include context lines.
     pub total_matches: usize,
 
     /// Number of files that had at least one match.
-    ///
-    /// Files with errors or zero matches are not counted here.
     pub files_with_matches: usize,
 
     /// Whether the results were truncated due to hitting the match limit.
-    ///
-    /// When true, the search stopped early after reaching MAX_MATCHES (300).
-    /// The current file being searched when the limit was hit is included in
-    /// full, but subsequent files were not searched.
     pub truncated: bool,
 
     /// Per-file search results.
-    ///
-    /// Only includes files that had matches or errors. Files with zero matches
-    /// and no errors are omitted to reduce output size.
     pub files: Vec<FileGrepResult>,
 }
+
+impl GrepOutput {
+    /// Formats the grep output as plain text with line numbers and block separators (`---`).
+    pub fn to_plain_text(&self) -> String {
+        if self.files.is_empty() || self.total_matches == 0 {
+            return "No matches found.".to_string();
+        }
+
+        let mut out = String::new();
+        for (file_idx, file) in self.files.iter().enumerate() {
+            if file_idx > 0 {
+                out.push('\n');
+            }
+
+            if let Some(err) = &file.error {
+                out.push_str(&format!("=== {} ===\nError: {}\n", file.path, err));
+                continue;
+            }
+
+            if file.match_count == 0 {
+                continue;
+            }
+
+            let match_label = if file.match_count == 1 { "match" } else { "matches" };
+            out.push_str(&format!("=== {} ({} {}) ===\n", file.path, file.match_count, match_label));
+
+            let mut prev_line_no: Option<usize> = None;
+            for m in &file.matches {
+                if let Some(prev) = prev_line_no {
+                    if m.line_no > prev + 1 {
+                        out.push_str("---\n");
+                    }
+                }
+                out.push_str(&format!("{}: {}\n", m.line_no, m.content));
+                prev_line_no = Some(m.line_no);
+            }
+        }
+
+        out.push_str(&format!(
+            "\nShowing {} match(es) across {} file(s)",
+            self.total_matches, self.files_with_matches
+        ));
+        if self.truncated {
+            out.push_str(" (results truncated)");
+        }
+        out.push('.');
+
+        out
+    }
+}
+

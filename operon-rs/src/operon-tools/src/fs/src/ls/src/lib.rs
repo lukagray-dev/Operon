@@ -63,104 +63,51 @@ pub fn definition() -> TieredToolDefinition {
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to the directory to list."
+                "description": "Absolute or relative path to the directory to list. Defaults to '.' (current directory)."
             },
             "ignore": {
                 "type": "array",
                 "items": { "type": "string" },
-                "description": "Glob patterns matched against entry names to exclude. E.g. [\"*.lock\", \"node_modules\"]."
+                "description": "Glob patterns matched against entry names to exclude (e.g. [\"*.lock\", \"node_modules\"])."
             }
-        },
-        "required": ["path"]
+        }
     });
 
     TieredToolDefinition {
         short: ToolDefinition {
             name: "ls".to_string(),
-            description: "Lists files and directories at a given path (single level, not recursive). \
-                          Pass `path` (absolute directory path). Returns entries with type (FILE/DIR/SYMLINK), \
-                          size, and last-modified time. Use `ignore` to exclude entries by name glob \
-                          (e.g., [\"*.lock\", \"node_modules\", \".git\"]). Results capped at 1000 entries."
+            description: "Lists files and directories at a given path (single level). \
+                          Pass `path` (directory path, defaults to '.'). \
+                          Use `ignore` to exclude entries by glob. Returns plain text list."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "ls".to_string(),
             description: "\
-Lists files and directories at a given path (single level, not recursive).
+Lists files and directories at a given path (single level, non-recursive). Returns plain text.
 
-## Input
+## Input shapes
 
-`path` (required, string): Absolute path to the directory to list.
-  - Must be a directory. Passing a file path returns an error result (not Err).
-  - Must be an absolute path (relative paths are not supported).
+1. Basic listing:
+   `{\"path\": \"src\"}` or `{}` (defaults to current directory '.')
 
-`ignore` (optional, array of strings): Glob patterns to exclude entries by name.
-  - Patterns are matched against the entry **name only**, not the full path.
-  - Examples: [\"*.lock\", \"node_modules\", \".git\", \"target\", \".*\"]
-  - If any pattern fails to compile, the entire listing fails with an error.
-  - Default: empty (no exclusions).
+2. With ignore glob filters:
+   `{\"path\": \"src\", \"ignore\": [\"*.lock\", \"node_modules\", \".git\"]}`
 
-## Output
+## Response format
 
-Returns a JSON object with:
-- `path`: The directory that was listed (echoed back for correlation).
-- `entry_count`: Total number of entries in the listing (after exclusions).
-- `truncated`: Boolean. True if more than 1000 entries exist (results are capped).
-- `entries`: Array of directory entries, sorted: directories first (alphabetical), then files/symlinks (alphabetical).
-- `error`: Human-readable error if the path could not be listed. When populated, entries is empty.
-
-Each entry in `entries` contains:
-- `name`: Entry name (not full path).
-- `kind`: Entry type — one of: FILE, DIR, SYMLINK.
-- `size_bytes`: File size in bytes (only for files; None for dirs/symlinks).
-- `modified_unix`: Last modified timestamp as Unix seconds (None if unavailable).
-
-## Behavior
-
-- **Single-level only**: Does not recurse into subdirectories. Use grep or read for recursive operations.
-- **Hidden files included**: Entries starting with '.' (e.g., .git, .env) ARE included by default.
-  Use `ignore: [\".*\"]` to exclude them.
-- **Symlinks**: Followed for metadata (size/modified time of the target). If the target is missing,
-  metadata is None but the symlink is still listed as SYMLINK.
-- **Metadata failures**: If metadata cannot be retrieved for an entry, the entry is still included
-  but size_bytes and modified_unix are None.
-- **Truncation**: If a directory contains more than 1000 entries, results are capped at 1000 and
-  `truncated` is set to true. Increase the limit by calling the tool multiple times with different
-  ignore patterns if needed.
-- **Sorting**: Directories come first (alphabetical, case-insensitive), then files and symlinks
-  (alphabetical, case-insensitive).
-
-## Common mistakes
-
-- Passing a file path instead of a directory → error result (not Err).
-- Using relative paths → may fail or list unexpected directory.
-- Expecting recursive output → use grep or read for recursive operations.
-- Using `ignore` patterns that match full paths → patterns match entry names only.
-  Use `ignore: [\"node_modules\"]` not `ignore: [\"**/node_modules\"]`.
-- Forgetting to exclude hidden files → use `ignore: [\".*\"]` if needed.
-
-## Examples
-
-List a directory with no exclusions:
-```json
-{\"path\": \"/home/user/project\"}
-```
-
-List with exclusions:
-```json
-{\"path\": \"/home/user/project\", \"ignore\": [\"*.lock\", \"node_modules\", \".git\", \"target\"]}
-```
-
-Exclude hidden files:
-```json
-{\"path\": \"/home/user/project\", \"ignore\": [\".*\"]}
-```"
+Returns plain text list:
+=== src (3 items) ===
+[DIR]  subfolder/
+[FILE] main.rs (1.2 KB)
+[FILE] lib.rs (450 B)"
                 .to_string(),
             parameters,
         },
     }
 }
+
 
 /// Deserializes `args_json` and executes the ls tool.
 ///

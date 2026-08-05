@@ -1126,50 +1126,72 @@ fn command_matches(command: &SessionCommand, approval_id: Option<&str>) -> bool 
 /// This helper extracts a representative filesystem path from the tool call's arguments.
 /// The extracted path is used by the policy resolver to check whether the caller has
 /// permission to access or operate on that specific path.
+fn strip_range_suffix_str(s: &str) -> &str {
+    if let Some(idx) = s.rfind(':') {
+        let suffix = &s[idx + 1..];
+        if suffix.eq_ignore_ascii_case("EOF")
+            || suffix.parse::<usize>().is_ok()
+            || (suffix.contains('-') && {
+                let parts: Vec<&str> = suffix.split('-').collect();
+                parts.len() == 2
+                    && parts[0].parse::<usize>().is_ok()
+                    && (parts[1].eq_ignore_ascii_case("EOF") || parts[1].parse::<usize>().is_ok())
+            })
+        {
+            return &s[..idx];
+        }
+    }
+    s
+}
+
 fn policy_path_for_call(call: &ToolCall) -> Option<String> {
-    match call.name.as_str() {
-        // The "read" tool takes an array of paths in its "paths" argument (e.g. paths: ["file1.txt", "file2.txt"]).
-        // We use the first entry of the array as the representative path for evaluating policy permissions.
+    let raw_str = match call.name.as_str() {
         "read" => call
-            .arguments
-            .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-
-        // The "bash" tool executes commands within a specific directory. We extract the "cwd" (current working directory)
-        // argument to check whether shell execution is permitted in that directory.
-        "bash" => call
-            .arguments
-            .get("cwd")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-
-        // Filesystem modification or lookup tools (write, edit, append, ls, delete) operate on a single path.
-        // We look for a singular "path" argument (e.g. path: "dir/file.txt") and extract its value as a string.
-        "write" | "edit" | "append" | "ls" | "delete" => call
             .arguments
             .get("path")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+            .or_else(|| {
+                call.arguments.get("paths").and_then(|v| match v {
+                    serde_json::Value::String(s) => Some(s.as_str()),
+                    serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
+                    _ => None,
+                })
+            }),
 
-        // The "grep" tool (pattern search) accepts an array of directory paths in its "paths" argument
-        // (e.g. paths: ["dir1", "dir2"]). We extract the first path from the array to act as the
-        // representative anchor path for policy checks, similar to how "read" is handled.
         "grep" => call
             .arguments
-            .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+            .get("path")
+            .and_then(|v| match v {
+                serde_json::Value::String(s) => Some(s.as_str()),
+                serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
+                _ => None,
+            })
+            .or_else(|| {
+                call.arguments.get("paths").and_then(|v| match v {
+                    serde_json::Value::String(s) => Some(s.as_str()),
+                    serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
+                    _ => None,
+                })
+            }),
 
-        // Any other tool is considered global or doesn't target specific filesystem paths,
-        // so we return None and bypass directory-specific policy check gates.
+        "ls" => call
+            .arguments
+            .get("path")
+            .or_else(|| call.arguments.get("dir"))
+            .and_then(|v| v.as_str()),
+
+        "bash" => call.arguments.get("cwd").and_then(|v| v.as_str()),
+
+        "write" | "edit" | "append" | "delete" => {
+            call.arguments.get("path").and_then(|v| v.as_str())
+        }
+
         _ => None,
-    }
+    };
+
+    raw_str.map(|s| strip_range_suffix_str(s).to_string())
 }
+
 
 /// Construct the opaque error result we return to the model when policy blocks a call.
 fn opaque_permission_denied_result(call: &ToolCall) -> ToolResult {

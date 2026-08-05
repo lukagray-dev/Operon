@@ -1,53 +1,48 @@
 /// Argument types for the grep tool.
-///
-/// This module defines the deserialization schema for the grep tool's input.
-/// The tool accepts a regex pattern, a list of paths to search, and optional
-/// filtering and context parameters.
 use serde::Deserialize;
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum PathOrPaths {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
 /// Top-level args the model sends when calling the `grep` tool.
-///
-/// The tool searches for a regex pattern across one or more files or directories.
-/// Directories are walked recursively with gitignore rules respected by default.
 #[derive(Debug, Deserialize)]
 pub struct GrepArgs {
-    /// Regex pattern to search for. Always treated as a regex (not a literal string).
-    /// The pattern uses Rust regex syntax. Special characters must be escaped if
-    /// searching for literal strings (e.g., `\\.` to match a literal dot).
+    /// Regex pattern to search for.
     pub pattern: String,
 
-    /// Files or directories to search. Each entry is a plain path string.
-    /// Directories are walked recursively. Gitignore rules are respected.
-    /// At least one path is required.
-    ///
-    /// Accepts both singular "path" and plural "paths" for flexibility.
-    #[serde(alias = "path")]
-    pub paths: Vec<String>,
+    /// Target path(s) to search. Accepts a single string path or array of paths.
+    #[serde(alias = "path", default)]
+    paths: Option<PathOrPaths>,
 
-    /// Optional glob pattern to filter files by name. Applied during directory
-    /// walk. E.g. "*.rs" searches only Rust files. "*.{ts,tsx}" searches both.
-    /// Has no effect when all entries in `paths` are direct files (not directories).
-    ///
-    /// Uses standard glob syntax:
-    /// - `*` matches any sequence of characters within a path component
-    /// - `?` matches any single character
-    /// - `{a,b}` matches either `a` or `b`
-    /// - `**` matches zero or more directories (e.g., `**/*.rs` matches all Rust files recursively)
+    /// Optional glob pattern to filter files by name (e.g. "*.rs").
     #[serde(default)]
     pub include: Option<String>,
 
-    /// Case-insensitive matching. Default: false (case-sensitive).
-    ///
-    /// When true, the regex pattern matches regardless of case. For example,
-    /// pattern "error" would match "Error", "ERROR", "error", etc.
+    /// Case-insensitive matching. Default: false.
     #[serde(default)]
     pub case_insensitive: Option<bool>,
 
-    /// Number of context lines to include before and after each match.
-    /// Same value applies to both before and after. Default: 0 (no context).
-    ///
-    /// Context lines are marked with `is_match: false` in the output to distinguish
-    /// them from actual matching lines. Context lines from adjacent matches may overlap.
-    #[serde(default)]
-    pub context_lines: Option<usize>,
+    /// Number of context lines before and after matches. Default: 2.
+    #[serde(default = "default_context_lines")]
+    pub context_lines: usize,
 }
+
+fn default_context_lines() -> usize {
+    2
+}
+
+impl GrepArgs {
+    /// Returns the target paths as a vector.
+    pub fn get_paths(&self) -> Vec<String> {
+        match &self.paths {
+            Some(PathOrPaths::Single(s)) => vec![s.clone()],
+            Some(PathOrPaths::Multiple(v)) => v.clone(),
+            None => vec![],
+        }
+    }
+}
+

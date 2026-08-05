@@ -40,9 +40,6 @@ pub struct LsEntry {
 }
 
 /// Top-level output returned to the model.
-///
-/// Contains the directory listing results, including entries, metadata, and
-/// any errors that occurred during listing.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LsOutput {
     /// The directory that was listed (echoed back for correlation).
@@ -58,7 +55,58 @@ pub struct LsOutput {
     pub entries: Vec<LsEntry>,
 
     /// Human-readable error if the path could not be listed.
-    /// When populated, entries is empty and entry_count is 0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
+
+fn format_size(bytes: u64) -> String {
+    if bytes < 1024 {
+        format!("{} B", bytes)
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else if bytes < 1024 * 1024 * 1024 {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    } else {
+        format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+    }
+}
+
+impl LsOutput {
+    /// Formats the ls output as plain text directory listing.
+    pub fn to_plain_text(&self) -> String {
+        if let Some(err) = &self.error {
+            return format!("=== {} ===\nError: {}", self.path, err);
+        }
+
+        let mut out = String::new();
+        let trunc_suffix = if self.truncated { " (truncated)" } else { "" };
+        out.push_str(&format!("=== {} ({} items{}) ===\n", self.path, self.entry_count, trunc_suffix));
+
+        if self.entries.is_empty() {
+            out.push_str("(empty directory)");
+            return out;
+        }
+
+        for entry in &self.entries {
+            match entry.kind {
+                EntryKind::Dir => {
+                    out.push_str(&format!("[DIR]  {}/\n", entry.name));
+                }
+                EntryKind::File => {
+                    let size_str = entry.size_bytes.map(format_size).unwrap_or_else(|| "0 B".to_string());
+                    out.push_str(&format!("[FILE] {} ({})\n", entry.name, size_str));
+                }
+                EntryKind::Symlink => {
+                    out.push_str(&format!("[LINK] {}\n", entry.name));
+                }
+            }
+        }
+
+        if out.ends_with('\n') {
+            out.pop();
+        }
+
+        out
+    }
+}
+

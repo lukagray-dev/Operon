@@ -36,32 +36,15 @@ pub async fn execute(call_id: ToolCallId, args: LsArgs) -> ToolResult {
     // Execute the listing and assemble the output.
     let output = list_directory(&args).await;
 
-    // Serialize to JSON. This should never fail because all our types are Serialize.
-    // If it does fail (e.g., due to a bug in our Serialize impl), we return an error ToolResult.
-    let output_value = match serde_json::to_value(&output) {
-        Ok(v) => v,
-        Err(e) => {
-            // This is a bug in our code, not a user error. Return an error ToolResult.
-            return ToolResult {
-                call_id,
-                name: "ls".to_string(),
-                content: ToolContent::Text(format!(
-                    "Internal error: failed to serialize ls output: {}",
-                    e
-                )),
-                is_error: true,
-            };
-        }
-    };
-
-    // Return the successful ToolResult with JSON content.
+    // Return the successful ToolResult with plain text content.
     ToolResult {
         call_id,
         name: "ls".to_string(),
-        content: ToolContent::Json(output_value),
+        content: ToolContent::Text(output.to_plain_text()),
         is_error: false,
     }
 }
+
 
 /// Lists a directory and returns an LsOutput.
 ///

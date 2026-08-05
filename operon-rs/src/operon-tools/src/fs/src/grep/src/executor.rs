@@ -136,8 +136,17 @@ pub async fn execute(call_id: ToolCallId, args: GrepArgs) -> ToolResult {
     };
 
     // Collect all file paths to search.
-    // This handles both direct file paths and directory walking with glob filtering.
-    let file_paths = match collect_file_paths(&args.paths, args.include.as_deref()) {
+    let paths = args.get_paths();
+    if paths.is_empty() {
+        return ToolResult {
+            call_id,
+            name: "grep".to_string(),
+            content: ToolContent::Text("Error: No search paths provided.".to_string()),
+            is_error: true,
+        };
+    }
+
+    let file_paths = match collect_file_paths(&paths, args.include.as_deref()) {
         Ok(paths) => paths,
         Err(e) => {
             // Failed to build the file list (e.g., invalid glob pattern).
@@ -152,7 +161,7 @@ pub async fn execute(call_id: ToolCallId, args: GrepArgs) -> ToolResult {
 
     // Search all files in a blocking task (grep-searcher is not async-friendly).
     // We pass owned data into the blocking task to avoid lifetime issues.
-    let context_lines = args.context_lines.unwrap_or(0);
+    let context_lines = args.context_lines;
     let (results, truncated) =
         match tokio::task::spawn_blocking(move || search_files(file_paths, matcher, context_lines))
             .await
@@ -179,32 +188,15 @@ pub async fn execute(call_id: ToolCallId, args: GrepArgs) -> ToolResult {
         files: results,
     };
 
-    // Serialize to JSON. This should never fail because all our types are Serialize.
-    // If it does fail (e.g., due to a bug in our Serialize impl), we return an error ToolResult.
-    let output_value = match serde_json::to_value(&output) {
-        Ok(v) => v,
-        Err(e) => {
-            // This is a bug in our code, not a user error. Return an error ToolResult.
-            return ToolResult {
-                call_id,
-                name: "grep".to_string(),
-                content: ToolContent::Text(format!(
-                    "Internal error: failed to serialize grep output: {}",
-                    e
-                )),
-                is_error: true,
-            };
-        }
-    };
-
-    // Return the successful ToolResult with JSON content.
+    // Return the successful ToolResult with plain text content.
     ToolResult {
         call_id,
         name: "grep".to_string(),
-        content: ToolContent::Json(output_value),
+        content: ToolContent::Text(output.to_plain_text()),
         is_error: false,
     }
 }
+
 
 /// Collects all file paths to search based on the input paths and optional glob filter.
 ///

@@ -59,14 +59,26 @@ pub fn definition() -> TieredToolDefinition {
     let parameters = json!({
         "type": "object",
         "properties": {
+            "path": {
+                "type": "string",
+                "description": "Path to read a single file. Can include inline range suffix like 'src/main.rs:10-40', 'src/main.rs:5-EOF', or 'src/main.rs:15'."
+            },
+            "start_line": {
+                "type": "integer",
+                "description": "Optional start line for single file path (1-indexed, inclusive)."
+            },
+            "end_line": {
+                "type": "integer",
+                "description": "Optional end line for single file path (1-indexed, inclusive)."
+            },
             "paths": {
                 "type": "array",
-                "description": "Files to read. Each item is either a path string or an object with path + optional start_line/end_line.",
+                "description": "Files to read. Items can be path strings (with optional inline ranges like 'a.rs:10-40') or objects with path + start_line/end_line.",
                 "items": {
                     "oneOf": [
                         {
                             "type": "string",
-                            "description": "Absolute or relative path to the file."
+                            "description": "Path string, optionally with range suffix like 'src/main.rs:10-40', 'src/main.rs:5-EOF', or 'src/main.rs'."
                         },
                         {
                             "type": "object",
@@ -87,79 +99,50 @@ pub fn definition() -> TieredToolDefinition {
                             "required": ["path"]
                         }
                     ]
-                },
-                "minItems": 1
+                }
             }
-        },
-        "required": ["paths"]
+        }
     });
 
     TieredToolDefinition {
         short: ToolDefinition {
             name: "read".to_string(),
-            description: "Reads one or multiple files in one call (max 1 MB per file). \
-                          Pass `paths` as an array of strings or objects. \
-                          Use `{\"path\": \"...\", \"start_line\": N, \"end_line\": M}` to read a \
-                          line range instead of the full file. \
-                          Binary files cannot be read with this tool."
+            description: "Reads one or multiple files (max 1 MB per file). \
+                          Use `path` (or `paths`) with inline ranges like `\"src/main.rs:10-40\"` or `\"src/main.rs:5-EOF\"`. \
+                          Returns raw file contents as plain text."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "read".to_string(),
             description: "\
-Reads one or multiple files in a single call. Returns structured per-file results.
+Reads one or multiple files in a single call. Returns raw plain text with section headers.
 
 ## Input shapes
 
-`paths` is a required array. Each element is ONE of:
+1. Inline string range (Recommended):
+   `\"src/main.rs:10-40\"`   ← lines 10 to 40
+   `\"src/main.rs:5-EOF\"`   ← line 5 to end of file
+   `\"src/main.rs:15\"`      ← line 15 only
+   `\"src/main.rs\"`         ← full file read
 
-1. A plain string — reads the entire file (subject to 1 MB limit):
-   `\"src/main.rs\"`
+2. Root-level parameters:
+   `{\"path\": \"src/main.rs\", \"start_line\": 10, \"end_line\": 40}`
 
-2. An object — reads the entire file or a line range:
-   `{\"path\": \"src/main.rs\"}`
-   `{\"path\": \"src/main.rs\", \"start_line\": 100, \"end_line\": 200}`
-   `{\"path\": \"src/main.rs\", \"start_line\": 50}`   ← reads from line 50 to EOF
-   `{\"path\": \"src/main.rs\", \"end_line\": 30}`     ← reads from line 1 to line 30
-
-You can mix both shapes in the same call:
-`{\"paths\": [\"Cargo.toml\", {\"path\": \"src/main.rs\", \"start_line\": 1, \"end_line\": 50}]}`
-
-## Size limit
-
-Full-file reads (no line range) are capped at 1 MB. If a file exceeds this,
-the result for that file will have `success: false` with an error message telling
-you to use `start_line`/`end_line`. Line-range reads bypass the size check.
+3. Array of paths:
+   `{\"paths\": [\"src/a.rs:10-40\", \"src/b.rs:5-EOF\", \"src/c.rs\"]}`
 
 ## Response format
 
-Returns a JSON object: `{\"files\": [ ...one entry per path... ]}`
-
-Each entry:
-- `success: true`  → `content` (string), `total_lines` (int), optionally `lines_returned`
-- `success: false` → `error` (string describing why it failed)
-
-The overall tool call always returns `is_error: false`. Per-file failures are inside the JSON.
-
-## Constraints
-
-- Binary files (null bytes) → `success: false`, error message.
-- Invalid UTF-8 → `success: false`, error message.
-- Non-existent path → `success: false`, error message.
-- `start_line` beyond file end → `success: false`, error message.
-- `end_line` beyond file end → clamped silently to last line, no error.
-
-## Common mistakes
-
-- Passing `paths` as a string instead of an array → args parse failure.
-- Using `path` as the top-level key instead of `paths` → args parse failure.
-- Passing line numbers as strings instead of integers → args parse failure."
+Returns plain text with headers for each file:
+=== src/main.rs (lines 10-40 of 200) ===
+<raw content without line number prefixes>"
                 .to_string(),
             parameters,
         },
     }
 }
+
 
 /// Deserializes `args_json` and executes the read tool.
 ///
@@ -211,9 +194,10 @@ pub async fn execute_with_progress(
             call_id.clone(),
             "read",
             None,
-            format!("Reading {} file(s)", args.paths.len()),
+            format!("Reading {} file(s)", args.target_count()),
         ),
     );
+
 
     // Execute the tool and return the result. The executor always returns a
     // ToolResult (never panics or returns an error), so we can unwrap safely.

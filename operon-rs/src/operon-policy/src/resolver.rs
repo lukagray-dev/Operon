@@ -218,56 +218,79 @@ fn classify_tool(name: &str) -> ToolScope {
 // extract_path_arg (private)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Strips trailing line range suffixes like `:10-40`, `:5-EOF`, or `:15` from path strings.
+fn strip_range_suffix(s: &str) -> &str {
+    if let Some(idx) = s.rfind(':') {
+        let suffix = &s[idx + 1..];
+        if suffix.eq_ignore_ascii_case("EOF")
+            || suffix.parse::<usize>().is_ok()
+            || (suffix.contains('-') && {
+                let parts: Vec<&str> = suffix.split('-').collect();
+                parts.len() == 2
+                    && parts[0].parse::<usize>().is_ok()
+                    && (parts[1].eq_ignore_ascii_case("EOF") || parts[1].parse::<usize>().is_ok())
+            })
+        {
+            return &s[..idx];
+        }
+    }
+    s
+}
+
 /// Extracts the path argument from a tool call's arguments JSON.
 ///
 /// Each directory-scoped tool uses a different argument key name:
-/// - `"read"` uses `"paths"` (an array — we take the FIRST element for policy).
+/// - `"read"` checks `"path"` or `"paths"` (string or array).
+/// - `"grep"` checks `"path"` or `"paths"` (string or array).
+/// - `"ls"` checks `"path"` or `"dir"`.
 /// - `"bash"` uses `"cwd"`.
 /// - All other fs tools use `"path"`.
 ///
-/// Returns `None` if the argument key is missing or the value is not a string.
+/// Returns `None` if the argument key is missing or the value is invalid.
 /// The resolver treats `None` as a Deny (cannot evaluate without a path anchor).
 fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
     let args = &call.arguments;
 
-    match tool {
-        // The `read` tool takes a `"paths"` array. We check the first element
-        // for the policy evaluation. If the model passes multiple paths, they
-        // all need to be in the same allowed directory (or multiple calls should
-        // be used). We check the first as a representative heuristic — the tool
-        // executor will encounter the boundary violation for any out-of-scope
-        // path anyway (since it runs after policy allows the call).
-        //
-        // TODO: Consider per-element checking in a future revision. For now,
-        // first-element policy is the pragmatic trade-off.
+    let raw_str = match tool {
         DirTool::Fs(FsTool::Read) => args
-            .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
+            .get("path")
             .and_then(|v| v.as_str())
-            .map(PathBuf::from),
+            .or_else(|| {
+                args.get("paths").and_then(|v| match v {
+                    serde_json::Value::String(s) => Some(s.as_str()),
+                    serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
+                    _ => None,
+                })
+            }),
 
-        // The "grep" tool accepts an array of directory paths in its `"paths"` argument
-        // (similar to the "read" tool). To perform policy verification, we extract the
-        // first path from this array to act as the representative anchor. This allows us
-        // to verify that the pattern search is targeting a permitted directory.
         DirTool::Fs(FsTool::Grep) => args
-            .get("paths")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|v| v.as_str())
-            .map(PathBuf::from),
+            .get("path")
+            .and_then(|v| match v {
+                serde_json::Value::String(s) => Some(s.as_str()),
+                serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
+                _ => None,
+            })
+            .or_else(|| {
+                args.get("paths").and_then(|v| match v {
+                    serde_json::Value::String(s) => Some(s.as_str()),
+                    serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
+                    _ => None,
+                })
+            }),
 
-        // The `bash` tool uses `"cwd"` as the policy anchor (Option C).
-        // If cwd is missing, the tool executor would also reject it — but we
-        // reject it here first so the policy layer catches it before dispatch.
-        DirTool::Bash => args.get("cwd").and_then(|v| v.as_str()).map(PathBuf::from),
+        DirTool::Fs(FsTool::Ls) => args
+            .get("path")
+            .or_else(|| args.get("dir"))
+            .and_then(|v| v.as_str()),
 
-        // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"`
-        // string argument. We extract this value to verify directory containment.
-        DirTool::Fs(_) => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
-    }
+        DirTool::Bash => args.get("cwd").and_then(|v| v.as_str()),
+
+        DirTool::Fs(_) => args.get("path").and_then(|v| v.as_str()),
+    };
+
+    raw_str.map(|s| PathBuf::from(strip_range_suffix(s)))
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // mode_to_decision (private)
