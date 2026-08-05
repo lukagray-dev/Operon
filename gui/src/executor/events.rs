@@ -163,60 +163,7 @@ pub async fn handle_session_events(
                     }
                 });
             }
-            operon_rs::SessionEvent::ToolCallDetected {
-                call_id,
-                name,
-                attrs: _,
-            } => {
-                cards::append_tool_detected(&mut response_state, &call_id, &name);
-                let parsed_items = response_state.build_parsed_items();
-                let win_weak_update = win_weak.clone();
-                let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(win) = win_weak_update.upgrade() {
-                        let model = win.get_chat_messages();
-                        let mut msgs: Vec<crate::ChatMessage> = Vec::new();
-                        for i in 0..model.row_count() {
-                            if let Some(msg) = model.row_data(i) {
-                                msgs.push(msg);
-                            }
-                        }
-                        let elements =
-                            crate::main_content::markdown::to_slint_elements(parsed_items);
-                        if let Some(last) = msgs.last_mut() {
-                            last.markdown_elements =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
-                        }
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
-                            slint::VecModel::from(msgs),
-                        )));
-                    }
-                });
-            }
-            operon_rs::SessionEvent::ToolBodyDelta { call_id, text } => {
-                cards::append_tool_body_delta(&mut response_state, &call_id, &text);
-                let parsed_items = response_state.build_parsed_items();
-                let win_weak_update = win_weak.clone();
-                let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(win) = win_weak_update.upgrade() {
-                        let model = win.get_chat_messages();
-                        let mut msgs: Vec<crate::ChatMessage> = Vec::new();
-                        for i in 0..model.row_count() {
-                            if let Some(msg) = model.row_data(i) {
-                                msgs.push(msg);
-                            }
-                        }
-                        let elements =
-                            crate::main_content::markdown::to_slint_elements(parsed_items);
-                        if let Some(last) = msgs.last_mut() {
-                            last.markdown_elements =
-                                slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
-                        }
-                        win.set_chat_messages(slint::ModelRc::from(Rc::new(
-                            slint::VecModel::from(msgs),
-                        )));
-                    }
-                });
-            }
+
             operon_rs::SessionEvent::ToolCallResult {
                 call_id,
                 name,

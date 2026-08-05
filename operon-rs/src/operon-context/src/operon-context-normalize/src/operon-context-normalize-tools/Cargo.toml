@@ -1,0 +1,16 @@
+[package]
+name        = "operon-context-normalize-tools"
+description = "Canonical tool-call types and provider wire normalization: provider JSON → ToolCall/ToolResult/ToolDefinition and back"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# operon-providers supplies the canonical Provider enum.
+# This crate re-exports it rather than defining its own copy.
+[dependencies]
+operon-providers.workspace = true
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true

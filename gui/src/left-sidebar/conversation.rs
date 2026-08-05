@@ -119,6 +119,7 @@ pub async fn load_session_history(
                                     };
                                     let res_text = match &tr.content {
                                         operon_rs::context::ToolContent::Text(t) => t.clone(),
+                                        operon_rs::context::ToolContent::Json(val) => val.to_string(),
                                     };
                                     tool_item.tool_result = res_text;
                                     tool_item.tool_title =

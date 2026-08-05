@@ -16,4 +16,4 @@ operon-tools-core.workspace        = true
 serde.workspace                    = true
 serde_json.workspace               = true
 tokio.workspace                    = true
-operon-context-normalize.workspace = true
+operon-context-normalize-tools.workspace = true

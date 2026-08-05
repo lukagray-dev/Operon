@@ -1,201 +1,140 @@
-//! Executor for the web_search tool — handles DuckDuckGo search query logic.
+//! Executor for the web_search tool — handles all DuckDuckGo search logic.
 //!
-//! This module contains the core logic for executing search queries directly
-//! using reqwest, parsing results from DuckDuckGo's static HTML page,
-//! and formatting the plain-text output.
+//! This module contains the core logic for validating queries, executing searches,
+//! parsing results, and handling errors. All DuckDuckGo I/O is async via tokio.
 
 use crate::args::WebSearchArgs;
-use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
+use crate::output::{SearchResult, WebSearchOutput};
+use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 
-/// Default number of results to return if `max` is not specified.
+/// Default number of results to return if max_results is not specified.
 const DEFAULT_RESULTS: usize = 5;
 
 /// Maximum number of results to return, regardless of what the model requests.
+/// Capped at 10 — more results rarely improve agent outcomes and increase token usage significantly.
 const MAX_RESULTS: usize = 10;
-
-struct RawSearchResult {
-    title: String,
-    url: String,
-    snippet: String,
-}
 
 /// Executes the web_search tool with the given arguments.
 ///
-/// Queries DuckDuckGo, parses the results, and returns them as plain text.
+/// Queries DuckDuckGo using the lite_search API (no JS rendering, static content only),
+/// parses the results into structured SearchResult objects, and returns them to the model.
+/// Each call is independent — no state persists between calls.
+///
+/// # Arguments
+/// - `call_id`: The unique identifier for this tool call (from the model's request).
+/// - `args`: The deserialized web_search arguments containing the query and optional max_results.
+///
+/// # Returns
+/// A `ToolResult` with either success (JSON WebSearchOutput) or failure (Text error message).
 pub async fn execute(call_id: ToolCallId, args: WebSearchArgs) -> ToolResult {
+    // Step 1: Validate query is non-empty.
+    // An empty query is a no-op and indicates a mistake by the model.
+    let query = args.query.trim().to_string();
+    if query.is_empty() {
+        return ToolResult {
+            call_id,
+            name: "web_search".to_string(),
+            content: ToolContent::Text("query is empty".to_string()),
+            is_error: true,
+        };
+    }
+
+    // Step 2: Cap max_results to the valid range [1, MAX_RESULTS].
+    // Default to DEFAULT_RESULTS if not specified.
     let max_results = args
-        .max
+        .max_results
         .unwrap_or(DEFAULT_RESULTS)
         .min(MAX_RESULTS)
         .max(1);
 
-    let client = match reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-    {
-        Ok(c) => c,
-        Err(e) => {
-            return ToolResult {
-                call_id,
-                name: "web_search".to_string(),
-                content: ToolContent::Text(format!("failed to initialize HTTP client: {}", e)),
-                is_error: true,
-                read_paths: None,
-            };
-        }
-    };
+    // Step 3: Execute DuckDuckGo lite search inside spawn_blocking.
+    // The duckduckgo crate uses an embedded blocking runtime internally — it MUST be
+    // called from spawn_blocking, not from an async context directly.
+    let query_owned = query.clone();
+    let results_raw = tokio::task::spawn_blocking(move || {
+        // Build a new tokio runtime for the blocking call.
+        // The duckduckgo crate uses reqwest internally which needs a runtime.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| format!("failed to build runtime: {}", e))?;
 
-    // Build search URL with query parameters
-    let url = match reqwest::Url::parse_with_params(
-        "https://html.duckduckgo.com/html/",
-        &[("q", &args.query)],
-    ) {
-        Ok(u) => u,
-        Err(e) => {
-            return ToolResult {
-                call_id,
-                name: "web_search".to_string(),
-                content: ToolContent::Text(format!("failed to construct search URL: {}", e)),
-                is_error: true,
-                read_paths: None,
-            };
-        }
-    };
+        rt.block_on(async {
+            use duckduckgo::browser::Browser;
+            use duckduckgo::user_agents::get;
 
-    // Query DuckDuckGo's static HTML search page
-    let response = match client.get(url).send().await {
-        Ok(r) => r,
-        Err(e) => {
-            return ToolResult {
-                call_id,
-                name: "web_search".to_string(),
-                content: ToolContent::Text(format!("search failed: {}", e)),
-                is_error: true,
-                read_paths: None,
-            };
-        }
-    };
+            let browser = Browser::new();
+            let ua = get("firefox").unwrap_or_default();
 
-    let html = match response.text().await {
-        Ok(t) => t,
-        Err(e) => {
-            return ToolResult {
-                call_id,
-                name: "web_search".to_string(),
-                content: ToolContent::Text(format!("failed to read search response: {}", e)),
-                is_error: true,
-                read_paths: None,
-            };
-        }
-    };
-
-    let parsed_results = parse_duckduckgo_html(&html);
-
-    if parsed_results.is_empty() {
-        return ToolResult {
-            call_id,
-            name: "web_search".to_string(),
-            content: ToolContent::Text(format!(
-                "No results for '{}'. Try different search terms.",
-                args.query
-            )),
-            is_error: false,
-            read_paths: None,
-        };
-    }
-
-    let text = parsed_results
-        .into_iter()
-        .take(max_results)
-        .enumerate()
-        .map(|(i, r)| {
-            format!("{}. {}\n   {}\n   {}", i + 1, r.title, r.url, r.snippet)
+            // Use lite_search which returns structured LiteSearchResult objects directly.
+            // Parameters:
+            // - query: the search query
+            // - region: "wt-wt" for worldwide (no regional bias)
+            // - max_results: maximum number of results to return
+            // - user_agent: user agent string for the request
+            browser
+                .lite_search(
+                    &query_owned,
+                    "wt-wt", // worldwide region — no regional bias
+                    Some(max_results),
+                    ua,
+                )
+                .await
+                .map_err(|e| format!("search failed: {}", e))
         })
-        .collect::<Vec<_>>()
-        .join("\n\n");
+    })
+    .await;
+
+    // Step 4: Handle spawn_blocking result.
+    // Three cases: panic (task panicked), error (search failed), or success (got results).
+    let raw_results = match results_raw {
+        Err(_panic) => {
+            return ToolResult {
+                call_id,
+                name: "web_search".to_string(),
+                content: ToolContent::Text("internal error: search task panicked".to_string()),
+                is_error: true,
+            };
+        }
+        Ok(Err(e)) => {
+            return ToolResult {
+                call_id,
+                name: "web_search".to_string(),
+                content: ToolContent::Text(e),
+                is_error: true,
+            };
+        }
+        Ok(Ok(output)) => output,
+    };
+
+    // Step 5: Parse the raw LiteSearchResult objects into SearchResult structs.
+    // LiteSearchResult has fields: title, url, snippet.
+    // Map them directly with 1-indexed rank.
+    let results: Vec<SearchResult> = raw_results
+        .into_iter()
+        .enumerate()
+        .map(|(i, r)| SearchResult {
+            rank: i + 1,
+            title: r.title,
+            url: r.url,
+            snippet: r.snippet,
+        })
+        .collect();
+
+    // Step 6: Return success.
+    // Construct the output with the query, result count, and results.
+    let output = WebSearchOutput {
+        query,
+        result_count: results.len(),
+        results,
+    };
 
     ToolResult {
         call_id,
         name: "web_search".to_string(),
-        content: ToolContent::Text(text),
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
+            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
+        )),
         is_error: false,
-        read_paths: None,
     }
-}
-
-fn parse_duckduckgo_html(html: &str) -> Vec<RawSearchResult> {
-    let mut results = Vec::new();
-    
-    // Split the HTML content into blocks corresponding to individual search results
-    let parts: Vec<&str> = html.split("<div class=\"result").collect();
-    if parts.len() <= 1 {
-        return results;
-    }
-    
-    // Skip the first part which is the page header
-    for part in parts.into_iter().skip(1) {
-        // Find the result__a class block
-        let Some(a_start) = part.find("class=\"result__a\"") else { continue; };
-        let a_block = &part[a_start..];
-        
-        let Some(href_start) = a_block.find("href=\"") else { continue; };
-        let href_block = &a_block[href_start + 6..];
-        let Some(href_end) = href_block.find("\"") else { continue; };
-        let url = href_block[..href_end].to_string();
-        
-        let Some(title_start) = href_block[href_end..].find(">") else { continue; };
-        let title_block = &href_block[href_end + title_start + 1..];
-        let Some(title_end) = title_block.find("</a>") else { continue; };
-        let title = clean_html_entities(&title_block[..title_end]);
-        
-        // Find the result__snippet class block
-        let snippet = if let Some(snippet_start) = part.find("class=\"result__snippet\"") {
-            let snippet_block = &part[snippet_start..];
-            if let Some(text_start) = snippet_block.find(">") {
-                let text_block = &snippet_block[text_start + 1..];
-                if let Some(text_end) = text_block.find("</a>") {
-                    clean_html_entities(&text_block[..text_end])
-                } else if let Some(tag_end) = text_block.find("</") {
-                    clean_html_entities(&text_block[..tag_end])
-                } else {
-                    "".to_string()
-                }
-            } else {
-                "".to_string()
-            }
-        } else {
-            "".to_string()
-        };
-        
-        results.push(RawSearchResult { title, url, snippet });
-    }
-    
-    results
-}
-
-fn clean_html_entities(html: &str) -> String {
-    let mut s = String::new();
-    let mut in_tag = false;
-    
-    // Strip nested HTML tags inside title or snippet
-    for ch in html.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            _ if !in_tag => s.push(ch),
-            _ => {}
-        }
-    }
-    
-    // Decode HTML entities commonly present in search snippets
-    s.replace("&amp;", "&")
-     .replace("&lt;", "<")
-     .replace("&gt;", ">")
-     .replace("&quot;", "\"")
-     .replace("&#x27;", "'")
-     .replace("&#39;", "'")
-     .replace("&nbsp;", " ")
-     .trim()
-     .to_string()
 }

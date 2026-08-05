@@ -26,30 +26,6 @@ impl Default for TodoPriority {
     }
 }
 
-impl std::str::FromStr for TodoPriority {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "high" => Ok(TodoPriority::High),
-            "medium" => Ok(TodoPriority::Medium),
-            "low" => Ok(TodoPriority::Low),
-            _ => Err(format!("invalid priority value: '{}'", s)),
-        }
-    }
-}
-
-impl std::fmt::Display for TodoPriority {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            TodoPriority::High => "high",
-            TodoPriority::Medium => "medium",
-            TodoPriority::Low => "low",
-        };
-        write!(f, "{}", s)
-    }
-}
-
 /// Status of a todo item.
 ///
 /// Tracks the lifecycle of a task from creation through completion.
@@ -67,30 +43,6 @@ pub enum TodoStatus {
 impl Default for TodoStatus {
     fn default() -> Self {
         TodoStatus::Pending
-    }
-}
-
-impl std::str::FromStr for TodoStatus {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "pending" => Ok(TodoStatus::Pending),
-            "in_progress" => Ok(TodoStatus::InProgress),
-            "completed" => Ok(TodoStatus::Completed),
-            _ => Err(format!("invalid status value: '{}'", s)),
-        }
-    }
-}
-
-impl std::fmt::Display for TodoStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            TodoStatus::Pending => "pending",
-            TodoStatus::InProgress => "in_progress",
-            TodoStatus::Completed => "completed",
-        };
-        write!(f, "{}", s)
     }
 }
 

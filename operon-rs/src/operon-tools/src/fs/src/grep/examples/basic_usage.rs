@@ -3,7 +3,7 @@
 /// This example demonstrates how to use the grep tool to search for patterns
 /// in files with various configurations: basic search, case-insensitive search,
 /// context lines, filename filtering, and error handling.
-use operon_context_normalize::tools::ToolCallId;
+use operon_context_normalize_tools::ToolCallId;
 use operon_tools_fs_grep::{definition, execute};
 use serde_json::json;
 use std::fs;
@@ -83,8 +83,24 @@ async fn main() {
         .await
         .unwrap();
 
-    if let operon_context_normalize::tools::ToolContent::Text(text) = &result.content {
-        println!("{}", text);
+    if let operon_context_normalize_tools::ToolContent::Json(output) = &result.content {
+        println!("   Total matches: {}", output["total_matches"]);
+        println!("   Files with matches: {}", output["files_with_matches"]);
+        println!("   Truncated: {}", output["truncated"]);
+        if let Some(files) = output["files"].as_array() {
+            for file in files {
+                println!("   File: {}", file["path"]);
+                println!("   Match count: {}", file["match_count"]);
+                if let Some(matches) = file["matches"].as_array() {
+                    for m in matches {
+                        println!(
+                            "     Line {}: {} (match: {})",
+                            m["line_no"], m["content"], m["is_match"]
+                        );
+                    }
+                }
+            }
+        }
     }
     println!();
 
@@ -100,8 +116,22 @@ async fn main() {
         .await
         .unwrap();
 
-    if let operon_context_normalize::tools::ToolContent::Text(text) = &result.content {
-        println!("{}", text);
+    if let operon_context_normalize_tools::ToolContent::Json(output) = &result.content {
+        println!("   Total matches: {}", output["total_matches"]);
+        if let Some(files) = output["files"].as_array() {
+            for file in files {
+                if let Some(matches) = file["matches"].as_array() {
+                    for m in matches {
+                        let marker = if m["is_match"].as_bool().unwrap() {
+                            ">"
+                        } else {
+                            " "
+                        };
+                        println!("   {} Line {}: {}", marker, m["line_no"], m["content"]);
+                    }
+                }
+            }
+        }
     }
     println!();
 
@@ -116,8 +146,9 @@ async fn main() {
         .await
         .unwrap();
 
-    if let operon_context_normalize::tools::ToolContent::Text(text) = &result.content {
-        println!("{}", text);
+    if let operon_context_normalize_tools::ToolContent::Json(output) = &result.content {
+        println!("   Total matches: {}", output["total_matches"]);
+        println!("   Files with matches: {}", output["files_with_matches"]);
     }
     println!();
 
@@ -134,8 +165,23 @@ async fn main() {
         .await
         .unwrap();
 
-    if let operon_context_normalize::tools::ToolContent::Text(text) = &result.content {
-        println!("{}", text);
+    if let operon_context_normalize_tools::ToolContent::Json(output) = &result.content {
+        println!("   Total matches: {}", output["total_matches"]);
+        println!("   Files with matches: {}", output["files_with_matches"]);
+        if let Some(files) = output["files"].as_array() {
+            for file in files {
+                println!(
+                    "   - {}: {} matches",
+                    file["path"]
+                        .as_str()
+                        .unwrap()
+                        .split('\\')
+                        .last()
+                        .unwrap_or(""),
+                    file["match_count"]
+                );
+            }
+        }
     }
     println!();
 
@@ -149,8 +195,8 @@ async fn main() {
         .await
         .unwrap();
 
-    if let operon_context_normalize::tools::ToolContent::Text(text) = &result.content {
-        println!("{}", text);
+    if let operon_context_normalize_tools::ToolContent::Json(output) = &result.content {
+        println!("   Total matches: {}", output["total_matches"]);
     }
     println!();
 
@@ -165,7 +211,7 @@ async fn main() {
         .unwrap();
 
     println!("   Is error: {}", result.is_error);
-    if let operon_context_normalize::tools::ToolContent::Text(msg) = &result.content {
+    if let operon_context_normalize_tools::ToolContent::Text(msg) = &result.content {
         println!("   Error message: {}", msg);
     }
     println!();
@@ -180,8 +226,19 @@ async fn main() {
         .await
         .unwrap();
 
-    if let operon_context_normalize::tools::ToolContent::Text(text) = &result.content {
-        println!("{}", text);
+    if let operon_context_normalize_tools::ToolContent::Json(output) = &result.content {
+        println!("   Total matches: {}", output["total_matches"]);
+        if let Some(files) = output["files"].as_array() {
+            for file in files {
+                if let Some(matches) = file["matches"].as_array() {
+                    for m in matches {
+                        if m["is_match"].as_bool().unwrap() {
+                            println!("   Line {}: {}", m["line_no"], m["content"]);
+                        }
+                    }
+                }
+            }
+        }
     }
     println!();
 

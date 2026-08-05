@@ -15,6 +15,7 @@ members = [
 
     # Normalize facade + sub-crates (replaces the old operon-context-tools)
     "operon-rs/src/operon-context/src/operon-context-normalize",
+    "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-tools",
     "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-reasoning",
     "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-messages",
     "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-stream",
@@ -56,18 +57,6 @@ members = [
 
     # Ask tool
     "operon-rs/src/operon-tools/src/ask",
-
-    # Parser tool
-    "operon-rs/src/operon-tools/src/parser",
-
-    # Memory tools
-    "operon-rs/src/operon-tools/src/memory",
-    "operon-rs/src/operon-tools/src/memory/src/memory_add",
-    "operon-rs/src/operon-tools/src/memory/src/memory_delete",
-    "operon-rs/src/operon-tools/src/memory/src/memory_edit",
-    "operon-rs/src/operon-tools/src/memory/src/memory_retrieve",
-    "operon-rs/src/operon-tools/src/memory/src/memory_search",
-
 
     # Events bus — pure types, no async
     "operon-rs/src/operon-events",
@@ -123,8 +112,8 @@ notify       = "8.2.0"
 tempfile     = "3.15.0"
 globset      = "0.4"
 trash        = "5"
-duckduckgo           = "0.3"
-htmd                 = "0.5"
+duckduckgo   = "0.3"
+htmd         = "0.5"
 pulldown-cmark = "0.11.3"
 spider               = { version = "2.52.0", features = ["chrome"] }
 spider_transformations = "2.39.13"
@@ -139,6 +128,7 @@ operon-context-sanitizer              = { path = "operon-rs/src/operon-context/s
 operon-context-compaction             = { path = "operon-rs/src/operon-context/src/operon-context-compaction" }
 
 operon-context-normalize              = { path = "operon-rs/src/operon-context/src/operon-context-normalize" }
+operon-context-normalize-tools        = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-tools" }
 operon-context-normalize-reasoning    = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-reasoning" }
 operon-context-normalize-messages     = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-messages" }
 operon-context-normalize-stream       = { path = "operon-rs/src/operon-context/src/operon-context-normalize/src/operon-context-normalize-stream" }
@@ -167,14 +157,6 @@ operon-tools-load                     = { path = "operon-rs/src/operon-tools/src
 operon-tools-ask                      = { path = "operon-rs/src/operon-tools/src/ask" }
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
-operon-tools-parser                   = { path = "operon-rs/src/operon-tools/src/parser" }
-operon-tools-memory                   = { path = "operon-rs/src/operon-tools/src/memory" }
-operon-tools-memory-add               = { path = "operon-rs/src/operon-tools/src/memory/src/memory_add" }
-operon-tools-memory-delete            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_delete" }
-operon-tools-memory-edit              = { path = "operon-rs/src/operon-tools/src/memory/src/memory_edit" }
-operon-tools-memory-retrieve          = { path = "operon-rs/src/operon-tools/src/memory/src/memory_retrieve" }
-operon-tools-memory-search            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_search" }
-
 
 # Events, policy, config, and session crates
 operon-events    = { path = "operon-rs/src/operon-events" }

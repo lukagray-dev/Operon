@@ -3,6 +3,10 @@
 //! Cohere v2 uses OpenAI-like roles and supports content as string or typed
 //! block arrays. It does not support image blocks in messages.
 
+use operon_context_normalize_tools::{
+    denormalize_result as denormalize_tool_result, normalize as normalize_tool_call,
+    Provider as ToolProvider, ToolCallId, ToolContent, ToolResult,
+};
 use serde_json::{json, Value};
 
 use crate::error::{MessageNormalizeError, Result};
@@ -34,13 +38,6 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         (raw, fr)
     };
 
-    if message_value.get("tool_calls").is_some() {
-        return Err(MessageNormalizeError::UnsupportedContentType {
-            provider: PROVIDER,
-            detail: "tool blocks are not supported under tag protocol".to_string(),
-        });
-    }
-
     let role_str = message_value.get("role").and_then(Value::as_str).ok_or(
         MessageNormalizeError::MissingField {
             field: "role",
@@ -61,14 +58,24 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         }
     };
 
-    if role == MessageRole::Tool {
-        return Err(MessageNormalizeError::UnsupportedContentType {
-            provider: PROVIDER,
-            detail: "tool role is not supported under tag protocol".to_string(),
-        });
-    }
+    let mut content = if role == MessageRole::Tool {
+        vec![ContentBlock::ToolResult(parse_cohere_tool_result(
+            &message_value,
+        )?)]
+    } else {
+        parse_cohere_content(message_value.get("content"))?
+    };
 
-    let content = parse_cohere_content(message_value.get("content"))?;
+    if role == MessageRole::Assistant {
+        if let Some(tool_calls) = message_value.get("tool_calls").and_then(Value::as_array) {
+            for tc in tool_calls {
+                // Cohere tool_calls are OpenAI-shaped in v2 messages.
+                let tool_call =
+                    normalize_tool_call(tc.clone(), &ToolProvider::OpenAI).map_err(map_tool_err)?;
+                content.push(ContentBlock::ToolCall(tool_call));
+            }
+        }
+    }
 
     let mut out = ConversationMessage {
         role,
@@ -94,16 +101,29 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
     for msg in msgs {
         match msg.role {
             MessageRole::Tool => {
-                return Err(MessageNormalizeError::UnsupportedContentType {
-                    provider: PROVIDER,
-                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
-                });
+                let tool_results = extract_tool_results(&msg.content)?;
+                for tr in tool_results {
+                    let wire =
+                        denormalize_tool_result(tr, &ToolProvider::Cohere).map_err(map_tool_err)?;
+                    wire_messages.push(wire);
+                }
             }
             MessageRole::User | MessageRole::Assistant | MessageRole::System => {
+                let mut tool_calls = Vec::new();
                 let mut basic_blocks = Vec::new();
 
                 for block in &msg.content {
                     match block {
+                        ContentBlock::ToolCall(tc) => {
+                            tool_calls.push(json!({
+                                "id": tc.id.0,
+                                "type": "tool_call",
+                                "function": {
+                                    "name": tc.name,
+                                    "arguments": tc.arguments.to_string()
+                                }
+                            }));
+                        }
                         other => basic_blocks.push(other.clone()),
                     }
                 }
@@ -119,6 +139,9 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                 let mut obj = serde_json::Map::new();
                 obj.insert("role".to_string(), Value::String(role.to_string()));
                 obj.insert("content".to_string(), content_value);
+                if !tool_calls.is_empty() {
+                    obj.insert("tool_calls".to_string(), Value::Array(tool_calls));
+                }
                 // NOTE: We do not serialize stop_reason / finish_reason back into the messages list
                 // for the API request payload because providers only accept those fields in model outputs.
                 wire_messages.push(Value::Object(obj));
@@ -178,6 +201,43 @@ fn parse_cohere_content(raw: Option<&Value>) -> Result<Vec<ContentBlock>> {
     }
 }
 
+fn parse_cohere_tool_result(message: &Value) -> Result<ToolResult> {
+    let tool_call_id = message.get("tool_call_id").and_then(Value::as_str).ok_or(
+        MessageNormalizeError::MissingField {
+            field: "tool_call_id",
+            provider: PROVIDER,
+        },
+    )?;
+
+    let content = match message.get("content") {
+        None | Some(Value::Null) => ToolContent::Text(String::new()),
+        Some(Value::String(s)) => ToolContent::Text(s.to_string()),
+        Some(Value::Array(arr)) => {
+            let joined = arr
+                .iter()
+                .filter_map(|b| b.get("text").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if joined.is_empty() {
+                ToolContent::Json(Value::Array(arr.clone()))
+            } else {
+                ToolContent::Text(joined)
+            }
+        }
+        Some(other) => ToolContent::Json(other.clone()),
+    };
+
+    Ok(ToolResult {
+        call_id: ToolCallId(tool_call_id.to_string()),
+        name: message
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        content,
+        is_error: false,
+    })
+}
 
 fn render_cohere_content(blocks: &[ContentBlock]) -> Result<Value> {
     if blocks.is_empty() {
@@ -209,7 +269,7 @@ fn render_cohere_content(blocks: &[ContentBlock]) -> Result<Value> {
             ContentBlock::ToolCall(_) | ContentBlock::ToolResult(_) => {
                 return Err(MessageNormalizeError::UnsupportedContentType {
                     provider: PROVIDER,
-                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
+                    detail: "tool blocks must be represented via `tool_calls` or `role=tool` messages for Cohere".to_string(),
                 })
             }
             ContentBlock::Reasoning(_) => {
@@ -223,4 +283,39 @@ fn render_cohere_content(blocks: &[ContentBlock]) -> Result<Value> {
     Ok(Value::Array(arr))
 }
 
+fn extract_tool_results<'a>(blocks: &'a [ContentBlock]) -> Result<Vec<&'a ToolResult>> {
+    let mut out = Vec::new();
+    for block in blocks {
+        match block {
+            ContentBlock::ToolResult(tr) => out.push(tr),
+            _ => {
+                return Err(MessageNormalizeError::UnsupportedContentType {
+                    provider: PROVIDER,
+                    detail: "role=tool messages may only contain ToolResult blocks".to_string(),
+                })
+            }
+        }
+    }
+    if out.is_empty() {
+        return Err(MessageNormalizeError::MissingField {
+            field: "tool_result",
+            provider: PROVIDER,
+        });
+    }
+    Ok(out)
+}
 
+fn map_tool_err(err: operon_context_normalize_tools::ToolNormalizeError) -> MessageNormalizeError {
+    match err {
+        operon_context_normalize_tools::ToolNormalizeError::MissingField { field, .. } => {
+            MessageNormalizeError::MissingField {
+                field,
+                provider: PROVIDER,
+            }
+        }
+        other => MessageNormalizeError::UnsupportedContentType {
+            provider: PROVIDER,
+            detail: other.to_string(),
+        },
+    }
+}

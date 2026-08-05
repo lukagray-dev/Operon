@@ -1,26 +1,26 @@
 // request.rs — Provider HTTP request body construction.
 //
 // This module is responsible for translating the canonical internal types
-// (ConversationMessage) into the provider-specific JSON body
+// (ConversationMessage, ToolDefinition) into the provider-specific JSON body
 // that is sent to the LLM API.
 //
 // It is intentionally stateless and pure — no I/O, no async. It takes canonical
 // types as input and returns a serde_json::Value. All side-effects live in http.rs.
 //
 // Provider-specific differences are handled here:
-//   Anthropic  — top-level "system" field, "stream" bool
-//   OpenAI-family — system is a message in the messages array
+//   Anthropic  — top-level "system" field, "tools" array, "stream" bool
+//   OpenAI-family — system is a message in the messages array, "tools" with "function" wrapper
 //
 // For now Anthropic is fully implemented; OpenAI-family uses a structural
 // approximation that works for most providers.
 //
-// NOTE: Both operon_context_normalize::tools and operon_context_normalize_messages
+// NOTE: Both operon_context_normalize_tools and operon_context_normalize_messages
 // re-export `Provider` from `operon_providers`. They are the same type — no
 // conversion function is needed. We import directly from operon_providers here.
 
-
 use operon_context::normalize::messages::denormalize_messages;
-use operon_context::ConversationMessage;
+use operon_context::normalize::tools::denormalize_definition;
+use operon_context::{ConversationMessage, ToolDefinition};
 use operon_providers::Provider;
 use serde_json::{json, Value};
 
@@ -36,16 +36,18 @@ use crate::error::SessionError;
 ///
 /// 1. Denormalize canonical `ConversationMessage` list → provider wire format.
 ///    Returns `{ "messages": [...], "system": ... }` where `system` may be null.
-/// 2. Assemble the final body according to the provider's expected shape.
+/// 2. Denormalize canonical `ToolDefinition` list → provider wire format.
+/// 3. Assemble the final body according to the provider's expected shape.
 ///
 /// # Errors
 ///
-/// Returns [`SessionError::Normalize`] if message denormalization fails.
+/// Returns [`SessionError::Normalize`] if message or tool denormalization fails.
 pub fn build_request(
     provider: &Provider,
     model_id: &str,
     max_tokens: usize,
     messages: &[ConversationMessage],
+    tool_defs: &[ToolDefinition],
     stream: bool,
 ) -> Result<Value, SessionError> {
     // ── Step 1: Denormalize messages into provider wire format ────────────────
@@ -58,6 +60,17 @@ pub fn build_request(
     // Extract the two relevant fields from the wire envelope.
     let messages_arr = wire["messages"].clone();
     let system_val = wire["system"].clone();
+
+    // ── Step 2: Denormalize tool definitions ──────────────────────────────────
+    // Each ToolDefinition is converted independently. The provider enum selects
+    // the output schema (Anthropic uses input_schema, OpenAI uses parameters, etc.)
+    let wire_tools: Vec<Value> = tool_defs
+        .iter()
+        .map(|def| {
+            denormalize_definition(def, provider)
+                .map_err(|e| SessionError::Normalize(e.to_string()))
+        })
+        .collect::<Result<_, _>>()?;
 
     // ── Step 3: Assemble body per provider ───────────────────────────────────
     let body = match provider {
@@ -74,6 +87,11 @@ pub fn build_request(
             if !system_val.is_null() {
                 b["system"] = system_val;
             }
+            // Inject tools only when tools are registered — avoids sending an
+            // empty array which some providers interpret differently.
+            if !wire_tools.is_empty() {
+                b["tools"] = Value::Array(wire_tools);
+            }
             b
         }
 
@@ -82,12 +100,16 @@ pub fn build_request(
         // by denormalize_messages. Gemini and Cohere also follow this fallthrough
         // with their own denormalization shapes.
         _ => {
-            json!({
+            let mut b = json!({
                 "model":      model_id,
                 "max_tokens": max_tokens,
                 "messages":   messages_arr,
                 "stream":     stream,
-            })
+            });
+            if !wire_tools.is_empty() {
+                b["tools"] = Value::Array(wire_tools);
+            }
+            b
         }
     };
 
@@ -131,8 +153,9 @@ pub fn provider_endpoint(provider: &Provider) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use operon_context::{ContentBlock, ConversationMessage};
+    use operon_context::{ContentBlock, ConversationMessage, ToolDefinition};
     use operon_providers::Provider;
+    use serde_json::json;
 
     /// Helper: build a simple user+assistant conversation for request tests.
     fn simple_messages() -> Vec<ConversationMessage> {
@@ -140,6 +163,19 @@ mod tests {
             ConversationMessage::system("You are a helpful assistant."),
             ConversationMessage::user(vec![ContentBlock::Text("Hello!".to_string())]),
         ]
+    }
+
+    /// Helper: build a single no-arg tool definition for testing.
+    fn simple_tool() -> ToolDefinition {
+        ToolDefinition {
+            name: "ping".to_string(),
+            description: "Returns pong.".to_string(),
+            parameters: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+        }
     }
 
     #[test]
@@ -151,6 +187,7 @@ mod tests {
             "claude-sonnet-4-20250514",
             1024,
             &msgs,
+            &[],
             true,
         )
         .expect("build_request should succeed");
@@ -170,6 +207,7 @@ mod tests {
             "claude-sonnet-4-20250514",
             1024,
             &msgs,
+            &[],
             true,
         )
         .expect("build_request should succeed");
@@ -182,6 +220,50 @@ mod tests {
     }
 
     #[test]
+    fn anthropic_body_includes_tools_when_provided() {
+        // When tool definitions are supplied, they should appear in the body.
+        let msgs = simple_messages();
+        let tools = vec![simple_tool()];
+        let body = build_request(
+            &Provider::Anthropic,
+            "claude-sonnet-4-20250514",
+            1024,
+            &msgs,
+            &tools,
+            true,
+        )
+        .expect("build_request should succeed");
+
+        let tool_arr = body["tools"].as_array().expect("tools should be an array");
+        assert_eq!(tool_arr.len(), 1);
+        // Anthropic uses "input_schema" instead of "parameters".
+        assert!(
+            tool_arr[0].get("input_schema").is_some(),
+            "Anthropic tool definition should use 'input_schema'"
+        );
+    }
+
+    #[test]
+    fn anthropic_body_omits_tools_when_empty() {
+        // No tools registered → "tools" key should be absent entirely.
+        let msgs = simple_messages();
+        let body = build_request(
+            &Provider::Anthropic,
+            "claude-sonnet-4-20250514",
+            1024,
+            &msgs,
+            &[],
+            true,
+        )
+        .expect("build_request should succeed");
+
+        assert!(
+            body.get("tools").is_none(),
+            "tools key should be absent when no tools are registered"
+        );
+    }
+
+    #[test]
     fn stream_false_sets_stream_field_correctly() {
         // Non-streaming requests (e.g. the compaction client) should set stream=false.
         let msgs = simple_messages();
@@ -190,6 +272,7 @@ mod tests {
             "claude-sonnet-4-20250514",
             1024,
             &msgs,
+            &[],
             false,
         )
         .expect("build_request should succeed");

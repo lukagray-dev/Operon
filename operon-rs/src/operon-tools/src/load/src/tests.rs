@@ -2,48 +2,30 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{execute_list_groups, execute_with_defs};
-    use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolDefinition};
+    use crate::{execute_list_groups, execute_with_defs, GroupListOutput, GroupLoadOutput};
+    use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolDefinition};
+    use serde_json::json;
 
-    /// Test that execute_with_defs returns tools correctly as plain-text markdown.
+    /// Test that execute_with_defs returns tools correctly.
     #[test]
-    fn execute_with_defs_returns_tools_markdown() {
+    fn execute_with_defs_returns_tools() {
         let tool_def = ToolDefinition {
             name: "read".to_string(),
             description: "Reads files.".to_string(),
+            parameters: json!({ "type": "object" }),
         };
         let defs = vec![&tool_def];
 
         let result = execute_with_defs(ToolCallId("test".to_string()), "fs", defs);
 
         assert!(!result.is_error);
-        let text = match result.content {
-            ToolContent::Text(t) => t,
-            _ => panic!("expected Text"),
+        let output: GroupLoadOutput = match result.content {
+            ToolContent::Json(v) => serde_json::from_value(v).unwrap(),
+            _ => panic!("expected Json"),
         };
-        assert!(text.contains("Loaded 1 tool(s) from group 'fs':"));
-        assert!(text.contains("## read"));
-        assert!(text.contains("Reads files."));
-    }
-
-    /// Test that execute_with_defs returns tools with body calling syntax correctly.
-    #[test]
-    fn execute_with_defs_returns_body_tools_markdown() {
-        let tool_def = ToolDefinition {
-            name: "write".to_string(),
-            description: "Writes a file.".to_string(),
-        };
-        let defs = vec![&tool_def];
-
-        let result = execute_with_defs(ToolCallId("test".to_string()), "fs", defs);
-
-        assert!(!result.is_error);
-        let text = match result.content {
-            ToolContent::Text(t) => t,
-            _ => panic!("expected Text"),
-        };
-        assert!(text.contains("## write"));
-        assert!(text.contains("Writes a file."));
+        assert_eq!(output.group, "fs");
+        assert_eq!(output.tool_count, 1);
+        assert_eq!(output.tools[0].name, "read");
     }
 
     /// Test that execute_with_defs returns error for empty group.
@@ -68,11 +50,24 @@ mod tests {
             vec!["fs".to_string(), "shell".to_string()],
         );
         assert!(!result.is_error);
-        let text = match result.content {
-            ToolContent::Text(t) => t,
-            _ => panic!("expected Text"),
+        let output: GroupListOutput = match result.content {
+            ToolContent::Json(v) => serde_json::from_value(v).unwrap(),
+            _ => panic!("expected Json"),
         };
-        assert!(text.contains("Available groups: fs, shell"));
-        assert!(text.contains("Call load_tools with a group name"));
+        assert!(output.available_groups.contains(&"fs".to_string()));
+        assert!(output.available_groups.contains(&"shell".to_string()));
+        assert!(output.message.contains("fs, shell"));
+    }
+
+    /// Test that execute_list_groups handles empty group list.
+    #[test]
+    fn execute_list_groups_empty() {
+        let result = execute_list_groups(ToolCallId("test".to_string()), vec![]);
+        assert!(!result.is_error);
+        let output: GroupListOutput = match result.content {
+            ToolContent::Json(v) => serde_json::from_value(v).unwrap(),
+            _ => panic!("expected Json"),
+        };
+        assert!(output.available_groups.is_empty());
     }
 }

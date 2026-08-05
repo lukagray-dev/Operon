@@ -29,7 +29,7 @@
 //   responsible for using a fixed opaque message when constructing the error
 //   ToolResult (e.g. "Tool not available.").
 
-use operon_context_normalize::tools::ToolCall;
+use operon_context_normalize_tools::ToolCall;
 use std::path::PathBuf;
 
 use crate::config::PolicyConfig;
@@ -184,9 +184,6 @@ fn classify_tool(name: &str) -> ToolScope {
             ToolScope::Global(GlobalTool::Todo)
         }
         "load_tools" => ToolScope::Global(GlobalTool::LoadTools),
-        "memory_add" | "memory_delete" | "memory_edit" | "memory_retrieve" | "memory_search" => {
-            ToolScope::Global(GlobalTool::Memory)
-        }
 
         // ── Directory-scoped: filesystem tools ────────────────────────────────
         "read" => ToolScope::Dir(DirTool::Fs(FsTool::Read)),
@@ -234,120 +231,41 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
     let args = &call.arguments;
 
     match tool {
-        // The `read` tool takes a semicolon-delimited `"paths"` (or `"path"`) string. We check the
-        // first path entry for policy evaluation. We extract the first path from the
-        // string and strip any line range suffix (e.g. ":40-90", ":50-", ":-30") if present,
-        // so that the directory containment check matches a clean path.
+        // The `read` tool takes a `"paths"` array. We check the first element
+        // for the policy evaluation. If the model passes multiple paths, they
+        // all need to be in the same allowed directory (or multiple calls should
+        // be used). We check the first as a representative heuristic — the tool
+        // executor will encounter the boundary violation for any out-of-scope
+        // path anyway (since it runs after policy allows the call).
+        //
+        // TODO: Consider per-element checking in a future revision. For now,
+        // first-element policy is the pragmatic trade-off.
         DirTool::Fs(FsTool::Read) => args
             .get("paths")
-            .or_else(|| args.get("path"))
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
             .and_then(|v| v.as_str())
-            .and_then(|s| {
-                if s.contains('\n') {
-                    s.split('\n').next()
-                } else if s.contains(';') {
-                    s.split(';').next()
-                } else {
-                    Some(s)
-                }
-            })
-            .map(|first| {
-                let entry = first.trim();
-                let stripped = if let Some(colon_idx) = find_range_colon(entry) {
-                    &entry[..colon_idx]
-                } else {
-                    entry
-                };
-                PathBuf::from(stripped)
-            }),
+            .map(PathBuf::from),
 
-        // The "grep" tool accepts a path string, or a "paths" array/string. To perform policy verification,
-        // we extract the representative anchor. This allows us to verify that the pattern search is targeting
-        // a permitted directory.
+        // The "grep" tool accepts an array of directory paths in its `"paths"` argument
+        // (similar to the "read" tool). To perform policy verification, we extract the
+        // first path from this array to act as the representative anchor. This allows us
+        // to verify that the pattern search is targeting a permitted directory.
         DirTool::Fs(FsTool::Grep) => args
-            .get("path")
-            .or_else(|| args.get("paths"))
-            .and_then(|v| {
-                if let Some(s) = v.as_str() {
-                    Some(PathBuf::from(s))
-                } else if let Some(arr) = v.as_array() {
-                    arr.first().and_then(|first| first.as_str()).map(PathBuf::from)
-                } else {
-                    None
-                }
-            }),
+            .get("paths")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|v| v.as_str())
+            .map(PathBuf::from),
 
-        // The `bash` tool uses `"path"` as the policy anchor.
-        // If path is missing, the tool executor would also reject it — but we
+        // The `bash` tool uses `"cwd"` as the policy anchor (Option C).
+        // If cwd is missing, the tool executor would also reject it — but we
         // reject it here first so the policy layer catches it before dispatch.
-        DirTool::Bash => args
-            .get("path")
-            .or_else(|| args.get("paths"))
-            .and_then(|v| v.as_str())
-            .map(PathBuf::from),
+        DirTool::Bash => args.get("cwd").and_then(|v| v.as_str()).map(PathBuf::from),
 
-        // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"` or `"paths"`
+        // All other filesystem tools (write, edit, append, ls, delete) use a single `"path"`
         // string argument. We extract this value to verify directory containment.
-        DirTool::Fs(_) => args
-            .get("path")
-            .or_else(|| args.get("paths"))
-            .and_then(|v| v.as_str())
-            .map(PathBuf::from),
-    }
-}
-
-/// Find the index of the range colon in a path entry, if one exists.
-///
-/// We scan the entry from right to left. For each colon we find, we check
-/// whether the suffix (everything after the colon) matches `^\d*-\d*$`.
-/// If it does — AND the colon is NOT at index 1 (drive letter position) —
-/// we return that colon's index. The first (rightmost) match wins.
-///
-/// Returns None if no range colon is found.
-fn find_range_colon(entry: &str) -> Option<usize> {
-    let bytes = entry.as_bytes();
-
-    // Walk backwards through the string byte by byte looking for colons.
-    let mut i = bytes.len().saturating_sub(1);
-    loop {
-        if bytes[i] == b':' {
-            // Guard: drive-letter colon is at index 1, followed by a backslash or forward slash.
-            // Drive letters like "C:\" should never be treated as range separators.
-            let is_drive_letter = i == 1
-                && bytes.len() > 2
-                && (bytes[2] == b'\\' || bytes[2] == b'/');
-
-            if !is_drive_letter {
-                // Check if suffix matches \d*-\d$ (both digit groups optional, hyphen required).
-                let suffix = &entry[i + 1..];
-                if is_range_suffix(suffix) {
-                    return Some(i);
-                }
-            }
-        }
-
-        if i == 0 {
-            break;
-        }
-        i -= 1;
-    }
-    None
-}
-
-/// Returns true if `s` matches `^\d*-\d*$`:
-/// zero or more digits, a hyphen, zero or more digits.
-/// The hyphen is required.
-fn is_range_suffix(s: &str) -> bool {
-    // Must contain exactly one hyphen, nothing else besides digits.
-    match s.find('-') {
-        None => false,
-        Some(dash_idx) => {
-            let before = &s[..dash_idx];
-            let after = &s[dash_idx + 1..];
-            // Both sides must be all digits (empty strings are fine — that means None).
-            before.chars().all(|c| c.is_ascii_digit())
-                && after.chars().all(|c| c.is_ascii_digit())
-        }
+        DirTool::Fs(_) => args.get("path").and_then(|v| v.as_str()).map(PathBuf::from),
     }
 }
 
@@ -415,7 +333,7 @@ mod tests {
     use super::*;
     use crate::config::{DirectoryPolicy, GlobalPolicy};
     use crate::types::{CallerRole, DirTool, FsTool, GlobalTool, PermissionMode};
-    use operon_context_normalize::tools::{ToolCall, ToolCallId};
+    use operon_context_normalize_tools::{ToolCall, ToolCallId};
     use serde_json::json;
     use tempfile::TempDir;
 
@@ -522,11 +440,6 @@ mod tests {
             "todo_update",
             "todo_delete",
             "load_tools",
-            "memory_add",
-            "memory_delete",
-            "memory_edit",
-            "memory_retrieve",
-            "memory_search",
         ];
         for name in &global_names {
             match classify_tool(name) {
@@ -552,21 +465,11 @@ mod tests {
             vec![],
         );
         let resolver = PolicyResolver::new(config);
-        
-        // Plain path
-        let call = make_call("read", json!({ "paths": file.to_str().unwrap() }));
+        let call = make_call("read", json!({ "paths": [file.to_str().unwrap()] }));
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_allow(),
             "read inside allowed dir should be allowed for owner"
-        );
-
-        // Path with line range (e.g. :40-90)
-        let call_with_range = make_call("read", json!({ "paths": format!("{}:40-90", file.to_str().unwrap()) }));
-        let decision_with_range = resolver.check(&call_with_range, CallerRole::Owner);
-        assert!(
-            decision_with_range.is_allow(),
-            "read inside allowed dir with range suffix should be allowed for owner"
         );
     }
 
@@ -588,7 +491,7 @@ mod tests {
         let outside_file = other_tmp.path().join("secret.txt");
         std::fs::write(&outside_file, "data").unwrap();
 
-        let call = make_call("read", json!({ "paths": outside_file.to_str().unwrap() }));
+        let call = make_call("read", json!({ "paths": [outside_file.to_str().unwrap()] }));
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_deny(),
@@ -622,8 +525,8 @@ mod tests {
     }
 
     #[test]
-    fn test_bash_uses_path_as_policy_anchor() {
-        // The bash tool uses `path` (not `cwd` or other names) as the policy path argument.
+    fn test_bash_uses_cwd_as_policy_anchor() {
+        // The bash tool uses `cwd` (not `path`) as the policy path argument.
         let tmp = TempDir::new().unwrap();
         let canonical_dir = std::fs::canonicalize(tmp.path()).unwrap();
 
@@ -634,21 +537,21 @@ mod tests {
         );
         let resolver = PolicyResolver::new(config);
 
-        // Owner calls bash with path inside the allowed dir → Allow.
+        // Owner calls bash with cwd inside the allowed dir → Allow.
         let owner_call = make_call(
             "bash",
-            json!({ "command": "ls", "path": tmp.path().to_str().unwrap() }),
+            json!({ "command": "ls", "cwd": tmp.path().to_str().unwrap() }),
         );
         let owner_decision = resolver.check(&owner_call, CallerRole::Owner);
         assert!(
             owner_decision.is_allow(),
-            "bash with valid path should be allowed for owner"
+            "bash with valid cwd should be allowed for owner"
         );
 
-        // External calls bash with same path → Deny (per config).
+        // External calls bash with same cwd → Deny (per config).
         let ext_call = make_call(
             "bash",
-            json!({ "command": "ls", "path": tmp.path().to_str().unwrap() }),
+            json!({ "command": "ls", "cwd": tmp.path().to_str().unwrap() }),
         );
         let ext_decision = resolver.check(&ext_call, CallerRole::External);
         assert!(
@@ -658,8 +561,8 @@ mod tests {
     }
 
     #[test]
-    fn test_bash_missing_path_is_denied() {
-        // If `path` is absent from the bash call args → Deny (no path anchor).
+    fn test_bash_missing_cwd_is_denied() {
+        // If `cwd` is absent from the bash call args → Deny (no path anchor).
         let tmp = TempDir::new().unwrap();
         let canonical_dir = std::fs::canonicalize(tmp.path()).unwrap();
 
@@ -670,12 +573,12 @@ mod tests {
         );
         let resolver = PolicyResolver::new(config);
 
-        // bash call WITHOUT path → policy can't evaluate → Deny.
-        let call = make_call("bash", json!({ "command": "ls" })); // no path
+        // bash call WITHOUT cwd → policy can't evaluate → Deny.
+        let call = make_call("bash", json!({ "command": "ls" })); // no cwd
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_deny(),
-            "bash without path should be denied — no policy anchor"
+            "bash without cwd should be denied — no policy anchor"
         );
     }
 
@@ -728,13 +631,13 @@ mod tests {
         let resolver = PolicyResolver::new(config);
         let path_str = file.to_str().unwrap();
 
-        let owner_call = make_call("read", json!({ "paths": path_str }));
+        let owner_call = make_call("read", json!({ "paths": [path_str] }));
         assert!(
             resolver.check(&owner_call, CallerRole::Owner).is_allow(),
             "owner should be allowed to read"
         );
 
-        let ext_call = make_call("read", json!({ "paths": path_str }));
+        let ext_call = make_call("read", json!({ "paths": [path_str] }));
         assert!(
             resolver.check(&ext_call, CallerRole::External).is_deny(),
             "external should be denied from reading"
@@ -747,7 +650,7 @@ mod tests {
         let config = PolicyConfig::empty();
         let resolver = PolicyResolver::new(config);
 
-        let call = make_call("read", json!({ "paths": "/any/path.txt" }));
+        let call = make_call("read", json!({ "paths": ["/any/path.txt"] }));
         let decision = resolver.check(&call, CallerRole::Owner);
         assert!(
             decision.is_deny(),

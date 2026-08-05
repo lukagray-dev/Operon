@@ -86,8 +86,7 @@ fn build_suffix_result_ids(messages: &[ConversationMessage]) -> Vec<HashSet<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use operon_context_normalize::tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
-
+    use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
     use serde_json::json;
 
     fn assistant_with_call(id: &str, name: &str) -> ConversationMessage {
@@ -106,8 +105,6 @@ mod tests {
                 name: name.to_string(),
                 content: ToolContent::Text("ok".to_string()),
                 is_error: false,
-                // Set to None as this is a general test result mock.
-                read_paths: None,
             })],
             stop_reason: None,
         }
@@ -136,8 +133,6 @@ mod tests {
                 name: "read_file".to_string(),
                 content: ToolContent::Text("content".to_string()),
                 is_error: false,
-                // Set to None as this is a general test result mock.
-                read_paths: None,
             })],
             stop_reason: None,
         }];

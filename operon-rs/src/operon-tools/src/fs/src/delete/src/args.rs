@@ -1,73 +1,24 @@
 //! Argument types for the delete tool.
 //!
-//! This module defines the manual parsing logic for the delete tool's body-based
-//! input format. The `path` attr arrives as args_json["path"]. The optional
-//! `permanent` flag arrives in args_json["__body__"].
-//!
-//! Body format (optional):
-//!   permanent="true"
-//!
-//! If the body is absent or empty, permanent defaults to false (trash mode).
+//! This module defines the deserialization schema for the delete tool's input.
+//! The tool accepts a path and an optional permanent flag to control deletion mode.
 
-/// Parsed args for the delete tool.
+use serde::Deserialize;
+
+/// Arguments for the delete tool.
 ///
-/// Extracted from the `path` attribute and the `__body__` field of the incoming
-/// args JSON. No serde derive — parsing is done manually.
-#[derive(Debug)]
+/// Specifies a file or directory path and whether to permanently delete it or move it to trash.
+/// The path must exist — this tool does not create or delete non-existent paths.
+#[derive(Debug, Deserialize)]
 pub struct DeleteArgs {
     /// Absolute path to the file or directory to delete.
-    /// The path must exist — if it does not, the tool returns an inline error.
+    /// The path must exist — if it does not, the tool returns an error.
+    /// Both files and directories are supported. For directories, the entire tree is deleted.
     pub path: String,
 
-    /// If true, permanently delete with no recovery possible.
-    /// If false (default), move the target to the system trash (recoverable).
-    /// Prefer false unless permanent deletion is explicitly required.
+    /// If false (default), move the target to the system trash — recoverable
+    /// from Trash/Recycle Bin. If true, permanently delete with no recovery
+    /// possible. Prefer false unless permanent deletion is explicitly required.
+    #[serde(default)]
     pub permanent: bool,
-}
-
-impl DeleteArgs {
-    /// Parse delete tool arguments from the attrs JSON produced by the LLM parser.
-    ///
-    /// Extracts `path` from args_json["path"] and the optional `permanent` flag
-    /// from attributes. Missing = permanent defaults to false.
-    ///
-    /// # Errors
-    /// Returns `Err(String)` if:
-    /// - The `path` key is missing or not a string.
-    /// - The `permanent` value is not "true" or "false".
-    pub fn parse(args_json: &serde_json::Value) -> Result<DeleteArgs, String> {
-        // Step 1: Extract the required "path" attribute.
-        let path = args_json
-            .get("path")
-            .or_else(|| args_json.get("paths"))
-            .ok_or_else(|| "missing required attribute 'path'".to_string())?
-            .as_str()
-            .ok_or_else(|| "attribute 'path' must be a string".to_string())?
-            .to_string();
-
-        // Step 2: Parse permanent attribute tolerantly
-        let mut permanent = false;
-        if let Some(v) = args_json.get("permanent") {
-            if let Some(s) = v.as_str() {
-                match s.trim() {
-                    "true" => permanent = true,
-                    "false" => permanent = false,
-                    other => {
-                        tracing::warn!(
-                            "invalid permanent value '{}', defaulting to false",
-                            other
-                        );
-                        permanent = false;
-                    }
-                }
-            } else {
-                tracing::warn!("permanent attribute must be a string, ignoring");
-            }
-        }
-
-        Ok(DeleteArgs {
-            path,
-            permanent,
-        })
-    }
 }

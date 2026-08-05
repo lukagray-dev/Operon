@@ -7,14 +7,17 @@
 use operon_context_normalize_reasoning::{
     denormalize_reasoning, normalize_reasoning, Provider as ReasoningProvider,
 };
+use operon_context_normalize_tools::{
+    denormalize_result as denormalize_tool_result, normalize as normalize_tool_call,
+    Provider as ToolProvider, ToolCallId, ToolContent, ToolResult,
+};
 use serde_json::{json, Value};
 
 use crate::error::{MessageNormalizeError, Result};
 use crate::stop_reason::{denormalize_stop_reason, normalize_stop_reason};
 use crate::types::{ContentBlock, ConversationMessage, ImageBlock, ImageSource, MessageRole};
+
 use super::openai;
-
-
 
 const PROVIDER: &str = "Ollama";
 
@@ -90,10 +93,7 @@ fn normalize_native_message(
     };
 
     if role == MessageRole::Tool {
-        return Err(MessageNormalizeError::UnsupportedContentType {
-            provider: PROVIDER,
-            detail: "tool role is not supported under tag protocol".to_string(),
-        });
+        return normalize_native_tool_message(raw);
     }
 
     let mut content = parse_native_content(raw.get("content"))?;
@@ -108,6 +108,19 @@ fn normalize_native_message(
             }
             combined.extend(content);
             content = combined;
+        }
+
+        if let Some(tool_calls) = raw.get("tool_calls").and_then(Value::as_array) {
+            for tc in tool_calls {
+                let candidate = if tc.get("function").is_some() {
+                    tc.clone()
+                } else {
+                    native_tool_call_to_openai_shape(tc)?
+                };
+                let call =
+                    normalize_tool_call(candidate, &ToolProvider::Ollama).map_err(map_tool_err)?;
+                content.push(ContentBlock::ToolCall(call));
+            }
         }
     }
 
@@ -132,6 +145,35 @@ fn normalize_native_message(
     Ok(out)
 }
 
+fn normalize_native_tool_message(raw: Value) -> Result<ConversationMessage> {
+    let call_id = raw
+        .get("tool_call_id")
+        .and_then(Value::as_str)
+        .unwrap_or("ollama-tool-call");
+
+    let content = match raw.get("content") {
+        None | Some(Value::Null) => ToolContent::Text(String::new()),
+        Some(Value::String(s)) => ToolContent::Text(s.to_string()),
+        Some(other) => ToolContent::Json(other.clone()),
+    };
+
+    let tool_result = ToolResult {
+        call_id: ToolCallId(call_id.to_string()),
+        name: raw
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        content,
+        is_error: false,
+    };
+
+    Ok(ConversationMessage {
+        role: MessageRole::Tool,
+        content: vec![ContentBlock::ToolResult(tool_result)],
+        stop_reason: None,
+    })
+}
 
 fn parse_native_content(raw_content: Option<&Value>) -> Result<Vec<ContentBlock>> {
     match raw_content {
@@ -202,6 +244,29 @@ fn parse_image_source(url: &str) -> ImageSource {
     ImageSource::Url(url.to_string())
 }
 
+fn native_tool_call_to_openai_shape(raw: &Value) -> Result<Value> {
+    let name =
+        raw.get("name")
+            .and_then(Value::as_str)
+            .ok_or(MessageNormalizeError::MissingField {
+                field: "tool_calls[].name",
+                provider: PROVIDER,
+            })?;
+    let args = raw.get("arguments").cloned().unwrap_or_else(|| json!({}));
+    let id = raw
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("ollama-native-call");
+
+    Ok(json!({
+        "id": id,
+        "type": "function",
+        "function": {
+            "name": name,
+            "arguments": args.to_string()
+        }
+    }))
+}
 
 fn should_use_native_shape(msgs: &[ConversationMessage]) -> bool {
     for msg in msgs {
@@ -224,10 +289,12 @@ fn denormalize_native_messages(msgs: &[ConversationMessage]) -> Result<Value> {
             MessageRole::System | MessageRole::User | MessageRole::Assistant => {
                 let mut text_image_blocks = Vec::new();
                 let mut reasoning_blocks = Vec::new();
+                let mut tool_calls = Vec::new();
 
                 for block in &msg.content {
                     match block {
                         ContentBlock::Reasoning(rb) => reasoning_blocks.push(rb.clone()),
+                        ContentBlock::ToolCall(tc) => tool_calls.push(tc.clone()),
                         other => text_image_blocks.push(other.clone()),
                     }
                 }
@@ -243,6 +310,22 @@ fn denormalize_native_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                 let mut obj = serde_json::Map::new();
                 obj.insert("role".to_string(), Value::String(role_str.to_string()));
                 obj.insert("content".to_string(), content_value);
+
+                if !tool_calls.is_empty() {
+                    let calls = tool_calls
+                        .iter()
+                        .map(|tc| {
+                            json!({
+                                "id": tc.id.0,
+                                "function": {
+                                    "name": tc.name,
+                                    "arguments": tc.arguments
+                                }
+                            })
+                        })
+                        .collect();
+                    obj.insert("tool_calls".to_string(), Value::Array(calls));
+                }
 
                 if !reasoning_blocks.is_empty() {
                     let thinking =
@@ -266,10 +349,15 @@ fn denormalize_native_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                 wire_messages.push(Value::Object(obj));
             }
             MessageRole::Tool => {
-                return Err(MessageNormalizeError::UnsupportedContentType {
-                    provider: PROVIDER,
-                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
-                });
+                let tool_results = extract_tool_results(&msg.content)?;
+                for tr in tool_results {
+                    let mut wire =
+                        denormalize_tool_result(tr, &ToolProvider::OpenAI).map_err(map_tool_err)?;
+                    if let Some(obj) = wire.as_object_mut() {
+                        obj.insert("role".to_string(), Value::String("tool".to_string()));
+                    }
+                    wire_messages.push(wire);
+                }
             }
         }
     }
@@ -310,7 +398,8 @@ fn render_text_and_images(blocks: &[ContentBlock]) -> Result<Value> {
             ContentBlock::ToolCall(_) | ContentBlock::ToolResult(_) => {
                 return Err(MessageNormalizeError::UnsupportedContentType {
                     provider: PROVIDER,
-                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
+                    detail: "tool blocks must be serialized via `tool_calls` or role=tool messages"
+                        .to_string(),
                 })
             }
             ContentBlock::Document(_) => {
@@ -338,6 +427,43 @@ fn looks_like_openai_message_shape(raw: &Value) -> bool {
         return tool_calls.iter().any(|tc| tc.get("function").is_some());
     }
     false
+}
+
+fn extract_tool_results<'a>(blocks: &'a [ContentBlock]) -> Result<Vec<&'a ToolResult>> {
+    let mut out = Vec::new();
+    for block in blocks {
+        match block {
+            ContentBlock::ToolResult(tr) => out.push(tr),
+            _ => {
+                return Err(MessageNormalizeError::UnsupportedContentType {
+                    provider: PROVIDER,
+                    detail: "role=tool messages may only contain ToolResult blocks".to_string(),
+                })
+            }
+        }
+    }
+    if out.is_empty() {
+        return Err(MessageNormalizeError::MissingField {
+            field: "tool_result",
+            provider: PROVIDER,
+        });
+    }
+    Ok(out)
+}
+
+fn map_tool_err(err: operon_context_normalize_tools::ToolNormalizeError) -> MessageNormalizeError {
+    match err {
+        operon_context_normalize_tools::ToolNormalizeError::MissingField { field, .. } => {
+            MessageNormalizeError::MissingField {
+                field,
+                provider: PROVIDER,
+            }
+        }
+        other => MessageNormalizeError::UnsupportedContentType {
+            provider: PROVIDER,
+            detail: other.to_string(),
+        },
+    }
 }
 
 fn map_reasoning_err(

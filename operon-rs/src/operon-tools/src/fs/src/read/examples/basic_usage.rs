@@ -2,7 +2,7 @@
 ///
 /// This example demonstrates how to use the read tool to read files with
 /// various configurations: full-file reads, line ranges, and error handling.
-use operon_context_normalize::tools::ToolCallId;
+use operon_context_normalize_tools::ToolCallId;
 use operon_tools_fs_read::{definition, execute};
 use serde_json::json;
 use std::fs;

@@ -10,8 +10,11 @@
 use operon_context_normalize_reasoning::{
     denormalize_reasoning, normalize_reasoning, Provider as ReasoningProvider,
 };
+use operon_context_normalize_tools::{
+    denormalize_result as denormalize_tool_result, normalize as normalize_tool_call,
+    Provider as ToolProvider, ToolCallId, ToolContent, ToolResult,
+};
 use serde_json::{json, Value};
-
 
 use crate::error::{MessageNormalizeError, Result};
 use crate::stop_reason::normalize_stop_reason;
@@ -25,13 +28,8 @@ const PROVIDER: &str = "Anthropic";
 /// Normalize an Anthropic wire message (or top-level `system` field wrapper)
 /// into canonical form.
 pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
-    normalize_message_with_provider(raw, PROVIDER)
-}
-
-/// Normalize an Anthropic wire message using a custom provider name for error diagnostics.
-pub fn normalize_message_with_provider(raw: Value, provider_name: &'static str) -> Result<ConversationMessage> {
     if raw.get("system").is_some() {
-        return normalize_system_wrapper(raw, provider_name);
+        return normalize_system_wrapper(raw);
     }
 
     let role =
@@ -39,7 +37,7 @@ pub fn normalize_message_with_provider(raw: Value, provider_name: &'static str) 
             .and_then(Value::as_str)
             .ok_or(MessageNormalizeError::MissingField {
                 field: "role",
-                provider: provider_name,
+                provider: PROVIDER,
             })?;
 
     let message_role = match role {
@@ -49,7 +47,7 @@ pub fn normalize_message_with_provider(raw: Value, provider_name: &'static str) 
         other => {
             return Err(MessageNormalizeError::UnknownRole {
                 role: other.to_string(),
-                provider: provider_name,
+                provider: PROVIDER,
             })
         }
     };
@@ -58,13 +56,13 @@ pub fn normalize_message_with_provider(raw: Value, provider_name: &'static str) 
         let text = raw.get("content").and_then(Value::as_str).ok_or(
             MessageNormalizeError::MissingField {
                 field: "content",
-                provider: provider_name,
+                provider: PROVIDER,
             },
         )?;
         return Ok(ConversationMessage::system(text));
     }
 
-    let content = parse_anthropic_content(raw.get("content"), provider_name)?;
+    let content = parse_anthropic_content(raw.get("content"), PROVIDER)?;
     let stop_reason = raw
         .get("stop_reason")
         .and_then(Value::as_str)
@@ -119,12 +117,12 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
     }))
 }
 
-fn normalize_system_wrapper(raw: Value, provider_name: &'static str) -> Result<ConversationMessage> {
+fn normalize_system_wrapper(raw: Value) -> Result<ConversationMessage> {
     let system = raw
         .get("system")
         .ok_or(MessageNormalizeError::MissingField {
             field: "system",
-            provider: provider_name,
+            provider: PROVIDER,
         })?;
 
     let text = match system {
@@ -138,12 +136,12 @@ fn normalize_system_wrapper(raw: Value, provider_name: &'static str) -> Result<C
             });
             first_text.ok_or(MessageNormalizeError::MissingField {
                 field: "system[].text",
-                provider: provider_name,
+                provider: PROVIDER,
             })?
         }
         _ => {
             return Err(MessageNormalizeError::UnknownShape {
-                provider: provider_name,
+                provider: PROVIDER,
                 detail: "expected `system` as string or array of text blocks".to_string(),
             })
         }
@@ -187,11 +185,14 @@ fn parse_anthropic_content(
                         block,
                         provider_name,
                     )?)),
-                    "tool_use" | "tool_result" => {
-                        return Err(MessageNormalizeError::UnsupportedContentType {
-                            provider: provider_name,
-                            detail: "tool blocks are not supported under tag protocol".to_string(),
-                        });
+                    "tool_use" => {
+                        let tool = normalize_tool_call(block.clone(), &ToolProvider::Anthropic)
+                            .map_err(|e| map_tool_err(e, provider_name))?;
+                        out.push(ContentBlock::ToolCall(tool));
+                    }
+                    "tool_result" => {
+                        let tool_result = parse_anthropic_tool_result(block, provider_name)?;
+                        out.push(ContentBlock::ToolResult(tool_result));
                     }
                     "thinking" => {
                         let reasoning =
@@ -350,7 +351,36 @@ fn parse_anthropic_document_block(
     })
 }
 
-// parse_anthropic_tool_result removed
+fn parse_anthropic_tool_result(block: &Value, provider_name: &'static str) -> Result<ToolResult> {
+    let call_id = block.get("tool_use_id").and_then(Value::as_str).ok_or(
+        MessageNormalizeError::MissingField {
+            field: "content[].tool_use_id",
+            provider: provider_name,
+        },
+    )?;
+
+    let content = match block.get("content") {
+        None | Some(Value::Null) => ToolContent::Text(String::new()),
+        Some(Value::String(s)) => ToolContent::Text(s.to_string()),
+        Some(other) => ToolContent::Json(other.clone()),
+    };
+
+    let is_error = block
+        .get("is_error")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    Ok(ToolResult {
+        call_id: ToolCallId(call_id.to_string()),
+        name: block
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        content,
+        is_error,
+    })
+}
 
 fn render_anthropic_content_blocks(
     content: &[ContentBlock],
@@ -384,11 +414,16 @@ fn render_anthropic_content_blocks(
                     "title": doc.title
                 }));
             }
-            ContentBlock::ToolCall(_) | ContentBlock::ToolResult(_) => {
-                return Err(MessageNormalizeError::UnsupportedContentType {
-                    provider: provider_name,
-                    detail: "Tool messages must be mapped to User messages before serialization".to_string(),
-                });
+            ContentBlock::ToolCall(tc) => out.push(json!({
+                "type": "tool_use",
+                "id": tc.id.0,
+                "name": tc.name,
+                "input": tc.arguments,
+            })),
+            ContentBlock::ToolResult(tr) => {
+                let wire = denormalize_tool_result(tr, &ToolProvider::Anthropic)
+                    .map_err(|e| map_tool_err(e, provider_name))?;
+                out.push(wire);
             }
             ContentBlock::Reasoning(rb) => {
                 let wire =
@@ -428,7 +463,23 @@ fn render_system_text(content: &[ContentBlock], provider_name: &'static str) -> 
     Ok(text_parts.join("\n\n"))
 }
 
-// map_tool_err removed
+fn map_tool_err(
+    err: operon_context_normalize_tools::ToolNormalizeError,
+    provider_name: &'static str,
+) -> MessageNormalizeError {
+    match err {
+        operon_context_normalize_tools::ToolNormalizeError::MissingField { field, .. } => {
+            MessageNormalizeError::MissingField {
+                field,
+                provider: provider_name,
+            }
+        }
+        other => MessageNormalizeError::UnsupportedContentType {
+            provider: provider_name,
+            detail: other.to_string(),
+        },
+    }
+}
 
 fn map_reasoning_err(
     err: operon_context_normalize_reasoning::ReasoningNormalizeError,

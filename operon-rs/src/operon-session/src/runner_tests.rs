@@ -1,6 +1,6 @@
 use super::*;
 
-use operon_context::{StopReason, ToolCall, ToolCallId, ToolContent, ToolResult};
+use operon_context::{ToolCall, ToolCallId, ToolContent, ToolResult};
 use serde_json::json;
 
 // Build a tiny ToolCall fixture so the helper tests stay focused and readable.
@@ -48,15 +48,15 @@ fn command_matches_only_accepts_cancel_or_the_matching_approval_id() {
 
 #[test]
 fn policy_path_for_call_extracts_the_correct_anchor() {
-    // 1. "read" tool uses the first entry from its newline-delimited "paths" string argument as the policy anchor path.
-    let read_call = make_call("read", json!({ "paths": "/tmp/a.txt\n/tmp/b.txt" }));
+    // 1. "read" tool uses the first entry from its "paths" array argument as the policy anchor path.
+    let read_call = make_call("read", json!({ "paths": ["/tmp/a.txt", "/tmp/b.txt"] }));
     assert_eq!(
         policy_path_for_call(&read_call).as_deref(),
         Some("/tmp/a.txt")
     );
 
-    // 2. "bash" tool uses the "path" string argument as its policy anchor path.
-    let bash_call = make_call("bash", json!({ "command": "ls", "path": "/tmp/work" }));
+    // 2. "bash" tool uses the "cwd" string argument as its policy anchor path.
+    let bash_call = make_call("bash", json!({ "command": "ls", "cwd": "/tmp/work" }));
     assert_eq!(
         policy_path_for_call(&bash_call).as_deref(),
         Some("/tmp/work")
@@ -69,8 +69,8 @@ fn policy_path_for_call_extracts_the_correct_anchor() {
         Some("/tmp/w.txt")
     );
 
-    // 4. "grep" tool uses the singular "path" argument.
-    let grep_call = make_call("grep", json!({ "path": "/tmp/x.txt" }));
+    // 4. "grep" tool uses the first entry from its "paths" array argument as the representative anchor.
+    let grep_call = make_call("grep", json!({ "paths": ["/tmp/x.txt", "/tmp/y.txt"] }));
     assert_eq!(
         policy_path_for_call(&grep_call).as_deref(),
         Some("/tmp/x.txt")
@@ -123,17 +123,24 @@ fn opaque_permission_denied_result_is_generic_and_safe_for_the_model() {
 }
 
 #[test]
-fn tool_result_content_json_serializes_text_cleanly() {
+fn tool_result_content_json_serializes_text_and_json_cleanly() {
     // Text content should be passed through unchanged.
     let text_result = ToolResult {
         call_id: ToolCallId("call_text".to_string()),
         name: "write".to_string(),
         content: ToolContent::Text("plain text".to_string()),
         is_error: false,
-        // Mock tool result in test - no read paths tracked here.
-        read_paths: None,
     };
     assert_eq!(tool_result_content_json(&text_result), "plain text");
+
+    // JSON content should be rendered as a compact JSON string.
+    let json_result = ToolResult {
+        call_id: ToolCallId("call_json".to_string()),
+        name: "read".to_string(),
+        content: ToolContent::Json(json!({ "ok": true })),
+        is_error: false,
+    };
+    assert_eq!(tool_result_content_json(&json_result), "{\"ok\":true}");
 }
 
 #[test]
@@ -206,19 +213,23 @@ fn test_set_history_restores_loaded_groups() {
             ContentBlock::ToolResult(ToolResult {
                 call_id: ToolCallId("call_load_fs".to_string()),
                 name: "load_tools".to_string(),
-                content: ToolContent::Text("Loaded 7 tool(s) from group 'fs':\n\n## read".to_string()),
+                content: ToolContent::Json(json!({
+                    "group": "fs",
+                    "tool_count": 7,
+                    "tools": []
+                })),
                 is_error: false,
-                // Mock tool result in test - no read paths tracked here.
-                read_paths: None,
             }),
             // Failed load_tools for "web": should NOT be recovered because is_error is true!
             ContentBlock::ToolResult(ToolResult {
                 call_id: ToolCallId("call_load_web".to_string()),
                 name: "load_tools".to_string(),
-                content: ToolContent::Text("Loaded 2 tool(s) from group 'web':\n\n## fetch".to_string()),
+                content: ToolContent::Json(json!({
+                    "group": "web",
+                    "tool_count": 2,
+                    "tools": []
+                })),
                 is_error: true,
-                // Mock tool result in test - no read paths tracked here.
-                read_paths: None,
             }),
             // Standard tool result: should NOT affect any loaded groups!
             ContentBlock::ToolResult(ToolResult {
@@ -226,8 +237,6 @@ fn test_set_history_restores_loaded_groups() {
                 name: "read".to_string(),
                 content: ToolContent::Text("some file content".to_string()),
                 is_error: false,
-                // Mock tool result in test - no read paths tracked here.
-                read_paths: None,
             }),
         ],
         stop_reason: None,
@@ -280,8 +289,6 @@ fn test_heuristic_token_estimator() {
         name: "test_tool".to_string(),
         content: ToolContent::Text("success".to_string()), // "success" is 7 chars -> 1 token + 10 = 11 tokens
         is_error: false,
-        // Mock tool result in test - no read paths tracked here.
-        read_paths: None,
     });
 
     // Run the same match heuristic used in runner.rs
@@ -291,6 +298,7 @@ fn test_heuristic_token_estimator() {
         ContentBlock::ToolResult(r) => {
             let content_len = match &r.content {
                 ToolContent::Text(t) => t.len(),
+                ToolContent::Json(val) => val.to_string().len(),
             };
             content_len / 4 + 10
         }
@@ -346,56 +354,4 @@ fn test_build_assistant_message_includes_reasoning() {
         }
         other => panic!("expected ContentBlock::Text, got {:?}", other),
     }
-}
-
-#[test]
-fn test_parser_integration_extracts_calls_and_cleans_text() {
-    let raw_text = "I will read the file first.\n<read paths=\"src/lib.rs\">\nDone reading.";
-    let parse_res = operon_tools_parser::parse(raw_text);
-
-    assert_eq!(parse_res.calls.len(), 1);
-    assert_eq!(parse_res.calls[0].name, "read");
-    assert_eq!(parse_res.calls[0].attrs.get("paths").unwrap(), "src/lib.rs");
-    assert_eq!(parse_res.text.trim(), "I will read the file first.\n\nDone reading.");
-}
-
-#[test]
-fn test_denormalize_messages_outputs_xml_tags() {
-    use operon_context::normalize::messages::denormalize_messages;
-    use operon_providers::Provider;
-
-    let history = vec![
-        ConversationMessage::user(vec![ContentBlock::Text("hello".to_string())]),
-        ConversationMessage::assistant(vec![
-            ContentBlock::Text("thinking...".to_string()),
-            ContentBlock::ToolCall(ToolCall {
-                id: ToolCallId("call-1".to_string()),
-                name: "read".to_string(),
-                arguments: json!({ "paths": "src/lib.rs" }),
-            }),
-        ]),
-        ConversationMessage {
-            role: MessageRole::Tool,
-            content: vec![ContentBlock::ToolResult(ToolResult {
-                call_id: ToolCallId("call-1".to_string()),
-                name: "read".to_string(),
-                content: ToolContent::Text("file contents".to_string()),
-                is_error: false,
-                read_paths: None,
-            })],
-            stop_reason: None,
-        },
-    ];
-
-    let wire = denormalize_messages(&history, &Provider::Anthropic).unwrap();
-    let msgs = wire["messages"].as_array().unwrap();
-
-    // The tool call block is denormalized to a text block containing tag format
-    let assistant_content = msgs[1]["content"].as_array().unwrap();
-    assert_eq!(assistant_content[1]["text"].as_str().unwrap(), "<read paths=\"src/lib.rs\">");
-
-    // The tool result is denormalized to a user message block containing the result tag
-    let result_content = msgs[2]["content"].as_array().unwrap();
-    assert!(result_content[0]["text"].as_str().unwrap().contains("<tool_result name=\"read\""));
-    assert!(result_content[0]["text"].as_str().unwrap().contains("file contents"));
 }

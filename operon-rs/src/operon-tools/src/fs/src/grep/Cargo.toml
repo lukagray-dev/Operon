@@ -16,9 +16,7 @@ ignore.workspace                         = true
 grep-searcher.workspace                  = true
 grep-regex.workspace                     = true
 grep-matcher.workspace                   = true
-globset.workspace                        = true
-tracing.workspace                        = true
-operon-context-normalize.workspace = true
+operon-context-normalize-tools.workspace = true
 operon-tools-core.workspace              = true
 
 [dev-dependencies]

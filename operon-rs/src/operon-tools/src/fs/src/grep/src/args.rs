@@ -1,126 +1,53 @@
 /// Argument types for the grep tool.
 ///
-/// This module defines the manual parsing logic for the grep tool's body-based
-/// input format. The `path` attr arrives as args_json["path"]. All search options
-/// arrive in args_json["__body__"] as a multi-line key=values string.
-///
-/// Body format:
-///   pattern="calculate_total" "Auth"
-///   glob="*.py"
-///   ignore="node_modules" ".git"
-///   context="3"
-///
-/// Each line is "key=values" where values are whitespace-separated tokens
-/// (already unquoted by the parser). Unknown keys are silently ignored.
+/// This module defines the deserialization schema for the grep tool's input.
+/// The tool accepts a regex pattern, a list of paths to search, and optional
+/// filtering and context parameters.
+use serde::Deserialize;
 
-/// Parsed args for the grep tool.
+/// Top-level args the model sends when calling the `grep` tool.
 ///
-/// All fields are extracted from the `path` attribute and the `__body__` field
-/// of the incoming args JSON. No serde derive — parsing is done manually.
-#[derive(Debug)]
+/// The tool searches for a regex pattern across one or more files or directories.
+/// Directories are walked recursively with gitignore rules respected by default.
+#[derive(Debug, Deserialize)]
 pub struct GrepArgs {
-    /// Root path to search (from the `path` XML attr).
-    /// Must be an absolute path to a directory or file.
-    pub path: String,
+    /// Regex pattern to search for. Always treated as a regex (not a literal string).
+    /// The pattern uses Rust regex syntax. Special characters must be escaped if
+    /// searching for literal strings (e.g., `\\.` to match a literal dot).
+    pub pattern: String,
 
-    /// One or more regex patterns to search for.
-    /// Empty vec = glob-only mode (list matching files without searching content).
-    /// Multiple patterns are OR-combined: a line matches if ANY pattern matches.
-    pub patterns: Vec<String>,
-
-    /// Optional glob filter applied during directory walk (e.g. "*.py", "*.{ts,tsx}").
-    /// Only affects directory walks, not direct file paths.
-    pub glob: Option<String>,
-
-    /// Directory/file names to ignore during walk.
-    /// Matched against entry names (not full paths) using globset.
-    pub ignore: Vec<String>,
-
-    /// Number of context lines before and after each match. Default 0.
-    pub context_lines: usize,
-}
-
-impl GrepArgs {
-    /// Parse grep tool arguments from the attrs JSON produced by the LLM parser.
+    /// Files or directories to search. Each entry is a plain path string.
+    /// Directories are walked recursively. Gitignore rules are respected.
+    /// At least one path is required.
     ///
-    /// Extracts `path` from args_json["path"] or args_json["paths"] and all options from
-    /// attributes.
+    /// Accepts both singular "path" and plural "paths" for flexibility.
+    #[serde(alias = "path")]
+    pub paths: Vec<String>,
+
+    /// Optional glob pattern to filter files by name. Applied during directory
+    /// walk. E.g. "*.rs" searches only Rust files. "*.{ts,tsx}" searches both.
+    /// Has no effect when all entries in `paths` are direct files (not directories).
     ///
-    /// # Errors
-    /// Returns `Err(String)` if:
-    /// - The `path`/`paths` key is missing or not a string.
-    /// - `context`/`context_lines` value cannot be parsed as usize.
-    pub fn parse(args_json: &serde_json::Value) -> Result<GrepArgs, String> {
-        // Step 1: Extract the required "path" (or "paths") attribute.
-        let path = args_json
-            .get("path")
-            .or_else(|| args_json.get("paths"))
-            .ok_or_else(|| "missing required attribute 'path'".to_string())?
-            .as_str()
-            .ok_or_else(|| "attribute 'path' must be a string".to_string())?
-            .to_string();
+    /// Uses standard glob syntax:
+    /// - `*` matches any sequence of characters within a path component
+    /// - `?` matches any single character
+    /// - `{a,b}` matches either `a` or `b`
+    /// - `**` matches zero or more directories (e.g., `**/*.rs` matches all Rust files recursively)
+    #[serde(default)]
+    pub include: Option<String>,
 
-        // Step 2: Parse patterns
-        let mut patterns = Vec::new();
-        if let Some(attr_pat) = args_json
-            .get("pattern")
-            .or_else(|| args_json.get("patterns"))
-            .and_then(|v| v.as_str())
-        {
-            patterns = parse_tokens(attr_pat);
-        }
+    /// Case-insensitive matching. Default: false (case-sensitive).
+    ///
+    /// When true, the regex pattern matches regardless of case. For example,
+    /// pattern "error" would match "Error", "ERROR", "error", etc.
+    #[serde(default)]
+    pub case_insensitive: Option<bool>,
 
-        // Step 3: Parse glob
-        let glob = args_json
-            .get("glob")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-
-        // Step 4: Parse ignore
-        let mut ignore = Vec::new();
-        if let Some(attr_ignore) = args_json.get("ignore").and_then(|v| v.as_str()) {
-            ignore = parse_tokens(attr_ignore);
-        }
-
-        // Step 5: Parse context
-        let mut context_lines = 0;
-        if let Some(attr_context) = args_json
-            .get("context")
-            .or_else(|| args_json.get("context_lines"))
-            .and_then(|v| v.as_str())
-        {
-            context_lines = attr_context.parse::<usize>().unwrap_or_else(|_| {
-                tracing::warn!(
-                    "invalid context value '{}', defaulting to 0",
-                    attr_context
-                );
-                0
-            });
-        }
-
-        Ok(GrepArgs {
-            path,
-            patterns,
-            glob,
-            ignore,
-            context_lines,
-        })
-    }
-}
-
-/// Helper to parse newline-separated tokens, respecting any internal spaces.
-fn parse_tokens(s: &str) -> Vec<String> {
-    if s.contains('\n') {
-        s.split('\n')
-            .map(|t| t.trim().to_string())
-            .filter(|t| !t.is_empty())
-            .collect()
-    } else {
-        let trimmed = s.trim();
-        if trimmed.is_empty() {
-            Vec::new()
-        } else {
-            vec![trimmed.to_string()]
-        }
-    }
+    /// Number of context lines to include before and after each match.
+    /// Same value applies to both before and after. Default: 0 (no context).
+    ///
+    /// Context lines are marked with `is_match: false` in the output to distinguish
+    /// them from actual matching lines. Context lines from adjacent matches may overlap.
+    #[serde(default)]
+    pub context_lines: Option<usize>,
 }

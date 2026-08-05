@@ -156,8 +156,7 @@ where
 mod tests {
     use super::*;
     use operon_context_normalize_reasoning::ReasoningBlock;
-    use operon_context_normalize::tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
-
+    use operon_context_normalize_tools::{ToolCall, ToolCallId, ToolContent, ToolResult};
     use serde_json::json;
 
     fn text_message(role: MessageRole, text: &str) -> ConversationMessage {
@@ -201,8 +200,6 @@ mod tests {
                 name: "read_file".to_string(),
                 content: ToolContent::Text("file contents".to_string()),
                 is_error: false,
-                // Set to None as this is a general test result mock.
-                read_paths: None,
             })],
             stop_reason: None,
         };

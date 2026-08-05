@@ -15,7 +15,6 @@ operon-policy                = { workspace = true }
 operon-providers             = { workspace = true }
 operon-tools                 = { workspace = true }
 operon-tools-ask             = { workspace = true }
-operon-tools-parser          = { workspace = true }
 
 tokio      = { workspace = true }
 reqwest    = { workspace = true, features = ["json", "stream"] }

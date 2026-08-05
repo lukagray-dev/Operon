@@ -52,7 +52,36 @@ fn parse_native_value(raw: Value) -> Result<Vec<StreamEvent>> {
             });
         }
 
-        // Under the plain-text tag protocol, we ignore tool calls on the stream.
+        if let Some(tool_calls) = message.get("tool_calls").and_then(Value::as_array) {
+            for (index, tool_call) in tool_calls.iter().enumerate() {
+                let function =
+                    tool_call
+                        .get("function")
+                        .ok_or(StreamNormalizeError::MissingField {
+                            field: "message.tool_calls[].function",
+                            provider: PROVIDER,
+                        })?;
+
+                let name = function.get("name").and_then(Value::as_str).ok_or(
+                    StreamNormalizeError::MissingField {
+                        field: "message.tool_calls[].function.name",
+                        provider: PROVIDER,
+                    },
+                )?;
+
+                let arguments = function
+                    .get("arguments")
+                    .cloned()
+                    .unwrap_or_else(|| Value::Object(Default::default()));
+
+                events.push(StreamEvent::ToolCallComplete {
+                    index,
+                    id: None,
+                    name: name.to_string(),
+                    arguments,
+                });
+            }
+        }
     }
 
     if raw.get("done").and_then(Value::as_bool) == Some(true) {

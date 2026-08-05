@@ -1,19 +1,18 @@
-/// Internal output types for the read tool executor.
+/// Output types for the read tool.
 ///
-/// These types represent the per-file read result used internally by the executor
-/// to assemble the final text output. They are NOT serialized to JSON — output
-/// is formatted as plain text (ToolContent::Text).
-///
-/// All serde derives have been removed since these types are internal only.
+/// This module defines the structured result format returned by the read tool.
+/// Each file read attempt produces a FileReadResult, and all results are wrapped
+/// in a ReadOutput container.
+use serde::{Deserialize, Serialize};
 
 /// The outcome for a single file read attempt.
 ///
 /// Each file in the read request produces exactly one FileReadResult, regardless
 /// of whether the read succeeded or failed. Success/failure is indicated by the
 /// `success` field, and error details are embedded in the `error` field.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FileReadResult {
-    /// The path that was requested (echoed back for display in output).
+    /// The path that was requested (echoed back for correlation).
     pub path: String,
 
     /// `true` means `content` is populated and `error` is None.
@@ -24,36 +23,53 @@ pub struct FileReadResult {
     ///
     /// For full-file reads, this is the entire file content (up to 1 MB limit).
     /// For line-range reads, this is the requested slice of lines.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
 
     /// Human-readable error description on failure. None on success.
     ///
     /// Examples:
     /// - "File not found"
-    /// - "File exceeds 1 MB limit (2048576 bytes). Use a line range to read in chunks."
+    /// - "File exceeds 1 MB limit (2048576 bytes). Use start_line/end_line to read in chunks."
     /// - "Binary file detected. Use the image/video tool for media files."
     /// - "start_line 500 exceeds file length (100 lines)."
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 
-    /// Total lines in the file. Populated on success and on some error paths
-    /// (e.g. start_line out of bounds still reports total_lines for context).
+    /// Total lines in the file (only populated on success, full-file reads).
+    ///
+    /// For line-range reads, this is also populated to give context about the
+    /// full file size. For failures, this is None.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub total_lines: Option<usize>,
 
     /// Actual lines returned (start..=end), 1-indexed. Only populated when a range was used.
     ///
     /// For full-file reads, this is None (the entire file was returned).
-    /// For line-range reads, this shows the actual range after clamping.
+    /// For line-range reads, this shows the actual range that was returned after
+    /// clamping to the file's line count.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lines_returned: Option<LineRange>,
 }
 
 /// A 1-indexed, inclusive line range.
 ///
-/// Used in FileReadResult to track which lines were actually returned
-/// when a line range was requested.
-#[derive(Debug)]
+/// Used in FileReadResult to indicate which lines were actually returned when
+/// a line range was requested.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LineRange {
     /// First line returned (1-indexed, inclusive).
     pub start: usize,
     /// Last line returned (1-indexed, inclusive).
     pub end: usize,
+}
+
+/// The complete output of a `read` tool call — one entry per requested path.
+///
+/// This is the top-level structure that gets serialized into ToolContent::Json
+/// and returned to the model.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReadOutput {
+    /// Results for each file that was requested, in the same order as the input.
+    pub files: Vec<FileReadResult>,
 }

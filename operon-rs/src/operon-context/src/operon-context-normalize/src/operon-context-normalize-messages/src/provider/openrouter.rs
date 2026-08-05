@@ -19,7 +19,7 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         return openai::normalize_message_with_provider(raw, PROVIDER);
     }
     if looks_like_anthropic_shape(&raw) {
-        return anthropic::normalize_message_with_provider(raw, PROVIDER);
+        return anthropic::normalize_message(raw);
     }
 
     let found_keys: Vec<String> = raw

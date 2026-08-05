@@ -12,12 +12,13 @@ use thiserror::Error;
 /// loop and waiting for user input) is handled by the session runner, not this crate.
 #[derive(Debug, Error)]
 pub enum AskToolError {
-    /// Failed to parse the tool arguments from the body-based format.
+    /// Failed to deserialize the tool arguments JSON into `AskArgs`.
     ///
     /// Common causes:
-    /// - Missing `__body__` field entirely.
-    /// - Missing `question` body key.
-    /// - Missing `option1`, `option2`, or `option3` body key.
-    #[error("failed to parse ask arguments: {0}")]
-    ArgsParse(String),
+    /// - Missing `question` field.
+    /// - Missing `options` field.
+    /// - `options` array has fewer or more than 3 elements.
+    /// - Wrong types (e.g. `question` is a number, not a string).
+    #[error("failed to deserialize ask arguments: {0}")]
+    ArgsParse(#[from] serde_json::Error),
 }

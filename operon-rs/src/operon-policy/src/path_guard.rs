@@ -88,7 +88,7 @@ impl<'a> PathGuard<'a> {
         // For paths that already exist on disk, this resolves symlinks and ..
         // For paths that don't exist yet (new files being created), canonicalize
         // will fail — so we fall back to normalize_without_io().
-        let mut canonical: PathBuf = match std::fs::canonicalize(path) {
+        let canonical: PathBuf = match std::fs::canonicalize(path) {
             Ok(c) => c,
             Err(_) => {
                 // File doesn't exist yet (e.g. model is creating a new file).
@@ -100,15 +100,6 @@ impl<'a> PathGuard<'a> {
                 normalize_without_io(path)
             }
         };
-        // Hey friend! We also clean the UNC prefix from canonicalized paths here
-        // so both the input path and stored policy paths are compared in standard formats.
-        #[cfg(windows)]
-        {
-            let s = canonical.to_string_lossy();
-            if s.starts_with(r"\\?\") {
-                canonical = PathBuf::from(&s[4..]);
-            }
-        }
 
         // Step 2: Find the first DirectoryPolicy whose canonical root is a
         // path prefix of our canonical input. `Path::starts_with()` is

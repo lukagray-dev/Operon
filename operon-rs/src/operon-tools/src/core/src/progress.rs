@@ -3,8 +3,7 @@
 //! Tool crates use these types to report coarse or fine-grained progress
 //! without depending on the session event bus directly.
 
-use operon_context_normalize::tools::ToolCallId;
-
+use operon_context_normalize_tools::ToolCallId;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

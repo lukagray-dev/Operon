@@ -1,5 +1,5 @@
 use operon_context_normalize_messages::{ContentBlock, ConversationMessage, MessageRole};
-use operon_context_normalize::tools::ToolCallId;
+use operon_context_normalize_tools::ToolCallId;
 use serde_json::Value;
 
 use crate::SanitizerError;
@@ -39,7 +39,7 @@ pub(crate) fn normalize_tool_calls(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use operon_context_normalize::tools::{ToolCall, ToolCallId};
+    use operon_context_normalize_tools::{ToolCall, ToolCallId};
     use serde_json::json;
 
     fn assistant_with_call(id: &str, name: &str, arguments: Value) -> ConversationMessage {

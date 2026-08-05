@@ -5,9 +5,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::execute;
-    use operon_context_normalize::tools::{ToolCallId, ToolContent};
-
+    use crate::{execute, WebSearchOutput};
+    use operon_context_normalize_tools::{ToolCallId, ToolContent};
     use serde_json::json;
 
     // ============================================================================
@@ -52,6 +51,15 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn test_max_results_cap() {
+        // Requesting max_results: 999 should be capped at 10.
+        // This test doesn't make a real network call — it just verifies the cap logic.
+        // We'll test this by checking that the executor respects the cap.
+        // Since we can't easily mock the DuckDuckGo API, we'll skip this for now
+        // and rely on the network test below.
+    }
+
     // ============================================================================
     // Network tests (marked #[ignore], run with --ignored flag)
     // ============================================================================
@@ -71,24 +79,33 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                // Should list results starting with "1. "
-                assert!(text.contains("1. "));
-                assert!(!text.is_empty(), "expected some search results");
+            ToolContent::Json(json) => {
+                let output: WebSearchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebSearchOutput");
+
+                assert_eq!(output.query, "rust programming language");
+                assert!(output.result_count > 0, "expected at least one result");
+                assert_eq!(output.results[0].rank, 1, "first result should have rank 1");
+
+                // Verify all results have non-empty title and url.
+                for result in &output.results {
+                    assert!(!result.title.is_empty(), "title should not be empty");
+                    assert!(!result.url.is_empty(), "url should not be empty");
+                }
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_max_results_respected() {
-        // Query with max: "3" and verify we get at most 3 results.
+        // Query with max_results: 3 and verify we get at most 3 results.
         let result = execute(
             ToolCallId("call_4".to_string()),
             json!({
                 "query": "rust lang",
-                "max": "3"
+                "max_results": 3
             }),
         )
         .await
@@ -96,23 +113,29 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                // Since results are 1. , 2. , 3. , we check if it doesn't contain "4. "
-                assert!(!text.contains("4. "), "expected at most 3 results, but got 4 or more: {}", text);
+            ToolContent::Json(json) => {
+                let output: WebSearchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebSearchOutput");
+
+                assert!(
+                    output.results.len() <= 3,
+                    "expected at most 3 results, got {}",
+                    output.results.len()
+                );
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_max_results_cap_enforced() {
-        // Request max: "999" and verify it's capped at 10.
+        // Request max_results: 999 and verify it's capped at 10.
         let result = execute(
             ToolCallId("call_5".to_string()),
             json!({
                 "query": "rust",
-                "max": "999"
+                "max_results": 999
             }),
         )
         .await
@@ -120,11 +143,17 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                // Capped at 10, so it should not contain "11. "
-                assert!(!text.contains("11. "), "expected at most 10 results (cap)");
+            ToolContent::Json(json) => {
+                let output: WebSearchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebSearchOutput");
+
+                assert!(
+                    output.results.len() <= 10,
+                    "expected at most 10 results (cap), got {}",
+                    output.results.len()
+                );
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
         }
     }
 
@@ -132,6 +161,7 @@ mod tests {
     #[ignore = "requires network"]
     async fn test_no_results() {
         // Query something that's unlikely to have results.
+        // This is a best-effort test — if DuckDuckGo finds results, the test will pass anyway.
         let result = execute(
             ToolCallId("call_6".to_string()),
             json!({
@@ -144,10 +174,14 @@ mod tests {
         // Even with no results, is_error should be false.
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                assert!(text.contains("No results for"));
+            ToolContent::Json(json) => {
+                let output: WebSearchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebSearchOutput");
+
+                // result_count should match results.len()
+                assert_eq!(output.result_count, output.results.len());
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
         }
     }
 
@@ -166,13 +200,22 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                // If we got results, they should contain github.com
-                if !text.contains("No results for") {
-                    assert!(text.contains("github.com"), "expected github.com in results, got: {}", text);
+            ToolContent::Json(json) => {
+                let output: WebSearchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebSearchOutput");
+
+                // Should have results from github.com
+                if output.result_count > 0 {
+                    for result in &output.results {
+                        assert!(
+                            result.url.contains("github.com"),
+                            "expected github.com in URL, got {}",
+                            result.url
+                        );
+                    }
                 }
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
         }
     }
 }

@@ -1201,6 +1201,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "cookie"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
+dependencies = [
+ "percent-encoding",
+ "time",
+ "version_check",
+]
+
+[[package]]
+name = "cookie_store"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15b2c103cf610ec6cae3da84a766285b42fd16aad564758459e6ecf128c75206"
+dependencies = [
+ "cookie",
+ "document-features",
+ "idna",
+ "log",
+ "publicsuffix",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "time",
+ "url",
+]
+
+[[package]]
 name = "copypasta"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1460,7 +1489,20 @@ version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dae61cf9c0abb83bd659dab65b7e4e38d8236824c85f0f804f173567bda257d2"
 dependencies = [
- "cssparser-macros",
+ "cssparser-macros 0.6.1",
+ "dtoa-short",
+ "itoa",
+ "phf 0.13.1",
+ "smallvec",
+]
+
+[[package]]
+name = "cssparser"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98"
+dependencies = [
+ "cssparser-macros 0.7.0",
  "dtoa-short",
  "itoa",
  "phf 0.13.1",
@@ -1472,6 +1514,16 @@ name = "cssparser-macros"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13b588ba4ac1a99f7f2964d24b3d896ddc6bf847ee3855dbd4366f058cfcd331"
+dependencies = [
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "cssparser-macros"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10a2a99df6e410a8ff4245aa2006499ea662245f967cc7c0a38c83ef8eb44dbf"
 dependencies = [
  "quote",
  "syn 2.0.117",
@@ -1784,7 +1836,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1925,6 +1977,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edf234dd1594d6dd434a8fb8cada51ddbbc593e40e4a01556a0b31c62da2775b"
 
 [[package]]
+name = "duckduckgo"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36355bd0a557b39a74c28749937b7fa1bcb092642dfd07823f77d2fff7491eb1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "phf 0.13.1",
+ "regex",
+ "reqwest",
+ "scraper",
+ "serde",
+ "serde_json",
+ "urlencoding",
+]
+
+[[package]]
 name = "dugong"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1954,6 +2023,12 @@ name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
+
+[[package]]
+name = "ego-tree"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b04dc5a38e4f151a79d9f2451ae6037fb6eaf5cba34771f44781f80e508498e3"
 
 [[package]]
 name = "either"
@@ -2071,7 +2146,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3095,7 +3170,7 @@ version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7eee9b00ee2e599b4f86507157e3db786e7a3319fc225f0e9584151dbea2291d"
 dependencies = [
- "html5ever",
+ "html5ever 0.38.0",
  "markup5ever_rcdom",
  "phf 0.13.1",
 ]
@@ -3107,7 +3182,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1054432bae2f14e0061e33d23402fbaa67a921d319d56adc6bcf887ddad1cbc2"
 dependencies = [
  "log",
- "markup5ever",
+ "markup5ever 0.38.0",
+]
+
+[[package]]
+name = "html5ever"
+version = "0.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46a1761807faccc9a19e86944bbf40610014066306f96edcdedc2fb714bcb7b8"
+dependencies = [
+ "log",
+ "markup5ever 0.39.0",
 ]
 
 [[package]]
@@ -3546,7 +3631,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.56.0",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -4424,14 +4509,14 @@ checksum = "00aad58f6ec3990e795943872f13651e7a5fa59dca2c8f31a74faf8a0e0fb652"
 dependencies = [
  "bitflags 2.11.1",
  "cfg-if",
- "cssparser",
+ "cssparser 0.36.0",
  "encoding_rs",
  "foldhash 0.2.0",
  "hashbrown 0.17.1",
  "memchr",
  "mime",
  "precomputed-hash",
- "selectors",
+ "selectors 0.37.0",
  "thiserror 2.0.18",
 ]
 
@@ -4535,13 +4620,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "markup5ever"
+version = "0.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7122d987ec5f704ee56f6e5b41a7d93722e9aae27ae07cafa4036c4d3f9757de"
+dependencies = [
+ "log",
+ "tendril",
+ "web_atoms",
+]
+
+[[package]]
 name = "markup5ever_rcdom"
 version = "0.38.0+unofficial"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "333171ccdf66e915257740d44e38ea5b1b19ce7b45d33cc35cb6f118fbd981ff"
 dependencies = [
- "html5ever",
- "markup5ever",
+ "html5ever 0.38.0",
+ "markup5ever 0.38.0",
  "tendril",
  "xml5ever",
 ]
@@ -4767,7 +4863,7 @@ dependencies = [
  "once_cell",
  "png",
  "thiserror 2.0.18",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5572,9 +5668,9 @@ name = "operon-context-compaction"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "operon-context-normalize",
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
+ "operon-context-normalize-tools",
  "operon-context-snapshot",
  "reqwest",
  "serde",
@@ -5590,6 +5686,7 @@ dependencies = [
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
  "operon-context-normalize-stream",
+ "operon-context-normalize-tools",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -5599,6 +5696,7 @@ name = "operon-context-normalize-messages"
 version = "0.1.0"
 dependencies = [
  "operon-context-normalize-reasoning",
+ "operon-context-normalize-tools",
  "operon-providers",
  "serde",
  "serde_json",
@@ -5622,6 +5720,17 @@ dependencies = [
  "futures",
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
+ "operon-context-normalize-tools",
+ "operon-providers",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "operon-context-normalize-tools"
+version = "0.1.0"
+dependencies = [
  "operon-providers",
  "serde",
  "serde_json",
@@ -5632,8 +5741,8 @@ dependencies = [
 name = "operon-context-sanitizer"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
  "operon-context-normalize-messages",
+ "operon-context-normalize-tools",
  "operon-context-snapshot",
  "serde",
  "serde_json",
@@ -5718,7 +5827,7 @@ name = "operon-policy"
 version = "0.1.0"
 dependencies = [
  "operon-config",
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "serde_json",
  "tempfile",
  "tracing",
@@ -5772,7 +5881,6 @@ dependencies = [
  "operon-providers",
  "operon-tools",
  "operon-tools-ask",
- "operon-tools-parser",
  "reqwest",
  "serde",
  "serde_json",
@@ -5798,7 +5906,7 @@ dependencies = [
 name = "operon-tools"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-ask",
  "operon-tools-core",
  "operon-tools-fs",
@@ -5810,12 +5918,6 @@ dependencies = [
  "operon-tools-fs-read",
  "operon-tools-fs-write",
  "operon-tools-load",
- "operon-tools-memory",
- "operon-tools-memory-add",
- "operon-tools-memory-delete",
- "operon-tools-memory-edit",
- "operon-tools-memory-retrieve",
- "operon-tools-memory-search",
  "operon-tools-shell",
  "operon-tools-shell-bash",
  "operon-tools-todo",
@@ -5835,7 +5937,7 @@ dependencies = [
 name = "operon-tools-ask"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -5846,7 +5948,7 @@ dependencies = [
 name = "operon-tools-core"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "serde",
  "serde_json",
  "tempfile",
@@ -5870,7 +5972,7 @@ dependencies = [
 name = "operon-tools-fs-append"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -5883,14 +5985,13 @@ dependencies = [
 name = "operon-tools-fs-delete"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
  "trash",
 ]
 
@@ -5898,8 +5999,9 @@ dependencies = [
 name = "operon-tools-fs-edit"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
+ "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
@@ -5910,19 +6012,17 @@ dependencies = [
 name = "operon-tools-fs-grep"
 version = "0.1.0"
 dependencies = [
- "globset",
  "grep-matcher",
  "grep-regex",
  "grep-searcher",
  "ignore",
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -5930,14 +6030,13 @@ name = "operon-tools-fs-ls"
 version = "0.1.0"
 dependencies = [
  "globset",
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -5945,7 +6044,7 @@ name = "operon-tools-fs-read"
 version = "0.1.0"
 dependencies = [
  "futures",
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -5958,7 +6057,7 @@ dependencies = [
 name = "operon-tools-fs-write"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -5971,109 +6070,19 @@ dependencies = [
 name = "operon-tools-load"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
-]
-
-[[package]]
-name = "operon-tools-memory"
-version = "0.1.0"
-dependencies = [
- "dirs 6.0.0",
- "operon-context-normalize",
- "serde",
- "sqlx",
- "tokio",
-]
-
-[[package]]
-name = "operon-tools-memory-add"
-version = "0.1.0"
-dependencies = [
- "operon-context-normalize",
- "operon-tools-core",
- "operon-tools-memory",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "operon-tools-memory-delete"
-version = "0.1.0"
-dependencies = [
- "operon-context-normalize",
- "operon-tools-core",
- "operon-tools-memory",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "operon-tools-memory-edit"
-version = "0.1.0"
-dependencies = [
- "operon-context-normalize",
- "operon-tools-core",
- "operon-tools-memory",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "operon-tools-memory-retrieve"
-version = "0.1.0"
-dependencies = [
- "operon-context-normalize",
- "operon-tools-core",
- "operon-tools-memory",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "operon-tools-memory-search"
-version = "0.1.0"
-dependencies = [
- "operon-context-normalize",
- "operon-tools-core",
- "operon-tools-memory",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "operon-tools-parser"
-version = "0.1.0"
-dependencies = [
- "operon-context-normalize",
- "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "operon-tools-shell"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "operon-tools-shell-bash",
  "serde_json",
@@ -6085,21 +6094,20 @@ dependencies = [
 name = "operon-tools-shell-bash"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
 ]
 
 [[package]]
 name = "operon-tools-todo"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "operon-tools-todo-create",
  "operon-tools-todo-delete",
@@ -6114,7 +6122,7 @@ dependencies = [
 name = "operon-tools-todo-create"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -6126,7 +6134,7 @@ dependencies = [
 name = "operon-tools-todo-delete"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -6138,7 +6146,7 @@ dependencies = [
 name = "operon-tools-todo-list"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -6150,7 +6158,7 @@ dependencies = [
 name = "operon-tools-todo-update"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "serde",
  "serde_json",
@@ -6172,7 +6180,7 @@ name = "operon-tools-web-fetch"
 version = "0.1.0"
 dependencies = [
  "htmd",
- "operon-context-normalize",
+ "operon-context-normalize-tools",
  "operon-tools-core",
  "reqwest",
  "serde",
@@ -6185,14 +6193,13 @@ dependencies = [
 name = "operon-tools-web-search"
 version = "0.1.0"
 dependencies = [
- "operon-context-normalize",
+ "duckduckgo",
+ "operon-context-normalize-tools",
  "operon-tools-core",
- "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -6809,10 +6816,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "psl-types"
+version = "2.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33cb294fe86a74cbcf50d4445b37da762029549ebeea341421c7c70370f86cac"
+
+[[package]]
+name = "publicsuffix"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f42ea446cab60335f76979ec15e12619a2165b5ae2c12166bef27d283a9fadf"
+dependencies = [
+ "idna",
+ "psl-types",
 ]
 
 [[package]]
@@ -7355,6 +7378,8 @@ checksum = "219c5811de6525e5416c7d5d53bb656d3afdbc6c5af816e0802bcfa42dbdc1c3"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "cookie",
+ "cookie_store",
  "encoding_rs",
  "futures-core",
  "futures-util",
@@ -7376,6 +7401,7 @@ dependencies = [
  "rustls-platform-verifier",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sync_wrapper",
  "tokio",
  "tokio-rustls",
@@ -7583,7 +7609,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7642,7 +7668,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7754,6 +7780,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "scraper"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bdd0be4d296f048bfb06dd01bbc80ef789ddd2e55583e8d2e6b804942abfabc2"
+dependencies = [
+ "cssparser 0.37.0",
+ "ego-tree",
+ "getopts",
+ "html5ever 0.39.0",
+ "precomputed-hash",
+ "selectors 0.38.0",
+ "tendril",
+]
+
+[[package]]
 name = "sctk-adwaita"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7796,7 +7837,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2cfaaa6035167f0e604e42723c7650d59ee269ef220d7bbe0565602c8a0173b9"
 dependencies = [
  "bitflags 2.11.1",
- "cssparser",
+ "cssparser 0.36.0",
+ "derive_more",
+ "log",
+ "new_debug_unreachable",
+ "phf 0.13.1",
+ "phf_codegen 0.13.1",
+ "precomputed-hash",
+ "rustc-hash 2.1.2",
+ "servo_arc",
+ "smallvec",
+]
+
+[[package]]
+name = "selectors"
+version = "0.38.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8adfa1c298912827b8a28b223b3b874357397ae706e6190acd9bf28cee99114d"
+dependencies = [
+ "bitflags 2.11.1",
+ "cssparser 0.37.0",
  "derive_more",
  "log",
  "new_debug_unreachable",
@@ -8374,7 +8434,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8937,7 +8997,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9191,12 +9251,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743bd48c283afc0388f9b8827b976905fb217ad9e647fae3a379a9283c4def2c"
 dependencies = [
  "deranged",
+ "itoa",
  "libc",
  "num-conv",
  "num_threads",
  "powerfmt",
  "serde_core",
  "time-core",
+ "time-macros",
 ]
 
 [[package]]
@@ -9204,6 +9266,16 @@ name = "time-core"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7694e1cfe791f8d31026952abf09c69ca6f6fa4e1a1229e18988f06a04a12dca"
+
+[[package]]
+name = "time-macros"
+version = "0.2.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e70e4c5a0e0a8a4823ad65dfe1a6930e4f4d756dcd9dd7939022b5e8c501215"
+dependencies = [
+ "num-conv",
+ "time-core",
+]
 
 [[package]]
 name = "tiny-keccak"
@@ -9649,7 +9721,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset 0.9.1",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10634,7 +10706,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11344,7 +11416,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dc9559429edf0cd3f327cc0afd9d6b36fa8cec6d93107b7fbe64f806b5f2d9"
 dependencies = [
  "log",
- "markup5ever",
+ "markup5ever 0.38.0",
 ]
 
 [[package]]

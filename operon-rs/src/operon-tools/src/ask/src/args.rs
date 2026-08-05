@@ -1,87 +1,32 @@
 //! Argument types for the `ask` tool.
 //!
-//! Defines the parsing logic for the model's input to the `ask` tool
-//! in the new body-based format.
-//!
-//! NEW CALL FORMAT:
-//!   <ask>
-//!   <<<<
-//!   question="question here"
-//!   option1="first option content"
-//!   option2="second option content"
-//!   option3="third option content"
-//!   >>>>
-//!
-//! The body arrives as `args_json["__body__"]` (a String).
-//! No path attr — ask is a global tool with no directory scope.
+//! Defines the deserialization schema for the model's input to the `ask` tool.
+//! The tool accepts a question string and exactly 3 answer options.
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AskArgs
-// ─────────────────────────────────────────────────────────────────────────────
+use serde::Deserialize;
 
-/// Arguments the model passes when calling the `ask` tool, parsed from the body.
+use crate::error::AskToolError;
+
+/// Arguments the model passes when calling the `ask` tool.
 ///
 /// The UI always adds a 4th free-text field automatically — the model only
-/// supplies 3 pre-defined options as separate body keys.
-#[derive(Debug)]
+/// supplies 3 pre-defined options.
+#[derive(Debug, Deserialize)]
 pub struct AskArgs {
     /// The question to present to the user.
     pub question: String,
 
-    /// First pre-defined answer option.
-    pub option1: String,
-
-    /// Second pre-defined answer option.
-    pub option2: String,
-
-    /// Third pre-defined answer option.
-    /// The UI adds a 4th free-text field for custom user input automatically.
-    pub option3: String,
+    /// Exactly 3 pre-defined answer options.
+    /// The UI adds a 4th free-text field for custom user input.
+    pub options: [String; 3],
 }
 
 impl AskArgs {
-    /// Parse `AskArgs` from the raw JSON arguments of a tool call.
+    /// Deserialize from the raw JSON arguments of a tool call.
     ///
-    /// `question`, `option1`, `option2`, and `option3` are all parsed from XML attributes.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err(String)` with a descriptive message if any of the required attributes are missing.
-    pub fn parse(args_json: &serde_json::Value) -> Result<AskArgs, String> {
-        let question = args_json
-            .get("question")
-            .ok_or_else(|| "missing attribute: question".to_string())?
-            .as_str()
-            .ok_or_else(|| "attribute 'question' must be a string".to_string())?
-            .trim()
-            .to_string();
-
-        let option1 = args_json
-            .get("option1")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim()
-            .to_string();
-
-        let option2 = args_json
-            .get("option2")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim()
-            .to_string();
-
-        let option3 = args_json
-            .get("option3")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim()
-            .to_string();
-
-        Ok(AskArgs {
-            question,
-            option1,
-            option2,
-            option3,
-        })
+    /// Returns `Err(AskToolError::ArgsParse)` if the JSON shape is invalid —
+    /// for example, missing `question`, missing `options`, or wrong array length.
+    pub fn from_json(args: &serde_json::Value) -> Result<Self, AskToolError> {
+        serde_json::from_value(args.clone()).map_err(AskToolError::ArgsParse)
     }
 }

@@ -1,22 +1,22 @@
 //! Executor for the todo_delete tool — handles todo item deletion.
 
 use crate::args::TodoDeleteArgs;
-use operon_context_normalize::tools::{ToolCallId, ToolContent, ToolResult};
-
+use crate::output::TodoDeleteOutput;
+use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 use operon_tools_core::TodoStore;
 
 /// Executes the todo_delete tool with the given arguments.
 ///
 /// Deletes the todo item with the specified ID from the store and returns
-/// confirmation text.
+/// the deleted ID and the remaining count.
 ///
 /// # Arguments
 /// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args`: The parsed todo_delete arguments containing the id to delete.
+/// - `args`: The deserialized todo_delete arguments containing the id to delete.
 /// - `store`: Mutable reference to the TodoStore where the item will be deleted.
 ///
 /// # Returns
-/// A `ToolResult` with plain-text content (ToolContent::Text).
+/// A `ToolResult` with either success (JSON TodoDeleteOutput) or failure (Text error message).
 pub async fn execute(
     call_id: ToolCallId,
     args: TodoDeleteArgs,
@@ -32,19 +32,22 @@ pub async fn execute(
             name: "todo_delete".to_string(),
             content: ToolContent::Text(format!("todo not found: id '{}'", args.id)),
             is_error: true,
-            read_paths: None,
         };
     }
 
-    // Step 3: Format confirmation message.
-    let text = format!("Deleted #{}. {} todo(s) remaining.", args.id, store.len());
+    // Step 3: Construct the output with the deleted id and remaining count.
+    let output = TodoDeleteOutput {
+        id: args.id,
+        remaining: store.len(),
+    };
 
-    // Step 4: Return success with plain-text output.
+    // Step 4: Return success with JSON output.
     ToolResult {
         call_id,
         name: "todo_delete".to_string(),
-        content: ToolContent::Text(text),
+        content: ToolContent::Json(
+            serde_json::to_value(&output).unwrap_or_else(|_| serde_json::json!(output)),
+        ),
         is_error: false,
-        read_paths: None,
     }
 }

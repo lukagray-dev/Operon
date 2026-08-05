@@ -43,7 +43,7 @@
 //!           skip tool (not exposed to model)
 //! ```
 
-use operon_context_normalize::tools::{
+use operon_context_normalize_tools::{
     ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolResult,
 };
 use operon_tools_ask;
@@ -57,11 +57,6 @@ use operon_tools_todo_list;
 use operon_tools_todo_update;
 use operon_tools_web_fetch;
 use operon_tools_web_search;
-use operon_tools_memory_add;
-use operon_tools_memory_delete;
-use operon_tools_memory_edit;
-use operon_tools_memory_retrieve;
-use operon_tools_memory_search;
 use std::collections::{HashMap, HashSet};
 
 /// A registered tool: its tiered definition, group tag, and async execute function.
@@ -126,6 +121,9 @@ pub struct DispatchOutcome {
 /// ```
 pub struct Dispatcher {
     tools: HashMap<String, ToolEntry>,
+    /// Tool names for which the model has made at least one malformed call
+    /// in this session. These tools get the detailed description.
+    degraded: HashSet<String>,
     /// Tracks paths read this session for read-before-write/edit enforcement.
     read_ledger: ReadLedger,
     /// In-memory todo list for the current agent session.
@@ -143,6 +141,7 @@ impl Dispatcher {
     pub fn new() -> Self {
         Self {
             tools: HashMap::new(),
+            degraded: HashSet::new(),
             read_ledger: ReadLedger::new(),
             todo_store: operon_tools_core::TodoStore::new(),
             // When starting a new session, the model hasn't loaded any tool groups yet.
@@ -301,58 +300,6 @@ impl Dispatcher {
         );
     }
 
-    /// Registers all memory tools.
-    ///
-    /// Call this after `Dispatcher::new()` to make memory tools available.
-    /// Currently includes: memory_add, memory_delete, memory_edit, memory_retrieve, memory_search.
-    pub fn register_memory_tools(&mut self) {
-        self.register(
-            operon_tools_memory_add::definition(),
-            "memory",
-            |call_id, args, progress| async move {
-                operon_tools_memory_add::execute_with_progress(call_id, args, progress)
-                    .await
-                    .map_err(|e| e.to_string())
-            },
-        );
-        self.register(
-            operon_tools_memory_delete::definition(),
-            "memory",
-            |call_id, args, progress| async move {
-                operon_tools_memory_delete::execute_with_progress(call_id, args, progress)
-                    .await
-                    .map_err(|e| e.to_string())
-            },
-        );
-        self.register(
-            operon_tools_memory_edit::definition(),
-            "memory",
-            |call_id, args, progress| async move {
-                operon_tools_memory_edit::execute_with_progress(call_id, args, progress)
-                    .await
-                    .map_err(|e| e.to_string())
-            },
-        );
-        self.register(
-            operon_tools_memory_retrieve::definition(),
-            "memory",
-            |call_id, args, progress| async move {
-                operon_tools_memory_retrieve::execute_with_progress(call_id, args, progress)
-                    .await
-                    .map_err(|e| e.to_string())
-            },
-        );
-        self.register(
-            operon_tools_memory_search::definition(),
-            "memory",
-            |call_id, args, progress| async move {
-                operon_tools_memory_search::execute_with_progress(call_id, args, progress)
-                    .await
-                    .map_err(|e| e.to_string())
-            },
-        );
-    }
-
     /// Registers all todo tools.
     ///
     /// Call this after `Dispatcher::new()` to make todo tools available.
@@ -469,7 +416,8 @@ impl Dispatcher {
                 entry.group == "core" || self.loaded_groups.contains(entry.group)
             })
             .map(|entry| {
-                entry.tiered.for_mode(false)
+                let degraded = self.degraded.contains(entry.tiered.name());
+                entry.tiered.for_mode(degraded)
             })
     }
 
@@ -481,7 +429,7 @@ impl Dispatcher {
     pub fn definitions_for_group(
         &self,
         group: &str,
-    ) -> Vec<&ToolDefinition> {
+    ) -> Vec<&operon_context_normalize_tools::ToolDefinition> {
         self.tools
             .values()
             .filter(|entry| entry.group == group)
@@ -844,18 +792,38 @@ impl Dispatcher {
             match (entry.execute)(call_id.clone(), call.arguments, progress.clone()).await {
                 Ok(result) => result,
                 Err(reason) => {
+                    // Track whether this is the FIRST malformed call for this tool.
+                    // The runner uses newly_degraded to emit SessionEvent::ToolDegraded.
                     let reason_text = reason.clone();
-                    let result = error_result(
-                        call_id,
-                        &tool_name,
-                        &format!(
-                            "Malformed arguments for tool '{tool_name}': {reason_text}"
+                    let was_degraded = self.degraded.contains(&tool_name);
+                    self.degraded.insert(tool_name.clone());
+                    let newly_degraded = if was_degraded {
+                        None
+                    } else {
+                        Some(tool_name.clone())
+                    };
+
+                    emit_tool_progress(
+                        progress.as_ref(),
+                        ToolProgress::failed(
+                            call_id.clone(),
+                            tool_name.clone(),
+                            None,
+                            format!("{} malformed arguments: {}", tool_name, reason_text),
                         ),
                     );
 
                     return DispatchOutcome {
-                        result,
-                        newly_degraded: None,
+                        result: error_result(
+                            call_id.clone(),
+                            &tool_name,
+                            &ToolDispatchError::MalformedArgs {
+                                tool: tool_name.clone(),
+                                reason,
+                            }
+                            .to_string(),
+                        ),
+                        newly_degraded,
                     };
                 }
             };
@@ -890,6 +858,17 @@ impl Dispatcher {
         }
     }
 
+    /// Returns the set of tool names currently in degraded mode.
+    ///
+    /// Primarily useful for testing and diagnostics.
+    pub fn degraded_tools(&self) -> &HashSet<String> {
+        &self.degraded
+    }
+
+    /// Checks whether a specific tool is currently in degraded mode.
+    pub fn is_degraded(&self, tool_name: &str) -> bool {
+        self.degraded.contains(tool_name)
+    }
 
     /// Returns a reference to the read ledger.
     ///
@@ -933,29 +912,44 @@ fn error_result(call_id: ToolCallId, tool_name: &str, reason: &str) -> ToolResul
         name: tool_name.to_string(),
         content: ToolContent::Text(reason.to_string()),
         is_error: true,
-        // read_paths is None for error results — no files were successfully read.
-        read_paths: None,
     }
 }
 
-/// Records successfully-read file paths from a `read` tool result into the ledger.
+/// Extracts successfully-read file paths from a `read` tool result and
+/// records them in the ledger.
 ///
-/// The read tool populates `result.read_paths` with every path that was successfully
-/// read. We simply iterate those paths and record each one in the ledger.
+/// The `read` tool returns a JSON array of `FileReadResult` objects. Each has:
+/// - `path: String` — the file path
+/// - `success: bool` — true if the file was successfully read
+/// - `error: Option<String>` — present and non-null if the file failed to read
 ///
-/// This replaces the old approach of parsing the JSON content to find per-file
-/// `success: true` entries — now we get the paths directly from the struct field.
+/// Only paths with success=true (successfully read) are recorded.
+/// If the content is not JSON or doesn't match the expected shape, this is a
+/// no-op — we don't fail the dispatch over a ledger recording failure.
 fn record_read_paths(ledger: &mut ReadLedger, result: &ToolResult) {
-    // read_paths is Some(vec![...]) when the read tool ran. It is None for error results
-    // (malformed args, etc.) where no files were successfully read.
-    let paths = match &result.read_paths {
-        Some(p) => p,
+    // read tool returns ToolContent::Json with shape:
+    // { "files": [ { "path": "...", "success": true, "error": null }, ... ] }
+    let json = match &result.content {
+        ToolContent::Json(v) => v,
+        _ => return,
+    };
+
+    let files = match json.get("files").and_then(|f| f.as_array()) {
+        Some(arr) => arr,
         None => return,
     };
 
-    // Record each successfully-read path in the ledger so subsequent write/edit calls
-    // on those paths are permitted (read-before-write enforcement).
-    for path_str in paths {
-        ledger.record_read(std::path::Path::new(path_str));
+    for file in files {
+        // Only record if success is true (file was successfully read).
+        let is_success = file
+            .get("success")
+            .and_then(|s| s.as_bool())
+            .unwrap_or(false);
+
+        if is_success {
+            if let Some(path_str) = file.get("path").and_then(|p| p.as_str()) {
+                ledger.record_read(std::path::Path::new(path_str));
+            }
+        }
     }
 }

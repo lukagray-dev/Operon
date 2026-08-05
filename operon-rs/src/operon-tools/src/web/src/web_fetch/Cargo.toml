@@ -1,6 +1,6 @@
 [package]
 name        = "operon-tools-web-fetch"
-description = "Web fetch tool: fetches a URL and returns the page content as clean markdown."
+description = "Web fetch tool: fetches a URL and returns the page content as clean markdown. Strips navigation, ads, and boilerplate. Content capped at 20,000 characters."
 version.workspace    = true
 edition.workspace    = true
 authors.workspace    = true
@@ -14,5 +14,5 @@ serde_json.workspace                     = true
 tokio.workspace                          = true
 reqwest.workspace                        = true
 htmd.workspace                           = true
-operon-context-normalize.workspace       = true
+operon-context-normalize-tools.workspace = true
 operon-tools-core.workspace              = true

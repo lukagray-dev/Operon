@@ -54,9 +54,6 @@ pub mod request;
 /// The agent loop — `SessionRunner` lives here.
 pub mod runner;
 
-/// Module containing session submodules.
-pub mod session;
-
 /// SQLite-backed turn persistence.
 pub mod store;
 

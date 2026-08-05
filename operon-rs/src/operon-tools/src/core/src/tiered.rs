@@ -1,8 +1,7 @@
 //! Tiered tool definitions — short description for normal use,
 //! detailed description for recovery after a malformed tool call.
 
-use operon_context_normalize::tools::ToolDefinition;
-
+use operon_context_normalize_tools::ToolDefinition;
 
 /// A tool definition with two description tiers.
 ///
@@ -29,16 +28,31 @@ use operon_context_normalize::tools::ToolDefinition;
 pub struct TieredToolDefinition {
     /// Sent to the model under normal conditions.
     pub short: ToolDefinition,
+
+    /// Sent to the model after a malformed call for this tool in the current session.
+    pub detailed: ToolDefinition,
 }
 
 impl TieredToolDefinition {
-    /// The tool name.
+    /// The tool name. Guaranteed identical across both tiers.
     pub fn name(&self) -> &str {
         &self.short.name
     }
 
-    /// Returns the tool definition.
-    pub fn for_mode(&self, _degraded: bool) -> &ToolDefinition {
-        &self.short
+    /// Returns the appropriate `ToolDefinition` based on whether the tool
+    /// is currently in degraded (detailed) mode.
+    pub fn for_mode(&self, degraded: bool) -> &ToolDefinition {
+        // Enforce the invariant that both tiers have the same name.
+        debug_assert_eq!(
+            self.short.name, self.detailed.name,
+            "TieredToolDefinition name mismatch: short='{}' detailed='{}'",
+            self.short.name, self.detailed.name
+        );
+
+        if degraded {
+            &self.detailed
+        } else {
+            &self.short
+        }
     }
 }

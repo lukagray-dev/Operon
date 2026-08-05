@@ -5,9 +5,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::execute;
-    use operon_context_normalize::tools::{ToolCallId, ToolContent};
-
+    use crate::{execute, WebFetchOutput};
+    use operon_context_normalize_tools::{ToolCallId, ToolContent};
     use serde_json::json;
 
     // ============================================================================
@@ -116,12 +115,16 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                assert!(text.contains("status: 200"));
-                assert!(text.contains("title:"));
-                assert!(!text.is_empty(), "content should not be empty");
+            ToolContent::Json(json) => {
+                let output: WebFetchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebFetchOutput");
+
+                assert_eq!(output.status_code, 200);
+                assert!(!output.content.is_empty(), "content should not be empty");
+                assert!(output.title.is_some(), "title should be present");
+                assert_eq!(output.content_length, output.content.chars().count());
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
         }
     }
 
@@ -141,18 +144,45 @@ mod tests {
         // 404 is NOT a tool error — the model receives the status code.
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                assert!(text.contains("status: 404"));
-                assert!(text.contains("no content — non-success status"));
+            ToolContent::Json(json) => {
+                let output: WebFetchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebFetchOutput");
+
+                assert_eq!(output.status_code, 404);
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires network"]
+    async fn test_content_length_matches() {
+        // Verify that content_length matches the actual content length.
+        let result = execute(
+            ToolCallId("call_5".to_string()),
+            json!({
+                "url": "https://www.rust-lang.org"
+            }),
+        )
+        .await
+        .unwrap();
+
+        assert!(!result.is_error);
+        match &result.content {
+            ToolContent::Json(json) => {
+                let output: WebFetchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebFetchOutput");
+
+                assert_eq!(output.content_length, output.content.chars().count());
+            }
+            _ => panic!("expected JSON response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_truncation_flag() {
-        // Verify that truncation notice is set correctly.
+        // Verify that truncation flag is set correctly.
         // This test fetches a known large page and checks if truncation is reported.
         let result = execute(
             ToolCallId("call_6".to_string()),
@@ -165,12 +195,41 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
-                if text.contains("[truncated") {
-                    assert!(text.contains("showing first 10000]"));
+            ToolContent::Json(json) => {
+                let output: WebFetchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebFetchOutput");
+
+                // If truncated, content should be exactly 20,000 chars
+                if output.truncated {
+                    assert_eq!(output.content.chars().count(), 20_000);
+                } else {
+                    assert_eq!(output.content_length, output.content.chars().count());
                 }
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires network"]
+    async fn test_timeout_respected() {
+        // Test that timeout is respected (this may or may not timeout depending on network).
+        // We use a very short timeout to force a timeout.
+        let result = execute(
+            ToolCallId("call_7".to_string()),
+            json!({
+                "url": "https://www.rust-lang.org",
+                "timeout_ms": 1  // 1ms timeout — almost guaranteed to timeout
+            }),
+        )
+        .await
+        .unwrap();
+
+        // Should be an error due to timeout.
+        assert!(result.is_error);
+        match &result.content {
+            ToolContent::Text(msg) => assert!(msg.contains("fetch failed")),
+            _ => panic!("expected Text error"),
         }
     }
 
@@ -191,11 +250,14 @@ mod tests {
         // Should succeed (either directly or after redirect).
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Text(text) => {
+            ToolContent::Json(json) => {
+                let output: WebFetchOutput = serde_json::from_value(json.clone())
+                    .expect("failed to deserialize WebFetchOutput");
+
                 // Status should be 200 (after redirect).
-                assert!(text.contains("status: 200"));
+                assert_eq!(output.status_code, 200);
             }
-            _ => panic!("expected Text response"),
+            _ => panic!("expected JSON response"),
         }
     }
 }

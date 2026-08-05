@@ -1,8 +1,8 @@
 //! Error types for the web_search tool.
 //!
 //! This module defines all error conditions that can occur during web_search tool
-//! argument parsing. Per-search execution failures are NOT represented here — they
-//! are returned as `Ok(ToolResult { is_error: true, ... })`.
+//! argument parsing. Per-search execution failures are NOT represented here — they are
+//! returned as `Ok(ToolResult { is_error: true, ... })`.
 
 use thiserror::Error;
 
@@ -12,11 +12,10 @@ use thiserror::Error;
 /// Individual search execution failures are captured in ToolResult, not here.
 #[derive(Debug, Error)]
 pub enum WebSearchToolError {
-    /// Failed to parse the tool arguments from the plain-text attr map.
+    /// Failed to deserialize the tool arguments JSON into WebSearchArgs.
     ///
-    /// This occurs when the model sends a call missing the required `query`
-    /// attribute, or provides `max` with a non-integer value.
-    /// The inner String is a human-readable description of what went wrong.
-    #[error("failed to parse tool arguments: {0}")]
-    ArgsParse(String),
+    /// This occurs when the model sends malformed JSON or a shape that doesn't
+    /// match the WebSearchArgs schema (e.g., missing "query" field, wrong types).
+    #[error("failed to deserialize tool arguments: {0}")]
+    ArgsParse(#[from] serde_json::Error),
 }

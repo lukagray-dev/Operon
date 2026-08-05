@@ -12,9 +12,10 @@ use thiserror::Error;
 /// Individual validation failures are captured in ToolResult, not here.
 #[derive(Debug, Error)]
 pub enum TodoCreateToolError {
-    /// Failed to parse the tool arguments from the plain-text attr map.
+    /// Failed to deserialize the tool arguments JSON into TodoCreateArgs.
     ///
-    /// The inner String is a human-readable description of what went wrong.
-    #[error("failed to parse tool arguments: {0}")]
-    ArgsParse(String),
+    /// This occurs when the model sends malformed JSON or a shape that doesn't
+    /// match the TodoCreateArgs schema (e.g., missing "content" field, wrong types).
+    #[error("failed to deserialize tool arguments: {0}")]
+    ArgsParse(#[from] serde_json::Error),
 }
