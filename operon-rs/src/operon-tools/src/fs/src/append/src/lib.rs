@@ -66,7 +66,7 @@ pub fn definition() -> TieredToolDefinition {
             },
             "content": {
                 "type": "string",
-                "description": "Text to append. Appended as-is — include a leading newline if needed."
+                "description": "Text to append (standard string with \\n line breaks). Include leading \\n if a newline separator is needed."
             }
         },
         "required": ["path", "content"]
@@ -75,166 +75,27 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "append".to_string(),
-            description: "Appends text to the end of an existing file. Pass `path` (absolute path to an \
-                          existing file) and `content` (text to append). The file must already exist — \
-                          use the write tool to create new files. Never modifies existing content. \
-                          Does not require reading the file first."
+            description: "Appends text to the end of an existing file. Pass `path` (existing file path) \
+                          and `content` (text to append with normal \\n line breaks; include leading \\n if separating newline is needed). \
+                          The file must exist (use write for new files). Returns plain-text confirmation header."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "append".to_string(),
             description: "\
-Appends text to the end of an existing file without modifying or reading existing content. \
-The file must already exist — if it doesn't, the tool returns an error. Use the write tool to create new files.
+Appends text content to the end of an existing file.
 
-## Input shapes
+## Parameters
 
-`path` (required, string): Absolute path to an existing file to append to. The file must already exist. \
-If the file does not exist, the tool returns an error and nothing is appended. If the path is a directory, \
-the tool returns an error.
+- `path` (required): Absolute path to an existing file.
+- `content` (required): Non-empty text content to append. Standard string with normal \\n line breaks. \
+If a separating newline is needed before the new content, include it at the start of `content`.
 
-`content` (required, string): Text to append to the end of the file. Appended as-is — no automatic newline \
-insertion. If a newline separator is needed between the existing content and the new content, include it \
-at the start of this string. The content must be non-empty — appending empty content is an error.
+## Output format
 
-## Worked examples
-
-### Appending a new line to a log file
-```json
-{
-  \"path\": \"/var/log/app.log\",
-  \"content\": \"[2025-05-29] New log entry\\n\"
-}
-```
-
-Result: The log entry is appended to the end of the file. Existing log entries are untouched.
-
-### Appending to a file without a trailing newline
-```json
-{
-  \"path\": \"/path/to/file.txt\",
-  \"content\": \"\\nNew line\"
-}
-```
-
-Result: A newline is inserted first (from the content string), then \"New line\" is appended. \
-This ensures the new content starts on a fresh line.
-
-### Appending without a leading newline (concatenation)
-```json
-{
-  \"path\": \"/path/to/file.txt\",
-  \"content\": \"more text\"
-}
-```
-
-Result: \"more text\" is appended directly to the end of the file, even if the file doesn't end with a newline. \
-The appended text will run onto the last line of the file.
-
-## File must exist
-
-This tool does not create files. If the file doesn't exist, the tool returns an error:
-```
-file does not exist: /path/to/file.txt. Use the write tool to create new files.
-```
-
-To create the file first, use the write tool.
-
-## Non-destructive operation
-
-The append tool is non-destructive — existing content is never modified or read. Unlike the write tool \
-(which requires sending the entire file content) or the edit tool (which requires reading the file first), \
-append only needs the new content. This makes it ideal for:
-- Adding entries to logs or accumulating output
-- Appending to configuration files
-- Building up file content incrementally
-
-## Output fields
-
-- `path`: The file path (echoed back for correlation).
-- `bytes_appended`: The number of bytes appended (length of the content string in UTF-8).
-- `total_bytes`: The total file size in bytes after the append.
-- `message`: Human-readable summary (\"Appended N bytes to path/to/file.ext (total: M bytes)\").
-
-## When to use append vs write vs edit
-
-Use `append` for:
-- Adding new lines to an existing file (logs, accumulating output, adding entries to a list)
-- Cheapest operation — no read needed, no temp file needed
-- Building up file content incrementally
-
-Use `write` for:
-- Creating a new file
-- Replacing entire file content
-- When you need to send the complete file content
-
-Use `edit` for:
-- Modifying specific lines within a file
-- Precise, targeted changes to existing content
-- When you want to preserve most of the file and only change specific regions
-
-**Important**: Using `write` to make a small change to an existing file requires sending the entire file content, \
-which is inefficient. Use `edit` instead — it only needs the changed region. Using `append` is even cheaper \
-if you're just adding to the end.
-
-## Common mistakes
-
-### Mistake #1: File doesn't exist
-```json
-{
-  \"path\": \"/tmp/does_not_exist_xyz/file.txt\",
-  \"content\": \"content\"
-}
-```
-
-Error: \"file does not exist: /tmp/does_not_exist_xyz/file.txt. Use the write tool to create new files.\"
-
-Fix: Use the write tool to create the file first, then append to it.
-
-### Mistake #2: Forgetting the leading newline
-If the existing file doesn't end with a newline, and you want the appended content on a new line, \
-include a leading newline in the content:
-
-```json
-{
-  \"path\": \"/path/to/file.txt\",
-  \"content\": \"\\nNew line\"
-}
-```
-
-Without the leading newline, the appended text will run onto the last line of the file.
-
-### Mistake #3: Appending empty content
-```json
-{
-  \"path\": \"/path/to/file.txt\",
-  \"content\": \"\"
-}
-```
-
-Error: \"content is empty — nothing to append\"
-
-Fix: Only append non-empty content.
-
-### Mistake #4: Trying to append to a directory
-```json
-{
-  \"path\": \"/path/to/directory\",
-  \"content\": \"content\"
-}
-```
-
-Error: \"path is a directory, not a file: /path/to/directory\"
-
-Fix: Ensure the path points to a file, not a directory.
-
-## Error messages
-
-- \"file does not exist: ...\" → Use the write tool to create the file first.
-- \"path is a directory, not a file: ...\" → Ensure the path points to a file.
-- \"content is empty — nothing to append\" → Only append non-empty content.
-- \"failed to append to file: ...\" → I/O error (permission denied, disk full, etc.). File was not modified."
+Returns a plain text confirmation header:
+=== /path/to/file.txt (appended 64 bytes, total 512 bytes) ==="
                 .to_string(),
             parameters,
         },

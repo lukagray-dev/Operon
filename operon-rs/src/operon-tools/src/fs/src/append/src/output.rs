@@ -23,3 +23,14 @@ pub struct AppendOutput {
     /// Human-readable summary: "Appended N bytes to path/to/file.ext (total: M bytes)"
     pub message: String,
 }
+
+impl AppendOutput {
+    /// Formats the append output as raw plain text with a status header.
+    pub fn to_plain_text(&self) -> String {
+        format!(
+            "=== {} (appended {} bytes, total {} bytes) ===",
+            self.path, self.bytes_appended, self.total_bytes
+        )
+    }
+}
+

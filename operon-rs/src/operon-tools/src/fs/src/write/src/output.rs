@@ -25,3 +25,12 @@ pub struct WriteOutput {
     /// On overwrite: "Overwrote path/to/file.ext (N bytes)"
     pub message: String,
 }
+
+impl WriteOutput {
+    /// Formats the write output as raw plain text with a status header.
+    pub fn to_plain_text(&self) -> String {
+        let status = if self.created { "created" } else { "overwritten" };
+        format!("=== {} ({}, {} bytes) ===", self.path, status, self.bytes_written)
+    }
+}
+

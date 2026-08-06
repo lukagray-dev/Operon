@@ -927,28 +927,55 @@ fn error_result(call_id: ToolCallId, tool_name: &str, reason: &str) -> ToolResul
 /// If the content is not JSON or doesn't match the expected shape, this is a
 /// no-op — we don't fail the dispatch over a ledger recording failure.
 fn record_read_paths(ledger: &mut ReadLedger, result: &ToolResult) {
-    // read tool returns ToolContent::Json with shape:
-    // { "files": [ { "path": "...", "success": true, "error": null }, ... ] }
-    let json = match &result.content {
-        ToolContent::Json(v) => v,
-        _ => return,
-    };
+    match &result.content {
+        ToolContent::Text(text) => {
+            // Parse plain-text section headers produced by ReadOutput::to_plain_text().
+            // Header format: "=== <path> (...) ===" or "=== <path> ==="
+            // If the section failed, the next line starts with "Error:".
+            let lines: Vec<&str> = text.lines().collect();
+            let mut idx = 0;
+            while idx < lines.len() {
+                let line = lines[idx];
+                if line.starts_with("=== ") && line.ends_with(" ===") {
+                    let header_inner = &line[4..line.len() - 4];
+                    // Extract path (everything before optional space or '(')
+                    let path_str = if let Some(space_idx) = header_inner.find(" (") {
+                        &header_inner[..space_idx]
+                    } else {
+                        header_inner
+                    };
 
-    let files = match json.get("files").and_then(|f| f.as_array()) {
-        Some(arr) => arr,
-        None => return,
-    };
+                    // Check if next line is an error line
+                    let has_error = if idx + 1 < lines.len() {
+                        lines[idx + 1].starts_with("Error:")
+                    } else {
+                        false
+                    };
 
-    for file in files {
-        // Only record if success is true (file was successfully read).
-        let is_success = file
-            .get("success")
-            .and_then(|s| s.as_bool())
-            .unwrap_or(false);
+                    if !has_error {
+                        ledger.record_read(std::path::Path::new(path_str));
+                    }
+                }
+                idx += 1;
+            }
+        }
+        ToolContent::Json(v) => {
+            let files = match v.get("files").and_then(|f| f.as_array()) {
+                Some(arr) => arr,
+                None => return,
+            };
 
-        if is_success {
-            if let Some(path_str) = file.get("path").and_then(|p| p.as_str()) {
-                ledger.record_read(std::path::Path::new(path_str));
+            for file in files {
+                let is_success = file
+                    .get("success")
+                    .and_then(|s| s.as_bool())
+                    .unwrap_or(false);
+
+                if is_success {
+                    if let Some(path_str) = file.get("path").and_then(|p| p.as_str()) {
+                        ledger.record_read(std::path::Path::new(path_str));
+                    }
+                }
             }
         }
     }

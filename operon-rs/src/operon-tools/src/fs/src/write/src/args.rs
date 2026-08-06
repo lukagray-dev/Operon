@@ -13,15 +13,10 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct WriteArgs {
     /// Absolute path to the file to create or overwrite.
-    /// The parent directory must already exist — this tool does not create
-    /// intermediate directories. If the parent doesn't exist, the tool returns
-    /// an error and the file is not modified.
+    /// The parent directory must already exist.
     pub path: String,
 
-    /// Full content to write to the file.
-    /// For text files, this is the complete file content as a UTF-8 string.
-    /// Existing content is completely replaced — this tool does not append or merge.
-    /// The content is written atomically: if the write fails mid-operation, the
-    /// original file (if it existed) is untouched.
+    /// Complete text content to write to the file. Existing content is fully replaced.
+    /// Provide the text naturally with standard \n line breaks.
     pub content: String,
 }

@@ -144,9 +144,7 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "append".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
-            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
-        )),
+        content: ToolContent::Text(output.to_plain_text()),
         is_error: false,
     }
 }

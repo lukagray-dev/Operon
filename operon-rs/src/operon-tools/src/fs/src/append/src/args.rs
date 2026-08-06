@@ -12,14 +12,11 @@ use serde::Deserialize;
 /// Use the write tool to create new files.
 #[derive(Debug, Deserialize)]
 pub struct AppendArgs {
-    /// Absolute path to the file to append to.
+    /// Absolute path to an existing file to append to.
     /// The file must already exist — use the write tool to create new files.
-    /// If the file does not exist, the tool returns an error and nothing is appended.
     pub path: String,
 
-    /// Text to append to the end of the file.
-    /// Appended as-is — if a trailing newline separator is needed before the
-    /// new content, include it at the start of this string.
-    /// The content must be non-empty — appending empty content is an error.
+    /// Text content to append to the end of the file. Provide text naturally with normal \n line breaks.
+    /// Appended as-is — if a separating newline is needed before the new content, include it at the start of this string.
     pub content: String,
 }

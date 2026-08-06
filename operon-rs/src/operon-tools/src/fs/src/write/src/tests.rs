@@ -18,14 +18,37 @@ fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String
     }
 }
 
-/// Helper to extract and deserialize WriteOutput from a ToolResult.
-fn get_output(result: &operon_context_normalize_tools::ToolResult) -> WriteOutput {
+/// Helper to extract text from a ToolResult.
+fn get_output_text(result: &operon_context_normalize_tools::ToolResult) -> String {
     match &result.content {
-        ToolContent::Json(v) => {
-            serde_json::from_value(v.clone()).expect("failed to deserialize WriteOutput")
-        }
-        other => panic!("expected Json content for success, got {:?}", other),
+        ToolContent::Text(t) => t.clone(),
+        other => panic!("expected Text content for tool result, got {:?}", other),
     }
+}
+
+#[test]
+fn test_to_plain_text_formatting() {
+    let out_created = WriteOutput {
+        path: "/tmp/foo.txt".to_string(),
+        created: true,
+        bytes_written: 42,
+        message: "Created /tmp/foo.txt (42 bytes)".to_string(),
+    };
+    assert_eq!(
+        out_created.to_plain_text(),
+        "=== /tmp/foo.txt (created, 42 bytes) ==="
+    );
+
+    let out_overwritten = WriteOutput {
+        path: "/tmp/foo.txt".to_string(),
+        created: false,
+        bytes_written: 100,
+        message: "Overwrote /tmp/foo.txt (100 bytes)".to_string(),
+    };
+    assert_eq!(
+        out_overwritten.to_plain_text(),
+        "=== /tmp/foo.txt (overwritten, 100 bytes) ==="
+    );
 }
 
 // ============================================================================
@@ -56,10 +79,9 @@ async fn test_create_new_file() {
 
     // Verify success.
     assert!(!result.is_error, "write should succeed");
-    let output = get_output(&result);
-    assert!(output.created, "created should be true for new file");
-    assert_eq!(output.bytes_written, content.len());
-    assert!(output.message.contains("Created"));
+    let text = get_output_text(&result);
+    assert!(text.contains("created"));
+    assert!(text.contains(&format!("{} bytes", content.len())));
 
     // Verify file exists and has correct content.
     assert!(file_path.exists());
@@ -93,10 +115,9 @@ async fn test_overwrite_existing_file() {
 
     // Verify success.
     assert!(!result.is_error, "write should succeed");
-    let output = get_output(&result);
-    assert!(!output.created, "created should be false for overwrite");
-    assert_eq!(output.bytes_written, new_content.len());
-    assert!(output.message.contains("Overwrote"));
+    let text = get_output_text(&result);
+    assert!(text.contains("overwritten"));
+    assert!(text.contains(&format!("{} bytes", new_content.len())));
 
     // Verify file content changed.
     let file_content = fs::read_to_string(&path).unwrap();
@@ -128,9 +149,9 @@ async fn test_bytes_written_correct() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(
-        output.bytes_written, expected_bytes,
+    let text = get_output_text(&result);
+    assert!(
+        text.contains(&format!("{} bytes", expected_bytes)),
         "bytes_written should match UTF-8 byte count"
     );
 }
@@ -188,9 +209,9 @@ async fn test_empty_content() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(output.bytes_written, 0);
-    assert!(output.created);
+    let text = get_output_text(&result);
+    assert!(text.contains("0 bytes"));
+    assert!(text.contains("created"));
 
     // Verify file exists and is empty.
     let file_content = fs::read_to_string(&file_path).unwrap();
@@ -214,10 +235,10 @@ async fn test_message_create_vs_overwrite() {
     .await
     .unwrap();
 
-    let output = get_output(&result);
+    let text1 = get_output_text(&result);
     assert!(
-        output.message.contains("Created"),
-        "message should contain 'Created' for new file"
+        text1.contains("created"),
+        "text should contain 'created' for new file"
     );
 
     // Test overwrite message.
@@ -231,10 +252,10 @@ async fn test_message_create_vs_overwrite() {
     .await
     .unwrap();
 
-    let output = get_output(&result);
+    let text2 = get_output_text(&result);
     assert!(
-        output.message.contains("Overwrote"),
-        "message should contain 'Overwrote' for existing file"
+        text2.contains("overwritten"),
+        "text should contain 'overwritten' for existing file"
     );
 }
 
@@ -355,8 +376,8 @@ async fn test_large_content() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(output.bytes_written, 1024 * 1024);
+    let text = get_output_text(&result);
+    assert!(text.contains("1048576 bytes"));
 
     // Verify file content.
     let file_content = fs::read_to_string(&file_path).unwrap();
@@ -432,8 +453,8 @@ async fn test_overwrite_with_shorter_content() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(output.bytes_written, new_content.len());
+    let text = get_output_text(&result);
+    assert!(text.contains(&format!("{} bytes", new_content.len())));
 
     // Verify file content is exactly the new content (not padded or partial).
     let file_content = fs::read_to_string(&path).unwrap();
@@ -462,8 +483,8 @@ async fn test_overwrite_with_longer_content() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(output.bytes_written, new_content.len());
+    let text = get_output_text(&result);
+    assert!(text.contains(&format!("{} bytes", new_content.len())));
 
     // Verify file content is exactly the new content.
     let file_content = fs::read_to_string(&path).unwrap();
@@ -487,8 +508,8 @@ async fn test_path_echoed_in_output() {
     .await
     .unwrap();
 
-    let output = get_output(&result);
-    assert_eq!(output.path, path, "path should be echoed back in output");
+    let text = get_output_text(&result);
+    assert!(text.contains(&path), "path should be echoed back in output header");
 }
 
 #[tokio::test]
@@ -510,8 +531,8 @@ async fn test_sequential_writes_to_same_file() {
     .unwrap();
 
     assert!(!result1.is_error);
-    let output1 = get_output(&result1);
-    assert!(output1.created);
+    let text1 = get_output_text(&result1);
+    assert!(text1.contains("created"));
 
     // Second write (overwrite).
     let result2 = execute(
@@ -525,8 +546,8 @@ async fn test_sequential_writes_to_same_file() {
     .unwrap();
 
     assert!(!result2.is_error);
-    let output2 = get_output(&result2);
-    assert!(!output2.created);
+    let text2 = get_output_text(&result2);
+    assert!(text2.contains("overwritten"));
 
     // Third write (overwrite again).
     let result3 = execute(
@@ -540,8 +561,8 @@ async fn test_sequential_writes_to_same_file() {
     .unwrap();
 
     assert!(!result3.is_error);
-    let output3 = get_output(&result3);
-    assert!(!output3.created);
+    let text3 = get_output_text(&result3);
+    assert!(text3.contains("overwritten"));
 
     // Verify final content.
     let file_content = fs::read_to_string(&file_path).unwrap();

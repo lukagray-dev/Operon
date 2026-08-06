@@ -18,14 +18,26 @@ fn get_error_text(result: &operon_context_normalize_tools::ToolResult) -> String
     }
 }
 
-/// Helper to extract and deserialize AppendOutput from a ToolResult.
-fn get_output(result: &operon_context_normalize_tools::ToolResult) -> AppendOutput {
+/// Helper to extract text from a ToolResult.
+fn get_output_text(result: &operon_context_normalize_tools::ToolResult) -> String {
     match &result.content {
-        ToolContent::Json(v) => {
-            serde_json::from_value(v.clone()).expect("failed to deserialize AppendOutput")
-        }
-        other => panic!("expected Json content for success, got {:?}", other),
+        ToolContent::Text(t) => t.clone(),
+        other => panic!("expected Text content for tool result, got {:?}", other),
     }
+}
+
+#[test]
+fn test_to_plain_text_formatting() {
+    let out = AppendOutput {
+        path: "/tmp/foo.txt".to_string(),
+        bytes_appended: 20,
+        total_bytes: 120,
+        message: "Appended 20 bytes to /tmp/foo.txt (total: 120 bytes)".to_string(),
+    };
+    assert_eq!(
+        out.to_plain_text(),
+        "=== /tmp/foo.txt (appended 20 bytes, total 120 bytes) ==="
+    );
 }
 
 // ============================================================================
@@ -54,12 +66,9 @@ async fn test_basic_append() {
 
     // Verify success.
     assert!(!result.is_error, "append should succeed");
-    let output = get_output(&result);
-    assert_eq!(output.bytes_appended, append_content.len());
-    assert_eq!(
-        output.total_bytes,
-        (initial_content.len() + append_content.len()) as u64
-    );
+    let text = get_output_text(&result);
+    assert!(text.contains("appended 7 bytes"));
+    assert!(text.contains("total 14 bytes"));
 
     // Verify file content.
     let file_content = fs::read_to_string(&path).unwrap();
@@ -85,8 +94,8 @@ async fn test_multiple_appends() {
     .unwrap();
 
     assert!(!result1.is_error);
-    let output1 = get_output(&result1);
-    assert_eq!(output1.bytes_appended, "first append\n".len());
+    let text1 = get_output_text(&result1);
+    assert!(text1.contains("appended 13 bytes"));
 
     // Second append.
     let result2 = execute(
@@ -100,8 +109,8 @@ async fn test_multiple_appends() {
     .unwrap();
 
     assert!(!result2.is_error);
-    let output2 = get_output(&result2);
-    assert_eq!(output2.bytes_appended, "second append\n".len());
+    let text2 = get_output_text(&result2);
+    assert!(text2.contains("appended 14 bytes"));
 
     // Third append.
     let result3 = execute(
@@ -115,8 +124,8 @@ async fn test_multiple_appends() {
     .unwrap();
 
     assert!(!result3.is_error);
-    let output3 = get_output(&result3);
-    assert_eq!(output3.bytes_appended, "third append\n".len());
+    let text3 = get_output_text(&result3);
+    assert!(text3.contains("appended 13 bytes"));
 
     // Verify all content is present in correct order.
     let file_content = fs::read_to_string(&path).unwrap();
@@ -201,9 +210,9 @@ async fn test_bytes_appended_unicode() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(
-        output.bytes_appended, expected_bytes,
+    let text = get_output_text(&result);
+    assert!(
+        text.contains(&format!("appended {} bytes", expected_bytes)),
         "bytes_appended should match UTF-8 byte count"
     );
 }
@@ -229,10 +238,10 @@ async fn test_total_bytes_accurate() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
+    let text = get_output_text(&result);
     let expected_total = (initial_content.len() + append_content.len()) as u64;
-    assert_eq!(
-        output.total_bytes, expected_total,
+    assert!(
+        text.contains(&format!("total {} bytes", expected_total)),
         "total_bytes should equal initial + appended"
     );
 }
@@ -257,8 +266,8 @@ async fn test_append_to_empty_file() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(output.total_bytes, append_content.len() as u64);
+    let text = get_output_text(&result);
+    assert!(text.contains(&format!("total {} bytes", append_content.len())));
 
     // Verify file content.
     let file_content = fs::read_to_string(&path).unwrap();
@@ -282,8 +291,8 @@ async fn test_path_echoed_in_output() {
     .await
     .unwrap();
 
-    let output = get_output(&result);
-    assert_eq!(output.path, path, "path should be echoed back in output");
+    let text = get_output_text(&result);
+    assert!(text.contains(&path), "path should be echoed back in output");
 }
 
 #[tokio::test]
@@ -304,18 +313,18 @@ async fn test_message_format() {
     .await
     .unwrap();
 
-    let output = get_output(&result);
+    let text = get_output_text(&result);
     assert!(
-        output.message.contains("Appended"),
-        "message should contain 'Appended'"
+        text.contains("appended"),
+        "text should contain 'appended'"
     );
     assert!(
-        output.message.contains(&path),
-        "message should contain the file path"
+        text.contains(&path),
+        "text should contain the file path"
     );
     assert!(
-        output.message.contains("bytes"),
-        "message should mention bytes"
+        text.contains("bytes"),
+        "text should mention bytes"
     );
 }
 
@@ -469,8 +478,8 @@ async fn test_large_append() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(output.bytes_appended, 1024 * 1024);
+    let text = get_output_text(&result);
+    assert!(text.contains("1048576 bytes"));
 
     // Verify file content includes both initial and appended.
     let file_content = fs::read_to_string(&path).unwrap();
@@ -546,8 +555,8 @@ async fn test_append_only_newline() {
     .unwrap();
 
     assert!(!result.is_error);
-    let output = get_output(&result);
-    assert_eq!(output.bytes_appended, 1);
+    let text = get_output_text(&result);
+    assert!(text.contains("appended 1 bytes"));
 
     let file_content = fs::read_to_string(&path).unwrap();
     assert_eq!(file_content, "line 1\n");

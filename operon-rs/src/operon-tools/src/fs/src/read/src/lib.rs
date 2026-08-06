@@ -155,6 +155,11 @@ pub async fn execute_with_progress(
 ) -> Result<ToolResult, ReadToolError> {
     // Deserialize the arguments. If this fails, return an ArgsParse error.
     let args: ReadArgs = serde_json::from_value(args_json)?;
+    if args.path.is_none() && args.paths.is_none() {
+        return Err(ReadToolError::ArgsParse(serde::de::Error::custom(
+            "must provide either 'path' or 'paths'",
+        )));
+    }
 
     emit_tool_progress(
         progress.as_ref(),
