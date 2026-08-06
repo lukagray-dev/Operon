@@ -5,7 +5,7 @@ The `read` tool for the Operon agent's filesystem group. Reads one or multiple f
 ## Features
 
 - **Inline string line ranges**: Specify ranges directly in path strings (`"src/main.rs:10-40"`, `"src/lib.rs:5-EOF"`, `"src/args.rs:15"`)
-- **Single file & batch reading**: Accepts top-level `path`, `start_line`, `end_line` or `paths` array
+- **Single file & batch reading**: Accepts top-level string `path` or `paths` array
 - **Absolute path enforcement**: Requires absolute paths to avoid working directory ambiguity
 - **Token-optimized plain text output**: Omits per-line line numbers in `read` responses to reduce token overhead
 - **Binary file detection**: Automatically detects and rejects binary files (images, executables, etc.)

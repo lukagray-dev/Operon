@@ -61,44 +61,14 @@ pub fn definition() -> TieredToolDefinition {
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path to read a single file. Can include inline range suffix like 'src/main.rs:10-40', 'src/main.rs:5-EOF', or 'src/main.rs:15'."
-            },
-            "start_line": {
-                "type": "integer",
-                "description": "Optional start line for single file path (1-indexed, inclusive)."
-            },
-            "end_line": {
-                "type": "integer",
-                "description": "Optional end line for single file path (1-indexed, inclusive)."
+                "description": "Path string to read a single file, with optional inline range suffix (e.g. 'D:\\src\\main.rs:10-40', 'D:\\src\\main.rs:5-EOF', 'D:\\src\\main.rs:15', or 'D:\\src\\main.rs')."
             },
             "paths": {
                 "type": "array",
-                "description": "Files to read. Items can be path strings (with optional inline ranges like 'a.rs:10-40') or objects with path + start_line/end_line.",
+                "description": "Array of path strings to read in batch, each with optional inline range suffix (e.g. ['D:\\a.rs:10-40', 'D:\\b.rs:5-EOF', 'D:\\c.rs']).",
                 "items": {
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "description": "Path string, optionally with range suffix like 'src/main.rs:10-40', 'src/main.rs:5-EOF', or 'src/main.rs'."
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "path": {
-                                    "type": "string",
-                                    "description": "Absolute or relative path to the file."
-                                },
-                                "start_line": {
-                                    "type": "integer",
-                                    "description": "First line to return (1-indexed, inclusive)."
-                                },
-                                "end_line": {
-                                    "type": "integer",
-                                    "description": "Last line to return (1-indexed, inclusive)."
-                                }
-                            },
-                            "required": ["path"]
-                        }
-                    ]
+                    "type": "string",
+                    "description": "Path string with optional inline range suffix like 'D:\\src\\main.rs:10-40', 'D:\\src\\main.rs:5-EOF', or 'D:\\src\\main.rs'."
                 }
             }
         }
@@ -120,16 +90,13 @@ Reads one or multiple files in a single call. Returns raw plain text with sectio
 
 ## Input shapes
 
-1. Inline string range (Recommended):
-   `\"src/main.rs:10-40\"`   ← lines 10 to 40
-   `\"src/main.rs:5-EOF\"`   ← line 5 to end of file
-   `\"src/main.rs:15\"`      ← line 15 only
-   `\"src/main.rs\"`         ← full file read
+1. Single file path string with optional range:
+   `{\"path\": \"src/main.rs:10-40\"}`   ← lines 10 to 40
+   `{\"path\": \"src/main.rs:5-EOF\"}`   ← line 5 to end of file
+   `{\"path\": \"src/main.rs:15\"}`      ← line 15 only
+   `{\"path\": \"src/main.rs\"}`         ← full file read
 
-2. Root-level parameters:
-   `{\"path\": \"src/main.rs\", \"start_line\": 10, \"end_line\": 40}`
-
-3. Array of paths:
+2. Array of path strings with optional ranges:
    `{\"paths\": [\"src/a.rs:10-40\", \"src/b.rs:5-EOF\", \"src/c.rs\"]}`
 
 ## Response format
@@ -142,6 +109,7 @@ Returns plain text with headers for each file:
         },
     }
 }
+
 
 
 /// Deserializes `args_json` and executes the read tool.

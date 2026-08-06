@@ -10,31 +10,25 @@ use tempfile::TempDir;
 fn setup_test_dir() -> TempDir {
     let dir = TempDir::new().unwrap();
 
-    // Create a simple text file
     let simple_path = dir.path().join("simple.txt");
     fs::write(&simple_path, "line 1\nline 2\nline 3\nline 4\nline 5\n").unwrap();
 
-    // Create a file without trailing newline
     let no_newline_path = dir.path().join("no_newline.txt");
     fs::write(&no_newline_path, "line 1\nline 2\nline 3").unwrap();
 
-    // Create a binary file (with null bytes)
     let binary_path = dir.path().join("binary.bin");
     fs::write(&binary_path, b"hello\x00world").unwrap();
 
-    // Create a large file (over 1 MB)
     let large_path = dir.path().join("large.txt");
-    let large_content = "x".repeat(1_048_577); // 1 MB + 1 byte
+    let large_content = "x".repeat(1_048_577);
     fs::write(&large_path, large_content).unwrap();
 
-    // Create an empty file
     let empty_path = dir.path().join("empty.txt");
     fs::write(&empty_path, "").unwrap();
 
     dir
 }
 
-/// Helper to extract text from a ToolResult.
 fn extract_text(result: operon_context_normalize_tools::ToolResult) -> String {
     match result.content {
         ToolContent::Text(t) => t,
@@ -92,7 +86,7 @@ async fn test_read_single_file_full() {
     let path = dir.path().join("simple.txt");
 
     let args = json!({
-        "paths": [path.to_str().unwrap()]
+        "path": path.to_str().unwrap()
     });
 
     let result = execute(ToolCallId("test_1".to_string()), args)
@@ -128,27 +122,6 @@ async fn test_read_multiple_files_with_string_ranges() {
     assert!(text.contains("line 2\nline 3\nline 4"));
     assert!(text.contains(&format!("=== {} (lines 2-3 of 3) ===", path2.to_str().unwrap())));
     assert!(text.contains("line 2\nline 3"));
-}
-
-#[tokio::test]
-async fn test_read_root_level_params() {
-    let dir = setup_test_dir();
-    let path = dir.path().join("simple.txt");
-
-    let args = json!({
-        "path": path.to_str().unwrap(),
-        "start_line": 2,
-        "end_line": 4
-    });
-
-    let result = execute(ToolCallId("test_3".to_string()), args)
-        .await
-        .unwrap();
-    assert!(!result.is_error);
-
-    let text = extract_text(result);
-    assert!(text.contains(&format!("=== {} (lines 2-4 of 5) ===", path.to_str().unwrap())));
-    assert!(text.contains("line 2\nline 3\nline 4"));
 }
 
 #[tokio::test]

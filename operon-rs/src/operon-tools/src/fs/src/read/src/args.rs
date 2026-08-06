@@ -1,18 +1,17 @@
 /// Argument types for the read tool.
 ///
 /// This module defines the deserialization schema for the read tool's input.
-/// The tool accepts root-level single file parameters or a list of path targets
-/// (which can be string paths with optional `:start-end` ranges or objects).
+/// The tool accepts string paths with optional `:start-end` line ranges
+/// (e.g., `"src/main.rs:10-40"`, `"src/main.rs:5-EOF"`, `"src/main.rs:15"`, `"src/main.rs"`).
 use serde::Deserialize;
 
 /// A single read target — a path with an optional line range.
 ///
-/// Supports string paths with optional range suffixes (`"src/main.rs:10-40"`,
-/// `"src/main.rs:5-EOF"`, `"src/main.rs:15"`, `"src/main.rs"`) and objects
-/// with explicit `path`, `start_line`, and `end_line` fields.
+/// Deserializes from path strings containing optional range suffixes (`"src/main.rs:10-40"`,
+/// `"src/main.rs:5-EOF"`, `"src/main.rs:15"`, `"src/main.rs"`).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReadTarget {
-    /// Absolute or relative path to the file.
+    /// Absolute path to the file.
     pub path: String,
 
     /// Optional start line (1-indexed, inclusive). If omitted, starts from line 1.
@@ -22,46 +21,13 @@ pub struct ReadTarget {
     pub end_line: Option<usize>,
 }
 
-/// Internal helper for untagged deserialization of ReadTarget.
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum RawTarget {
-    /// Plain string path — may contain `:start-end`, `:start-EOF`, or `:line` suffix.
-    Str(String),
-    /// Object with path and optional line range fields.
-    Obj(ReadTargetObj),
-}
-
-/// The object variant of a read target, with explicit fields.
-#[derive(Deserialize)]
-struct ReadTargetObj {
-    /// Absolute or relative path to the file.
-    path: String,
-    /// Optional start line (1-indexed, inclusive).
-    start_line: Option<usize>,
-    /// Optional end line (1-indexed, inclusive).
-    end_line: Option<usize>,
-}
-
 impl<'de> Deserialize<'de> for ReadTarget {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let raw = RawTarget::deserialize(deserializer)?;
-        Ok(match raw {
-            RawTarget::Str(path) => parse_string_target(&path),
-            RawTarget::Obj(obj) => {
-                let mut target = parse_string_target(&obj.path);
-                if obj.start_line.is_some() {
-                    target.start_line = obj.start_line;
-                }
-                if obj.end_line.is_some() {
-                    target.end_line = obj.end_line;
-                }
-                target
-            }
-        })
+        let path = String::deserialize(deserializer)?;
+        Ok(parse_string_target(&path))
     }
 }
 
@@ -115,20 +81,14 @@ pub fn parse_string_target(s: &str) -> ReadTarget {
 /// Top-level args the model sends when calling the `read` tool.
 ///
 /// Accepts:
-/// - `{ "path": "a.rs", "start_line": 10, "end_line": 40 }` — single file
-/// - `{ "paths": ["a.rs:10-40", "b.rs:5-EOF", "c.rs"] }` — batch with string ranges
-/// - `{ "paths": [{ "path": "a.rs", "start_line": 10, "end_line": 40 }] }` — batch objects
+/// - `{ "path": "D:\\path\\file.rs:10-40" }` — single file with inline range
+/// - `{ "paths": ["D:\\path\\a.rs:10-40", "D:\\path\\b.rs:5-EOF", "D:\\path\\c.rs"] }` — batch files
 #[derive(Debug, Deserialize)]
 pub struct ReadArgs {
-    /// Optional single file path passed at top level.
+    /// Optional single file path (with optional inline range like `"file.rs:10-40"`).
     pub path: Option<String>,
-    /// Optional start line for single file path.
-    pub start_line: Option<usize>,
-    /// Optional end line for single file path.
-    pub end_line: Option<usize>,
 
-    /// List of files to read. Each entry can be a string path (with optional `:start-end` suffix)
-    /// or an object with `path` + optional `start_line`/`end_line`.
+    /// List of file paths to read (with optional inline ranges like `"file.rs:10-40"`).
     pub paths: Option<Vec<ReadTarget>>,
 }
 
@@ -142,18 +102,10 @@ impl ReadArgs {
 
     /// Normalizes inputs into a list of `ReadTarget` items.
     pub fn into_targets(self) -> Vec<ReadTarget> {
-
         let mut targets = Vec::new();
 
         if let Some(path_str) = self.path {
-            let mut target = parse_string_target(&path_str);
-            if self.start_line.is_some() {
-                target.start_line = self.start_line;
-            }
-            if self.end_line.is_some() {
-                target.end_line = self.end_line;
-            }
-            targets.push(target);
+            targets.push(parse_string_target(&path_str));
         }
 
         if let Some(paths) = self.paths {
@@ -163,4 +115,5 @@ impl ReadArgs {
         targets
     }
 }
+
 
