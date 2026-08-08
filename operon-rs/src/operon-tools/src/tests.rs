@@ -518,16 +518,14 @@ async fn test_bash_tool_registration_and_dispatch() {
     assert!(!result.is_error, "bash tool should execute successfully");
     assert_eq!(result.name, "bash");
 
-    // Verify the result contains JSON output with the expected fields.
+    // Verify the result contains plain text output with header, command, output, and exit code.
     match &result.content {
-        operon_context_normalize_tools::ToolContent::Json(v) => {
-            assert!(v.get("exit_code").is_some());
-            assert!(v.get("output").is_some());
-            assert!(v.get("command").is_some());
-            // cwd should be echoed back in the output.
-            assert!(v.get("cwd").is_some());
+        operon_context_normalize_tools::ToolContent::Text(t) => {
+            assert!(t.contains("echo hello"));
+            assert!(t.contains("hello"));
+            assert!(t.contains("Exit code: 0"));
         }
-        other => panic!("expected Json content, got {:?}", other),
+        other => panic!("expected Text content, got {:?}", other),
     }
 }
 
@@ -600,11 +598,10 @@ async fn test_bash_tool_nonzero_exit_not_error() {
     assert!(!result.is_error, "non-zero exit should not be a tool error");
 
     match &result.content {
-        operon_context_normalize_tools::ToolContent::Json(v) => {
-            let exit_code = v.get("exit_code").and_then(|e| e.as_i64());
-            assert_eq!(exit_code, Some(42));
+        operon_context_normalize_tools::ToolContent::Text(t) => {
+            assert!(t.contains("Exit code: 42"));
         }
-        other => panic!("expected Json content, got {:?}", other),
+        other => panic!("expected Text content, got {:?}", other),
     }
 }
 

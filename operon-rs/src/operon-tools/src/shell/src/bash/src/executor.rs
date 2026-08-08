@@ -183,10 +183,7 @@ pub async fn execute(call_id: ToolCallId, args: BashArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "bash".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
-            // This should never happen — BashOutput only contains String and primitives.
-            serde_json::json!({ "error": format!("serialization bug: {}", e) })
-        })),
+        content: ToolContent::Text(output.to_plain_text()),
         is_error: false,
     }
 }

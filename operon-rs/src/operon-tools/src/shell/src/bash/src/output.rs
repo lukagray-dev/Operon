@@ -10,16 +10,15 @@ use serde::{Deserialize, Serialize};
 // BashOutput
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Structured output returned to the model after a bash command executes.
+/// Structured output returned after a bash command executes.
 ///
-/// This is serialized as `ToolContent::Json` in the ToolResult.
-/// The model receives all fields and can reason about success/failure,
-/// partial output (truncated), and timeout status.
+/// Kept as an internal representation of process results. Converted to plain text
+/// via `to_plain_text()` before being wrapped in `ToolContent::Text` in the `ToolResult`.
 ///
 /// Returned even when the command exits with a non-zero code or times out —
-/// the model sees the output and exit code and decides what to do next.
+/// the model sees the plain-text output and exit code and decides what to do next.
 /// Only process spawn failures and validation errors use `is_error: true`
-/// with `ToolContent::Text` instead.
+/// with `ToolContent::Text` directly instead.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BashOutput {
     /// The command that was executed, echoed back for correlation.
@@ -56,3 +55,39 @@ pub struct BashOutput {
     /// buffered before the kill signal was sent.
     pub timed_out: bool,
 }
+
+impl BashOutput {
+    /// Formats the bash execution result as raw plain text with header and summary lines.
+    ///
+    /// This format resembles a terminal transcript so language models can easily read
+    /// multi-line stdout/stderr without JSON escaping overhead or `\n` literal pollution.
+    pub fn to_plain_text(&self) -> String {
+        let mut out = String::new();
+
+        // 1. Header line: command executed and working directory
+        out.push_str(&format!("=== {} (in {}) ===\n", self.command, self.cwd));
+
+        // 2. Output content (stdout + stderr), verbatim with real line breaks
+        if !self.output.is_empty() {
+            out.push_str(&self.output);
+            if !out.ends_with('\n') {
+                out.push('\n');
+            }
+        }
+
+        // 3. Truncation note if output reached character limit
+        if self.truncated {
+            out.push_str("[Output truncated at 10,000 characters. Use head, tail, or grep to narrow output.]\n");
+        }
+
+        // 4. Summary line with exit code (and inline timeout note if applicable)
+        if self.timed_out {
+            out.push_str(&format!("Exit code: {} (timed out)", self.exit_code));
+        } else {
+            out.push_str(&format!("Exit code: {}", self.exit_code));
+        }
+
+        out
+    }
+}
+

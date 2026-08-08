@@ -127,101 +127,24 @@ pub fn definition() -> TieredToolDefinition {
         detailed: ToolDefinition {
             name: "bash".to_string(),
             description: "\
-Executes a shell command in a stateless subprocess rooted at the specified working directory (`cwd`). \
-Returns merged stdout+stderr, exit code, and execution metadata.
+Executes a shell command in a stateless subprocess rooted at `cwd`. Returns merged stdout+stderr (max 10,000 chars) and exit code.
 
-## Required fields
+## Input shapes
 
-`command` (string): Shell command to execute. Runs in a fresh `sh -c` subprocess on Unix, `cmd /C` \
-on Windows. Empty or whitespace-only commands return an error.
+1. Basic command execution:
+   `{\"command\": \"cargo check\", \"cwd\": \"/path/to/project\"}`
 
-`cwd` (string): Absolute path to the working directory for this command. The subprocess is launched \
-with this directory as its working directory. Must be:
-- An absolute path (starts with `/` on Unix, drive letter on Windows).
-- An existing directory on disk.
-- Within an allowed directory per the active permission policy.
+2. Command with timeout (in milliseconds):
+   `{\"command\": \"npm test\", \"cwd\": \"/path/to/project\", \"timeout_ms\": 30000}`
 
-If `cwd` is missing, the call is rejected by the policy layer before reaching this tool.
+3. Chaining sequential commands in one subprocess:
+   `{\"command\": \"cd /tmp && pwd\", \"cwd\": \"/home/user\"}`
 
-## Optional fields
+## Key behavior
 
-`timeout_ms` (integer, milliseconds): If provided, the subprocess is killed after this many \
-milliseconds. When killed, `timed_out` is true and `exit_code` is -1.
-
-## Stateless execution model
-
-Each call spawns a fresh subprocess. Working directory, environment variables, shell variables, and \
-`cd` changes do NOT persist between calls. To chain commands that depend on prior state, use `&&` or `;` \
-within a single `command` string.
-
-### Example: stateless cd (wrong)
-```json
-{ \"command\": \"cd /tmp\" }
-```
-Then in a separate call:
-```json
-{ \"command\": \"pwd\", \"cwd\": \"/home/user\" }
-```
-Result: `pwd` returns `/home/user` (the `cwd`), NOT `/tmp`. The `cd` from the first call did not persist.
-
-### Example: cd + pwd in one call (correct)
-```json
-{ \"command\": \"cd /tmp && pwd\", \"cwd\": \"/home/user\" }
-```
-Result: `pwd` returns `/tmp` because both commands run in the same subprocess.
-
-## Output cap
-
-Stdout and stderr are merged and truncated to 10,000 characters. When `truncated: true`, use more \
-targeted commands: `| head -n 50`, `| tail -n 20`, `| grep \"pattern\"`.
-
-## Exit codes
-
-- `exit_code: 0` — command succeeded.
-- `exit_code: N` (non-zero) — command reported failure. The command ran — the model receives the \
-  output and decides what to do next. Non-zero exit is NOT a tool error.
-- `exit_code: -1` — process was killed due to timeout (`timed_out: true`).
-
-Always check `exit_code` before treating output as valid.
-
-## Output fields
-
-- `command`: The command that was executed (echoed for correlation).
-- `cwd`: The working directory the command ran in (echoed for correlation).
-- `exit_code`: Exit code (0 = success, non-zero = failure, -1 = timeout).
-- `output`: Merged stdout + stderr, truncated to 10,000 characters.
-- `truncated`: True if output was truncated at 10,000 characters.
-- `timed_out`: True if the process was killed by the timeout.
-
-## Common mistakes
-
-### Mistake #1: Missing `cwd`
-```json
-{ \"command\": \"ls\" }
-```
-Error: `cwd` is required. Always provide an absolute path.
-
-### Mistake #2: Expecting `cd` to persist
-```json
-{ \"command\": \"cd /tmp\", \"cwd\": \"/home/user\" }
-```
-Then separately:
-```json
-{ \"command\": \"pwd\", \"cwd\": \"/home/user\" }
-```
-Result: `pwd` returns `/home/user`, NOT `/tmp`. Fix: use `cd /tmp && pwd` in one call.
-
-### Mistake #3: Massive output without targeting
-```json
-{ \"command\": \"cat /var/log/huge.log\", \"cwd\": \"/home/user\" }
-```
-Output will be truncated. Fix: pipe to `head`, `tail`, or `grep` to target the relevant lines.
-
-### Mistake #4: Long-running command without timeout
-```json
-{ \"command\": \"npm install\", \"cwd\": \"/home/user/project\" }
-```
-May run for minutes. Fix: set `timeout_ms` to a reasonable deadline for the expected duration."
+- Stateless: Each call runs in a fresh process. `cd` and env vars do NOT persist across calls — chain with `&&` or `;`.
+- `cwd` required: Must be an absolute path to the working directory.
+- Output: Merged stdout+stderr truncated at 10,000 characters."
                 .to_string(),
             parameters,
         },
@@ -234,7 +157,7 @@ May run for minutes. Fix: set `timeout_ms` to a reasonable deadline for the expe
 
 /// Deserializes `args_json` and executes the bash tool.
 ///
-/// Returns a `ToolResult` with either success (JSON `BashOutput`) or failure
+/// Returns a `ToolResult` with either success (plain-text `BashOutput`) or failure
 /// (Text error message). Returns `Err(BashToolError::ArgsParse)` only if the
 /// top-level JSON shape is invalid (i.e. missing required fields).
 ///
