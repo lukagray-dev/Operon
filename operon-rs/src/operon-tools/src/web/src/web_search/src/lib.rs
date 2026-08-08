@@ -88,90 +88,22 @@ pub fn definition() -> TieredToolDefinition {
         detailed: ToolDefinition {
             name: "web_search".to_string(),
             description: "\
-Searches DuckDuckGo and returns structured results (title, URL, snippet). No API key required.
+Searches DuckDuckGo and returns results formatted as plain text.
 
 ## Input shapes
 
-`query` (required, string): Search query. Supports DuckDuckGo syntax:
-- Exact phrase: \"machine learning\"
-- Site search: site:github.com rust
-- File type: filetype:pdf machine learning
-- Exclude: -keyword
-- Combine: site:github.com rust -deprecated
+`query` (required, string): Search query (supports quotes, `site:`, `filetype:`, `-keyword`).
+`max_results` (optional, integer, 1–10): Number of results to return (default: 5, max: 10).
 
-`max_results` (optional, integer, 1–10): Number of results to return. Default: 5. Maximum: 10.
-Capped at 10 — more results rarely improve agent outcomes and increase token usage significantly.
+## Response format
 
-## Output shape
+Returns plain text with query and numbered results:
+Query: <query>
+<result_count> result(s)
 
-Returns a JSON object with:
-- `query`: The query that was executed (echoed back).
-- `result_count`: Number of results returned (0 if no results found).
-- `results`: Array of search results, each with:
-  - `rank`: Result rank, 1-indexed.
-  - `title`: Page title.
-  - `url`: Result URL.
-  - `snippet`: Short description/snippet from the page.
-
-## Result snippets
-
-Snippets are short (typically 100–200 characters). They are NOT the full page content.
-To read the full content of a result, use the `web_fetch` tool with the result's URL.
-
-## Empty results
-
-If no results are found, `result_count` is 0 and `results` is an empty array.
-This is NOT an error — the model receives the empty results and can decide how to proceed:
-- Refine the query (fewer keywords, different terms)
-- Try a different search engine (web_search only uses DuckDuckGo)
-- Use web_fetch directly if you have a specific URL
-
-## Query syntax
-
-Same as typing into DuckDuckGo:
-- Quotes for exact phrases: \"exact phrase\"
-- Site search: site:example.com
-- File type: filetype:pdf
-- Exclude: -keyword
-- Combine operators: site:github.com rust -deprecated
-
-## Limitations
-
-- Static content only: JavaScript-rendered pages (SPAs, dynamic content) may return empty or partial snippets.
-- No API key required: Uses DuckDuckGo's public lite search API.
-- Privacy: DuckDuckGo does not track queries.
-
-## Common workflow
-
-1. Use web_search to find relevant URLs.
-2. Pick a promising result URL.
-3. Use web_fetch to read the full content of that URL.
-4. Extract the information you need from the fetched content.
-
-## Common mistakes
-
-### Mistake #1: Expecting full page content in snippet
-Snippets are short (100–200 characters). If you need the full content, use web_fetch.
-
-### Mistake #2: Searching for JavaScript-rendered content
-web_search returns static HTML only. If a page is a single-page app (SPA) or heavily
-JavaScript-dependent, the snippet may be empty or incomplete. Try a different search
-or use web_fetch on a more specific URL.
-
-### Mistake #3: Not using DuckDuckGo syntax
-You can use site:, filetype:, quotes, and other operators. Combine them for better results:
-- site:github.com rust async
-- \"machine learning\" -deprecated
-- filetype:pdf neural networks
-
-### Mistake #4: Requesting too many results
-Requesting max_results: 100 will be capped at 10. More results rarely improve outcomes
-and increase token usage. Start with 5 and increase only if needed.
-
-## Error messages
-
-- \"query is empty\" → Provide a non-empty query.
-- \"search failed: ...\" → Network error or DuckDuckGo API failure. Retry or try a different query."
+[1] <title>
+    <url>
+    <snippet>"
                 .to_string(),
             parameters,
         },

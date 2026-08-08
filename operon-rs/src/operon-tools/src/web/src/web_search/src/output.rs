@@ -45,3 +45,25 @@ pub struct WebSearchOutput {
     /// Each result contains rank, title, URL, and snippet.
     pub results: Vec<SearchResult>,
 }
+
+impl WebSearchOutput {
+    /// Formats the search output as raw plain text with rank, title, URL, and snippet.
+    pub fn to_plain_text(&self) -> String {
+        if self.result_count == 0 {
+            format!("Query: {}\nNo results found.", self.query)
+        } else {
+            let mut out = format!("Query: {}\n{} result(s)\n\n", self.query, self.result_count);
+            for (i, res) in self.results.iter().enumerate() {
+                if i > 0 {
+                    out.push_str("\n\n");
+                }
+                out.push_str(&format!(
+                    "[{}] {}\n    {}\n    {}",
+                    res.rank, res.title, res.url, res.snippet
+                ));
+            }
+            out
+        }
+    }
+}
+

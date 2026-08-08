@@ -89,106 +89,22 @@ pub fn definition() -> TieredToolDefinition {
         detailed: ToolDefinition {
             name: "web_fetch".to_string(),
             description: "\
-Fetches a URL and returns the page content as clean markdown. Strips navigation, ads, and boilerplate.
+Fetches a URL and returns page content as clean markdown in plain text.
 
 ## Input shapes
 
-`url` (required, string): URL to fetch. Must start with http:// or https://.
-Relative URLs are not supported — provide the full URL.
+`url` (required, string): Full HTTP/HTTPS URL to fetch.
+`timeout_ms` (optional, integer): Timeout in milliseconds (default: 15000, max: 60000).
 
-`timeout_ms` (optional, integer, milliseconds): Optional timeout for the request. Default: 15000 (15 seconds).
-Increase for slow sites. There is no maximum — the model is responsible for setting a reasonable value.
+## Response format
 
-## Output shape
+Returns plain text with section headers (content capped at 20,000 characters):
+=== <url> (<status_code>) ===
+Title: <title, or omitted if no title>
 
-Returns a JSON object with:
-- `url`: The URL that was fetched (echoed back, may differ from input if redirected).
-- `status_code`: HTTP status code (200 = success, 404 = not found, 500 = server error, etc.).
-- `title`: Page title extracted from <title> tag, if present. Null if not found.
-- `content`: Page content as clean markdown, truncated to 20,000 characters.
-- `truncated`: True if content was truncated at 20,000 characters.
-- `content_length`: Content length in characters (after truncation).
+<content>
 
-## HTTP status codes
-
-HTTP error statuses (4xx, 5xx) are NOT tool errors. The model receives the status code and can decide:
-- 404 (Not Found): Try a different URL or search for the correct page.
-- 403 (Forbidden): The page is blocked or requires authentication.
-- 500 (Server Error): The server is down — retry later or try a different source.
-- 200 (Success): The page was fetched successfully.
-
-Only network-level failures (can't connect, DNS failure, timeout) use `is_error: true`.
-
-## Content truncation
-
-If `truncated: true`, the full page content is longer than 20,000 characters.
-To get the relevant part:
-- Use a more specific URL (e.g., fetch the docs page directly, not the homepage).
-- Use web_search with a more targeted query to find a more specific page.
-- Extract the section you need from the truncated content.
-
-## Title extraction
-
-The `title` field contains the content of the <title> tag, if present.
-If the page has no <title> tag or the title is empty, `title` is null.
-
-## HTML→markdown conversion
-
-The content is converted from HTML to markdown using htmd, which:
-- Strips navigation, ads, and boilerplate
-- Converts headings, lists, links, code blocks, etc. to markdown
-- Removes inline styles and scripts
-- Preserves text content and structure
-
-If conversion fails (rare), a fallback plain-text extraction is used.
-
-## Limitations
-
-- Static content only: JavaScript-rendered pages (SPAs, dynamic content) may return empty or partial content.
-  The tool fetches the initial HTML — it does not execute JavaScript.
-- No authentication: The tool does not support cookies, authentication headers, or login flows.
-- No redirects beyond HTTP: The tool follows HTTP redirects but does not handle meta-refresh or JavaScript redirects.
-
-## Common workflow
-
-1. Use web_search to find relevant URLs.
-2. Pick a promising result URL.
-3. Use web_fetch to read the full content of that URL.
-4. Extract the information you need from the fetched content.
-
-## Common mistakes
-
-### Mistake #1: Fetching a homepage when looking for specific docs
-Homepages are often large and generic. If you're looking for specific documentation:
-- Use web_search to find the specific docs page URL.
-- Fetch that specific URL, not the homepage.
-
-Example:
-- Wrong: fetch https://example.com (homepage, 20,000 char limit)
-- Right: fetch https://example.com/docs/api-reference (specific page)
-
-### Mistake #2: Expecting JavaScript-rendered content
-The tool fetches static HTML only. If a page is a single-page app (SPA) or heavily
-JavaScript-dependent, the content may be empty or incomplete.
-
-Example:
-- Wrong: fetch a React SPA that renders content via JavaScript
-- Right: fetch a static HTML page or use web_search to find a static docs page
-
-### Mistake #3: Not checking the status code
-If `status_code` is not 200, the content may be empty or an error page.
-Always check the status code before processing the content.
-
-### Mistake #4: Ignoring truncation
-If `truncated: true`, you're only seeing the first 20,000 characters.
-Use a more specific URL or a more targeted search to get the relevant part.
-
-## Error messages
-
-- \"url is empty\" → Provide a non-empty URL.
-- \"url must start with http:// or https://\" → Use http:// or https://, not ftp:// or other schemes.
-- \"fetch failed: ...\" → Network error (DNS failure, connection refused, timeout, etc.). Retry or try a different URL.
-- \"failed to read response body: ...\" → The server sent an invalid response. Retry or try a different URL."
+[truncated at <content_length> chars]"
                 .to_string(),
             parameters,
         },

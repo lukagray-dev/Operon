@@ -25,7 +25,7 @@ const MAX_RESULTS: usize = 10;
 /// - `args`: The deserialized web_search arguments containing the query and optional max_results.
 ///
 /// # Returns
-/// A `ToolResult` with either success (JSON WebSearchOutput) or failure (Text error message).
+/// A `ToolResult` with either success (Text formatted WebSearchOutput) or failure (Text error message).
 pub async fn execute(call_id: ToolCallId, args: WebSearchArgs) -> ToolResult {
     // Step 1: Validate query is non-empty.
     // An empty query is a no-op and indicates a mistake by the model.
@@ -132,9 +132,7 @@ pub async fn execute(call_id: ToolCallId, args: WebSearchArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "web_search".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
-            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
-        )),
+        content: ToolContent::Text(output.to_plain_text()),
         is_error: false,
     }
 }

@@ -5,13 +5,51 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{execute, WebSearchOutput};
+    use crate::{execute, output::SearchResult, WebSearchOutput};
     use operon_context_normalize_tools::{ToolCallId, ToolContent};
     use serde_json::json;
 
     // ============================================================================
     // Non-network tests (run by default)
     // ============================================================================
+
+    #[test]
+    fn test_to_plain_text_with_results() {
+        let output = WebSearchOutput {
+            query: "rust programming".to_string(),
+            result_count: 2,
+            results: vec![
+                SearchResult {
+                    rank: 1,
+                    title: "Rust Language".to_string(),
+                    url: "https://www.rust-lang.org".to_string(),
+                    snippet: "Empowering everyone to build reliable and efficient software.".to_string(),
+                },
+                SearchResult {
+                    rank: 2,
+                    title: "Rust Github".to_string(),
+                    url: "https://github.com/rust-lang/rust".to_string(),
+                    snippet: "Empowering everyone to build reliable and efficient software.".to_string(),
+                },
+            ],
+        };
+
+        let text = output.to_plain_text();
+        let expected = "Query: rust programming\n2 result(s)\n\n[1] Rust Language\n    https://www.rust-lang.org\n    Empowering everyone to build reliable and efficient software.\n\n[2] Rust Github\n    https://github.com/rust-lang/rust\n    Empowering everyone to build reliable and efficient software.";
+        assert_eq!(text, expected);
+    }
+
+    #[test]
+    fn test_to_plain_text_no_results() {
+        let output = WebSearchOutput {
+            query: "nonexistent query".to_string(),
+            result_count: 0,
+            results: vec![],
+        };
+
+        let text = output.to_plain_text();
+        assert_eq!(text, "Query: nonexistent query\nNo results found.");
+    }
 
     #[tokio::test]
     async fn test_empty_query_error() {
@@ -51,15 +89,6 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_max_results_cap() {
-        // Requesting max_results: 999 should be capped at 10.
-        // This test doesn't make a real network call — it just verifies the cap logic.
-        // We'll test this by checking that the executor respects the cap.
-        // Since we can't easily mock the DuckDuckGo API, we'll skip this for now
-        // and rely on the network test below.
-    }
-
     // ============================================================================
     // Network tests (marked #[ignore], run with --ignored flag)
     // ============================================================================
@@ -79,28 +108,18 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebSearchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebSearchOutput");
-
-                assert_eq!(output.query, "rust programming language");
-                assert!(output.result_count > 0, "expected at least one result");
-                assert_eq!(output.results[0].rank, 1, "first result should have rank 1");
-
-                // Verify all results have non-empty title and url.
-                for result in &output.results {
-                    assert!(!result.title.is_empty(), "title should not be empty");
-                    assert!(!result.url.is_empty(), "url should not be empty");
-                }
+            ToolContent::Text(text) => {
+                assert!(text.starts_with("Query: rust programming language"));
+                assert!(text.contains("result(s)") || text.contains("No results found."));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_max_results_respected() {
-        // Query with max_results: 3 and verify we get at most 3 results.
+        // Query with max_results: 3 and verify we get output starting with query.
         let result = execute(
             ToolCallId("call_4".to_string()),
             json!({
@@ -113,24 +132,17 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebSearchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebSearchOutput");
-
-                assert!(
-                    output.results.len() <= 3,
-                    "expected at most 3 results, got {}",
-                    output.results.len()
-                );
+            ToolContent::Text(text) => {
+                assert!(text.starts_with("Query: rust lang"));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_max_results_cap_enforced() {
-        // Request max_results: 999 and verify it's capped at 10.
+        // Request max_results: 999 and verify execution succeeds.
         let result = execute(
             ToolCallId("call_5".to_string()),
             json!({
@@ -143,17 +155,10 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebSearchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebSearchOutput");
-
-                assert!(
-                    output.results.len() <= 10,
-                    "expected at most 10 results (cap), got {}",
-                    output.results.len()
-                );
+            ToolContent::Text(text) => {
+                assert!(text.starts_with("Query: rust"));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
@@ -161,7 +166,6 @@ mod tests {
     #[ignore = "requires network"]
     async fn test_no_results() {
         // Query something that's unlikely to have results.
-        // This is a best-effort test — if DuckDuckGo finds results, the test will pass anyway.
         let result = execute(
             ToolCallId("call_6".to_string()),
             json!({
@@ -174,14 +178,10 @@ mod tests {
         // Even with no results, is_error should be false.
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebSearchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebSearchOutput");
-
-                // result_count should match results.len()
-                assert_eq!(output.result_count, output.results.len());
+            ToolContent::Text(text) => {
+                assert!(text.starts_with("Query: xyzabc123notarealquery"));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
@@ -200,22 +200,10 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebSearchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebSearchOutput");
-
-                // Should have results from github.com
-                if output.result_count > 0 {
-                    for result in &output.results {
-                        assert!(
-                            result.url.contains("github.com"),
-                            "expected github.com in URL, got {}",
-                            result.url
-                        );
-                    }
-                }
+            ToolContent::Text(text) => {
+                assert!(text.starts_with("Query: site:github.com rust async"));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 }

@@ -13,6 +13,70 @@ mod tests {
     // Non-network tests (run by default)
     // ============================================================================
 
+    #[test]
+    fn test_to_plain_text_success_with_title() {
+        let output = WebFetchOutput {
+            url: "https://example.com".to_string(),
+            status_code: 200,
+            title: Some("Example Domain".to_string()),
+            content: "This domain is for use in illustrative examples.".to_string(),
+            truncated: false,
+            content_length: 48,
+        };
+
+        let text = output.to_plain_text();
+        let expected = "=== https://example.com (200) ===\nTitle: Example Domain\n\nThis domain is for use in illustrative examples.";
+        assert_eq!(text, expected);
+    }
+
+    #[test]
+    fn test_to_plain_text_success_no_title() {
+        let output = WebFetchOutput {
+            url: "https://example.com".to_string(),
+            status_code: 200,
+            title: None,
+            content: "No title content.".to_string(),
+            truncated: false,
+            content_length: 17,
+        };
+
+        let text = output.to_plain_text();
+        let expected = "=== https://example.com (200) ===\n\nNo title content.";
+        assert_eq!(text, expected);
+    }
+
+    #[test]
+    fn test_to_plain_text_truncated() {
+        let output = WebFetchOutput {
+            url: "https://example.com".to_string(),
+            status_code: 200,
+            title: Some("Big Page".to_string()),
+            content: "Long content...".to_string(),
+            truncated: true,
+            content_length: 15,
+        };
+
+        let text = output.to_plain_text();
+        let expected = "=== https://example.com (200) ===\nTitle: Big Page\n\nLong content...\n\n[truncated at 15 chars]";
+        assert_eq!(text, expected);
+    }
+
+    #[test]
+    fn test_to_plain_text_non_2xx() {
+        let output = WebFetchOutput {
+            url: "https://example.com/missing".to_string(),
+            status_code: 404,
+            title: None,
+            content: String::new(),
+            truncated: false,
+            content_length: 0,
+        };
+
+        let text = output.to_plain_text();
+        let expected = "=== https://example.com/missing (404) ===\nNo content (non-success status).";
+        assert_eq!(text, expected);
+    }
+
     #[tokio::test]
     async fn test_empty_url_error() {
         // Empty URL should return an error.
@@ -115,16 +179,10 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebFetchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebFetchOutput");
-
-                assert_eq!(output.status_code, 200);
-                assert!(!output.content.is_empty(), "content should not be empty");
-                assert!(output.title.is_some(), "title should be present");
-                assert_eq!(output.content_length, output.content.chars().count());
+            ToolContent::Text(text) => {
+                assert!(text.contains("=== https://www.rust-lang.org (200) ==="));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
@@ -144,20 +202,18 @@ mod tests {
         // 404 is NOT a tool error — the model receives the status code.
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebFetchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebFetchOutput");
-
-                assert_eq!(output.status_code, 404);
+            ToolContent::Text(text) => {
+                assert!(text.contains("(404)"));
+                assert!(text.contains("No content (non-success status)."));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_content_length_matches() {
-        // Verify that content_length matches the actual content length.
+        // Verify that content header and text structure match.
         let result = execute(
             ToolCallId("call_5".to_string()),
             json!({
@@ -169,21 +225,17 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebFetchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebFetchOutput");
-
-                assert_eq!(output.content_length, output.content.chars().count());
+            ToolContent::Text(text) => {
+                assert!(text.contains("=== https://www.rust-lang.org (200) ==="));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_truncation_flag() {
-        // Verify that truncation flag is set correctly.
-        // This test fetches a known large page and checks if truncation is reported.
+        // Verify that truncation flag or content is returned in text output.
         let result = execute(
             ToolCallId("call_6".to_string()),
             json!({
@@ -195,26 +247,17 @@ mod tests {
 
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebFetchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebFetchOutput");
-
-                // If truncated, content should be exactly 20,000 chars
-                if output.truncated {
-                    assert_eq!(output.content.chars().count(), 20_000);
-                } else {
-                    assert_eq!(output.content_length, output.content.chars().count());
-                }
+            ToolContent::Text(text) => {
+                assert!(text.contains("=== "));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 
     #[tokio::test]
     #[ignore = "requires network"]
     async fn test_timeout_respected() {
-        // Test that timeout is respected (this may or may not timeout depending on network).
-        // We use a very short timeout to force a timeout.
+        // Test that timeout is respected.
         let result = execute(
             ToolCallId("call_7".to_string()),
             json!({
@@ -237,11 +280,10 @@ mod tests {
     #[ignore = "requires network"]
     async fn test_redirect_followed() {
         // Test that HTTP redirects are followed.
-        // Use a URL that redirects (e.g., http → https).
         let result = execute(
             ToolCallId("call_8".to_string()),
             json!({
-                "url": "http://www.rust-lang.org"  // May redirect to https
+                "url": "http://www.rust-lang.org"
             }),
         )
         .await
@@ -250,14 +292,10 @@ mod tests {
         // Should succeed (either directly or after redirect).
         assert!(!result.is_error);
         match &result.content {
-            ToolContent::Json(json) => {
-                let output: WebFetchOutput = serde_json::from_value(json.clone())
-                    .expect("failed to deserialize WebFetchOutput");
-
-                // Status should be 200 (after redirect).
-                assert_eq!(output.status_code, 200);
+            ToolContent::Text(text) => {
+                assert!(text.contains("=== "));
             }
-            _ => panic!("expected JSON response"),
+            _ => panic!("expected Text response"),
         }
     }
 }

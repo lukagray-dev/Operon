@@ -12,6 +12,10 @@ use std::time::Duration;
 /// Default timeout in milliseconds if not specified.
 const DEFAULT_TIMEOUT_MS: u64 = 15_000;
 
+/// Maximum timeout in milliseconds regardless of what the model requests.
+/// Capped at 60 seconds (60,000 ms) to prevent runaway requests.
+const MAX_TIMEOUT_MS: u64 = 60_000;
+
 /// Maximum content characters returned to the model.
 /// Content is truncated at this limit to keep token usage reasonable.
 const MAX_CONTENT_CHARS: usize = 20_000;
@@ -27,7 +31,7 @@ const MAX_CONTENT_CHARS: usize = 20_000;
 /// - `args`: The deserialized web_fetch arguments containing the URL and optional timeout.
 ///
 /// # Returns
-/// A `ToolResult` with either success (JSON WebFetchOutput) or failure (Text error message).
+/// A `ToolResult` with either success (Text formatted WebFetchOutput) or failure (Text error message).
 pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
     // Step 1: Validate URL is non-empty and has a valid scheme.
     let url = args.url.trim().to_string();
@@ -50,7 +54,12 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
     }
 
     // Step 2: Build reqwest client with timeout.
-    let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS));
+    let timeout_ms = args
+        .timeout_ms
+        .unwrap_or(DEFAULT_TIMEOUT_MS)
+        .min(MAX_TIMEOUT_MS)
+        .max(1);
+    let timeout = Duration::from_millis(timeout_ms);
 
     let client = match reqwest::Client::builder()
         .timeout(timeout)
@@ -84,7 +93,7 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
     let status_code = response.status().as_u16();
     let final_url = response.url().to_string();
 
-    // Step 4: For error status codes, return structured output (not is_error: true).
+    // Step 4: For error status codes, return structured text output (not is_error: true).
     // The model sees the status and can decide what to do next.
     if !response.status().is_success() {
         let output = WebFetchOutput {
@@ -98,10 +107,7 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
         return ToolResult {
             call_id,
             name: "web_fetch".to_string(),
-            content: ToolContent::Json(
-                serde_json::to_value(&output)
-                    .unwrap_or_else(|_| serde_json::json!({ "status_code": status_code })),
-            ),
+            content: ToolContent::Text(output.to_plain_text()),
             is_error: false,
         };
     }
@@ -153,9 +159,7 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
     ToolResult {
         call_id,
         name: "web_fetch".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
-            |e| serde_json::json!({ "error": format!("serialization bug: {}", e) }),
-        )),
+        content: ToolContent::Text(output.to_plain_text()),
         is_error: false,
     }
 }

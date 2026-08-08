@@ -16,8 +16,7 @@ pub struct WebFetchArgs {
     pub url: String,
 
     /// Optional timeout in milliseconds. Default: 15000 (15 seconds).
-    /// Increase for slow sites. No maximum — the model is responsible for
-    /// setting a reasonable value for the task.
+    /// Increase for slow sites. Capped at 60000 (60 seconds).
     #[serde(default)]
     pub timeout_ms: Option<u64>,
 }
