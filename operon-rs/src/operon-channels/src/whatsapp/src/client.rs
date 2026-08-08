@@ -22,7 +22,7 @@ use crate::auth::WhatsAppAuth;
 use crate::config::WhatsAppConfig;
 use crate::error::WhatsAppError;
 use crate::storage::{persisted_device_exists, RusqliteStore};
-use crate::types::{ConnectionStatus, ContactId, QrCodeState, WhatsAppMessage};
+use crate::types::{ConnectionStatus, ContactId, PairingCodeState, QrCodeState, WhatsAppMessage};
 
 /// High-level client managing WhatsApp Multi-Device connection, QR/Pairing code events,
 /// and inbound/outbound message dispatching.
@@ -43,6 +43,10 @@ pub struct WhatsAppClient {
     qr_tx: mpsc::Sender<QrCodeState>,
     /// Receiver for QR code state updates (consumed by caller).
     qr_rx: Arc<AsyncMutex<Option<mpsc::Receiver<QrCodeState>>>>,
+    /// Sender for pairing code state updates issued by WhatsApp servers.
+    pairing_code_tx: mpsc::Sender<PairingCodeState>,
+    /// Receiver for pairing code state updates (consumed by GUI/TUI).
+    pairing_code_rx: Arc<AsyncMutex<Option<mpsc::Receiver<PairingCodeState>>>>,
     /// Handle to the running `whatsapp-rust` bot.
     bot_handle: Arc<parking_lot::Mutex<Option<whatsapp_rust::bot::BotHandle>>>,
     /// Handle to the underlying `whatsapp-rust` client for outbound messaging.
@@ -51,6 +55,8 @@ pub struct WhatsAppClient {
     message_tx: mpsc::Sender<WhatsAppMessage>,
     /// Inbound message receiver (consumed by router).
     message_rx: Arc<AsyncMutex<Option<mpsc::Receiver<WhatsAppMessage>>>>,
+    /// Sent message IDs to filter out bot outbound echoes.
+    sent_message_ids: Arc<parking_lot::Mutex<std::collections::HashSet<String>>>,
 }
 
 impl WhatsAppClient {
@@ -63,6 +69,9 @@ impl WhatsAppClient {
         let session_path = auth_dir.join("session.db");
 
         let (qr_tx, qr_rx) = mpsc::channel(16);
+        // Channel for real pairing codes issued by WhatsApp servers (capacity 4
+        // is enough — only one code is active at a time, but re-issuances happen).
+        let (pairing_code_tx, pairing_code_rx) = mpsc::channel(4);
         let (message_tx, message_rx) = mpsc::channel(64);
 
         let initial_status = if persisted_device_exists(&session_path) {
@@ -80,10 +89,13 @@ impl WhatsAppClient {
             status: Arc::new(RwLock::new(initial_status)),
             qr_tx,
             qr_rx: Arc::new(AsyncMutex::new(Some(qr_rx))),
+            pairing_code_tx,
+            pairing_code_rx: Arc::new(AsyncMutex::new(Some(pairing_code_rx))),
             bot_handle: Arc::new(parking_lot::Mutex::new(None)),
             client: Arc::new(parking_lot::Mutex::new(None)),
             message_tx,
             message_rx: Arc::new(AsyncMutex::new(Some(message_rx))),
+            sent_message_ids: Arc::new(parking_lot::Mutex::new(std::collections::HashSet::new())),
         }
     }
 
@@ -99,6 +111,11 @@ impl WhatsAppClient {
         self
     }
 
+    /// Returns true if the client event loop has been started via `connect()`.
+    pub fn is_running(&self) -> bool {
+        self.bot_handle.lock().is_some()
+    }
+
     /// Returns the active connection status.
     pub async fn status(&self) -> ConnectionStatus {
         self.status.read().clone()
@@ -109,13 +126,29 @@ impl WhatsAppClient {
         self.qr_rx.lock().await.take()
     }
 
+    /// Takes the pairing code receiver so the GUI/TUI can display the real
+    /// server-issued code. Call this before `connect()` to avoid missing events.
+    pub async fn take_pairing_code_receiver(&self) -> Option<mpsc::Receiver<PairingCodeState>> {
+        self.pairing_code_rx.lock().await.take()
+    }
+
     /// Takes the inbound message receiver so `router.rs` can consume incoming messages.
     pub async fn take_message_receiver(&self) -> Option<mpsc::Receiver<WhatsAppMessage>> {
         self.message_rx.lock().await.take()
     }
 
+    /// Returns a sender handle to the inbound message channel (used for testing and message injection).
+    pub fn message_tx(&self) -> mpsc::Sender<WhatsAppMessage> {
+        self.message_tx.clone()
+    }
+
     /// Connects to WhatsApp Web and runs the bot client event loop.
     pub async fn connect(&self) -> Result<(), WhatsAppError> {
+        // Immediately transition to Connecting so any status pollers (e.g. the
+        // GUI's 500ms poller) see a non-Disconnected state. This MUST happen
+        // before any await point to win the race against the poller start.
+        *self.status.write() = ConnectionStatus::Connecting;
+
         let auth = WhatsAppAuth::new(self.auth_dir.clone());
         auth.init()?;
 
@@ -144,7 +177,10 @@ impl WhatsAppClient {
 
         let status_clone = self.status.clone();
         let qr_tx_clone = self.qr_tx.clone();
+        let pairing_code_tx_clone = self.pairing_code_tx.clone();
         let message_tx_clone = self.message_tx.clone();
+        let sent_message_ids_clone = self.sent_message_ids.clone();
+        let pair_phone_clone = self.pair_phone.clone();
 
         let mut builder = Bot::builder()
             .with_backend(backend)
@@ -159,33 +195,100 @@ impl WhatsAppClient {
             .on_event(move |event, _client| {
                 let status = status_clone.clone();
                 let qr_tx = qr_tx_clone.clone();
+                let pairing_code_tx = pairing_code_tx_clone.clone();
                 let message_tx = message_tx_clone.clone();
+                let sent_ids = sent_message_ids_clone.clone();
+                let pair_phone = pair_phone_clone.clone();
 
                 async move {
                     match event.as_ref() {
                         Event::Message(msg, info) => {
-                            if let Some(text) = msg.text_content() {
+                            // Check if this message was sent by Operon itself
+                            let is_bot_echo = sent_ids.lock().remove(&info.id);
+                            if is_bot_echo {
+                                info!(id = %info.id, "Ignoring outbound message echo sent by Operon bot");
+                                return;
+                            }
+
+                            // Forward non-empty text messages to the inbound channel
+                            let raw_text = msg
+                                .text_content()
+                                .map(|s| s.to_string())
+                                .or_else(|| msg.conversation.clone())
+                                .or_else(|| msg.extended_text_message.as_ref().and_then(|m| m.text.clone()));
+
+                            if let Some(text) = raw_text {
                                 let text = text.trim().to_string();
                                 if !text.is_empty() {
-                                    let sender_jid = info.source.sender.user();
+                                    let sender_user = info.source.sender.user();
+                                    let chat_user = info.source.chat.user();
+
+                                    // Resolve actual phone number from WhatsApp chat/sender (preserving country code)
+                                    let resolved_phone = if !chat_user.is_empty() && !chat_user.starts_with("23888") {
+                                        chat_user.to_string()
+                                    } else if !sender_user.is_empty() && !sender_user.starts_with("23888") {
+                                        sender_user.to_string()
+                                    } else if let Some(ref owner) = pair_phone {
+                                        owner.clone()
+                                    } else {
+                                        chat_user.to_string()
+                                    };
+
+                                    info!(
+                                        id = %info.id,
+                                        sender = %resolved_phone,
+                                        raw_sender = %sender_user,
+                                        is_from_me = info.source.is_from_me,
+                                        text = %text,
+                                        "Inbound WhatsApp text message received"
+                                    );
                                     let wa_msg = WhatsAppMessage {
                                         id: info.id.clone(),
-                                        sender: ContactId::new(sender_jid),
+                                        sender: ContactId::new(&resolved_phone),
                                         text,
                                         timestamp: info.timestamp.timestamp(),
                                         is_self: info.source.is_from_me,
                                     };
-                                    let _ = message_tx.try_send(wa_msg);
+                                    if let Err(e) = message_tx.try_send(wa_msg) {
+                                        warn!("Failed to forward inbound WhatsApp message to channel: {}", e);
+                                    }
                                 }
                             }
                         }
                         Event::PairingQrCode { code, .. } => {
+                            // Real QR payload from WhatsApp — convert to QrCodeState
+                            // and push to both the shared status and the QR channel.
                             let qr_state = WhatsAppAuth::generate_qr_state(code, 60);
                             *status.write() = ConnectionStatus::QrRequired(qr_state.clone());
                             let _ = qr_tx.try_send(qr_state);
                         }
-                        Event::PairingCode { .. } => {
-                            *status.write() = ConnectionStatus::Connecting;
+                        Event::PairingCode { code, .. } => {
+                            // Real pairing code from WhatsApp servers. Format as
+                            // XXXX-XXXX if the server sent it as a raw 8-char string.
+                            let raw = code.as_str();
+                            let formatted = if raw.len() == 8 && !raw.contains('-') {
+                                format!("{}-{}", &raw[..4], &raw[4..])
+                            } else {
+                                raw.to_string()
+                            };
+                            // Pairing codes typically expire ~160 seconds after issuance.
+                            let expires_at = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs() as i64
+                                + 160;
+                            let state = PairingCodeState {
+                                code: formatted,
+                                expires_at,
+                            };
+                            info!(
+                                code = %state.code,
+                                expires_at = state.expires_at,
+                                "WhatsApp pairing code received from server"
+                            );
+                            *status.write() =
+                                ConnectionStatus::PairingCodeIssued(state.clone());
+                            let _ = pairing_code_tx.try_send(state);
                         }
                         Event::Connected(_) => {
                             info!("WhatsApp Web connected successfully");
@@ -261,6 +364,8 @@ impl WhatsAppClient {
             .send_message(to_jid, outgoing)
             .await
             .map_err(|e| WhatsAppError::SendFailed(e.to_string()))?;
+
+        self.sent_message_ids.lock().insert(result.message_id.clone());
 
         Ok(result.message_id)
     }

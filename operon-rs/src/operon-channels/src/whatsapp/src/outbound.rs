@@ -53,7 +53,7 @@ impl OutboundQueue {
         msg: OutboundMessage,
         status: &ConnectionStatus,
     ) -> Result<(), mpsc::error::SendError<OutboundMessage>> {
-        if matches!(status, ConnectionStatus::Connected) {
+        if !matches!(status, ConnectionStatus::Disconnected) {
             // First flush any previously buffered messages in FIFO order
             let _ = self.flush().await;
             self.tx.send(msg).await

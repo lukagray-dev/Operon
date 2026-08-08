@@ -248,3 +248,84 @@ async fn test_outbound_queue_buffering_and_fifo_flush() {
     assert_eq!(recv3, msg3);
     assert_eq!(queue.buffered_count().await, 0);
 }
+
+#[tokio::test]
+async fn test_whatsapp_service_orchestration_loop() {
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+    use operon_channels_whatsapp::client::WhatsAppClient;
+    use operon_channels_whatsapp::outbound::{OutboundMessage, OutboundQueue};
+    use operon_channels_whatsapp::router::WhatsAppRouter;
+    use operon_channels_whatsapp::runner_bridge::SessionRunnerBridge;
+    use operon_channels_whatsapp::service::WhatsAppService;
+    use operon_channels_whatsapp::types::{ContactId, WhatsAppMessage};
+    use operon_channels_whatsapp::workspace::WhatsAppWorkspaceManager;
+
+    let tmp_dir = TempDir::new().unwrap();
+    let base_ws = tmp_dir.path().join("channels").join("whatsapp").join("workspace");
+    let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
+
+    let owner_contact = ContactId::new("15551112222");
+    let config = WhatsAppConfig {
+        enabled: true,
+        owner_number: Some(owner_contact.clone()),
+        allowlist: vec![],
+        auth_dir: Some(tmp_dir.path().join("auth")),
+    };
+
+    let client = Arc::new(WhatsAppClient::new(&config));
+    let router = Arc::new(WhatsAppRouter::new(config.clone()));
+    let workspace_mgr = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
+    let (bridge_tx, bridge_rx) = mpsc::channel::<OutboundMessage>(64);
+    let (client_tx, mut client_rx) = mpsc::channel::<OutboundMessage>(64);
+    let (_dummy_tx, dummy_rx) = mpsc::channel::<OutboundMessage>(64);
+    let outbound_queue = Arc::new(OutboundQueue::new(client_tx));
+
+    let app_config = operon_config::load().expect("Failed to load AppConfig");
+    let bridge = Arc::new(SessionRunnerBridge::with_router(
+        app_config,
+        workspace_mgr,
+        bridge_tx,
+        router.clone(),
+    ));
+
+    let service = Arc::new(WhatsAppService::with_components_and_receivers(
+        client.clone(),
+        router.clone(),
+        bridge.clone(),
+        outbound_queue.clone(),
+        bridge_rx,
+        dummy_rx,
+    ));
+
+    let service_clone = service.clone();
+    let service_handle = tokio::spawn(async move {
+        let _ = service_clone.run().await;
+    });
+
+    // Inject a /new message
+    let msg_new = WhatsAppMessage {
+        id: "m_new".to_string(),
+        sender: owner_contact.clone(),
+        text: "/new".to_string(),
+        timestamp: 1000,
+        is_self: false,
+    };
+
+    client.message_tx().send(msg_new).await.unwrap();
+
+    // Flush outbound queue (messages are buffered while disconnected)
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let _ = outbound_queue.flush().await;
+
+    // Verify /new notification was enqueued & received by client_rx
+    let out_msg = tokio::time::timeout(std::time::Duration::from_secs(2), client_rx.recv())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(out_msg.recipient, "15551112222");
+    assert!(out_msg.text.contains("Fresh session started"));
+
+    service_handle.abort();
+}

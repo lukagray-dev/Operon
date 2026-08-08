@@ -2,14 +2,25 @@
 //!
 //! Queries WhatsApp contacts and session history from `~/.operon/channels/whatsapp/workspace/`
 //! and `~/.operon/sessions/whatsapp/`, builds Slint models, and wires click handlers.
+//!
+//! Also handles **auto-reconnect on startup**: if WhatsApp credentials exist from
+//! a prior pairing session, a `WhatsAppClient` is automatically created, connected,
+//! and the full message processing pipeline is spawned so inbound messages flow
+//! without the user needing to open the settings window.
 
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::state::AppState;
 use crate::{SidebarConversation, SidebarProject};
+
+use operon_channels_whatsapp::auth::WhatsAppAuth;
+use operon_channels_whatsapp::client::WhatsAppClient;
+use operon_channels_whatsapp::config::WhatsAppConfig;
+use operon_channels_whatsapp::service::WhatsAppService;
 
 /// Query WhatsApp contacts and session JSON files from disk and construct Slint SidebarProject DTOs.
 pub fn load_whatsapp_sidebar_data() -> Vec<SidebarProject> {
@@ -72,6 +83,7 @@ pub fn load_whatsapp_sidebar_data() -> Vec<SidebarProject> {
 }
 
 /// Register WhatsApp sidebar setup and session selection actions.
+/// Also handles auto-reconnect if credentials exist from a prior pairing.
 pub fn wire_whatsapp(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
     let window_weak = window.as_weak();
 
@@ -98,4 +110,58 @@ pub fn wire_whatsapp(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
             }
         }
     });
+
+    // ── Auto-reconnect on startup ────────────────────────────────────────────
+    // This runs when the MAIN window boots (not the settings window), so
+    // messages are handled immediately on app launch without user interaction.
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let default_auth = home.join(".operon").join("channels").join("whatsapp").join("auth");
+    let auth_checker = WhatsAppAuth::new(default_auth.clone());
+
+    if auth_checker.has_credentials() {
+        eprintln!(
+            "[operon-gui][whatsapp-auto] Found existing credentials at {:?}. \
+             Starting auto-reconnect...",
+            default_auth
+        );
+
+        let config = WhatsAppConfig {
+            enabled: true,
+            owner_number: None,
+            allowlist: vec![],
+            auth_dir: Some(default_auth),
+        };
+
+        let client = Arc::new(WhatsAppClient::new(&config));
+        let window_weak_for_refresh = window_weak.clone();
+
+        tokio::spawn(async move {
+            let app_config = match operon_rs::load() {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    eprintln!(
+                        "[operon-gui][whatsapp-auto] Failed to load AppConfig: {}. \
+                         Auto-reconnect aborted.",
+                        e
+                    );
+                    return;
+                }
+            };
+
+            let service = WhatsAppService::new(client, config, app_config).with_on_turn_complete(move || {
+                let weak = window_weak_for_refresh.clone();
+                slint::invoke_from_event_loop(move || {
+                    if let Some(win) = weak.upgrade() {
+                        let data = load_whatsapp_sidebar_data();
+                        win.set_sidebar_whatsapp_contacts(ModelRc::from(Rc::new(VecModel::from(data))));
+                    }
+                })
+                .ok();
+            });
+
+            if let Err(e) = service.run().await {
+                eprintln!("[operon-gui][whatsapp-auto] WhatsAppService error: {}", e);
+            }
+        });
+    }
 }

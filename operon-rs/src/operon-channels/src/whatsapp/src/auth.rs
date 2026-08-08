@@ -65,31 +65,7 @@ impl WhatsAppAuth {
         }
     }
 
-    /// Generates a initial fallback QR payload for pairing UI display.
-    pub fn generate_whatsapp_md_qr_payload() -> String {
-        format!("https://web.whatsapp.com/pair/{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos())
-    }
 
-    /// Generates a formatted 8-character pairing code (`XXXX-XXXX`).
-    pub fn generate_pairing_code() -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        let chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-        let mut code = String::with_capacity(9);
-        let mut val = nanos;
-        for i in 0..8 {
-            if i == 4 {
-                code.push('-');
-            }
-            let idx = (val % (chars.len() as u128)) as usize;
-            code.push(chars.chars().nth(idx).unwrap_or('X'));
-            val /= 10;
-        }
-        code
-    }
 
     /// Renders a QR code payload into an SVG string for GUI rendering.
     pub fn render_svg(payload: &str) -> Result<String, WhatsAppError> {

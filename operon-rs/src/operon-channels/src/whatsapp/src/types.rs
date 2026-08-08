@@ -54,6 +54,9 @@ pub enum ConnectionStatus {
     Disconnected,
     Connecting,
     QrRequired(QrCodeState),
+    /// A pairing code has been issued by WhatsApp's servers and is ready
+    /// for the user to enter in WhatsApp > Linked Devices.
+    PairingCodeIssued(PairingCodeState),
     Connected,
     Error(String),
 }
@@ -64,5 +67,18 @@ pub struct QrCodeState {
     /// Raw QR code string payload.
     pub payload: String,
     /// Expiry timestamp in seconds.
+    pub expires_at: i64,
+}
+
+/// Pairing code state received from WhatsApp servers during pair-code linking.
+///
+/// The code is formatted as `XXXX-XXXX` (8 alphanumeric characters with a dash separator).
+/// The user must enter this code in their WhatsApp mobile app under Linked Devices
+/// within the expiry window (typically ~160 seconds from issuance).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PairingCodeState {
+    /// The real pairing code from WhatsApp, formatted as XXXX-XXXX.
+    pub code: String,
+    /// Unix timestamp (seconds) when this code expires — typically now + 160s.
     pub expires_at: i64,
 }
