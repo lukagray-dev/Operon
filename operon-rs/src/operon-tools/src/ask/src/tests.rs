@@ -1,11 +1,11 @@
-//! Tests for the `ask` tool argument parsing and output serialization.
+//! Tests for the `ask` tool argument parsing and option count validation.
 
 #[cfg(test)]
 mod tests {
     use serde_json::json;
 
     use crate::args::AskArgs;
-    use crate::output::AskOutput;
+    use crate::error::AskToolError;
 
     // ── AskArgs parsing ────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ mod tests {
         assert!(parsed.is_ok(), "valid args should parse successfully");
         let parsed = parsed.unwrap();
         assert_eq!(parsed.question, "Which format do you prefer?");
-        assert_eq!(parsed.options, ["JSON", "TOML", "YAML"]);
+        assert_eq!(parsed.options, vec!["JSON", "TOML", "YAML"]);
     }
 
     #[test]
@@ -29,6 +29,10 @@ mod tests {
         });
         let result = AskArgs::from_json(&args);
         assert!(result.is_err(), "missing question should fail to parse");
+        match result.unwrap_err() {
+            AskToolError::ArgsParse(_) => {}
+            err => panic!("expected ArgsParse error, got {err:?}"),
+        }
     }
 
     #[test]
@@ -38,11 +42,14 @@ mod tests {
         });
         let result = AskArgs::from_json(&args);
         assert!(result.is_err(), "missing options should fail to parse");
+        match result.unwrap_err() {
+            AskToolError::ArgsParse(_) => {}
+            err => panic!("expected ArgsParse error, got {err:?}"),
+        }
     }
 
     #[test]
     fn test_two_options_fails() {
-        // Array deserialization into [String; 3] requires exactly 3 elements.
         let args = json!({
             "question": "Pick one:",
             "options": ["A", "B"]
@@ -51,6 +58,15 @@ mod tests {
         assert!(
             result.is_err(),
             "2 options should fail — exactly 3 required"
+        );
+        let err = result.unwrap_err();
+        match &err {
+            AskToolError::WrongOptionCount(2) => {}
+            _ => panic!("expected WrongOptionCount(2), got {err:?}"),
+        }
+        assert_eq!(
+            err.to_string(),
+            "expected exactly 3 options, got 2. Provide exactly 3 pre-defined answer options — the UI adds a 4th free-text field automatically."
         );
     }
 
@@ -64,6 +80,15 @@ mod tests {
         assert!(
             result.is_err(),
             "4 options should fail — exactly 3 required"
+        );
+        let err = result.unwrap_err();
+        match &err {
+            AskToolError::WrongOptionCount(4) => {}
+            _ => panic!("expected WrongOptionCount(4), got {err:?}"),
+        }
+        assert_eq!(
+            err.to_string(),
+            "expected exactly 3 options, got 4. Provide exactly 3 pre-defined answer options — the UI adds a 4th free-text field automatically."
         );
     }
 
@@ -79,26 +104,5 @@ mod tests {
             result.is_ok(),
             "empty question string is structurally valid"
         );
-    }
-
-    // ── AskOutput serialization ────────────────────────────────────────────────
-
-    #[test]
-    fn test_output_serializes_correctly() {
-        let output = AskOutput {
-            answer: "JSON".to_string(),
-        };
-        let serialized = serde_json::to_value(&output).unwrap();
-        assert_eq!(serialized, json!({ "answer": "JSON" }));
-    }
-
-    #[test]
-    fn test_output_roundtrip() {
-        let original = AskOutput {
-            answer: "custom user input".to_string(),
-        };
-        let json = serde_json::to_string(&original).unwrap();
-        let restored: AskOutput = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored.answer, original.answer);
     }
 }

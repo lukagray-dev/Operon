@@ -1,7 +1,7 @@
 //! Argument types for the `ask` tool.
 //!
 //! Defines the deserialization schema for the model's input to the `ask` tool.
-//! The tool accepts a question string and exactly 3 answer options.
+//! The tool accepts a question string and 3 answer options.
 
 use serde::Deserialize;
 
@@ -16,17 +16,22 @@ pub struct AskArgs {
     /// The question to present to the user.
     pub question: String,
 
-    /// Exactly 3 pre-defined answer options.
+    /// 3 pre-defined answer options.
     /// The UI adds a 4th free-text field for custom user input.
-    pub options: [String; 3],
+    pub options: Vec<String>,
 }
 
 impl AskArgs {
     /// Deserialize from the raw JSON arguments of a tool call.
     ///
     /// Returns `Err(AskToolError::ArgsParse)` if the JSON shape is invalid —
-    /// for example, missing `question`, missing `options`, or wrong array length.
+    /// for example, missing `question` or missing `options`.
+    /// Returns `Err(AskToolError::WrongOptionCount)` if `options` does not contain exactly 3 elements.
     pub fn from_json(args: &serde_json::Value) -> Result<Self, AskToolError> {
-        serde_json::from_value(args.clone()).map_err(AskToolError::ArgsParse)
+        let parsed: Self = serde_json::from_value(args.clone()).map_err(AskToolError::ArgsParse)?;
+        if parsed.options.len() != 3 {
+            return Err(AskToolError::WrongOptionCount(parsed.options.len()));
+        }
+        Ok(parsed)
     }
 }

@@ -1,6 +1,6 @@
 //! # operon-tools-ask
 //!
-//! Provides the `ask` tool definition and argument/output types.
+//! Provides the `ask` tool definition and argument types.
 //!
 //! The `ask` tool lets the model pause the agent loop and present the user a
 //! multiple-choice question with 3 pre-defined options and one free-text option.
@@ -15,7 +15,6 @@
 //!
 //! This crate provides only:
 //! - [`AskArgs`] — argument deserialization from the model's tool call JSON.
-//! - [`AskOutput`] — the structured response shape written into the ToolResult.
 //! - [`AskToolError`] — parse error type.
 //! - [`definition()`] — the `TieredToolDefinition` registered with the dispatcher.
 //!
@@ -42,14 +41,12 @@
 
 mod args;
 mod error;
-mod output;
 
 #[cfg(test)]
 mod tests;
 
 pub use args::AskArgs;
 pub use error::AskToolError;
-pub use output::AskOutput;
 
 use operon_context_normalize_tools::ToolDefinition;
 use operon_tools_core::TieredToolDefinition;
@@ -101,7 +98,11 @@ Asks the user a multiple-choice question and pauses the agent loop until they an
 
 ## Response format
 
-Returns `{ \"answer\": \"<user's answer>\" }` containing the selected option or custom text."
+Returns the user's selected option or custom text as plain text.
+
+## Common mistakes & errors
+
+- Passing fewer or more than 3 options. Returns error: \"expected exactly 3 options, got {n}. Provide exactly 3 pre-defined answer options — the UI adds a 4th free-text field automatically.\""
                 .to_string(),
             parameters,
         },

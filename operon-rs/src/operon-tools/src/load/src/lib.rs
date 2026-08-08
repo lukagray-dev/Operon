@@ -78,47 +78,25 @@ pub fn definition() -> TieredToolDefinition {
         },
         detailed: ToolDefinition {
             name: "load_tools".to_string(),
-            description: "Loads tool definitions for a named group on demand.\n\
-                          \n\
-                          ## Two call modes\n\
-                          \n\
-                          1. **List all groups** (no `group` argument):\n\
-                             Call `load_tools` with no arguments to see all available tool groups.\n\
-                             Returns: `{ available_groups: [\"fs\", \"shell\", ...], message: \"...\" }`\n\
-                          \n\
-                          2. **Load a specific group** (with `group` argument):\n\
-                             Call `load_tools { group: \"fs\" }` to load all tools in the \"fs\" group.\n\
-                             Returns: `{ group: \"fs\", tool_count: 7, tools: [ { name, description, parameters }, ... ] }`\n\
-                          \n\
-                          ## Why tools are loaded on demand\n\
-                          \n\
-                          Tools are not available until explicitly loaded. This keeps context efficient —\n\
-                          loading all tools upfront would bloat every request with hundreds of definitions.\n\
-                          Instead, you load only the groups you need, when you need them.\n\
-                          \n\
-                          ## What each tool definition contains\n\
-                          \n\
-                          - `name`: The tool's identifier (e.g., \"read\", \"bash\")\n\
-                          - `description`: What the tool does and key constraints\n\
-                          - `parameters`: JSON Schema describing the tool's arguments\n\
-                          \n\
-                          Use these to understand how to call each tool correctly.\n\
-                          \n\
-                          ## Error handling\n\
-                          \n\
-                          If you pass an unknown group name, load_tools returns an error:\n\
-                          `unknown group: 'xyz'. Call load_tools with no arguments to list available groups.`\n\
-                          \n\
-                          ## Workflow example\n\
-                          \n\
-                          1. Call `load_tools {}` → see available groups\n\
-                          2. Call `load_tools { group: \"fs\" }` → see fs tools\n\
-                          3. Use fs tools (read, write, etc.) with confidence\n\
-                          \n\
-                          ## For extensions (OHub)\n\
-                          \n\
-                          For installed extensions, use `mcp_load` instead of `load_tools`.\n\
-                          `load_tools` is for built-in groups only.".to_string(),
+            description: "\
+Loads tool definitions for a named group on demand.
+
+## Input shapes
+
+1. List available tool groups (no arguments):
+   `{}`
+
+2. Load tools for a specific group:
+   `{\"group\": \"fs\"}`
+
+## Response format
+
+1. Group list mode returns available group names:
+   `{\"available_groups\": [\"fs\", \"shell\"], \"message\": \"...\"}`
+
+2. Group load mode returns tool definitions:
+   `{\"group\": \"fs\", \"tool_count\": 7, \"tools\": [{\"name\": \"read\", \"description\": \"...\", \"parameters\": {...}}]}`"
+                .to_string(),
             parameters,
         },
     }

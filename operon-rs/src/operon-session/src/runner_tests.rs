@@ -1,6 +1,6 @@
 use super::*;
 
-use operon_context::{ToolCall, ToolCallId, ToolContent, ToolResult};
+use operon_context::{StopReason, ToolCall, ToolCallId, ToolContent, ToolResult};
 use serde_json::json;
 
 // Build a tiny ToolCall fixture so the helper tests stay focused and readable.

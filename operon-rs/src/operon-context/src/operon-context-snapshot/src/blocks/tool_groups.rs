@@ -13,8 +13,11 @@ pub fn render_tool_groups(groups: &[String]) -> Option<String> {
 
     Some(format!(
         "## Available Tool Groups\n\
-         Tools are not loaded by default — call `load_tools` with a group name \
-         to get tool names, descriptions, and schemas for that group. Pass `group` to get tool names, descriptions, and schemas for that group. Omit `group` to list all available groups.\n\
+         Tools are not loaded by default. Use the `load_tools` tool to load a group's \
+         tool definitions before calling any tool in it.\n\
+         \n\
+         load_tools(group?: string) — Pass `group` to get tool names, descriptions, and \
+         schemas for that group. Omit `group` to list all available groups.\n\
          \n\
          Built-in groups: {group_list}\n\
          \n\

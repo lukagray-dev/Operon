@@ -55,8 +55,8 @@ use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::{CallerRole, PolicyDecision, PolicyResolver};
 use operon_providers::Provider;
 use operon_tools::{dispatcher::Dispatcher, ToolProgressEmitter};
-// Hey friend! We import AskArgs and AskOutput so we can parse input arguments and format tool outputs.
-use operon_tools_ask::{AskArgs, AskOutput};
+// Hey friend! We import AskArgs so we can parse input arguments for the ask tool.
+use operon_tools_ask::AskArgs;
 
 use crate::config::SessionConfig;
 use crate::error::SessionError;
@@ -246,6 +246,7 @@ impl SessionRunner {
                     // ...specifically, successful executions of the "load_tools" tool.
                     if result.name == "load_tools" && !result.is_error {
                         // The output content of load_tools is returned as a JSON structure.
+                        // Note: load_tools output format must stay JSON (or set_history must be updated in lockstep).
                         if let ToolContent::Json(ref json) = result.content {
                             // Inside that JSON, the "group" key specifies which group was loaded
                             // (for example: { "group": "fs", "tool_count": 7, "tools": [...] }).
@@ -621,13 +622,8 @@ impl SessionRunner {
                         break;
                     }
 
-                    // Hey friend! We pack the user's answer into a structured AskOutput,
-                    // serialize it to a JSON value, and build the ToolResult which will
-                    // be passed back to the AI model.
-                    let content = ToolContent::Json(
-                        serde_json::to_value(AskOutput { answer })
-                            .expect("AskOutput serialization should never fail"),
-                    );
+                    // Hey friend! We return the user's answer directly as plain text in ToolContent::Text.
+                    let content = ToolContent::Text(answer);
                     let result = ToolResult {
                         call_id: call.id.clone(),
                         name: "ask".to_string(),
