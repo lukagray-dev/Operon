@@ -33,6 +33,8 @@ pub struct WhatsAppClient {
     session_path: PathBuf,
     /// Phone number for pair code linking (optional).
     pair_phone: Option<String>,
+    /// Bot phone number (digits only), resolved from owner_number or device identity at runtime.
+    bot_phone: Arc<parking_lot::Mutex<Option<String>>>,
     /// Custom pair code (optional).
     pair_code: Option<String>,
     /// Override WebSocket URL (optional).
@@ -80,10 +82,13 @@ impl WhatsAppClient {
             ConnectionStatus::Disconnected
         };
 
+        let initial_bot_phone = config.owner_number.as_ref().map(|c| c.as_str().to_string());
+
         Self {
             auth_dir,
             session_path,
-            pair_phone: config.owner_number.as_ref().map(|c| c.as_str().to_string()),
+            pair_phone: initial_bot_phone.clone(),
+            bot_phone: Arc::new(parking_lot::Mutex::new(initial_bot_phone)),
             pair_code: None,
             ws_url: None,
             status: Arc::new(RwLock::new(initial_status)),
@@ -164,6 +169,11 @@ impl WhatsAppClient {
         let mut device = Device::new(backend.clone());
         if backend.exists().await.unwrap_or(false) {
             if let Ok(Some(core_device)) = backend.load().await {
+                if let Some(ref pn_jid) = core_device.pn {
+                    let phone = pn_jid.user().to_string();
+                    info!(owner_phone = %phone, "Loaded owner phone number from device identity");
+                    *self.bot_phone.lock() = Some(phone);
+                }
                 device.load_from_serializable(core_device);
             }
         }
@@ -180,7 +190,8 @@ impl WhatsAppClient {
         let pairing_code_tx_clone = self.pairing_code_tx.clone();
         let message_tx_clone = self.message_tx.clone();
         let sent_message_ids_clone = self.sent_message_ids.clone();
-        let pair_phone_clone = self.pair_phone.clone();
+        let bot_phone_clone = self.bot_phone.clone();
+        let backend_clone = backend.clone();
 
         let mut builder = Bot::builder()
             .with_backend(backend)
@@ -198,7 +209,8 @@ impl WhatsAppClient {
                 let pairing_code_tx = pairing_code_tx_clone.clone();
                 let message_tx = message_tx_clone.clone();
                 let sent_ids = sent_message_ids_clone.clone();
-                let pair_phone = pair_phone_clone.clone();
+                let bot_phone = bot_phone_clone.clone();
+                let backend = backend_clone.clone();
 
                 async move {
                     match event.as_ref() {
@@ -223,14 +235,27 @@ impl WhatsAppClient {
                                     let sender_user = info.source.sender.user();
                                     let chat_user = info.source.chat.user();
 
+                                    tracing::debug!(
+                                        chat_user = %chat_user,
+                                        sender_user = %sender_user,
+                                        "Event::Message raw chat_user and sender_user"
+                                    );
+
+                                    let active_bot_phone = bot_phone.lock().clone();
+
                                     // Resolve actual phone number from WhatsApp chat/sender (preserving country code)
                                     let resolved_phone = if !chat_user.is_empty() && !chat_user.starts_with("23888") {
                                         chat_user.to_string()
                                     } else if !sender_user.is_empty() && !sender_user.starts_with("23888") {
                                         sender_user.to_string()
-                                    } else if let Some(ref owner) = pair_phone {
+                                    } else if let Some(ref owner) = active_bot_phone {
                                         owner.clone()
                                     } else {
+                                        warn!(
+                                            chat_user = %chat_user,
+                                            sender_user = %sender_user,
+                                            "Fallback to chat_user for resolved_phone: both chat_user and sender_user were empty/LID-prefixed and bot_phone is None"
+                                        );
                                         chat_user.to_string()
                                     };
 
@@ -293,6 +318,20 @@ impl WhatsAppClient {
                         Event::Connected(_) => {
                             info!("WhatsApp Web connected successfully");
                             *status.write() = ConnectionStatus::Connected;
+
+                            if bot_phone.lock().is_none() {
+                                let bot_phone = bot_phone.clone();
+                                let backend = backend.clone();
+                                tokio::spawn(async move {
+                                    if let Ok(Some(core_device)) = backend.load().await {
+                                        if let Some(ref pn_jid) = core_device.pn {
+                                            let phone = pn_jid.user().to_string();
+                                            info!(owner_phone = %phone, "Resolved owner phone number on Event::Connected");
+                                            *bot_phone.lock() = Some(phone);
+                                        }
+                                    }
+                                });
+                            }
                         }
                         Event::LoggedOut(_) => {
                             warn!("WhatsApp Web logged out");

@@ -27,7 +27,9 @@ pub use outbound::{OutboundMessage, OutboundQueue};
 pub use router::{RouteOutcome, WhatsAppRouter};
 pub use runner_bridge::SessionRunnerBridge;
 pub use service::WhatsAppService;
+pub use storage::RusqliteStore;
 pub use types::{ConnectionStatus, ContactId, PairingCodeState, QrCodeState, WhatsAppMessage};
+pub use wacore::store::traits::DeviceStore;
 pub use workspace::WhatsAppWorkspaceManager;
 
 

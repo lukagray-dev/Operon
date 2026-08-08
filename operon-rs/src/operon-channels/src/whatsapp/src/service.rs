@@ -191,7 +191,7 @@ impl WhatsAppService {
                             );
                         }
                         Err(e) => {
-                            warn!("Failed to send outbound WhatsApp message to {}: {}", msg.recipient, e);
+                            warn!("Failed to send outbound WhatsApp message {:?}: {}", msg, e);
                         }
                     }
                 }

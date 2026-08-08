@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use parking_lot::Mutex as SyncMutex;
 use tokio::sync::{mpsc, Mutex};
 use tracing::info;
 
@@ -47,6 +48,8 @@ pub enum RouteOutcome {
 /// and cancels in-flight turns when `/new` is issued.
 pub struct WhatsAppRouter {
     config: WhatsAppConfig,
+    /// Resolved bot/owner phone number for lazy role evaluation.
+    bot_phone: Arc<SyncMutex<Option<ContactId>>>,
     /// In-memory map from ContactId to current ActiveSession.
     active_sessions: Arc<Mutex<HashMap<ContactId, ActiveSession>>>,
     /// In-memory set of known contacts to identify first-time senders.
@@ -56,11 +59,31 @@ pub struct WhatsAppRouter {
 impl WhatsAppRouter {
     /// Creates a new `WhatsAppRouter` with the given channel configuration.
     pub fn new(config: WhatsAppConfig) -> Self {
+        let initial_owner = config.owner_number.clone();
         Self {
             config,
+            bot_phone: Arc::new(SyncMutex::new(initial_owner)),
             active_sessions: Arc::new(Mutex::new(HashMap::new())),
             known_contacts: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// Checks if a contact ID is considered an owner (via config or lazily resolved bot_phone).
+    pub fn is_owner(&self, contact: &ContactId) -> bool {
+        if self.config.is_owner(contact) {
+            return true;
+        }
+        if let Some(ref owner) = *self.bot_phone.lock() {
+            if owner == contact {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Sets or updates the bot/owner phone number lazily.
+    pub fn set_owner_number(&self, owner: ContactId) {
+        *self.bot_phone.lock() = Some(owner);
     }
 
     /// Evaluates an inbound message and returns a `RouteOutcome`.
@@ -84,7 +107,7 @@ impl WhatsAppRouter {
             };
 
             // Re-evaluate role on /new
-            let is_owner = self.config.is_owner(&contact) || msg.is_self;
+            let is_owner = self.is_owner(&contact) || msg.is_self;
             let new_role = if is_owner {
                 CallerRole::Owner
             } else {
@@ -130,7 +153,7 @@ impl WhatsAppRouter {
             Some(existing) => existing.clone(),
             None => {
                 // First session for this contact: resolve and pin role
-                let is_owner = self.config.is_owner(&contact) || msg.is_self;
+                let is_owner = self.is_owner(&contact) || msg.is_self;
                 let role = if is_owner {
                     CallerRole::Owner
                 } else {
@@ -183,7 +206,7 @@ impl WhatsAppRouter {
     /// Explicitly resets a contact's session ID (e.g. programmatically).
     pub async fn reset_session(&self, contact: &ContactId) -> (String, CallerRole) {
         let mut sessions = self.active_sessions.lock().await;
-        let is_owner = self.config.is_owner(contact);
+        let is_owner = self.is_owner(contact);
         let role = if is_owner {
             CallerRole::Owner
         } else {

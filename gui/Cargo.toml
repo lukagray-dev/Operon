@@ -17,6 +17,7 @@ serde.workspace       = true
 toml.workspace        = true
 dirs.workspace        = true
 serde_json.workspace  = true
+notify.workspace      = true
 
 operon-rs = { path = "../operon-rs" }
 operon-channels-whatsapp = { path = "../operon-rs/src/operon-channels/src/whatsapp" }
