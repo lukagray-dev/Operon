@@ -91,34 +91,17 @@ pub fn definition() -> TieredToolDefinition {
         },
         detailed: ToolDefinition {
             name: "ask".to_string(),
-            description: "Ask the user a multiple-choice question and wait for their answer.\n\
-                          \n\
-                          ## Arguments\n\
-                          \n\
-                          - `question` (string, required): The question to display to the user.\n\
-                          - `options` (array of exactly 3 strings, required): Pre-defined answer \
-                            choices. The UI automatically adds a 4th free-text field for custom answers.\n\
-                          \n\
-                          ## Behavior\n\
-                          \n\
-                          The agent loop suspends immediately when `ask` is called. No further tool \
-                          calls or model turns run until the user selects an option or types a custom \
-                          answer. The user's response is returned as a structured ToolResult.\n\
-                          \n\
-                          ## Response shape\n\
-                          \n\
-                          `{ \"answer\": \"<user's answer>\" }` — either one of the 3 options verbatim, \
-                          or the user's custom free-text input from the 4th field.\n\
-                          \n\
-                          ## Common mistakes\n\
-                          \n\
-                          - Passing fewer or more than 3 options → args parse error; the schema \
-                            enforces exactly 3.\n\
-                          - Calling `ask` multiple times in one turn → only the first call \
-                            suspends the loop; remaining calls execute in subsequent turns.\n\
-                          - Phrasing options as questions instead of concise answers → confuses users.\n\
-                          - Expecting a 4th option in the ToolResult → the free-text field is UI-only; \
-                            the answer arrives as a plain string regardless of which field the user used."
+            description: "\
+Asks the user a multiple-choice question and pauses the agent loop until they answer.
+
+## Input shapes
+
+`question` (required, string): Question to display to the user.
+`options` (required, array of 3 strings): Exactly 3 answer choices (UI adds a 4th free-text field).
+
+## Response format
+
+Returns `{ \"answer\": \"<user's answer>\" }` containing the selected option or custom text."
                 .to_string(),
             parameters,
         },
