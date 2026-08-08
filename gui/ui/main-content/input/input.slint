@@ -51,8 +51,8 @@ export component InputPanel inherits Rectangle {
     in property <int> tokens-used: 0;
     in property <int> tokens-total: 0;
 
-    // Voice recording state
-    in-out property <bool> is-recording: false;
+    // Voice state (0=idle, 1=loading, 2=listening, 3=transcribing)
+    in-out property <int> voice-state: 0;
 
     // Inline context statistics text and models dropdown properties
     in property <string> context-text: "";
@@ -251,7 +251,7 @@ export component InputPanel inherits Rectangle {
 
                     // Voice input button
                     VoiceButton {
-                        is-recording <=> root.is-recording;
+                        voice-state <=> root.voice-state;
 
                         clicked => {
                             root.voice-clicked();

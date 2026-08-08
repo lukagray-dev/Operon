@@ -54,8 +54,8 @@ export component MainContent inherits Rectangle {
     in property <int> tokens-used: 0;
     in property <int> tokens-total: 0;
     
-    // Voice recording state
-    in-out property <bool> is-recording: false;
+    // Voice state (0=idle, 1=loading, 2=listening, 3=transcribing)
+    in-out property <int> voice-state: 0;
     
     // Generator / responding state
     in-out property <bool> is-responding: false;
@@ -292,7 +292,7 @@ export component MainContent inherits Rectangle {
                             context-usage: root.context-usage;
                             tokens-used: root.tokens-used;
                             tokens-total: root.tokens-total;
-                            is-recording <=> root.is-recording;
+                            voice-state <=> root.voice-state;
                             context-text: root.context-text;
                             available-models: root.available-models;
                             is-responding <=> root.is-responding;

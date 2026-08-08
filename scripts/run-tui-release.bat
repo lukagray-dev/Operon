@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================================
-REM  Operon TUI Launcher
-REM  Builds and runs the Operon Terminal User Interface
+REM  Operon TUI Release Launcher
+REM  Builds and runs the Operon Terminal User Interface in Release Mode
 REM ============================================================================
 
 setlocal enabledelayedexpansion
@@ -23,7 +23,7 @@ echo  \____/ .___/\___/_/   \____/_/ /_/
 echo      /_/                               
 echo.
 echo ============================================================================
-echo   Terminal User Interface Launcher
+echo   Terminal User Interface Launcher (RELEASE MODE)
 echo ============================================================================
 echo.
 
@@ -42,13 +42,13 @@ if errorlevel 1 (
 echo [OK] Rust toolchain detected
 echo.
 
-REM Build and run the TUI
+REM Build and run the TUI in release mode
 echo ============================================================================
-echo   Building and launching Operon TUI...
+echo   Building and launching Operon TUI (Release Mode - Optimized)...
 echo ============================================================================
 echo.
 
-cargo run --bin operon-tui
+cargo run --release --bin operon-tui
 
 REM Capture exit code
 set EXIT_CODE=%errorlevel%

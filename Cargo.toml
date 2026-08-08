@@ -87,6 +87,9 @@ members = [
     # Channels facade & sub-crates
     "operon-rs/src/operon-channels",
     "operon-rs/src/operon-channels/src/whatsapp",
+
+    # Voice — local speech-to-text via whisper.cpp
+    "operon-rs/src/operon-voice",
 ]
 
 [workspace.dependencies]
@@ -169,6 +172,11 @@ operon-terminal  = { path = "operon-rs/src/operon-terminal" }
 operon-diff      = { path = "operon-rs/src/operon-diff" }
 operon-channels  = { path = "operon-rs/src/operon-channels" }
 operon-channels-whatsapp = { path = "operon-rs/src/operon-channels/src/whatsapp" }
+operon-voice     = { path = "operon-rs/src/operon-voice" }
+
+# Audio capture and speech-to-text
+cpal       = "0.18"
+whisper-rs = "0.16"
 
 # Third party dependencies
 portable-pty     = "0.8"

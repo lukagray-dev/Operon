@@ -1,102 +1,242 @@
 // Voice input button component for the input panel.
 //
-// This component provides a microphone button that allows users to input their
-// prompts using voice instead of typing. When clicked, it would activate voice
-// recording functionality.
+// This component provides a microphone button with four visual states:
 //
-// The button can have multiple states:
-// - Idle: Ready to start recording
-// - Recording: Currently capturing audio (could show animated state)
-// - Processing: Converting speech to text
+//   0 = Idle         → static microphone icon (voice.svg)
+//   1 = Loading       → spinning loading indicator (loading.svg rotated via Timer)
+//   2 = Listening     → 5-bar waveform animation (native Rectangle bars)
+//   3 = Transcribing  → spinning loading indicator (same as Loading)
 //
-// For now, it's a simple clickable button with hover states.
+// State transitions are driven entirely from Rust via the `voice-state`
+// property. The Slint side does NOT toggle state on click — it only fires
+// the `clicked()` callback and lets Rust decide the next state.
 
 import { Tokens } from "../../shared/tokens.slint";
 
 // Voice input button positioned before the send button.
 // Allows users to dictate their prompts instead of typing.
 export component VoiceButton inherits Rectangle {
-    // Whether voice recording is currently active
-    in-out property <bool> is-recording: false;
-    
-    // Callback fired when the user clicks to start/stop voice input
+    // Current voice engine state (0=idle, 1=loading, 2=listening, 3=transcribing).
+    // Driven from Rust — do not mutate from Slint.
+    in-out property <int> voice-state: 0;
+
+    // Callback fired when the user clicks the button (any state).
+    // Rust decides whether to start, stop, or ignore based on current state.
     callback clicked();
-    
-    // Callback fired when recording starts
+
+    // Backward-compatible callbacks — kept so input.slint wiring doesn't break.
+    // These fire automatically based on state, but the primary signal is `clicked()`.
     callback recording-started();
-    
-    // Callback fired when recording stops
     callback recording-stopped();
-    
+
     // Fixed square dimensions for the button
     width: 32px;
     height: 32px;
-    
-    // Background color changes based on recording state and hover
-    // When recording, use a red tint to indicate active state
-    background: root.is-recording 
+
+    // Background color changes based on voice state and hover:
+    //   - Idle: transparent with hover highlight
+    //   - Loading/Transcribing: subtle blue tint
+    //   - Listening: red tint to indicate active recording
+    background: root.voice-state == 2
         ? (touch-area.has-hover ? #ff474750 : #ff000030)
-        : (touch-area.has-hover ? Tokens.dropdown-surface-hover : transparent);
-    
+        : root.voice-state == 0
+            ? (touch-area.has-hover ? Tokens.dropdown-surface-hover : transparent)
+            : (touch-area.has-hover ? #3040ff30 : #2030ff20);
+
     // Smooth background transitions
     animate background { duration: 150ms; easing: ease-in-out; }
-    
+
     // Rounded corners matching the design system
     border-radius: 6px;
-    
-    // Optional border when recording to emphasize the active state
-    border-width: root.is-recording ? 1px : 0px;
-    border-color: root.is-recording ? Tokens.danger-red : transparent;
-    
+
+    // Border when recording (listening) to emphasize active state
+    border-width: root.voice-state == 2 ? 1px : 0px;
+    border-color: root.voice-state == 2 ? Tokens.danger-red : transparent;
+
     // Smooth border transitions
     animate border-width { duration: 150ms; easing: ease-in-out; }
     animate border-color { duration: 150ms; easing: ease-in-out; }
-    
-    // Center the icon within the button
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Spinner rotation — used by Loading (1) and Transcribing (3) states.
+    // We drive a 0→359 integer property via a Timer, then bind rotation-angle
+    // to it. This creates a smooth continuous spin.
+    // ──────────────────────────────────────────────────────────────────────
+
+    // Spin angle counter: cycles 0..359 continuously while spinning
+    property <int> spin-counter: 0;
+
+    // Timer that ticks every 16ms (~60fps) to increment the spin counter
+    spin-timer := Timer {
+        interval: 16ms;
+        // Timer runs when state is loading(1) or transcribing(3)
+        running: root.voice-state == 1 || root.voice-state == 3;
+        triggered => {
+            // Increment by 6 degrees per tick → ~360°/s rotation speed
+            root.spin-counter = mod(root.spin-counter + 6, 360);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Waveform bar animation — used by Listening (2) state.
+    // Five bars with staggered height oscillation. We use a Timer to drive
+    // a phase counter, then compute each bar's height from a sine-like
+    // pattern using the phase + per-bar offset.
+    // ──────────────────────────────────────────────────────────────────────
+
+    // Master phase counter for waveform animation (0..999, cycles every ~2s)
+    property <int> wave-phase: 0;
+
+    // Timer for waveform animation — runs only in Listening state
+    wave-timer := Timer {
+        interval: 33ms;
+        // Timer runs only when we're in the Listening state
+        running: root.voice-state == 2;
+        triggered => {
+            // Increment phase — wraps around at 1000 for a ~2 second cycle
+            root.wave-phase = mod(root.wave-phase + 33, 1000);
+        }
+    }
+
+    // Helper properties for each bar's height, computed from wave-phase.
+    // Each bar has a different phase offset (0, 200, 400, 200, 0) to create
+    // the staggered wave pattern matching the original SVG's
+    // 0s/0.25s/0.5s offsets (mirrored for 5 bars).
+    //
+    // The height oscillates between 4px (min) and 16px (max).
+    // We use a simple triangle wave: abs(phase - 500) / 500 maps to 0..1
+    property <int> bar0-phase: mod(root.wave-phase + 0, 1000);
+    property <int> bar1-phase: mod(root.wave-phase + 200, 1000);
+    property <int> bar2-phase: mod(root.wave-phase + 400, 1000);
+    property <int> bar3-phase: mod(root.wave-phase + 200, 1000);
+    property <int> bar4-phase: mod(root.wave-phase + 0, 1000);
+
+    // Triangle wave helper: maps phase (0..999) to a height in pixels (4..16).
+    // The formula: base + (amplitude * triangle(phase))
+    // triangle(p) = abs(p - 500) / 500  → produces 0..1..0 over one cycle
+    pure function bar-height(phase: int) -> length {
+        // Distance from midpoint: 0 at center, 500 at edges
+        // This creates a triangle wave pattern
+        // When phase=0: dist=500, ratio=1.0 → height = 4 + 12*1.0 = 16px
+        // When phase=500: dist=0, ratio=0.0 → height = 4 + 12*0.0 = 4px
+        4px + 12px * (abs(phase - 500) / 500)
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Visual content — switches between mic icon, spinner, and waveform
+    // ──────────────────────────────────────────────────────────────────────
+
     HorizontalLayout {
         alignment: center;
-        
+
         VerticalLayout {
             alignment: center;
-            
-            // Microphone icon
-            // Using colorize to apply theme colors to the SVG
-            icon := Image {
+
+            // === Idle state: Static microphone icon ===
+            if root.voice-state == 0: Image {
                 source: @image-url("../../../assets/icons/main-content/input/voice.svg");
                 width: 18px;
                 height: 18px;
-                // When recording, use danger red; otherwise use secondary color
-                colorize: root.is-recording 
-                    ? Tokens.danger-red 
-                    : (touch-area.has-hover ? Tokens.text-primary : Tokens.text-secondary);
+                colorize: touch-area.has-hover ? Tokens.text-primary : Tokens.text-secondary;
                 image-fit: contain;
-                
-                // Smooth color transition on state change and hover
+
+                // Smooth color transition on hover
                 animate colorize { duration: 150ms; easing: ease-in-out; }
-                
-                // Optional: Add a pulsing animation when recording
-                // This would require animation support in Slint
+            }
+
+            // === Loading / Transcribing state: Spinning loader ===
+            if root.voice-state == 1 || root.voice-state == 3: Image {
+                source: @image-url("../../../assets/icons/animations/loading.svg");
+                width: 18px;
+                height: 18px;
+                colorize: Tokens.text-primary;
+                image-fit: contain;
+
+                // Rotate using the Timer-driven spin counter.
+                // transform-rotation replaces the deprecated rotation-angle (Slint 1.14+).
+                // Default transform-origin is the element center — perfect for a spinner.
+                transform-rotation: root.spin-counter * 1deg;
+            }
+
+            // === Listening state: 5-bar waveform animation ===
+            if root.voice-state == 2: HorizontalLayout {
+                alignment: center;
+                spacing: 2px;
+                width: 18px;
+                height: 18px;
+
+                // Bar 0 (leftmost) — phase offset 0
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 2px;
+                        height: root.bar-height(root.bar0-phase);
+                        border-radius: 1px;
+                        background: Tokens.danger-red;
+                        animate height { duration: 100ms; easing: ease-in-out; }
+                    }
+                }
+
+                // Bar 1 — phase offset 200 (0.25s equivalent)
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 2px;
+                        height: root.bar-height(root.bar1-phase);
+                        border-radius: 1px;
+                        background: Tokens.danger-red;
+                        animate height { duration: 100ms; easing: ease-in-out; }
+                    }
+                }
+
+                // Bar 2 (center) — phase offset 400 (0.5s equivalent)
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 2px;
+                        height: root.bar-height(root.bar2-phase);
+                        border-radius: 1px;
+                        background: Tokens.danger-red;
+                        animate height { duration: 100ms; easing: ease-in-out; }
+                    }
+                }
+
+                // Bar 3 — phase offset 200 (mirrors bar 1)
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 2px;
+                        height: root.bar-height(root.bar3-phase);
+                        border-radius: 1px;
+                        background: Tokens.danger-red;
+                        animate height { duration: 100ms; easing: ease-in-out; }
+                    }
+                }
+
+                // Bar 4 (rightmost) — phase offset 0 (mirrors bar 0)
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 2px;
+                        height: root.bar-height(root.bar4-phase);
+                        border-radius: 1px;
+                        background: Tokens.danger-red;
+                        animate height { duration: 100ms; easing: ease-in-out; }
+                    }
+                }
             }
         }
     }
-    
+
     // Touch area for click detection covering the entire button
     touch-area := TouchArea {
         // Change cursor to pointer to indicate clickability
         mouse-cursor: pointer;
-        
+
         clicked => {
-            // Toggle recording state
-            root.is-recording = !root.is-recording;
-            
-            // Notify parent of state change
-            if (root.is-recording) {
-                root.recording-started();
-            } else {
-                root.recording-stopped();
-            }
-            
-            // Also fire the generic clicked callback
+            // Fire the generic clicked callback — Rust drives the state machine.
+            // We do NOT toggle any state here; the Rust handler decides
+            // transitions based on VoiceEngine state.
             root.clicked();
         }
     }

@@ -127,7 +127,7 @@ export component OperonWindow inherits Window {
     in property <float> context_usage: 0.0;
     in property <int> tokens_used: 0;
     in property <int> tokens_total: 0;
-    in-out property <bool> is_recording: false;
+    in-out property <int> voice_state: 0;
     in property <string> session_title: "New Session";
     in property <[ChatMessage]> chat_messages: [];
     in-out property <bool> is_responding: false;
@@ -278,7 +278,7 @@ export component OperonWindow inherits Window {
                 context-usage: root.context_usage;
                 tokens-used: root.tokens_used;
                 tokens-total: root.tokens_total;
-                is-recording <=> root.is_recording;
+                voice-state <=> root.voice_state;
                 session-title: root.session_title;
                 context-text: root.context_text;
                 available-models: root.available_models;
