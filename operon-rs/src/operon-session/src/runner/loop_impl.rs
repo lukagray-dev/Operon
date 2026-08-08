@@ -1,0 +1,346 @@
+// runner/loop_impl.rs — The per-turn agent loop.
+//
+// Contains the `run()` method on `SessionRunner`. This is the core agentic
+// cycle: compaction check → snapshot → sanitize → collect tools → build
+// request → stream → record usage → push assistant message → persist →
+// check for tool calls → dispatch (delegated to tool_dispatch.rs) → loop.
+
+use operon_context::{sanitize, ContentBlock, ConversationMessage, MessageRole, ToolContent};
+use operon_events::SessionEvent;
+use operon_providers::Provider;
+
+use crate::error::SessionError;
+use crate::http::send_streaming;
+use crate::lifecycle::LifecycleState;
+use crate::request::build_request;
+
+use super::message_build::{build_assistant_message, extract_usage_record};
+use super::tool_dispatch::ToolCallFlow;
+use super::SessionRunner;
+
+impl SessionRunner {
+    /// Run one user turn through the agent loop.
+    ///
+    /// Pushes `user_message` into the conversation, then loops:
+    ///   1. Check compaction threshold → compact if needed
+    ///   2. Build snapshot + sanitize
+    ///   3. Collect tool definitions
+    ///   4. Build request + stream
+    ///   5. Record token usage + emit TokenUsageUpdated + ContextUsageUpdated
+    ///   6. Push assistant message into history
+    ///   7. Persist turn to SQLite
+    ///   8. If no tool calls → emit Done + break
+    ///   9. Check for Cancel command
+    ///  10. Policy-check each tool call; Ask waits, Deny blocks
+    ///  11. Dispatch allowed tool calls sequentially + emit ToolDegraded if needed
+    ///  12. Loop back for the next model turn
+    pub async fn run(&mut self, user_message: String) -> Result<(), SessionError> {
+        // Guard: only Idle and Paused sessions may enter the loop.
+        if !self.lifecycle.can_run() {
+            return Err(SessionError::InvalidState {
+                state: format!("{:?}", self.lifecycle),
+            });
+        }
+        self.lifecycle = LifecycleState::Running;
+
+        // Push the user's message into the conversation history.
+        self.messages
+            .push(ConversationMessage::user(vec![ContentBlock::Text(
+                user_message,
+            )]));
+
+        // The agent loop — continues until the model returns no tool calls.
+        loop {
+            // ── 1. Compaction check ──────────────────────────────────────────
+            if self
+                .token_budget
+                .should_compact(self.token_state.current_context_tokens)
+            {
+                // Notify the UI that compaction is about to run so it can show a spinner.
+                let _ = self
+                    .event_tx
+                    .send(SessionEvent::CompactionStarted {
+                        tokens_before: self.token_state.current_context_tokens,
+                    })
+                    .await;
+
+                match self.run_compaction().await {
+                    Ok(()) => {}
+                    Err(SessionError::Compaction(
+                        operon_context::CompactionError::ThresholdNotReached,
+                    )) => {
+                        tracing::warn!("Compaction triggered but threshold not reached — skipping");
+                    }
+                    Err(SessionError::Compaction(
+                        operon_context::CompactionError::InsufficientHistory,
+                    )) => {
+                        let _ = self
+                            .event_tx
+                            .send(SessionEvent::Warning {
+                                message: "Context compaction skipped: insufficient history"
+                                    .to_string(),
+                            })
+                            .await;
+                    }
+                    Err(e) => {
+                        // If compaction encounters a fatal error, emit PreTurnFailed,
+                        // transition session lifecycle state to Failed, and return the error.
+                        let _ = self
+                            .event_tx
+                            .send(SessionEvent::PreTurnFailed {
+                                turn_index: self.turn_index,
+                                step: operon_events::PreTurnStep::Compaction,
+                                reason: e.to_string(),
+                            })
+                            .await;
+                        self.lifecycle = LifecycleState::Failed;
+                        return Err(e);
+                    }
+                }
+            }
+
+            // ── 2. Build snapshot ────────────────────────────────────────────
+            // We build a filesystem/project snapshot that captures the current workspace file tree
+            // and files status, which the AI model uses to understand project context.
+            // If snapshotting fails, we emit a PreTurnFailed event so the UI can notify the user,
+            // transition the lifecycle state to Failed, and return the error.
+            let snapshot = match self.snapshot_builder.build() {
+                Ok(s) => s,
+                Err(e) => {
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::PreTurnFailed {
+                            turn_index: self.turn_index,
+                            step: operon_events::PreTurnStep::Snapshot,
+                            reason: e.to_string(),
+                        })
+                        .await;
+                    self.lifecycle = LifecycleState::Failed;
+                    return Err(e.into());
+                }
+            };
+
+            // ── 2b. Sanitize conversation messages ───────────────────────────
+            // We sanitize the conversation messages to strip out any invalid blocks,
+            // inject the system prompt snapshot, and prepare the history for the provider.
+            // If sanitization fails, we emit PreTurnFailed, set session state to Failed, and exit.
+            let clean_messages = match sanitize(self.messages.clone(), &snapshot, self.config.role)
+            {
+                Ok(m) => m,
+                Err(e) => {
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::PreTurnFailed {
+                            turn_index: self.turn_index,
+                            step: operon_events::PreTurnStep::Sanitizer,
+                            reason: e.to_string(),
+                        })
+                        .await;
+                    self.lifecycle = LifecycleState::Failed;
+                    return Err(e.into());
+                }
+            };
+
+            // ── 3. Collect tool definitions ──────────────────────────────────
+            // Get all tool definitions that are currently available to the agent.
+            let tool_defs: Vec<_> = self.dispatcher.definitions().cloned().collect();
+
+            // ── 3b. Emit PreTurnReady confirmation ───────────────────────────
+            // Estimate the number of tokens to be sent in the prompt request.
+            // We use a simple heuristic where 4 characters roughly equal 1 token.
+            // This is useful for detecting and debugging context window overflow issues.
+            let estimated_tokens = clean_messages
+                .iter()
+                .flat_map(|m| m.content.iter())
+                .map(|block| match block {
+                    ContentBlock::Text(t) => t.len() / 4,
+                    ContentBlock::ToolCall(c) => c.arguments.to_string().len() / 4 + 10,
+                    ContentBlock::ToolResult(r) => {
+                        let content_len = match &r.content {
+                            ToolContent::Text(t) => t.len(),
+                            ToolContent::Json(val) => val.to_string().len(),
+                        };
+                        content_len / 4 + 10
+                    }
+                    _ => 5,
+                })
+                .sum::<usize>();
+
+            // Let the frontend know that all pre-turn processing succeeded and we are
+            // about to dispatch the API request to the model provider.
+            let _ = self
+                .event_tx
+                .send(SessionEvent::PreTurnReady {
+                    turn_index: self.turn_index,
+                    message_count: clean_messages.len(),
+                    tool_count: tool_defs.len(),
+                    estimated_tokens,
+                })
+                .await;
+
+            // ── 4. Build request body ────────────────────────────────────────
+            // Construct the payload for the model provider request.
+            let body = build_request(
+                &self.config.provider_config.provider,
+                self.config.provider_config.model_id(),
+                self.config.provider_config.max_tokens(),
+                &clean_messages,
+                &tool_defs,
+                true, // streaming = true
+            )?;
+
+            // ── 5. Send + consume SSE stream ─────────────────────────────────
+            // Clone to String so there's no borrow of self across the await.
+            let base_url = self.config.provider_config.effective_base_url();
+            let provider = &self.config.provider_config.provider;
+            let endpoint = match provider {
+                Provider::Anthropic => format!("{}/messages", base_url.trim_end_matches('/')),
+                Provider::Gemini => format!("{}/models", base_url.trim_end_matches('/')),
+                Provider::Cohere => format!("{}/chat", base_url.trim_end_matches('/')),
+                _ => format!("{}/chat/completions", base_url.trim_end_matches('/')),
+            };
+            let api_key = self
+                .config
+                .provider_config
+                .credentials
+                .api_key
+                .expose()
+                .to_string();
+
+            let stream_result = send_streaming(
+                &self.http_client,
+                &self.config.provider_config.provider,
+                &endpoint,
+                &api_key,
+                body,
+                &self.event_tx,
+                &mut self.cmd_rx,
+                &mut self.pending_commands,
+            )
+            .await
+            .map_err(|e| {
+                self.lifecycle = LifecycleState::Failed;
+                e
+            })?;
+
+            // ── 6. Record token usage + emit TokenUsageUpdated ───────────────
+            // Update the session token state from the usage metadata in the stream.
+            // Emit a TokenUsageUpdated event so the TUI status bar stays current.
+            if let Some(usage_raw) = &stream_result.usage_raw {
+                if let Some(record) = extract_usage_record(
+                    usage_raw,
+                    self.config.provider_config.model_id(),
+                    &format!("{:?}", self.config.provider_config.provider),
+                ) {
+                    self.token_state.record_turn(&record);
+
+                    let _ = self
+                        .event_tx
+                        .send(SessionEvent::TokenUsageUpdated {
+                            input_tokens: record.input_tokens,
+                            output_tokens: record.output_tokens,
+                            context_total: self.token_state.current_context_tokens,
+                            cache_read_tokens: record.cache_read_tokens,
+                            cache_write_tokens: record.cache_write_tokens,
+                        })
+                        .await;
+
+                    self.emit_context_usage_update().await;
+                }
+            }
+
+            // ── 7. Push assistant message into history ───────────────────────
+            let assistant_message = build_assistant_message(&stream_result);
+            self.messages.push(assistant_message);
+
+            // ── 8. Persist turn ──────────────────────────────────────────────
+            if let Some(store) = &self.store {
+                store
+                    .save_turn(
+                        &self.session_id,
+                        self.turn_index,
+                        &self.messages,
+                        Some(self.token_state.current_context_tokens),
+                    )
+                    .await?;
+            }
+
+            // Emit TurnComplete so the UI can update turn counters.
+            let _ = self
+                .event_tx
+                .send(SessionEvent::TurnComplete {
+                    turn_index: self.turn_index,
+                })
+                .await;
+            self.turn_index += 1;
+
+            // ── 9. No tool calls → loop is done ─────────────────────────────
+            if stream_result.tool_calls.is_empty() {
+                let _ = self.event_tx.send(SessionEvent::Done).await;
+                self.lifecycle = LifecycleState::Done;
+                break;
+            }
+
+            // ── 10. Check for user cancellation ─────────────────────────────
+            // Drain any queued commands first so we do not accidentally drop a
+            // pending Approve/Deny while checking for Cancel.
+            self.drain_ready_commands();
+            let mut should_stop = self.take_matching_command(None).is_some();
+            if should_stop {
+                tracing::info!("Session cancelled by user command");
+            }
+
+            // ── 11. Policy-check and dispatch tool calls sequentially ────────
+            // Tool calls are still processed in the order the model emitted them.
+            // Do NOT parallelize — order matters for read-ledger enforcement.
+            let mut tool_results: Vec<ContentBlock> = Vec::new();
+
+            for call in stream_result.tool_calls {
+                // If the user cancelled after the previous call, stop scheduling
+                // any new tool work and exit the session cleanly after preserving
+                // any results that were already produced.
+                if should_stop {
+                    break;
+                }
+
+                // Give any already-buffered commands a chance to stop the loop
+                // before we spend time dispatching the next call.
+                self.drain_ready_commands();
+                if self.take_matching_command(None).is_some() {
+                    tracing::info!("Session cancelled by user command");
+                    should_stop = true;
+                    break;
+                }
+
+                // Delegate to handle_tool_call for ask-tool interception,
+                // policy gating, and dispatcher invocation.
+                match self.handle_tool_call(call, &mut tool_results).await {
+                    ToolCallFlow::Continue => {}
+                    ToolCallFlow::Stop => {
+                        should_stop = true;
+                        break;
+                    }
+                }
+            }
+
+            // Push all tool results as a single Tool-role message.
+            if !tool_results.is_empty() {
+                self.messages.push(ConversationMessage {
+                    role: MessageRole::Tool,
+                    content: tool_results,
+                    stop_reason: None,
+                });
+            }
+
+            if should_stop {
+                let _ = self.event_tx.send(SessionEvent::Done).await;
+                self.lifecycle = LifecycleState::Done;
+                break;
+            }
+
+            // Loop back to step 1.
+        }
+
+        Ok(())
+    }
+}
