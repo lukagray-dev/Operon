@@ -6,10 +6,10 @@
 //   - GFM `*italic*` or `_italic_` -> WhatsApp `_italic_`
 //   - GFM `~~strikethrough~~` -> WhatsApp `~strikethrough~`
 
+use crate::types::ConnectionStatus;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
-use serde::{Deserialize, Serialize};
-use crate::types::ConnectionStatus;
 
 /// Payload sent over the outbound queue to the WhatsApp WebSocket client.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,7 +53,7 @@ impl OutboundQueue {
         msg: OutboundMessage,
         status: &ConnectionStatus,
     ) -> Result<(), mpsc::error::SendError<OutboundMessage>> {
-        if !matches!(status, ConnectionStatus::Disconnected) {
+        if matches!(status, ConnectionStatus::Connected) {
             // First flush any previously buffered messages in FIFO order
             let _ = self.flush().await;
             self.tx.send(msg).await

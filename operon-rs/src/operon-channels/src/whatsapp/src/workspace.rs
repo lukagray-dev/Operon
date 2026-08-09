@@ -38,10 +38,7 @@ impl WhatsAppWorkspaceManager {
             .join("channels")
             .join("whatsapp")
             .join("workspace");
-        let base_sessions_dir = home
-            .join(".operon")
-            .join("sessions")
-            .join("whatsapp");
+        let base_sessions_dir = home.join(".operon").join("sessions").join("whatsapp");
 
         Self {
             base_workspace_dir,
@@ -76,14 +73,21 @@ impl WhatsAppWorkspaceManager {
     /// Provisions and ensures existence of a contact's workspace folder and role-specific `AGENTS.md`.
     ///
     /// If `AGENTS.md` does not yet exist in the contact's workspace, it is auto-generated based on `is_owner`.
-    pub fn provision_workspace(&self, contact: &ContactId, is_owner: bool) -> Result<PathBuf, WhatsAppError> {
+    pub fn provision_workspace(
+        &self,
+        contact: &ContactId,
+        is_owner: bool,
+    ) -> Result<PathBuf, WhatsAppError> {
         let dir = self.workspace_dir_for(contact);
 
         if !dir.exists() {
             std::fs::create_dir_all(&dir).map_err(|e| {
                 WhatsAppError::Workspace(format!("Failed to create workspace dir {:?}: {e}", dir))
             })?;
-            info!("Created workspace directory for WhatsApp contact: {}", contact);
+            info!(
+                "Created workspace directory for WhatsApp contact: {}",
+                contact
+            );
         }
 
         let agents_md_path = dir.join("AGENTS.md");
@@ -100,7 +104,10 @@ impl WhatsAppWorkspaceManager {
 
         if needs_write {
             std::fs::write(&agents_md_path, &expected_content).map_err(|e| {
-                WhatsAppError::Workspace(format!("Failed to write AGENTS.md for {:?}: {e}", contact))
+                WhatsAppError::Workspace(format!(
+                    "Failed to write AGENTS.md for {:?}: {e}",
+                    contact
+                ))
             })?;
             info!(
                 "Updated AGENTS.md ({}) for contact {}",

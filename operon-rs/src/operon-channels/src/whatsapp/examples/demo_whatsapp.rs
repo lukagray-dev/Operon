@@ -3,8 +3,8 @@
 // Run via: `cargo run -p operon-channels-whatsapp --example demo_whatsapp`
 
 use operon_channels_whatsapp::{
-    ContactId, WhatsAppClient, WhatsAppConfig,
-    WhatsAppMessage, WhatsAppRouter, WhatsAppWorkspaceManager,
+    ContactId, WhatsAppClient, WhatsAppConfig, WhatsAppMessage, WhatsAppRouter,
+    WhatsAppWorkspaceManager,
 };
 use tempfile::TempDir;
 
@@ -13,7 +13,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Starting Operon WhatsApp Channel Engine Demonstration...");
 
     let tmp_dir = TempDir::new()?;
-    let base_ws = tmp_dir.path().join("channels").join("whatsapp").join("workspace");
+    let base_ws = tmp_dir
+        .path()
+        .join("channels")
+        .join("whatsapp")
+        .join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
     let owner_contact = ContactId::new("+1 (555) 100-2000");
@@ -23,7 +27,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         enabled: true,
         owner_number: Some(owner_contact.clone()),
         allowlist: Vec::new(),
-        auth_dir: Some(tmp_dir.path().join("channels").join("whatsapp").join("auth")),
+        auth_dir: Some(
+            tmp_dir
+                .path()
+                .join("channels")
+                .join("whatsapp")
+                .join("auth"),
+        ),
     };
 
     let router = WhatsAppRouter::new(config.clone());

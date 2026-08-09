@@ -9,6 +9,7 @@ use parking_lot::RwLock;
 use wacore::proto_helpers::MessageExt;
 use wacore::store::DevicePropsOverride;
 use wacore::types::events::Event;
+use wacore_binary::jid::Jid;
 use wacore_binary::jid::JidExt;
 use waproto::whatsapp::device_props::PlatformType;
 use whatsapp_rust::bot::Bot;
@@ -59,15 +60,22 @@ pub struct WhatsAppClient {
     message_rx: Arc<AsyncMutex<Option<mpsc::Receiver<WhatsAppMessage>>>>,
     /// Sent message IDs to filter out bot outbound echoes.
     sent_message_ids: Arc<parking_lot::Mutex<std::collections::HashSet<String>>>,
+    /// Last exact WhatsApp chat JID observed for each normalized contact.
+    ///
+    /// Replies must use the original WhatsApp namespace when available. In
+    /// Multi-Device mode, inbound chats can arrive as LID JIDs; rebuilding a
+    /// phone-number JID from digits can target the wrong namespace.
+    reply_targets: Arc<parking_lot::Mutex<std::collections::HashMap<String, String>>>,
 }
 
 impl WhatsAppClient {
     /// Creates a new `WhatsAppClient` configured with the provided settings.
     pub fn new(config: &WhatsAppConfig) -> Self {
-        let auth_dir = config
-            .auth_dir
-            .clone()
-            .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".operon/channels/whatsapp/auth"));
+        let auth_dir = config.auth_dir.clone().unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_default()
+                .join(".operon/channels/whatsapp/auth")
+        });
         let session_path = auth_dir.join("session.db");
 
         let (qr_tx, qr_rx) = mpsc::channel(16);
@@ -101,6 +109,7 @@ impl WhatsAppClient {
             message_tx,
             message_rx: Arc::new(AsyncMutex::new(Some(message_rx))),
             sent_message_ids: Arc::new(parking_lot::Mutex::new(std::collections::HashSet::new())),
+            reply_targets: Arc::new(parking_lot::Mutex::new(std::collections::HashMap::new())),
         }
     }
 
@@ -190,6 +199,7 @@ impl WhatsAppClient {
         let pairing_code_tx_clone = self.pairing_code_tx.clone();
         let message_tx_clone = self.message_tx.clone();
         let sent_message_ids_clone = self.sent_message_ids.clone();
+        let reply_targets_clone = self.reply_targets.clone();
         let bot_phone_clone = self.bot_phone.clone();
         let backend_clone = backend.clone();
 
@@ -203,18 +213,24 @@ impl WhatsAppClient {
                     .with_os("Operon")
                     .with_platform_type(PlatformType::Desktop),
             )
-            .on_event(move |event, _client| {
+            .on_event(move |event, client| {
                 let status = status_clone.clone();
                 let qr_tx = qr_tx_clone.clone();
                 let pairing_code_tx = pairing_code_tx_clone.clone();
                 let message_tx = message_tx_clone.clone();
                 let sent_ids = sent_message_ids_clone.clone();
+                let reply_targets = reply_targets_clone.clone();
                 let bot_phone = bot_phone_clone.clone();
                 let backend = backend_clone.clone();
 
                 async move {
                     match event.as_ref() {
                         Event::Message(msg, info) => {
+                            let is_connected = matches!(*status.read(), ConnectionStatus::Connected);
+                            if !is_connected {
+                                *status.write() = ConnectionStatus::Connected;
+                            }
+
                             // Check if this message was sent by Operon itself
                             let is_bot_echo = sent_ids.lock().remove(&info.id);
                             if is_bot_echo {
@@ -232,8 +248,10 @@ impl WhatsAppClient {
                             if let Some(text) = raw_text {
                                 let text = text.trim().to_string();
                                 if !text.is_empty() {
-                                    let sender_user = info.source.sender.user();
-                                    let chat_user = info.source.chat.user();
+                                    let sender_jid = info.source.sender.clone();
+                                    let chat_jid = info.source.chat.clone();
+                                    let sender_user = sender_jid.user();
+                                    let chat_user = chat_jid.user();
 
                                     tracing::debug!(
                                         chat_user = %chat_user,
@@ -242,11 +260,71 @@ impl WhatsAppClient {
                                     );
 
                                     let active_bot_phone = bot_phone.lock().clone();
+                                    let chat_phone_from_mapping = if chat_jid.is_lid() {
+                                        match client.get_lid_pn_entry(&chat_jid).await {
+                                            Ok(Some(entry)) => Some(entry.phone_number),
+                                            Ok(None) => None,
+                                            Err(e) => {
+                                                warn!(
+                                                    chat = %chat_jid,
+                                                    "Failed to resolve WhatsApp LID chat to phone number: {}",
+                                                    e
+                                                );
+                                                None
+                                            }
+                                        }
+                                    } else {
+                                        None
+                                    };
+                                    let sender_phone_from_mapping = if sender_jid.is_lid() {
+                                        match client.get_lid_pn_entry(&sender_jid).await {
+                                            Ok(Some(entry)) => Some(entry.phone_number),
+                                            Ok(None) => None,
+                                            Err(e) => {
+                                                warn!(
+                                                    sender = %sender_jid,
+                                                    "Failed to resolve WhatsApp LID sender to phone number: {}",
+                                                    e
+                                                );
+                                                None
+                                            }
+                                        }
+                                    } else {
+                                        None
+                                    };
 
                                     // Resolve actual phone number from WhatsApp chat/sender (preserving country code)
-                                    let resolved_phone = if !chat_user.is_empty() && !chat_user.starts_with("23888") {
+                                    let resolved_phone = if let Some(phone) = chat_phone_from_mapping {
+                                        phone
+                                    } else if let Some(phone) = sender_phone_from_mapping {
+                                        phone
+                                    } else if !chat_user.is_empty()
+                                        && !chat_jid.is_lid()
+                                        && !chat_user.starts_with("23888")
+                                    {
                                         chat_user.to_string()
-                                    } else if !sender_user.is_empty() && !sender_user.starts_with("23888") {
+                                    } else if !sender_user.is_empty()
+                                        && !sender_jid.is_lid()
+                                        && !sender_user.starts_with("23888")
+                                    {
+                                        sender_user.to_string()
+                                    } else if info.source.is_from_me {
+                                        active_bot_phone
+                                            .clone()
+                                            .unwrap_or_else(|| chat_user.to_string())
+                                    } else if !chat_user.is_empty() {
+                                        warn!(
+                                            chat = %chat_jid,
+                                            sender = %sender_jid,
+                                            "Using WhatsApp chat user as contact because no phone mapping was available"
+                                        );
+                                        chat_user.to_string()
+                                    } else if !sender_user.is_empty() {
+                                        warn!(
+                                            chat = %chat_jid,
+                                            sender = %sender_jid,
+                                            "Using WhatsApp sender user as contact because no phone mapping was available"
+                                        );
                                         sender_user.to_string()
                                     } else if let Some(ref owner) = active_bot_phone {
                                         owner.clone()
@@ -259,17 +337,23 @@ impl WhatsAppClient {
                                         chat_user.to_string()
                                     };
 
+                                    let contact = ContactId::new(&resolved_phone);
+                                    reply_targets
+                                        .lock()
+                                        .insert(contact.as_str().to_string(), chat_jid.to_string());
+
                                     info!(
                                         id = %info.id,
                                         sender = %resolved_phone,
                                         raw_sender = %sender_user,
+                                        reply_target = %chat_jid,
                                         is_from_me = info.source.is_from_me,
                                         text = %text,
                                         "Inbound WhatsApp text message received"
                                     );
                                     let wa_msg = WhatsAppMessage {
                                         id: info.id.clone(),
-                                        sender: ContactId::new(&resolved_phone),
+                                        sender: contact,
                                         text,
                                         timestamp: info.timestamp.timestamp(),
                                         is_self: info.source.is_from_me,
@@ -388,12 +472,23 @@ impl WhatsAppClient {
             .clone()
             .ok_or_else(|| WhatsAppError::NotConnected)?;
 
-        let digits: String = recipient.chars().filter(|c| c.is_ascii_digit()).collect();
-        if digits.is_empty() {
-            return Err(WhatsAppError::InvalidContact(recipient.to_string()));
-        }
-
-        let to_jid = wacore_binary::jid::Jid::pn(digits);
+        let remembered_target = if recipient.contains('@') {
+            None
+        } else {
+            self.reply_targets.lock().get(recipient).cloned()
+        };
+        let target = remembered_target.as_deref().unwrap_or(recipient);
+        let to_jid = if target.contains('@') {
+            target
+                .parse::<Jid>()
+                .map_err(|_| WhatsAppError::InvalidContact(target.to_string()))?
+        } else {
+            let digits: String = target.chars().filter(|c| c.is_ascii_digit()).collect();
+            if digits.is_empty() {
+                return Err(WhatsAppError::InvalidContact(target.to_string()));
+            }
+            Jid::pn(digits)
+        };
         let outgoing = waproto::whatsapp::Message {
             conversation: Some(text.to_string()),
             ..Default::default()
@@ -404,7 +499,9 @@ impl WhatsAppClient {
             .await
             .map_err(|e| WhatsAppError::SendFailed(e.to_string()))?;
 
-        self.sent_message_ids.lock().insert(result.message_id.clone());
+        self.sent_message_ids
+            .lock()
+            .insert(result.message_id.clone());
 
         Ok(result.message_id)
     }

@@ -7,12 +7,12 @@
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-use operon_policy::CallerRole;
 use operon_channels_whatsapp::config::WhatsAppConfig;
 use operon_channels_whatsapp::outbound::format_for_whatsapp;
 use operon_channels_whatsapp::router::{RouteOutcome, WhatsAppRouter};
 use operon_channels_whatsapp::types::{ContactId, WhatsAppMessage};
 use operon_channels_whatsapp::workspace::WhatsAppWorkspaceManager;
+use operon_policy::CallerRole;
 
 #[test]
 fn test_contact_id_sanitization() {
@@ -34,9 +34,18 @@ fn test_role_classification() {
         auth_dir: None,
     };
 
-    assert!(config.is_owner(&owner_num), "Owner number should be classified as owner");
-    assert!(config.is_owner(&allow_num), "Allowlisted number should be classified as owner");
-    assert!(!config.is_owner(&ext_num), "Unlisted number should NOT be owner");
+    assert!(
+        config.is_owner(&owner_num),
+        "Owner number should be classified as owner"
+    );
+    assert!(
+        config.is_owner(&allow_num),
+        "Allowlisted number should be classified as owner"
+    );
+    assert!(
+        !config.is_owner(&ext_num),
+        "Unlisted number should NOT be owner"
+    );
 }
 
 #[tokio::test]
@@ -60,7 +69,11 @@ async fn test_slash_new_command_detection() {
 
     let outcome = router.route(&msg).await;
     match outcome {
-        RouteOutcome::FreshSessionRequested { contact, new_session_id, role } => {
+        RouteOutcome::FreshSessionRequested {
+            contact,
+            new_session_id,
+            role,
+        } => {
             assert_eq!(contact, owner_num);
             assert_eq!(role, CallerRole::Owner);
             assert!(new_session_id.starts_with("wa-"));
@@ -72,7 +85,11 @@ async fn test_slash_new_command_detection() {
 #[test]
 fn test_workspace_directory_provisioning_and_role_agents_md() {
     let tmp_dir = TempDir::new().unwrap();
-    let base_ws = tmp_dir.path().join("channels").join("whatsapp").join("workspace");
+    let base_ws = tmp_dir
+        .path()
+        .join("channels")
+        .join("whatsapp")
+        .join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
     let manager = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
@@ -83,25 +100,37 @@ fn test_workspace_directory_provisioning_and_role_agents_md() {
     // Provision owner workspace
     let owner_ws = manager.provision_workspace(&owner_contact, true).unwrap();
     let owner_agents_md = std::fs::read_to_string(owner_ws.join("AGENTS.md")).unwrap();
-    assert!(owner_agents_md.contains("ADMINISTRATOR"), "Owner AGENTS.md must contain ADMINISTRATOR");
+    assert!(
+        owner_agents_md.contains("ADMINISTRATOR"),
+        "Owner AGENTS.md must contain ADMINISTRATOR"
+    );
 
     // Provision external workspace
     let ext_ws = manager.provision_workspace(&ext_contact, false).unwrap();
     let ext_agents_md = std::fs::read_to_string(ext_ws.join("AGENTS.md")).unwrap();
-    assert!(ext_agents_md.contains("OUTSIDER"), "External AGENTS.md must contain OUTSIDER");
+    assert!(
+        ext_agents_md.contains("OUTSIDER"),
+        "External AGENTS.md must contain OUTSIDER"
+    );
 }
 
 #[test]
 fn test_session_json_path_resolution() {
     let tmp_dir = TempDir::new().unwrap();
-    let base_ws = tmp_dir.path().join("channels").join("whatsapp").join("workspace");
+    let base_ws = tmp_dir
+        .path()
+        .join("channels")
+        .join("whatsapp")
+        .join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
     let manager = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
     let contact = ContactId::new("15551234567");
 
     let path = manager.session_file_path_for(&contact, "wa-sess-1");
-    assert!(path.ends_with(PathBuf::from("sessions/whatsapp/15551234567/wa-sess-1.json")));
+    assert!(path.ends_with(PathBuf::from(
+        "sessions/whatsapp/15551234567/wa-sess-1.json"
+    )));
 }
 
 #[test]
@@ -115,7 +144,10 @@ fn test_markdown_conversion() {
 fn test_markdown_conversion_non_ascii_and_emojis() {
     let gfm = "🇧🇩 বাংলা **সাহসী** এবং 日本語 🌸 **強調** text with ~~মুছে ফেলা~~ word!";
     let wa = format_for_whatsapp(gfm);
-    assert_eq!(wa, "🇧🇩 বাংলা *সাহসী* এবং 日本語 🌸 *強調* text with ~মুছে ফেলা~ word!");
+    assert_eq!(
+        wa,
+        "🇧🇩 বাংলা *সাহসী* এবং 日本語 🌸 *強調* text with ~মুছে ফেলা~ word!"
+    );
 }
 
 #[tokio::test]
@@ -174,7 +206,11 @@ async fn test_cancel_in_flight_turn_on_slash_new() {
 #[test]
 fn test_contact_promotion_updates_agents_md() {
     let tmp_dir = TempDir::new().unwrap();
-    let base_ws = tmp_dir.path().join("channels").join("whatsapp").join("workspace");
+    let base_ws = tmp_dir
+        .path()
+        .join("channels")
+        .join("whatsapp")
+        .join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
     let manager = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
@@ -200,7 +236,9 @@ fn test_auth_credential_file_permissions() {
     let auth_dir = tmp_dir.path().join("auth");
     let auth = WhatsAppAuth::new(auth_dir.clone());
 
-    let cred_path = auth.write_credential("creds.json", b"{\"secret\":\"key\"}").unwrap();
+    let cred_path = auth
+        .write_credential("creds.json", b"{\"secret\":\"key\"}")
+        .unwrap();
     assert!(cred_path.exists());
     assert_eq!(std::fs::read(&cred_path).unwrap(), b"{\"secret\":\"key\"}");
 
@@ -208,7 +246,11 @@ fn test_auth_credential_file_permissions() {
     {
         use std::os::unix::fs::PermissionsExt;
         let mode = cred_path.metadata().unwrap().permissions().mode();
-        assert_eq!(mode & 0o777, 0o600, "Credential file permissions must be 0600 on Unix");
+        assert_eq!(
+            mode & 0o777,
+            0o600,
+            "Credential file permissions must be 0600 on Unix"
+        );
     }
 }
 
@@ -227,8 +269,14 @@ async fn test_outbound_queue_buffering_and_fifo_flush() {
 
     // 1. Enqueue while Disconnected — should buffer
     let status_disconnected = ConnectionStatus::Disconnected;
-    queue.enqueue(msg1.clone(), &status_disconnected).await.unwrap();
-    queue.enqueue(msg2.clone(), &status_disconnected).await.unwrap();
+    queue
+        .enqueue(msg1.clone(), &status_disconnected)
+        .await
+        .unwrap();
+    queue
+        .enqueue(msg2.clone(), &status_disconnected)
+        .await
+        .unwrap();
     assert_eq!(queue.buffered_count().await, 2);
 
     // Verify nothing sent to underlying channel yet
@@ -236,7 +284,10 @@ async fn test_outbound_queue_buffering_and_fifo_flush() {
 
     // 2. Enqueue while Connected — should flush buffer first, then send msg3 in FIFO order
     let status_connected = ConnectionStatus::Connected;
-    queue.enqueue(msg3.clone(), &status_connected).await.unwrap();
+    queue
+        .enqueue(msg3.clone(), &status_connected)
+        .await
+        .unwrap();
 
     // 3. Receive messages from rx and verify FIFO order: msg1 -> msg2 -> msg3
     let recv1 = rx.recv().await.unwrap();
@@ -251,8 +302,6 @@ async fn test_outbound_queue_buffering_and_fifo_flush() {
 
 #[tokio::test]
 async fn test_whatsapp_service_orchestration_loop() {
-    use std::sync::Arc;
-    use tokio::sync::mpsc;
     use operon_channels_whatsapp::client::WhatsAppClient;
     use operon_channels_whatsapp::outbound::{OutboundMessage, OutboundQueue};
     use operon_channels_whatsapp::router::WhatsAppRouter;
@@ -260,9 +309,15 @@ async fn test_whatsapp_service_orchestration_loop() {
     use operon_channels_whatsapp::service::WhatsAppService;
     use operon_channels_whatsapp::types::{ContactId, WhatsAppMessage};
     use operon_channels_whatsapp::workspace::WhatsAppWorkspaceManager;
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
 
     let tmp_dir = TempDir::new().unwrap();
-    let base_ws = tmp_dir.path().join("channels").join("whatsapp").join("workspace");
+    let base_ws = tmp_dir
+        .path()
+        .join("channels")
+        .join("whatsapp")
+        .join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
     let owner_contact = ContactId::new("15551112222");
@@ -328,4 +383,42 @@ async fn test_whatsapp_service_orchestration_loop() {
     assert!(out_msg.text.contains("Fresh session started"));
 
     service_handle.abort();
+}
+
+#[tokio::test]
+async fn test_outbound_queue_connecting_buffers_and_flushes_on_connected() {
+    use operon_channels_whatsapp::outbound::{OutboundMessage, OutboundQueue};
+    use operon_channels_whatsapp::types::ConnectionStatus;
+    use tokio::sync::mpsc;
+
+    let (tx, mut rx) = mpsc::channel::<OutboundMessage>(10);
+    let queue = OutboundQueue::new(tx);
+
+    let msg1 = OutboundMessage::new("15551111", "Connecting test message");
+
+    // Enqueue while status is ConnectionStatus::Connecting — must be buffered, NOT sent
+    let status_connecting = ConnectionStatus::Connecting;
+    queue
+        .enqueue(msg1.clone(), &status_connecting)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        queue.buffered_count().await,
+        1,
+        "Message enqueued during Connecting status must be buffered"
+    );
+    assert!(
+        rx.try_recv().is_err(),
+        "No message should be delivered over channel while status is Connecting"
+    );
+
+    // Transition to Connected and call flush()
+    let flush_count = queue.flush().await.unwrap();
+    assert_eq!(flush_count, 1);
+
+    // Message is now received
+    let recv1 = rx.recv().await.unwrap();
+    assert_eq!(recv1, msg1);
+    assert_eq!(queue.buffered_count().await, 0);
 }

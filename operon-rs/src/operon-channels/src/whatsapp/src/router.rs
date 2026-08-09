@@ -4,16 +4,16 @@
 // (Owner vs External), handles special slash commands like `/new`, pins roles for the lifetime
 // of a session, and sends cancellation signals to running sessions when `/new` is received.
 
+use parking_lot::Mutex as SyncMutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex as SyncMutex;
 use tokio::sync::{mpsc, Mutex};
 use tracing::info;
 
-use operon_events::SessionCommand;
-use operon_policy::CallerRole;
 use crate::config::WhatsAppConfig;
 use crate::types::{ContactId, WhatsAppMessage};
+use operon_events::SessionCommand;
+use operon_policy::CallerRole;
 
 /// Represents an active session record for a contact.
 #[derive(Debug, Clone)]
@@ -92,13 +92,18 @@ impl WhatsAppRouter {
         let trimmed_text = msg.text.trim();
 
         // ── 1. Check for /new command ───────────────────────────────────────
-        if trimmed_text.eq_ignore_ascii_case("/new") || trimmed_text.to_lowercase().starts_with("/new ") {
+        if trimmed_text.eq_ignore_ascii_case("/new")
+            || trimmed_text.to_lowercase().starts_with("/new ")
+        {
             let mut sessions = self.active_sessions.lock().await;
 
             // If a session is currently active, cancel any in-flight turn!
             let old_role = if let Some(existing) = sessions.get(&contact) {
                 if let Some(ref cmd_tx) = existing.cmd_tx {
-                    info!("Sending SessionCommand::Cancel to running turn for contact {}", contact);
+                    info!(
+                        "Sending SessionCommand::Cancel to running turn for contact {}",
+                        contact
+                    );
                     let _ = cmd_tx.send(SessionCommand::Cancel).await;
                 }
                 Some(existing.role)
@@ -234,4 +239,3 @@ fn generate_session_id() -> String {
         .as_nanos();
     format!("wa-{:x}", nanos)
 }
-

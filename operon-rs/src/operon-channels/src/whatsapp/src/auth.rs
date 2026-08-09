@@ -65,8 +65,6 @@ impl WhatsAppAuth {
         }
     }
 
-
-
     /// Renders a QR code payload into an SVG string for GUI rendering.
     pub fn render_svg(payload: &str) -> Result<String, WhatsAppError> {
         use qrcode::render::svg;
@@ -108,7 +106,11 @@ impl WhatsAppAuth {
     }
 
     /// Writes a credential file inside `auth_dir` with `0600` permissions on Unix.
-    pub fn write_credential(&self, filename: &str, content: &[u8]) -> Result<PathBuf, WhatsAppError> {
+    pub fn write_credential(
+        &self,
+        filename: &str,
+        content: &[u8],
+    ) -> Result<PathBuf, WhatsAppError> {
         self.init()?;
         let path = self.auth_dir.join(filename);
         fs::write(&path, content)?;

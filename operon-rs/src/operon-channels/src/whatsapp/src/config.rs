@@ -3,8 +3,8 @@
 // Hey friend! This module handles settings for the WhatsApp channel, including the main owner
 // phone number, allowed contact numbers, auto-reply behavior, and authentication directories.
 
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use crate::types::ContactId;
 
@@ -39,7 +39,10 @@ impl WhatsAppConfig {
         if let Some(ref path) = self.auth_dir {
             path.clone()
         } else if let Some(home) = dirs::home_dir() {
-            home.join(".operon").join("channels").join("whatsapp").join("auth")
+            home.join(".operon")
+                .join("channels")
+                .join("whatsapp")
+                .join("auth")
         } else {
             PathBuf::from(".operon/channels/whatsapp/auth")
         }

@@ -12,7 +12,6 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex as AsyncMutex};
 use tracing::{error, info, warn};
 
-use operon_config::AppConfig;
 use crate::client::WhatsAppClient;
 use crate::config::WhatsAppConfig;
 use crate::error::WhatsAppError;
@@ -21,6 +20,7 @@ use crate::router::{RouteOutcome, WhatsAppRouter};
 use crate::runner_bridge::SessionRunnerBridge;
 use crate::types::{ConnectionStatus, ContactId};
 use crate::workspace::WhatsAppWorkspaceManager;
+use operon_config::AppConfig;
 
 /// Optional callback triggered when a turn completes for a contact.
 type TurnCompleteCallback = Arc<dyn Fn() + Send + Sync>;
@@ -137,14 +137,10 @@ impl WhatsAppService {
         }
 
         // 2. Take the inbound message receiver
-        let mut message_rx = self
-            .client
-            .take_message_receiver()
-            .await
-            .ok_or_else(|| {
-                error!("Inbound WhatsApp message receiver has already been consumed (double-init bug)");
-                WhatsAppError::ConnectionFailed("Inbound message receiver already consumed".to_string())
-            })?;
+        let mut message_rx = self.client.take_message_receiver().await.ok_or_else(|| {
+            error!("Inbound WhatsApp message receiver has already been consumed (double-init bug)");
+            WhatsAppError::ConnectionFailed("Inbound message receiver already consumed".to_string())
+        })?;
 
         // 3. Spawn outbound queue ingestion and delivery tasks
         let bridge_rx_option = self.bridge_rx.lock().await.take();
@@ -160,7 +156,7 @@ impl WhatsAppService {
                             let _ = outbound_queue.enqueue(msg, &st).await;
                         }
                         _ = ticker.tick() => {
-                            if !matches!(client.status().await, ConnectionStatus::Disconnected)
+                            if matches!(client.status().await, ConnectionStatus::Connected)
                                 && outbound_queue.buffered_count().await > 0
                             {
                                 let _ = outbound_queue.flush().await;
@@ -175,6 +171,7 @@ impl WhatsAppService {
         let client_rx_option = self.client_rx.lock().await.take();
         if let Some(mut client_rx) = client_rx_option {
             let client = self.client.clone();
+            let outbound_queue = self.outbound_queue.clone();
             tokio::spawn(async move {
                 while let Some(msg) = client_rx.recv().await {
                     info!(
@@ -189,6 +186,11 @@ impl WhatsAppService {
                                 msg_id = %msg_id,
                                 "Successfully delivered outbound WhatsApp message over socket"
                             );
+                        }
+                        Err(WhatsAppError::NotConnected) => {
+                            warn!("Client not connected when sending outbound WhatsApp message {:?}, re-enqueueing", msg);
+                            let st = client.status().await;
+                            let _ = outbound_queue.enqueue(msg, &st).await;
                         }
                         Err(e) => {
                             warn!("Failed to send outbound WhatsApp message {:?}: {}", msg, e);
@@ -212,18 +214,28 @@ impl WhatsAppService {
 
             let outcome = self.router.route(&msg).await;
             match outcome {
-                RouteOutcome::FreshSessionRequested { contact, new_session_id, role } => {
+                RouteOutcome::FreshSessionRequested {
+                    contact,
+                    new_session_id,
+                    role,
+                } => {
                     info!(
                         contact = %contact,
                         session_id = %new_session_id,
                         role = ?role,
                         "Fresh session requested via /new"
                     );
-                    let notification = OutboundMessage::new(contact.as_str(), "✨ Fresh session started.");
+                    let notification =
+                        OutboundMessage::new(contact.as_str(), "✨ Fresh session started.");
                     let st = self.client.status().await;
                     let _ = self.outbound_queue.enqueue(notification, &st).await;
                 }
-                RouteOutcome::ProcessTurn { contact, session_id, role, is_first_time } => {
+                RouteOutcome::ProcessTurn {
+                    contact,
+                    session_id,
+                    role,
+                    is_first_time,
+                } => {
                     info!(
                         contact = %contact,
                         session_id = %session_id,
@@ -242,10 +254,19 @@ impl WhatsAppService {
                     tokio::spawn(async move {
                         let _guard = contact_lock.lock().await;
                         if let Err(e) = bridge
-                            .process_turn(&contact_clone, &session_clone, role, user_text, is_first_time)
+                            .process_turn(
+                                &contact_clone,
+                                &session_clone,
+                                role,
+                                user_text,
+                                is_first_time,
+                            )
                             .await
                         {
-                            error!("Error processing turn for WhatsApp contact {}: {}", contact_clone, e);
+                            error!(
+                                "Error processing turn for WhatsApp contact {}: {}",
+                                contact_clone, e
+                            );
                         }
                         if let Some(cb) = on_turn_complete {
                             cb();
