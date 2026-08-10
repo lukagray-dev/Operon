@@ -1,0 +1,49 @@
+// Reusable modern dark-mode toggle switch component for the Operon GUI.
+//
+// Hey friend! This component renders a smooth pill-shaped switch that toggles
+// between on (checked = true) and off (checked = false) states.
+
+import { Tokens } from "./tokens.slint";
+
+export component ToggleSwitch inherits Rectangle {
+    in-out property <bool> checked: false;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+
+    width: 38px;
+    height: 22px;
+    border-radius: 11px;
+    
+    // Background track color switches dynamically based on state and hover
+    background: root.checked 
+        ? (touch.has-hover ? #ffffff : #e0e0e0)
+        : (touch.has-hover ? #383838 : #282828);
+    
+    border-width: 1px;
+    border-color: root.checked ? transparent : rgba(255, 255, 255, 0.1);
+
+    // Sliding circular thumb/knob indicator
+    knob := Rectangle {
+        // Dynamically center knob vertically and apply symmetrical 3px margin on x
+        x: root.checked ? (parent.width - self.width - 3px) : 3px;
+        y: (parent.height - self.height) / 2;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        background: root.checked ? #121212 : #888888;
+        
+        animate x {
+            duration: 150ms;
+            easing: ease-in-out;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}

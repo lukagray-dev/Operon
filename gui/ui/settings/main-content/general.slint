@@ -1,38 +1,688 @@
-// General settings category page for the Operon GUI.
-import { Tokens } from "../../shared/tokens.slint";
+// General Settings category page for the Operon GUI.
+//
+// Hey friend! This component defines the complete General Settings panel.
+// It organizes general application configurations into 3 clear sections:
+// 1. System Startup & Window Behavior (autostart, minimize to tray, default workspace)
+// 2. Default Agent Execution Preferences (global auto-approve, default system prompt, token threshold)
+// 3. Updates & Diagnostics (automatic update check, anonymous telemetry)
 
-export component GeneralSettings inherits Rectangle {
-    background: transparent;
+import { Tokens } from "../../shared/tokens.slint";
+import { ToggleSwitch } from "../../shared/toggle.slint";
+import { ScrollView } from "std-widgets.slint";
+
+// Segmented 2-option selector for discrete choices (e.g. Exit App vs Minimize to Tray)
+component SegmentedChoice2 inherits Rectangle {
+    in property <string> option1: "Option 1";
+    in property <string> option2: "Option 2";
+    in-out property <int> selected-index: 0;
     
-    VerticalLayout {
-        padding: 24px;
-        spacing: 16px;
-        alignment: start;
+    callback selected-changed(int);
+    
+    height: 30px;
+    background: #0d0d0d;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    
+    HorizontalLayout {
+        spacing: 0px;
+        padding: 2px;
         
-        HorizontalLayout {
-            spacing: 12px;
-            alignment: start;
-            
-            Image {
-                source: @image-url("../../../assets/icons/settings/category-general.svg");
-                width: 20px;
-                height: 20px;
-                colorize: Tokens.text_primary;
-            }
+        // First Choice
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 0 ? rgba(255, 255, 255, 0.12) : transparent;
             
             Text {
-                text: "General Settings";
-                color: Tokens.text_primary;
-                font-size: Tokens.body_font_size + 4px;
+                text: root.option1;
+                color: root.selected-index == 0 ? #ffffff : #777777;
+                font-size: Tokens.body_font_size - 1px;
                 font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-index = 0;
+                    root.selected-changed(0);
+                }
             }
         }
         
-        Text {
-            text: "Configure application launch behavior, startup scripts, and system defaults.";
-            color: Tokens.text_muted;
-            font-size: Tokens.body_font_size;
-            wrap: TextWrap.word-wrap;
+        // Second Choice
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 1 ? rgba(255, 255, 255, 0.12) : transparent;
+            
+            Text {
+                text: root.option2;
+                color: root.selected-index == 1 ? #ffffff : #777777;
+                font-size: Tokens.body_font_size - 1px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-index = 1;
+                    root.selected-changed(1);
+                }
+            }
+        }
+    }
+}
+
+// Segmented 4-option selector for Context Token Limits (16K, 32K, 64K, 128K)
+component TokenLimitSelector inherits Rectangle {
+    in-out property <int> selected-index: 1; // 0 = 16k, 1 = 32k, 2 = 64k, 3 = 128k
+    callback limit-changed(int);
+    
+    height: 30px;
+    width: 220px;
+    background: #0d0d0d;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+
+    HorizontalLayout {
+        spacing: 0px;
+        padding: 2px;
+
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 0 ? rgba(255, 255, 255, 0.12) : transparent;
+            Text {
+                text: "16K";
+                color: root.selected-index == 0 ? #ffffff : #666666;
+                font-size: Tokens.body_font_size - 2px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.selected-index = 0; root.limit-changed(0); }
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 1 ? rgba(255, 255, 255, 0.12) : transparent;
+            Text {
+                text: "32K";
+                color: root.selected-index == 1 ? #ffffff : #666666;
+                font-size: Tokens.body_font_size - 2px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.selected-index = 1; root.limit-changed(1); }
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 2 ? rgba(255, 255, 255, 0.12) : transparent;
+            Text {
+                text: "64K";
+                color: root.selected-index == 2 ? #ffffff : #666666;
+                font-size: Tokens.body_font_size - 2px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.selected-index = 2; root.limit-changed(2); }
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 4px;
+            background: root.selected-index == 3 ? rgba(255, 255, 255, 0.12) : transparent;
+            Text {
+                text: "128K";
+                color: root.selected-index == 3 ? #ffffff : #666666;
+                font-size: Tokens.body_font_size - 2px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.selected-index = 3; root.limit-changed(3); }
+            }
+        }
+    }
+}
+
+export component GeneralSettings inherits Rectangle {
+    background: transparent;
+
+    // ── Bindable State Properties Exposed to Rust ──
+    in-out property <bool> autostart-enabled: false;
+    in-out property <bool> start-minimized: false;
+    in-out property <int> close-button-action: 0; // 0 = Exit App, 1 = Minimize to Tray
+    in-out property <string> default-workspace-path: "";
+
+    in-out property <bool> global-auto-approve-default: false;
+    in-out property <string> default-system-instructions: "";
+    in-out property <int> context-token-limit-index: 1; // 0=16K, 1=32K, 2=64K, 3=128K
+
+    in-out property <bool> auto-update-checks: true;
+    in-out property <bool> telemetry-enabled: false;
+
+    // ── Interaction Callbacks ──
+    callback autostart-toggled(bool);
+    callback start-minimized-toggled(bool);
+    callback close-action-changed(int);
+    callback browse-default-workspace-clicked();
+    callback global-auto-approve-toggled(bool);
+    callback default-system-instructions-changed(string);
+    callback token-limit-changed(int);
+    callback auto-update-toggled(bool);
+    callback telemetry-toggled(bool);
+
+    ScrollView {
+        VerticalLayout {
+            padding: 24px;
+            spacing: 20px;
+            alignment: start;
+
+            // Header Banner
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+
+                Image {
+                    source: @image-url("../../../assets/icons/settings/category-general.svg");
+                    width: 22px;
+                    height: 22px;
+                    colorize: Tokens.text_primary;
+                }
+
+                VerticalLayout {
+                    spacing: 4px;
+
+                    Text {
+                        text: "General Settings";
+                        color: Tokens.text_primary;
+                        font-size: Tokens.body_font_size + 4px;
+                        font-weight: 600;
+                    }
+
+                    Text {
+                        text: "Configure application launch behavior, default agent preferences, and system defaults.";
+                        color: Tokens.text_muted;
+                        font-size: Tokens.body_font_size - 1px;
+                        wrap: TextWrap.word-wrap;
+                    }
+                }
+            }
+
+            // ═════════════════════════════════════════════════════════════
+            // SECTION 1: System Startup & Window Behavior Card
+            // ═════════════════════════════════════════════════════════════
+            Rectangle {
+                background: #161616;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.06);
+                border-radius: 8px;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 16px;
+
+                    // Section Card Header
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+
+                        Text {
+                            text: "System & Window Behavior";
+                            color: Tokens.text_primary;
+                            font-size: Tokens.body_font_size + 1px;
+                            font-weight: 600;
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.05);
+                    }
+
+                    // Row 1: Launch on Startup
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Launch on System Startup";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Automatically launch Operon when logging into your computer";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.autostart-enabled;
+                            toggled(checked) => { root.autostart-toggled(checked); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 2: Start Minimized
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Start Minimized to System Tray";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Run Operon silently in the background on startup without focusing the window";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.start-minimized;
+                            toggled(checked) => { root.start-minimized-toggled(checked); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 3: Close Button Action
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Window Close (X) Action";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Choose whether closing the window exits the app or minimizes it to system tray";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        SegmentedChoice2 {
+                            width: 200px;
+                            option1: "Exit App";
+                            option2: "Minimize to Tray";
+                            selected-index <=> root.close-button-action;
+                            selected-changed(idx) => { root.close-action-changed(idx); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 4: Default Workspace Folder
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            spacing: 2px;
+
+                            Text {
+                                text: "Default Workspace Directory";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Default root directory loaded when starting new agent projects";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            // Display container for the chosen workspace path
+                            path_box := Rectangle {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                background: #0d0d0d;
+                                border-width: 1px;
+                                border-color: rgba(255, 255, 255, 0.08);
+                                border-radius: 6px;
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+
+                                    Text {
+                                        text: root.default-workspace-path == "" ? "No directory selected (using working directory)" : root.default-workspace-path;
+                                        color: root.default-workspace-path == "" ? Tokens.text_muted : Tokens.text_primary;
+                                        font-size: Tokens.body_font_size - 1px;
+                                        vertical-alignment: center;
+                                        overflow: TextOverflow.elide;
+                                    }
+                                }
+                            }
+
+                            // Browse button
+                            browse_btn := Rectangle {
+                                width: 80px;
+                                height: 32px;
+                                background: browse_touch.has-hover ? rgba(255, 255, 255, 0.12) : rgba(255, 255, 255, 0.06);
+                                border-width: 1px;
+                                border-color: rgba(255, 255, 255, 0.1);
+                                border-radius: 6px;
+
+                                Text {
+                                    text: "Browse...";
+                                    color: Tokens.text_primary;
+                                    font-size: Tokens.body_font_size - 1px;
+                                    font-weight: 500;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+
+                                browse_touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.browse-default-workspace-clicked(); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ═════════════════════════════════════════════════════════════
+            // SECTION 2: Default Agent & Execution Preferences Card
+            // ═════════════════════════════════════════════════════════════
+            Rectangle {
+                background: #161616;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.06);
+                border-radius: 8px;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 16px;
+
+                    // Section Card Header
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+
+                        Text {
+                            text: "Agent Execution Preferences";
+                            color: Tokens.text_primary;
+                            font-size: Tokens.body_font_size + 1px;
+                            font-weight: 600;
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.05);
+                    }
+
+                    // Row 1: Global Auto-Approve Default
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Global Auto-Approve Tools";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Automatically run safe file and terminal actions without prompting for manual confirmation";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.global-auto-approve-default;
+                            toggled(checked) => { root.global-auto-approve-toggled(checked); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 2: Context Token Threshold
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Max Context Token Buffer";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Token threshold before background conversation compaction is automatically triggered";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        TokenLimitSelector {
+                            selected-index <=> root.context-token-limit-index;
+                            limit-changed(idx) => { root.token-limit-changed(idx); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 3: Default System Instructions Input
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        VerticalLayout {
+                            spacing: 2px;
+
+                            Text {
+                                text: "Default System Instructions";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Custom instructions prepended to the system prompt for all new agent sessions";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        // Multiline prompt box container
+                        prompt_box := Rectangle {
+                            height: 72px;
+                            background: #0d0d0d;
+                            border-width: 1px;
+                            border-color: prompt_input.has-focus ? Tokens.text_primary : rgba(255, 255, 255, 0.08);
+                            border-radius: 6px;
+
+                            prompt_input := TextInput {
+                                text <=> root.default-system-instructions;
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size - 1px;
+                                wrap: TextWrap.word-wrap;
+                                single-line: false;
+                                edited => {
+                                    root.default-system-instructions-changed(self.text);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ═════════════════════════════════════════════════════════════
+            // SECTION 3: Updates & Diagnostic Logs Card
+            // ═════════════════════════════════════════════════════════════
+            Rectangle {
+                background: #161616;
+                border-width: 1px;
+                border-color: rgba(255, 255, 255, 0.06);
+                border-radius: 8px;
+
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 16px;
+
+                    // Section Card Header
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+
+                        Text {
+                            text: "Updates & Diagnostics";
+                            color: Tokens.text_primary;
+                            font-size: Tokens.body_font_size + 1px;
+                            font-weight: 600;
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.05);
+                    }
+
+                    // Row 1: Automatic Update Checks
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Automatic Update Checks";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Check GitHub releases for new Operon versions and security updates on startup";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.auto-update-checks;
+                            toggled(checked) => { root.auto-update-toggled(checked); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 2: Anonymous Telemetry & Crash Reports
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Anonymous Error Diagnostics";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Send anonymized crash stack traces and diagnostic logs to help improve system stability";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.telemetry-enabled;
+                            toggled(checked) => { root.telemetry-toggled(checked); }
+                        }
+                    }
+                }
+            }
         }
     }
 }
