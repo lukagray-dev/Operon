@@ -102,8 +102,22 @@ pub fn wire_whatsapp(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                 // Set read-only posture for WhatsApp sessions
                 win.set_is_read_only_session(true);
 
+                let session_path = dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join(".operon")
+                    .join("sessions")
+                    .join("whatsapp")
+                    .join(contact_number.as_str())
+                    .join(format!("{}.json", session_id));
+
                 // Load chat session messages
-                crate::left_sidebar::load_chat_session(&win, session_id.as_str(), None, &app_state);
+                crate::left_sidebar::load_chat_session(
+                    &win,
+                    session_id.as_str(),
+                    None,
+                    Some(session_path),
+                    &app_state,
+                );
             }
         }
     });
@@ -178,7 +192,11 @@ pub fn wire_whatsapp(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                             let active_id_clone = active_id.clone();
                             tokio::spawn(async move {
                                 if let Ok((title, raw_messages, last_token_count, context_window_opt)) =
-                                    crate::left_sidebar::conversation::load_session_history(&active_id_clone).await
+                                    crate::left_sidebar::conversation::load_session_history(
+                                        &active_id_clone,
+                                        None,
+                                    )
+                                    .await
                                 {
                                     let context_window = context_window_opt.unwrap_or(128_000);
                                     let utilization = if context_window > 0 {

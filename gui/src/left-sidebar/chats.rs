@@ -22,7 +22,7 @@ pub fn wire_chats(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
                 win.set_active_chat_index(chat_idx);
                 win.set_active_project_index(-1);
                 win.set_active_conversation_index(-1);
-                crate::left_sidebar::load_chat_session(&win, &session_id, None, &app_state);
+                crate::left_sidebar::load_chat_session(&win, &session_id, None, None, &app_state);
             }
         }
     });

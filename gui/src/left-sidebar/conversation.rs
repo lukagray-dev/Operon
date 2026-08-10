@@ -10,14 +10,18 @@ use crate::main_content::markdown::ParsedMarkdownItem;
 /// processed messages list, and token counts.
 pub async fn load_session_history(
     session_id: &str,
+    session_path: Option<std::path::PathBuf>,
 ) -> anyhow::Result<(
     String,
     Vec<(bool, String, Vec<ParsedMarkdownItem>)>,
     usize,
     Option<usize>,
 )> {
-    let paths = operon_rs::config::OperonPaths::resolve()?;
-    let json_path = paths.session_db(session_id);
+    let json_path = if let Some(path) = session_path {
+        path
+    } else {
+        resolve_session_path(session_id)?
+    };
 
     if !json_path.exists() {
         anyhow::bail!("Session database not found");
@@ -167,4 +171,38 @@ pub async fn load_session_history(
         .unwrap_or(128_000);
 
     Ok((title, raw_messages, last_token_count, Some(context_window)))
+}
+
+fn resolve_session_path(session_id: &str) -> anyhow::Result<std::path::PathBuf> {
+    let paths = operon_rs::config::OperonPaths::resolve()?;
+    let generic_path = paths.session_db(session_id);
+    if generic_path.exists() {
+        return Ok(generic_path);
+    }
+
+    if !session_id.starts_with("wa-") {
+        return Ok(generic_path);
+    }
+
+    let whatsapp_root = paths.sessions_dir.join("whatsapp");
+    if !whatsapp_root.exists() {
+        return Ok(generic_path);
+    }
+
+    let target_name = format!("{session_id}.json");
+    let mut stack = vec![whatsapp_root];
+
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.file_name().and_then(|n| n.to_str()) == Some(target_name.as_str()) {
+                return Ok(path);
+            }
+        }
+    }
+
+    Ok(generic_path)
 }

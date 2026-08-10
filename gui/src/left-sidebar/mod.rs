@@ -110,6 +110,7 @@ pub fn load_chat_session(
     window: &crate::OperonWindow,
     session_id: &str,
     project_path: Option<&str>,
+    session_path: Option<std::path::PathBuf>,
     app_state: &Rc<RefCell<AppState>>,
 ) {
     let is_project = project_path.map(|p| !p.trim().is_empty()).unwrap_or(false);
@@ -146,7 +147,11 @@ pub fn load_chat_session(
     tokio::spawn(async move {
         let run_load = async {
             let (title, raw_messages, last_token_count, context_window_opt) =
-                crate::left_sidebar::conversation::load_session_history(&session_id_str).await?;
+                crate::left_sidebar::conversation::load_session_history(
+                    &session_id_str,
+                    session_path,
+                )
+                .await?;
 
             let context_window = context_window_opt.unwrap_or(128_000);
             let utilization = if context_window > 0 {

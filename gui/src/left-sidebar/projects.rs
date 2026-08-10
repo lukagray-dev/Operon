@@ -42,6 +42,7 @@ pub fn wire_projects(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                     &win,
                     &session_id,
                     project_path.as_deref(),
+                    None,
                     &app_state,
                 );
             }
