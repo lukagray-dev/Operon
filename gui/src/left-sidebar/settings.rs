@@ -42,6 +42,7 @@ pub fn wire_settings(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                 let _ = window.window().with_winit_window(|winit_window: &slint::winit_030::winit::window::Window| {
                     winit_window.set_theme(Some(slint::winit_030::winit::window::Theme::Dark));
                 });
+                window.window().set_size(slint::PhysicalSize::new(960, 540));
 
                 // Wire custom titlebar window action callbacks
                 let weak_window = window.as_weak();

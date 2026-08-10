@@ -7,9 +7,6 @@
 use slint::winit_030::{winit, WinitWindowAccessor};
 use slint::{ComponentHandle, PhysicalPosition, PhysicalSize, WindowPosition};
 
-const STARTUP_FILL_RATIO: f32 = 0.70;
-const TARGET_ASPECT_RATIO: f32 = 16.0 / 9.0;
-
 /// Concrete geometry for the window before the first frame is shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StartupGeometry {
@@ -30,21 +27,8 @@ pub fn calculate_startup_geometry(
     monitor_x: i32,
     monitor_y: i32,
 ) -> StartupGeometry {
-    let usable_width = (monitor_width as f32 * STARTUP_FILL_RATIO).round().max(1.0);
-    let usable_height = (monitor_height as f32 * STARTUP_FILL_RATIO)
-        .round()
-        .max(1.0);
-
-    let width_from_height = usable_height * TARGET_ASPECT_RATIO;
-
-    let (window_width, window_height) = if width_from_height <= usable_width {
-        (width_from_height, usable_height)
-    } else {
-        (usable_width, usable_width / TARGET_ASPECT_RATIO)
-    };
-
-    let width = window_width.round().max(1.0) as u32;
-    let height = window_height.round().max(1.0) as u32;
+    let width = 960u32.min(monitor_width);
+    let height = 540u32.min(monitor_height);
 
     let x = monitor_x + ((monitor_width as i32 - width as i32) / 2);
     let y = monitor_y + ((monitor_height as i32 - height as i32) / 2);
