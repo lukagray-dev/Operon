@@ -284,7 +284,12 @@ async fn forward_session_events_to_outbound(
                 terminal_event_seen = true;
                 break;
             }
-            _ => {}
+            other => {
+                // Hey newbie friend! We log ignored SessionEvent variants at debug level so developers can see
+                // events like TurnStart, StepStart, compacting events, etc., without spamming WhatsApp end-users.
+                tracing::debug!(?other, "SessionEvent variant intentionally ignored for WhatsApp forwarding");
+            }
+
         }
     }
 

@@ -71,11 +71,7 @@ pub struct WhatsAppClient {
 impl WhatsAppClient {
     /// Creates a new `WhatsAppClient` configured with the provided settings.
     pub fn new(config: &WhatsAppConfig) -> Self {
-        let auth_dir = config.auth_dir.clone().unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_default()
-                .join(".operon/channels/whatsapp/auth")
-        });
+        let auth_dir = config.resolved_auth_dir();
         let session_path = auth_dir.join("session.db");
 
         let (qr_tx, qr_rx) = mpsc::channel(16);
@@ -113,17 +109,7 @@ impl WhatsAppClient {
         }
     }
 
-    /// Sets an optional override WebSocket URL (for proxies or custom relays).
-    pub fn with_ws_url(mut self, url: impl Into<String>) -> Self {
-        self.ws_url = Some(url.into());
-        self
-    }
 
-    /// Sets an optional pair code.
-    pub fn with_pair_code(mut self, code: impl Into<String>) -> Self {
-        self.pair_code = Some(code.into());
-        self
-    }
 
     /// Returns true if the client event loop has been started via `connect()`.
     pub fn is_running(&self) -> bool {
@@ -250,15 +236,6 @@ impl WhatsAppClient {
                                 if !text.is_empty() {
                                     let sender_jid = info.source.sender.clone();
                                     let chat_jid = info.source.chat.clone();
-                                    let sender_user = sender_jid.user();
-                                    let chat_user = chat_jid.user();
-
-                                    tracing::debug!(
-                                        chat_user = %chat_user,
-                                        sender_user = %sender_user,
-                                        "Event::Message raw chat_user and sender_user"
-                                    );
-
                                     let active_bot_phone = bot_phone.lock().clone();
                                     let chat_phone_from_mapping = if chat_jid.is_lid() {
                                         match client.get_lid_pn_entry(&chat_jid).await {
@@ -293,49 +270,14 @@ impl WhatsAppClient {
                                         None
                                     };
 
-                                    // Resolve actual phone number from WhatsApp chat/sender (preserving country code)
-                                    let resolved_phone = if let Some(phone) = chat_phone_from_mapping {
-                                        phone
-                                    } else if let Some(phone) = sender_phone_from_mapping {
-                                        phone
-                                    } else if !chat_user.is_empty()
-                                        && !chat_jid.is_lid()
-                                        && !chat_user.starts_with("23888")
-                                    {
-                                        chat_user.to_string()
-                                    } else if !sender_user.is_empty()
-                                        && !sender_jid.is_lid()
-                                        && !sender_user.starts_with("23888")
-                                    {
-                                        sender_user.to_string()
-                                    } else if info.source.is_from_me {
-                                        active_bot_phone
-                                            .clone()
-                                            .unwrap_or_else(|| chat_user.to_string())
-                                    } else if !chat_user.is_empty() {
-                                        warn!(
-                                            chat = %chat_jid,
-                                            sender = %sender_jid,
-                                            "Using WhatsApp chat user as contact because no phone mapping was available"
-                                        );
-                                        chat_user.to_string()
-                                    } else if !sender_user.is_empty() {
-                                        warn!(
-                                            chat = %chat_jid,
-                                            sender = %sender_jid,
-                                            "Using WhatsApp sender user as contact because no phone mapping was available"
-                                        );
-                                        sender_user.to_string()
-                                    } else if let Some(ref owner) = active_bot_phone {
-                                        owner.clone()
-                                    } else {
-                                        warn!(
-                                            chat_user = %chat_user,
-                                            sender_user = %sender_user,
-                                            "Fallback to chat_user for resolved_phone: both chat_user and sender_user were empty/LID-prefixed and bot_phone is None"
-                                        );
-                                        chat_user.to_string()
-                                    };
+                                    let resolved_phone = resolve_contact_phone(
+                                        &chat_jid,
+                                        &sender_jid,
+                                        chat_phone_from_mapping,
+                                        sender_phone_from_mapping,
+                                        info.source.is_from_me,
+                                        active_bot_phone.as_deref(),
+                                    );
 
                                     let contact = ContactId::new(&resolved_phone);
                                     reply_targets
@@ -345,7 +287,7 @@ impl WhatsAppClient {
                                     info!(
                                         id = %info.id,
                                         sender = %resolved_phone,
-                                        raw_sender = %sender_user,
+                                        raw_sender = %sender_jid.user(),
                                         reply_target = %chat_jid,
                                         is_from_me = info.source.is_from_me,
                                         text = %text,
@@ -506,3 +448,116 @@ impl WhatsAppClient {
         Ok(result.message_id)
     }
 }
+
+/// Resolves actual phone number string from WhatsApp chat/sender JIDs, optional LID mappings, and message source flags.
+///
+/// Hey newbie friend! In WhatsApp Multi-Device mode, contacts may arrive using LID (Linked Device / Hidden User) JIDs
+/// with `@lid` server domain suffixes. Protocol-correct LID detection checks `!jid.is_lid()`, NEVER arbitrary numeric prefixes.
+pub fn resolve_contact_phone(
+    chat_jid: &Jid,
+    sender_jid: &Jid,
+    chat_phone_from_mapping: Option<String>,
+    sender_phone_from_mapping: Option<String>,
+    is_from_me: bool,
+    active_bot_phone: Option<&str>,
+) -> String {
+    let chat_user = chat_jid.user();
+    let sender_user = sender_jid.user();
+
+    if let Some(phone) = chat_phone_from_mapping {
+        phone
+    } else if let Some(phone) = sender_phone_from_mapping {
+        phone
+    } else if !chat_user.is_empty() && !chat_jid.is_lid() {
+        chat_user.to_string()
+    } else if !sender_user.is_empty() && !sender_jid.is_lid() {
+        sender_user.to_string()
+    } else if is_from_me {
+        active_bot_phone
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| chat_user.to_string())
+    } else if !chat_user.is_empty() {
+        warn!(
+            chat = %chat_jid,
+            sender = %sender_jid,
+            "Using WhatsApp chat user as contact because no phone mapping was available"
+        );
+        chat_user.to_string()
+    } else if !sender_user.is_empty() {
+        warn!(
+            chat = %chat_jid,
+            sender = %sender_jid,
+            "Using WhatsApp sender user as contact because no phone mapping was available"
+        );
+        sender_user.to_string()
+    } else {
+        warn!(
+            chat_user = %chat_user,
+            sender_user = %sender_user,
+            "Fallback to chat_user for resolved_phone: both chat_user and sender_user were empty/LID-prefixed and bot_phone is None"
+        );
+        chat_user.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wacore_binary::jid::Jid;
+
+    #[test]
+    fn test_resolve_contact_phone_lid_vs_phone_number() {
+        let phone_jid: Jid = "15558889999@s.whatsapp.net".parse().unwrap();
+        let lid_jid: Jid = "23888123456789@lid".parse().unwrap();
+
+        // 1. Standard phone JID (@s.whatsapp.net) accepted directly without mapping
+        let resolved = resolve_contact_phone(
+            &phone_jid,
+            &phone_jid,
+            None,
+            None,
+            false,
+            None,
+        );
+        assert_eq!(resolved, "15558889999");
+
+        // 2. LID JID (@lid) without mapping is rejected by direct phone branch and falls back to warning branch
+        let resolved_lid_no_map = resolve_contact_phone(
+            &lid_jid,
+            &lid_jid,
+            None,
+            None,
+            false,
+            None,
+        );
+        assert_eq!(resolved_lid_no_map, "23888123456789");
+
+        // 3. LID JID (@lid) with mapping returns mapped phone number
+        let resolved_lid_with_map = resolve_contact_phone(
+            &lid_jid,
+            &lid_jid,
+            Some("15557776666".to_string()),
+            None,
+            false,
+            None,
+        );
+        assert_eq!(resolved_lid_with_map, "15557776666");
+
+        // 4. Valid phone number starting with "23888" (e.g. Sierra Leone +232 or similar 23888 prefix)
+        // Must be accepted directly because its server domain is @s.whatsapp.net, not @lid.
+        let valid_23888_jid: Jid = "23888999999@s.whatsapp.net".parse().unwrap();
+        let resolved_23888 = resolve_contact_phone(
+            &valid_23888_jid,
+            &valid_23888_jid,
+            None,
+            None,
+            false,
+            None,
+        );
+        assert_eq!(
+            resolved_23888, "23888999999",
+            "Valid phone numbers starting with '23888' must not be rejected when server is @s.whatsapp.net"
+        );
+    }
+}
+

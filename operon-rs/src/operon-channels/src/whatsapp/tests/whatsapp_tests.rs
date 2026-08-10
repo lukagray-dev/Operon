@@ -276,6 +276,64 @@ fn test_auth_credential_file_permissions() {
             "Credential file permissions must be 0600 on Unix"
         );
     }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_acl::acl::ACL;
+        use windows_acl::helper::sid_to_string;
+        use winapi::shared::winerror::ERROR_SUCCESS;
+        use winapi::um::accctrl::SE_FILE_OBJECT;
+        use winapi::um::aclapi::GetNamedSecurityInfoW;
+        use winapi::um::winnt::{OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID};
+
+        let wpath: Vec<u16> = std::ffi::OsStr::new(cred_path.to_str().unwrap())
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let user_sid_str = unsafe {
+            let mut psid_owner: PSID = std::ptr::null_mut();
+            let mut p_sd: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+            let ret = GetNamedSecurityInfoW(
+                wpath.as_ptr(),
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION,
+                &mut psid_owner,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                &mut p_sd,
+            );
+            assert_eq!(ret, ERROR_SUCCESS, "GetNamedSecurityInfoW must succeed");
+            let s = sid_to_string(psid_owner).expect("Owner SID string must resolve");
+            winapi::um::winbase::LocalFree(p_sd as *mut _);
+            s
+        };
+
+        // Verify credential file ACL restrictions (only current user allowed)
+        let file_acl = ACL::from_file_path(cred_path.to_str().unwrap(), false)
+            .expect("File ACL must read");
+        let entries = file_acl.all().expect("ACL entries must be retrieved");
+        assert!(!entries.is_empty(), "File ACL must contain at least one entry");
+        for entry in entries {
+            assert_eq!(
+                entry.string_sid, user_sid_str,
+                "File ACL must only grant access to current user SID"
+            );
+        }
+
+        // Verify auth directory ACL restrictions (only current user allowed)
+        let dir_acl = ACL::from_file_path(auth_dir.to_str().unwrap(), false)
+            .expect("Directory ACL must read");
+        let dir_entries = dir_acl.all().expect("Directory ACL entries must be retrieved");
+        assert!(!dir_entries.is_empty(), "Directory ACL must contain at least one entry");
+        for entry in dir_entries {
+            assert_eq!(
+                entry.string_sid, user_sid_str,
+                "Directory ACL must only grant access to current user SID"
+            );
+        }
+    }
 }
 
 #[tokio::test]
@@ -323,6 +381,39 @@ async fn test_outbound_queue_buffering_and_fifo_flush() {
     assert_eq!(recv3, msg3);
     assert_eq!(queue.buffered_count().await, 0);
 }
+
+#[tokio::test]
+async fn test_outbound_queue_fifo_order_preserved_on_flush_failure() {
+    use operon_channels_whatsapp::outbound::{OutboundMessage, OutboundQueue};
+    use operon_channels_whatsapp::types::ConnectionStatus;
+    use tokio::sync::mpsc;
+
+    let (tx, rx) = mpsc::channel::<OutboundMessage>(10);
+    let queue = OutboundQueue::new(tx);
+
+    let msg1 = OutboundMessage::new("15551111", "First buffered message");
+    let msg2 = OutboundMessage::new("15552222", "Second new message");
+
+    // 1. Seed queue with msg1 while Disconnected
+    queue
+        .enqueue(msg1.clone(), &ConnectionStatus::Disconnected)
+        .await
+        .unwrap();
+    assert_eq!(queue.buffered_count().await, 1);
+
+    // 2. Drop rx to close underlying channel, forcing flush failure
+    drop(rx);
+
+    // 3. Enqueue msg2 with Connected status (flush will fail)
+    queue
+        .enqueue(msg2.clone(), &ConnectionStatus::Connected)
+        .await
+        .unwrap();
+
+    // 4. Assert both messages remain buffered in FIFO order (msg1 first, then msg2)
+    assert_eq!(queue.buffered_count().await, 2);
+}
+
 
 #[tokio::test]
 async fn test_whatsapp_service_orchestration_loop() {
@@ -409,6 +500,90 @@ async fn test_whatsapp_service_orchestration_loop() {
 
     service_handle.abort();
 }
+
+#[tokio::test]
+async fn test_unbounded_contact_locks_pruned_on_turn_completion() {
+    use operon_channels_whatsapp::client::WhatsAppClient;
+    use operon_channels_whatsapp::outbound::{OutboundMessage, OutboundQueue};
+    use operon_channels_whatsapp::router::WhatsAppRouter;
+    use operon_channels_whatsapp::runner_bridge::SessionRunnerBridge;
+    use operon_channels_whatsapp::service::WhatsAppService;
+    use operon_channels_whatsapp::types::ContactId;
+    use operon_channels_whatsapp::workspace::WhatsAppWorkspaceManager;
+    use std::sync::Arc;
+    use tokio::sync::mpsc;
+
+    let tmp_dir = TempDir::new().unwrap();
+    let base_ws = tmp_dir
+        .path()
+        .join("channels")
+        .join("whatsapp")
+        .join("workspace");
+    let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
+
+    let owner_contact = ContactId::new("15550000000");
+    let config = WhatsAppConfig {
+        enabled: true,
+        owner_number: Some(owner_contact.clone()),
+        allowlist: vec![],
+        auth_dir: Some(tmp_dir.path().join("auth")),
+        workspace_dir: None,
+    };
+
+    let client = Arc::new(WhatsAppClient::new(&config));
+    let router = Arc::new(WhatsAppRouter::new(config.clone()));
+    let workspace_mgr = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
+    let (bridge_tx, bridge_rx) = mpsc::channel::<OutboundMessage>(64);
+    let (_dummy_tx, dummy_rx) = mpsc::channel::<OutboundMessage>(64);
+    let outbound_queue = Arc::new(OutboundQueue::new(_dummy_tx));
+
+    let app_config = operon_config::load().expect("Failed to load AppConfig");
+    let bridge = Arc::new(SessionRunnerBridge::with_router(
+        app_config,
+        workspace_mgr,
+        bridge_tx,
+        router.clone(),
+    ));
+
+    let service = WhatsAppService::with_components_and_receivers(
+        client,
+        router,
+        bridge,
+        outbound_queue,
+        bridge_rx,
+        dummy_rx,
+    );
+
+    const N_CONTACTS: usize = 10;
+    let mut locks = Vec::new();
+
+    // 1. Acquire locks for N distinct contacts (simulating N distinct turn executions)
+    for i in 0..N_CONTACTS {
+        let contact = ContactId::new(&format!("1555888{:04}", i));
+        let lock = service.get_contact_lock(&contact).await;
+        locks.push((contact, lock));
+    }
+
+    assert_eq!(
+        service.contact_locks_len().await,
+        N_CONTACTS,
+        "contact_locks map should hold N entries while turns are active"
+    );
+
+    // 2. Prune all N contact locks as each turn finishes
+    for (contact, lock) in locks {
+        service.prune_contact_lock(&contact, &lock).await;
+    }
+
+    // 3. Verify contact_locks map returns to size 0
+    assert_eq!(
+        service.contact_locks_len().await,
+        0,
+        "contact_locks map must return to size 0 after all turns complete"
+    );
+}
+
+
 
 #[tokio::test]
 async fn test_outbound_queue_connecting_buffers_and_flushes_on_connected() {

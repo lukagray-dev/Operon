@@ -3,9 +3,10 @@
 //! WhatsApp channel integration sub-crate for Operon backend.
 //!
 //! Handles QR pairing, contact allowlist role classification (`Owner` vs `External`),
-//! per-contact workspace isolation (`~/.operon/channels/whatsapp/workspace/<phone>/`),
-//! JSON session history management, `/new` session resets, onboarding documentation,
-//! and response streaming over WhatsApp.
+//! single shared workspace root (configurable via `WhatsAppConfig.workspace_dir`, defaulting to `~/.operon/workspace/`),
+//! per-contact session history isolation (`~/.operon/sessions/whatsapp/<phone>/<session_id>.json`),
+//! `/new` session resets, onboarding documentation, and response streaming over WhatsApp.
+
 
 pub mod auth;
 pub mod client;

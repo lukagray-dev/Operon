@@ -46,8 +46,9 @@ impl OutboundQueue {
         }
     }
 
-    /// Enqueue an `OutboundMessage`. If `status` is `Connected`, sends directly;
-    /// otherwise buffers the message FIFO until reconnected.
+    /// Enqueue an `OutboundMessage`. If `status` is `Connected`, flushes any previously buffered
+    /// messages first. If `flush()` fails (indicating the underlying channel is closed/failing),
+    /// or if status is not `Connected`, the new message is appended to the buffer to preserve FIFO order.
     pub async fn enqueue(
         &self,
         msg: OutboundMessage,
@@ -55,7 +56,14 @@ impl OutboundQueue {
     ) -> Result<(), mpsc::error::SendError<OutboundMessage>> {
         if matches!(status, ConnectionStatus::Connected) {
             // First flush any previously buffered messages in FIFO order
-            let _ = self.flush().await;
+            if self.flush().await.is_err() {
+                // Hey newbie friend! If flushing failed, the underlying socket/channel is not accepting sends.
+                // We append the new message to the end of the buffer (preserving FIFO order after any messages
+                // re-inserted at the front by flush()) and return Ok(()), matching the disconnected buffering path.
+                let mut buf = self.buffer.lock().await;
+                buf.push(msg);
+                return Ok(());
+            }
             self.tx.send(msg).await
         } else {
             let mut buf = self.buffer.lock().await;
@@ -64,14 +72,20 @@ impl OutboundQueue {
         }
     }
 
+
     /// Flushes all buffered messages in FIFO order through the delivery channel.
     pub async fn flush(&self) -> Result<usize, mpsc::error::SendError<OutboundMessage>> {
-        let mut buf = self.buffer.lock().await;
-        if buf.is_empty() {
-            return Ok(0);
-        }
+        // Hey newbie friend! Scope the buffer lock so `buf` is dropped BEFORE we try to send messages.
+        // If sending a message fails below, we can safely acquire `self.buffer.lock().await` to re-insert
+        // the failed message without deadlocking on a recursive mutex lock!
+        let pending = {
+            let mut buf = self.buffer.lock().await;
+            if buf.is_empty() {
+                return Ok(0);
+            }
+            std::mem::take(&mut *buf)
+        };
 
-        let pending: Vec<OutboundMessage> = std::mem::take(&mut *buf);
         let count = pending.len();
 
         for msg in pending {
@@ -85,6 +99,7 @@ impl OutboundQueue {
 
         Ok(count)
     }
+
 
     /// Returns the number of currently buffered messages.
     pub async fn buffered_count(&self) -> usize {

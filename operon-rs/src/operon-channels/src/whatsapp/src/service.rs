@@ -129,13 +129,26 @@ impl WhatsAppService {
     }
 
     /// Retrieves or creates a per-contact mutex to guarantee sequential turn processing.
-    async fn get_contact_lock(&self, contact: &ContactId) -> Arc<AsyncMutex<()>> {
+    pub async fn get_contact_lock(&self, contact: &ContactId) -> Arc<AsyncMutex<()>> {
         let mut locks = self.contact_locks.lock().await;
         locks
             .entry(contact.clone())
             .or_insert_with(|| Arc::new(AsyncMutex::new(())))
             .clone()
     }
+
+    /// Prunes a contact lock after turn completion if no other tasks hold a reference to it.
+    pub async fn prune_contact_lock(&self, contact: &ContactId, contact_lock: &Arc<AsyncMutex<()>>) {
+        let mut locks = self.contact_locks.lock().await;
+        if Arc::strong_count(contact_lock) == 2 {
+            if let Some(entry) = locks.get(contact) {
+                if Arc::ptr_eq(entry, contact_lock) {
+                    locks.remove(contact);
+                }
+            }
+        }
+    }
+
 
     /// Runs the core WhatsApp service loop.
     pub async fn run(&self) -> Result<(), WhatsAppError> {
@@ -261,26 +274,46 @@ impl WhatsAppService {
                     let session_clone = session_id.clone();
                     let user_text = msg.text.clone();
                     let on_turn_complete = self.on_turn_complete.clone();
+                    let contact_locks = self.contact_locks.clone();
 
                     tokio::spawn(async move {
-                        let _guard = contact_lock.lock().await;
-                        if let Err(e) = bridge
-                            .process_turn(
-                                &contact_clone,
-                                &session_clone,
-                                role,
-                                user_text,
-                                is_first_time,
-                            )
-                            .await
+                        // Scope the per-contact mutex lock so it is released as soon as the turn finishes.
                         {
-                            error!(
-                                "Error processing turn for WhatsApp contact {}: {}",
-                                contact_clone, e
-                            );
+                            let _guard = contact_lock.lock().await;
+                            if let Err(e) = bridge
+                                .process_turn(
+                                    &contact_clone,
+                                    &session_clone,
+                                    role,
+                                    user_text,
+                                    is_first_time,
+                                )
+                                .await
+                            {
+                                error!(
+                                    "Error processing turn for WhatsApp contact {}: {}",
+                                    contact_clone, e
+                                );
+                            }
+                            if let Some(cb) = on_turn_complete {
+                                cb();
+                            }
                         }
-                        if let Some(cb) = on_turn_complete {
-                            cb();
+
+                        // Hey newbie friend! After the turn finishes and the per-contact mutex `_guard` is dropped,
+                        // we check if any other in-flight turn is currently using or waiting for this contact's lock.
+                        //
+                        // `contact_locks` map holds 1 strong reference, and our local variable `contact_lock` holds 1.
+                        // So if `Arc::strong_count(&contact_lock) == 2`, no other task is referencing this lock.
+                        // By acquiring the main `contact_locks` mutex, we prevent a race where a new inbound message
+                        // for the same contact might call `get_contact_lock` concurrently.
+                        let mut locks = contact_locks.lock().await;
+                        if Arc::strong_count(&contact_lock) == 2 {
+                            if let Some(entry) = locks.get(&contact_clone) {
+                                if Arc::ptr_eq(entry, &contact_lock) {
+                                    locks.remove(&contact_clone);
+                                }
+                            }
                         }
                     });
                 }
@@ -290,4 +323,10 @@ impl WhatsAppService {
         info!("WhatsAppService message receiver closed. Orchestration loop exiting.");
         Ok(())
     }
+
+    /// Returns the current number of active entries in `contact_locks` (useful for unit tests and diagnostics).
+    pub async fn contact_locks_len(&self) -> usize {
+        self.contact_locks.lock().await.len()
+    }
 }
+

@@ -5,7 +5,7 @@
 // of a session, and sends cancellation signals to running sessions when `/new` is received.
 
 use parking_lot::Mutex as SyncMutex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tracing::info;
@@ -52,8 +52,8 @@ pub struct WhatsAppRouter {
     bot_phone: Arc<SyncMutex<Option<ContactId>>>,
     /// In-memory map from ContactId to current ActiveSession.
     active_sessions: Arc<Mutex<HashMap<ContactId, ActiveSession>>>,
-    /// In-memory set of known contacts to identify first-time senders.
-    known_contacts: Arc<Mutex<Vec<ContactId>>>,
+    /// In-memory set of known contacts to identify first-time senders in O(1) time.
+    known_contacts: Arc<Mutex<HashSet<ContactId>>>,
 }
 
 impl WhatsAppRouter {
@@ -64,9 +64,10 @@ impl WhatsAppRouter {
             config,
             bot_phone: Arc::new(SyncMutex::new(initial_owner)),
             active_sessions: Arc::new(Mutex::new(HashMap::new())),
-            known_contacts: Arc::new(Mutex::new(Vec::new())),
+            known_contacts: Arc::new(Mutex::new(HashSet::new())),
         }
     }
+
 
     /// Checks if a contact ID is considered an owner (via config or lazily resolved bot_phone).
     pub fn is_owner(&self, contact: &ContactId) -> bool {
@@ -146,11 +147,10 @@ impl WhatsAppRouter {
         }
 
         // ── 2. Determine if first-time user ──────────────────────────────────
-        let mut known = self.known_contacts.lock().await;
-        let is_first_time = !known.contains(&contact);
-        if is_first_time {
-            known.push(contact.clone());
-        }
+        // Hey newbie friend! `HashSet::insert` returns `true` if the contact was NOT previously present,
+        // giving us O(1) detection and insertion in a single atomic step without linear scanning!
+        let is_first_time = self.known_contacts.lock().await.insert(contact.clone());
+
 
         // ── 3. Resolve active session & pinned role ─────────────────────────
         let mut sessions = self.active_sessions.lock().await;
