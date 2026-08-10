@@ -96,6 +96,8 @@ pub struct DirectoryTree {
 pub struct SessionSnapshot {
     pub bootstrap: BootstrapBlock,
     pub agents_md: Option<String>,
+    #[serde(default)]
+    pub channel_instructions: Option<String>,
     pub tree: DirectoryTree,
     pub git: Option<GitStatus>,
     /// Available tool groups block. None if no groups configured.
@@ -134,6 +136,14 @@ impl SessionSnapshot {
             }
             _ => {
                 output.push_str("(none)\n");
+            }
+        }
+
+        if let Some(text) = self.channel_instructions.as_deref() {
+            if !text.trim().is_empty() {
+                output.push_str("=== CHANNEL CONTEXT ===\n");
+                output.push_str(text.trim_end_matches('\n'));
+                output.push('\n');
             }
         }
 

@@ -158,6 +158,7 @@ fn test_set_history_restores_loaded_groups() {
         session_id: "test-session".to_string(),
         tree_depth: 1,
         tool_groups: Vec::new(),
+        channel_instructions: None,
     })
     .unwrap();
 
@@ -186,6 +187,7 @@ fn test_set_history_restores_loaded_groups() {
             tool_groups: Vec::new(),
             compaction: CompactionConfig::default(),
             store_path: None,
+            channel_instructions: None,
         },
         messages: Vec::new(),
         dispatcher: Dispatcher::new(),

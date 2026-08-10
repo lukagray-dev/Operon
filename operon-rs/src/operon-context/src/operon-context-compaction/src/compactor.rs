@@ -162,6 +162,7 @@ mod tests {
                 system_prompt: "test prompt",
             },
             agents_md: Some("Follow project instructions.".to_string()),
+            channel_instructions: None,
             tree: DirectoryTree {
                 root: PathBuf::from("D:/Project Operon/Operon"),
                 rendered: "src/\n  lib.rs".to_string(),

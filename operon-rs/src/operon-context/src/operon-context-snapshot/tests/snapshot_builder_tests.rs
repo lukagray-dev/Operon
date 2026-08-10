@@ -44,6 +44,7 @@ fn make_builder(root: &Path, tree_depth: usize) -> SnapshotBuilder {
         session_id: "test-session".to_string(),
         tree_depth,
         tool_groups: Vec::new(),
+        channel_instructions: None,
     })
     .expect("builder")
 }
@@ -195,3 +196,48 @@ fn watcher_invalidation_refreshes_agents_and_tree() {
 
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn snapshot_renders_both_instructions_and_channel_context() {
+    let root = create_clean_temp_dir("both_instructions");
+    write_file(&root.join("AGENTS.md"), "Disk agents content\n");
+
+    let mut builder = make_builder(&root, 1);
+    builder.config_mut().channel_instructions = Some("In-memory channel content\n".to_string());
+
+    let snapshot = builder.build().expect("build snapshot");
+    let rendered = snapshot.render();
+
+    assert!(rendered.contains("=== INSTRUCTIONS ===\nDisk agents content\n"));
+    assert!(rendered.contains("=== CHANNEL CONTEXT ===\nIn-memory channel content\n"));
+
+    let inst_pos = rendered.find("=== INSTRUCTIONS ===").unwrap();
+    let chan_pos = rendered.find("=== CHANNEL CONTEXT ===").unwrap();
+    let proj_pos = rendered.find("=== PROJECT ===").unwrap();
+
+    assert!(inst_pos < chan_pos, "=== INSTRUCTIONS === must precede === CHANNEL CONTEXT ===");
+    assert!(chan_pos < proj_pos, "=== CHANNEL CONTEXT === must precede === PROJECT ===");
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn channel_instructions_is_fresh_uncached() {
+    let root = create_clean_temp_dir("channel_instructions_freshness");
+    let mut builder = make_builder(&root, 1);
+
+    builder.config_mut().channel_instructions = Some("Role turn 1".to_string());
+    let snap1 = builder.build().expect("first build");
+    assert_eq!(snap1.channel_instructions.as_deref(), Some("Role turn 1"));
+
+    builder.config_mut().channel_instructions = Some("Role turn 2".to_string());
+    let snap2 = builder.build().expect("second build");
+    assert_eq!(snap2.channel_instructions.as_deref(), Some("Role turn 2"));
+
+    builder.config_mut().channel_instructions = None;
+    let snap3 = builder.build().expect("third build");
+    assert_eq!(snap3.channel_instructions, None);
+
+    let _ = fs::remove_dir_all(root);
+}
+

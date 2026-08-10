@@ -1,11 +1,10 @@
-// workspace.rs — Shared workspace directory & role-specific AGENTS.md manager.
+// workspace.rs — Shared workspace directory & per-contact session manager.
 //
 // Hey friend! This module manages the single shared workspace root directory for WhatsApp session turn execution.
 // By default, it targets `~/.operon/workspace/` (or a configured custom path) so that tool calls match pre-configured PolicyConfig rules.
 //
-// It also auto-generates a role-specific `AGENTS.md` file in the shared workspace root immediately before each turn:
-//   - Owner / Allowlisted contacts get Owner instructions (full administrative capabilities).
-//   - External contacts get External/Outsider instructions (restricted external posture).
+// Role-specific instructions are pushed in-memory via `SessionConfig.channel_instructions` per-turn,
+// rather than being written to a shared `AGENTS.md` file on disk. This completely eliminates concurrent turn races.
 //
 // Finally, it computes per-user JSON session file paths at `~/.operon/sessions/whatsapp/<contact_number>/<session_id>.json`
 // to maintain complete conversation history isolation between contacts.
@@ -69,13 +68,14 @@ impl WhatsAppWorkspaceManager {
             .join(format!("{}.json", session_id))
     }
 
-    /// Provisions and ensures existence of the shared workspace folder and role-specific `AGENTS.md`.
+    /// Provisions and ensures existence of the shared workspace folder.
     ///
-    /// `AGENTS.md` is updated fresh in the shared workspace root per-turn to reflect the current message's sender role at write time.
+    /// Role-specific instructions are now passed in-memory via `SessionConfig` per turn,
+    /// leaving any on-disk `AGENTS.md` untouched for the user's custom instructions.
     pub fn provision_workspace(
         &self,
         contact: &ContactId,
-        is_owner: bool,
+        _is_owner: bool,
     ) -> Result<PathBuf, WhatsAppError> {
         let dir = self.workspace_dir_for(contact);
 
@@ -89,42 +89,16 @@ impl WhatsAppWorkspaceManager {
             );
         }
 
-        let agents_md_path = dir.join("AGENTS.md");
-        let expected_content = if is_owner {
-            generate_owner_agents_md(contact)
-        } else {
-            generate_external_agents_md(contact)
-        };
-
-        let needs_write = match std::fs::read_to_string(&agents_md_path) {
-            Ok(existing) => existing != expected_content,
-            Err(_) => true,
-        };
-
-        if needs_write {
-            std::fs::write(&agents_md_path, &expected_content).map_err(|e| {
-                WhatsAppError::Workspace(format!(
-                    "Failed to write AGENTS.md for {:?}: {e}",
-                    contact
-                ))
-            })?;
-            info!(
-                "Updated AGENTS.md ({}) in shared workspace for contact {}",
-                if is_owner { "Owner" } else { "External" },
-                contact
-            );
-        }
-
         Ok(dir)
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Role-Specific AGENTS.md Generators
+// Role-Specific Channel Instructions Generators
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Generates system prompt guidelines for contacts classified as `Owner` (main number / allowlist).
-fn generate_owner_agents_md(contact: &ContactId) -> String {
+pub fn generate_owner_channel_instructions(contact: &ContactId) -> String {
     format!(
         r#"# AGENTS.md — Operon Channel Context
 
@@ -141,7 +115,7 @@ fn generate_owner_agents_md(contact: &ContactId) -> String {
 }
 
 /// Generates system prompt guidelines for contacts classified as `External` (unlisted / outsiders).
-fn generate_external_agents_md(contact: &ContactId) -> String {
+pub fn generate_external_channel_instructions(contact: &ContactId) -> String {
     format!(
         r#"# AGENTS.md — Operon Channel Context
 

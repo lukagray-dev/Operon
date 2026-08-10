@@ -60,6 +60,7 @@ mod tests {
                 system_prompt: "test prompt",
             },
             agents_md: Some("rules".to_string()),
+            channel_instructions: None,
             tree: DirectoryTree {
                 root: PathBuf::from("D:/Project Operon/Operon"),
                 rendered: ".".to_string(),

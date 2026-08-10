@@ -154,6 +154,12 @@ pub struct SessionConfig {
     /// Use `app.paths.session_db(session_id)` to compute the standard path
     /// under `~/.operon/sessions/`.
     pub store_path: Option<PathBuf>,
+
+    // ── Channel Instructions ──────────────────────────────────────────────────
+    /// Optional in-memory channel-specific role instructions (e.g. WhatsApp Owner/External).
+    /// Populated per-turn by channel bridges (WhatsApp, Telegram) before constructing `SessionConfig`.
+    /// Preserved as `None` for local GUI/TUI sessions.
+    pub channel_instructions: Option<String>,
 }
 
 impl SessionConfig {
@@ -170,6 +176,7 @@ impl SessionConfig {
             // flooding the system prompt with deeply nested paths.
             tree_depth: 1,
             tool_groups: self.tool_groups.clone(),
+            channel_instructions: self.channel_instructions.clone(),
         }
     }
 }

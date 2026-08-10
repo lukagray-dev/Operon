@@ -124,11 +124,17 @@ impl SessionRunnerBridge {
             let _ = self.send_onboarding(contact).await;
         }
 
-        // 1. Provision user workspace & role-specific AGENTS.md
+        // 1. Provision user workspace & role-specific channel instructions
         let is_owner = matches!(role, CallerRole::Owner);
         let workspace_root = self
             .workspace_manager
             .provision_workspace(contact, is_owner)?;
+
+        let channel_instructions = if is_owner {
+            crate::workspace::generate_owner_channel_instructions(contact)
+        } else {
+            crate::workspace::generate_external_channel_instructions(contact)
+        };
 
         // 2. Compute JSON session store path
         let store_path = self
@@ -141,7 +147,7 @@ impl SessionRunnerBridge {
             CallerRole::External => operon_context::Role::External,
         };
 
-        // 3. Construct SessionConfig (same as before — workspace_root, provider, policy, etc.)
+        // 3. Construct SessionConfig
         let session_config = SessionConfig {
             provider_config: self.app_config.provider.clone(),
             policy: self.app_config.policy.clone(),
@@ -151,6 +157,7 @@ impl SessionRunnerBridge {
             tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
             compaction: operon_context::CompactionConfig::default(),
             store_path: Some(store_path.clone()),
+            channel_instructions: Some(channel_instructions),
         };
 
         // ── 4. Session history loading ──────────────────────────────────────────

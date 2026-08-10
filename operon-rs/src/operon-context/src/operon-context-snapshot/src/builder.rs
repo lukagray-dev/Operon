@@ -21,6 +21,9 @@ pub struct SnapshotConfig {
     /// Example: vec!["fs", "shell", "web", "todo", "memory", "media"]
     /// If empty, the 5th block is omitted from the snapshot entirely.
     pub tool_groups: Vec<String>,
+    /// In-memory channel-specific role instructions (e.g. WhatsApp Owner/External prompt).
+    /// Rendered as an additive block under `=== CHANNEL CONTEXT ===`.
+    pub channel_instructions: Option<String>,
 }
 
 impl Default for SnapshotConfig {
@@ -32,6 +35,7 @@ impl Default for SnapshotConfig {
             session_id: generate_session_id(),
             tree_depth: 1,
             tool_groups: Vec::new(),
+            channel_instructions: None,
         }
     }
 }
@@ -56,6 +60,11 @@ pub struct SnapshotBuilder {
 }
 
 impl SnapshotBuilder {
+    /// Provides mutable access to the underlying [`SnapshotConfig`].
+    pub fn config_mut(&mut self) -> &mut SnapshotConfig {
+        &mut self.config
+    }
+
     /// Constructs a new builder and starts a watcher for cache invalidation.
     pub fn new(mut config: SnapshotConfig) -> Result<Self, SnapshotError> {
         if !config.root.exists() {
@@ -145,6 +154,7 @@ impl SnapshotBuilder {
         Ok(SessionSnapshot {
             bootstrap,
             agents_md,
+            channel_instructions: self.config.channel_instructions.clone(),
             tree,
             git,
             tool_groups: tool_groups_block,

@@ -32,6 +32,7 @@ pub async fn start_agent_session(
         tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
         compaction: operon_rs::context::CompactionConfig::default(),
         store_path: Some(store_path.clone()),
+        channel_instructions: None,
     };
 
     let store = operon_rs::session::store::SessionStore::open(&store_path).await?;

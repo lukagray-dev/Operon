@@ -11,7 +11,11 @@ use operon_channels_whatsapp::config::WhatsAppConfig;
 use operon_channels_whatsapp::outbound::format_for_whatsapp;
 use operon_channels_whatsapp::router::{RouteOutcome, WhatsAppRouter};
 use operon_channels_whatsapp::types::{ContactId, WhatsAppMessage};
-use operon_channels_whatsapp::workspace::WhatsAppWorkspaceManager;
+use operon_channels_whatsapp::workspace::{
+    generate_external_channel_instructions, generate_owner_channel_instructions,
+    WhatsAppWorkspaceManager,
+};
+use operon_context::{Role, SnapshotBuilder, SnapshotConfig};
 use operon_policy::CallerRole;
 
 #[test]
@@ -102,7 +106,7 @@ fn test_whatsapp_config_workspace_dir_resolution() {
 }
 
 #[test]
-fn test_workspace_directory_provisioning_and_role_agents_md() {
+fn test_workspace_directory_provisioning_and_in_memory_channel_instructions() {
     let tmp_dir = TempDir::new().unwrap();
     let base_ws = tmp_dir
         .path()
@@ -118,23 +122,23 @@ fn test_workspace_directory_provisioning_and_role_agents_md() {
     assert_eq!(manager.workspace_dir_for(&owner_contact), base_ws);
     assert_eq!(manager.workspace_dir_for(&ext_contact), base_ws);
 
-    // Provision owner workspace — writes Owner AGENTS.md in shared root
+    // Provisioning creates the shared workspace directory if missing
     let owner_ws = manager.provision_workspace(&owner_contact, true).unwrap();
     assert_eq!(owner_ws, base_ws);
-    let owner_agents_md = std::fs::read_to_string(base_ws.join("AGENTS.md")).unwrap();
+    assert!(owner_ws.exists());
+
+    // AGENTS.md must NOT be created on disk by provision_workspace
     assert!(
-        owner_agents_md.contains("ADMINISTRATOR"),
-        "Owner AGENTS.md must contain ADMINISTRATOR"
+        !base_ws.join("AGENTS.md").exists(),
+        "provision_workspace must not write AGENTS.md to disk"
     );
 
-    // Provision external workspace — rewrites AGENTS.md in shared root fresh per-turn
-    let ext_ws = manager.provision_workspace(&ext_contact, false).unwrap();
-    assert_eq!(ext_ws, base_ws);
-    let ext_agents_md = std::fs::read_to_string(base_ws.join("AGENTS.md")).unwrap();
-    assert!(
-        ext_agents_md.contains("OUTSIDER"),
-        "External AGENTS.md must contain OUTSIDER"
-    );
+    // Role instructions are generated in-memory per-turn
+    let owner_inst = generate_owner_channel_instructions(&owner_contact);
+    assert!(owner_inst.contains("ADMINISTRATOR"));
+
+    let ext_inst = generate_external_channel_instructions(&ext_contact);
+    assert!(ext_inst.contains("OUTSIDER"));
 }
 
 #[test]
@@ -228,28 +232,87 @@ async fn test_cancel_in_flight_turn_on_slash_new() {
 }
 
 #[test]
-fn test_contact_promotion_updates_agents_md() {
+fn test_channel_instructions_role_isolation() {
+    let owner_contact = ContactId::new("15551112222");
+    let ext_contact = ContactId::new("15558889999");
+
+    let owner_inst = generate_owner_channel_instructions(&owner_contact);
+    let ext_inst = generate_external_channel_instructions(&ext_contact);
+
+    assert!(owner_inst.contains("ADMINISTRATOR"));
+    assert!(!owner_inst.contains("OUTSIDER"));
+
+    assert!(ext_inst.contains("OUTSIDER"));
+    assert!(!ext_inst.contains("ADMINISTRATOR"));
+}
+
+#[tokio::test]
+async fn test_concurrent_turns_no_agents_md_race() {
     let tmp_dir = TempDir::new().unwrap();
-    let base_ws = tmp_dir
-        .path()
-        .join("channels")
-        .join("whatsapp")
-        .join("workspace");
+    let base_ws = tmp_dir.path().join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
-    let manager = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
-    let contact = ContactId::new("15557778888");
+    let manager = WhatsAppWorkspaceManager::with_paths(base_ws.clone(), base_sess);
+    let owner_contact = ContactId::new("15551112222");
+    let ext_contact = ContactId::new("15558889999");
 
-    // 1. Provision as External
-    let ws_path = manager.provision_workspace(&contact, false).unwrap();
-    let initial_content = std::fs::read_to_string(ws_path.join("AGENTS.md")).unwrap();
-    assert!(initial_content.contains("OUTSIDER"));
+    // Write a user AGENTS.md to verify user instructions persist alongside channel context
+    std::fs::create_dir_all(&base_ws).unwrap();
+    std::fs::write(base_ws.join("AGENTS.md"), "User defined AGENTS.md rules\n").unwrap();
 
-    // 2. Promote contact to Owner on next provision
-    let updated_ws_path = manager.provision_workspace(&contact, true).unwrap();
-    let updated_content = std::fs::read_to_string(updated_ws_path.join("AGENTS.md")).unwrap();
-    assert!(updated_content.contains("ADMINISTRATOR"));
-    assert!(!updated_content.contains("OUTSIDER"));
+    // Provision workspace for both contacts concurrently
+    let (owner_ws, ext_ws) = tokio::join!(
+        async { manager.provision_workspace(&owner_contact, true).unwrap() },
+        async { manager.provision_workspace(&ext_contact, false).unwrap() }
+    );
+
+    assert_eq!(owner_ws, base_ws);
+    assert_eq!(ext_ws, base_ws);
+
+    // Verify on-disk AGENTS.md file was NOT overwritten by provision_workspace
+    let disk_agents = std::fs::read_to_string(base_ws.join("AGENTS.md")).unwrap();
+    assert_eq!(disk_agents, "User defined AGENTS.md rules\n");
+
+    // Build session snapshots for Owner and External turns concurrently
+    let owner_instructions = generate_owner_channel_instructions(&owner_contact);
+    let ext_instructions = generate_external_channel_instructions(&ext_contact);
+
+    let mut owner_builder = SnapshotBuilder::new(SnapshotConfig {
+        root: base_ws.clone(),
+        role: Role::Owner,
+        session_id: "owner-sess".to_string(),
+        tree_depth: 1,
+        tool_groups: vec![],
+        channel_instructions: Some(owner_instructions),
+    })
+    .unwrap();
+
+    let mut ext_builder = SnapshotBuilder::new(SnapshotConfig {
+        root: base_ws.clone(),
+        role: Role::External,
+        session_id: "ext-sess".to_string(),
+        tree_depth: 1,
+        tool_groups: vec![],
+        channel_instructions: Some(ext_instructions),
+    })
+    .unwrap();
+
+    let owner_rendered = owner_builder.build().unwrap().render();
+    let ext_rendered = ext_builder.build().unwrap().render();
+
+    // Both snapshots include user disk AGENTS.md
+    assert!(owner_rendered.contains("User defined AGENTS.md rules"));
+    assert!(ext_rendered.contains("User defined AGENTS.md rules"));
+
+    // Owner snapshot contains Owner channel instructions, NOT External
+    assert!(owner_rendered.contains("=== CHANNEL CONTEXT ==="));
+    assert!(owner_rendered.contains("ADMINISTRATOR"));
+    assert!(!owner_rendered.contains("OUTSIDER"));
+
+    // External snapshot contains External channel instructions, NOT Owner
+    assert!(ext_rendered.contains("=== CHANNEL CONTEXT ==="));
+    assert!(ext_rendered.contains("OUTSIDER"));
+    assert!(!ext_rendered.contains("ADMINISTRATOR"));
 }
 
 #[test]
