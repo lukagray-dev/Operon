@@ -18,6 +18,7 @@ import { Plugins } from "./plugins.slint";
 import { Projects } from "./projects.slint";
 import { Chats } from "./chats.slint";
 import { WhatsAppSection } from "./whatsapp.slint";
+import { TelegramSection } from "./telegram.slint";
 import { Settings } from "./settings.slint";
 import { SidebarConversation, SidebarProject } from "./types.slint";
 
@@ -39,6 +40,9 @@ export component Sidebar inherits Rectangle {
 
     // WhatsApp contacts & sessions
     in property <[SidebarProject]> whatsapp-contacts: [];
+
+    // Telegram contacts & sessions
+    in property <[SidebarProject]> telegram-contacts: [];
     
     // Active selection state
     in-out property <int> active-project-index: -1;
@@ -62,6 +66,7 @@ export component Sidebar inherits Rectangle {
     callback delete-project-clicked(string /* project-workspace-path */, int /* project-index */);
     callback new-session-clicked(string /* project-workspace-path */, int /* project-index */);
     callback whatsapp-session-clicked(string /* session-id */, string /* contact-number */);
+    callback telegram-session-clicked(string /* session-id */, string /* chat-id */);
     callback width-changed(length /* new-width */);
     
     // Set the sidebar width from the property
@@ -205,6 +210,18 @@ export component Sidebar inherits Rectangle {
                             root.active-conversation-index = -1;
                             root.active-chat-index = -1;
                             root.whatsapp-session-clicked(session-id, contact-num);
+                        }
+                    }
+
+                    // Telegram Channels Section
+                    if root.telegram-contacts.length > 0 : TelegramSection {
+                        contacts: root.telegram-contacts;
+
+                        session-clicked(session-id, chat-id) => {
+                            root.active-project-index = -1;
+                            root.active-conversation-index = -1;
+                            root.active-chat-index = -1;
+                            root.telegram-session-clicked(session-id, chat-id);
                         }
                     }
                     

@@ -51,6 +51,7 @@ export component OperonWindow inherits Window {
     in property <[SidebarProject]> sidebar_projects: [];
     in property <[SidebarConversation]> sidebar_chats: [];
     in property <[SidebarProject]> sidebar_whatsapp_contacts: [];
+    in property <[SidebarProject]> sidebar_telegram_contacts: [];
     in-out property <int> active_project_index: -1;
     in-out property <int> active_conversation_index: -1;
     in-out property <int> active_chat_index: -1;
@@ -89,6 +90,7 @@ export component OperonWindow inherits Window {
     callback sidebar_delete_project_clicked(string /* project-workspace-path */, int /* project-index */);
     callback sidebar_new_session_clicked(string /* project-workspace-path */, int /* project-index */);
     callback sidebar_whatsapp_session_clicked(string /* session-id */, string /* contact-number */);
+    callback sidebar_telegram_session_clicked(string /* session-id */, string /* chat-id */);
     callback sidebar_width_changed(length /* new-width */);
     
     // Main content / input panel callbacks - wire these to Rust handlers
@@ -203,6 +205,7 @@ export component OperonWindow inherits Window {
             projects: root.sidebar_projects;
             chats: root.sidebar_chats;
             whatsapp-contacts: root.sidebar_whatsapp_contacts;
+            telegram-contacts: root.sidebar_telegram_contacts;
             active-project-index: root.active_project_index;
             active-conversation-index: root.active_conversation_index;
             active-chat-index: root.active_chat_index;
@@ -244,6 +247,9 @@ export component OperonWindow inherits Window {
             new-session-clicked(proj-path, proj-idx) => { root.sidebar_new_session_clicked(proj-path, proj-idx); }
             whatsapp-session-clicked(session-id, contact-num) => {
                 root.sidebar_whatsapp_session_clicked(session-id, contact-num);
+            }
+            telegram-session-clicked(session-id, chat-id) => {
+                root.sidebar_telegram_session_clicked(session-id, chat-id);
             }
             width-changed(new-width) => {
                 root.sidebar_width = new-width;

@@ -2,6 +2,7 @@
 import { Tokens } from "../../shared/tokens.slint";
 import { ScrollView } from "std-widgets.slint";
 import { WhatsAppSetup } from "./channels/whatsapp.slint";
+import { TelegramSetup } from "./channels/telegram.slint";
 
 export struct ChannelSummary {
     id: string,
@@ -121,7 +122,7 @@ component ChannelCard inherits Rectangle {
 export component ChannelsSettings inherits Rectangle {
     background: transparent;
 
-    // View state: 0 = Channels List, 1 = WhatsApp Setup
+    // View state: 0 = Channels List, 1 = WhatsApp Setup, 2 = Telegram Setup
     in-out property <int> active-view: 0;
 
     // List of channels from Rust
@@ -132,6 +133,13 @@ export component ChannelsSettings inherits Rectangle {
             status: "Disconnected",
             is-active: false,
             description: "Connect Operon to WhatsApp to receive and execute commands over mobile chat"
+        },
+        {
+            id: "telegram",
+            label: "Telegram Channel",
+            status: "Disconnected",
+            is-active: false,
+            description: "Connect Operon to Telegram to receive and execute commands via a bot"
         }
     ];
 
@@ -147,6 +155,16 @@ export component ChannelsSettings inherits Rectangle {
     in property <string> whatsapp-resolved-workspace-dir-placeholder: "";
     in property <bool> whatsapp-is-policy-covered: false;
 
+    // Telegram configuration state properties
+    in-out property <string> telegram-connection-status: "Disconnected";
+    in-out property <string> telegram-bot-token: "";
+    in-out property <string> telegram-owner-chat-id: "";
+    in-out property <[string]> telegram-allowlist: [];
+    in-out property <string> telegram-workspace-dir: "";
+    in property <string> telegram-resolved-workspace-dir-placeholder: "";
+    in property <bool> telegram-is-policy-covered: false;
+    in-out property <string> telegram-test-status-message: "";
+
     // Callbacks
     callback channel-selected(string);
     callback whatsapp-save-clicked(string, [string]);
@@ -158,6 +176,12 @@ export component ChannelsSettings inherits Rectangle {
     callback whatsapp-generate-pairing-code-clicked();
     callback whatsapp-close-pairing-code-popup();
     callback whatsapp-browse-workspace-dir-clicked();
+
+    callback telegram-save-clicked(string, string, [string]);
+    callback telegram-test-connection-clicked();
+    callback telegram-add-allowlist(string);
+    callback telegram-remove-allowlist(int);
+    callback telegram-browse-workspace-dir-clicked();
 
     ScrollView {
         width: 100%;
@@ -185,7 +209,7 @@ export component ChannelsSettings inherits Rectangle {
                 Text {
                     text: root.active-view == 0 
                         ? "Channels Settings" 
-                        : "Channels Settings | WhatsApp Setup";
+                        : (root.active-view == 1 ? "Channels Settings | WhatsApp Setup" : "Channels Settings | Telegram Setup");
                     color: Tokens.text_primary;
                     font-size: Tokens.body_font_size + 4px;
                     font-weight: 600;
@@ -195,7 +219,9 @@ export component ChannelsSettings inherits Rectangle {
             Text {
                 text: root.active-view == 0 
                     ? "Set up messaging channel integrations such as WhatsApp, Telegram, or Discord."
-                    : "Configure WhatsApp mobile pairing, Owner number, and access permission allowlist.";
+                    : (root.active-view == 1 
+                        ? "Configure WhatsApp mobile pairing, Owner number, and access permission allowlist."
+                        : "Configure Telegram Bot Token, Owner Chat ID, and access permission allowlist.");
                 color: Tokens.text_muted;
                 font-size: Tokens.body_font_size;
                 wrap: TextWrap.word-wrap;
@@ -216,6 +242,8 @@ export component ChannelsSettings inherits Rectangle {
                         root.channel-selected(ch.id);
                         if (ch.id == "whatsapp") {
                             root.active-view = 1;
+                        } else if (ch.id == "telegram") {
+                            root.active-view = 2;
                         }
                     }
                 }
@@ -264,6 +292,37 @@ export component ChannelsSettings inherits Rectangle {
                     root.whatsapp-browse-workspace-dir-clicked();
                 }
             }
+
+            if (root.active-view == 2) : TelegramSetup {
+                connection-status: root.telegram-connection-status;
+                bot-token <=> root.telegram-bot-token;
+                owner-chat-id <=> root.telegram-owner-chat-id;
+                allowlist <=> root.telegram-allowlist;
+                workspace-dir <=> root.telegram-workspace-dir;
+                resolved-workspace-dir-placeholder: root.telegram-resolved-workspace-dir-placeholder;
+                is-policy-covered: root.telegram-is-policy-covered;
+                test-status-message <=> root.telegram-test-status-message;
+
+                back-clicked => {
+                    root.active-view = 0;
+                }
+                save-clicked => {
+                    root.telegram-save-clicked(root.telegram-bot-token, root.telegram-owner-chat-id, root.telegram-allowlist);
+                }
+                test-connection-clicked => {
+                    root.telegram-test-connection-clicked();
+                }
+                add-allowlist-number(num) => {
+                    root.telegram-add-allowlist(num);
+                }
+                remove-allowlist-number(idx) => {
+                    root.telegram-remove-allowlist(idx);
+                }
+                browse-workspace-dir-clicked => {
+                    root.telegram-browse-workspace-dir-clicked();
+                }
+            }
         }
     }
 }
+

@@ -21,6 +21,7 @@ notify.workspace      = true
 
 operon-rs = { path = "../operon-rs" }
 operon-channels-whatsapp = { path = "../operon-rs/src/operon-channels/src/whatsapp" }
+operon-channels-telegram = { path = "../operon-rs/src/operon-channels/src/telegram" }
 rfd = "0.15"
 arboard = "3.6.1"
 pulldown-cmark.workspace = true

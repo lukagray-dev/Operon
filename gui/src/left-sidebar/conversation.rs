@@ -180,17 +180,20 @@ fn resolve_session_path(session_id: &str) -> anyhow::Result<std::path::PathBuf> 
         return Ok(generic_path);
     }
 
-    if !session_id.starts_with("wa-") {
+    let search_root = if session_id.starts_with("wa-") {
+        paths.sessions_dir.join("whatsapp")
+    } else if session_id.starts_with("tg-") {
+        paths.sessions_dir.join("telegram")
+    } else {
         return Ok(generic_path);
-    }
+    };
 
-    let whatsapp_root = paths.sessions_dir.join("whatsapp");
-    if !whatsapp_root.exists() {
+    if !search_root.exists() {
         return Ok(generic_path);
     }
 
     let target_name = format!("{session_id}.json");
-    let mut stack = vec![whatsapp_root];
+    let mut stack = vec![search_root];
 
     while let Some(dir) = stack.pop() {
         for entry in std::fs::read_dir(&dir)? {

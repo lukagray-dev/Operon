@@ -2,11 +2,6 @@
 //!
 //! This module registers the sidebar view components and sets up the coordination
 //! logic for displaying project and standalone chat lists.
-//!
-//! Hey friend! The sidebar.rs file has been completely removed:
-//! - Database/filesystem scan logic lives inside `executor::session::query_sidebar_data`
-//!   and `executor::session::load_session_history`.
-//! - Mod.rs orchestrates all event wiring submodules and handles updating the Slint UI.
 
 pub mod chats;
 pub mod conversation;
@@ -16,6 +11,7 @@ pub mod projects;
 pub mod search;
 pub mod settings;
 pub mod whatsapp;
+pub mod telegram;
 
 use crate::state::AppState;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
@@ -35,6 +31,7 @@ pub fn wire_left_sidebar(window: &crate::OperonWindow, state: Rc<RefCell<AppStat
     projects::wire_projects(window, Rc::clone(&state));
     search::wire_search(window, Rc::clone(&state));
     whatsapp::wire_whatsapp(window, Rc::clone(&state));
+    telegram::wire_telegram(window, Rc::clone(&state));
 }
 
 /// Reset active conversation selection indices in Slint
@@ -138,7 +135,7 @@ pub fn load_chat_session(
     let window_weak_err = window.as_weak();
     window.set_active_session_id(session_id.into());
     window.set_is_loading_session(true);
-    if !session_id.starts_with("wa-") {
+    if !session_id.starts_with("wa-") && !session_id.starts_with("tg-") {
         window.set_is_read_only_session(false);
     }
     let session_id_str = session_id.to_string();

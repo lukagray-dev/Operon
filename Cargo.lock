@@ -5955,6 +5955,7 @@ dependencies = [
  "dirs 6.0.0",
  "merman",
  "notify",
+ "operon-channels-telegram",
  "operon-channels-whatsapp",
  "operon-rs",
  "pulldown-cmark 0.11.3",

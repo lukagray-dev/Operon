@@ -7,6 +7,7 @@ pub mod general;
 pub mod models;
 pub mod permissions;
 pub mod whatsapp;
+pub mod telegram;
 
 use crate::state::AppState;
 use std::cell::RefCell;
@@ -22,4 +23,7 @@ pub fn wire_settings_content(window: &crate::SettingsWindow, state: Rc<RefCell<A
 
     // Wire WhatsApp channels settings panel
     whatsapp::wire_whatsapp_settings(window, Rc::clone(&state));
+
+    // Wire Telegram channels settings panel
+    telegram::wire_telegram_settings(window, Rc::clone(&state));
 }

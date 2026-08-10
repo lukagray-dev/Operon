@@ -107,6 +107,23 @@ export component SettingsWindow inherits Window {
     callback whatsapp-close-pairing-code-popup();
     callback whatsapp-browse-workspace-dir-clicked();
 
+    // Telegram configuration properties
+    in-out property <string> telegram-bot-token: "";
+    in-out property <string> telegram-owner-chat-id: "";
+    in-out property <[string]> telegram-allowlist: [];
+    in-out property <string> telegram-connection-status: "Disconnected";
+    in-out property <string> telegram-workspace-dir: "";
+    in property <string> telegram-resolved-workspace-dir-placeholder: "";
+    in property <bool> telegram-is-policy-covered: false;
+    in-out property <string> telegram-test-status-message: "";
+
+    // Telegram callbacks
+    callback telegram-save-clicked(string, string, [string]);
+    callback telegram-test-connection-clicked();
+    callback telegram-add-allowlist(string);
+    callback telegram-remove-allowlist(int);
+    callback telegram-browse-workspace-dir-clicked();
+
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
         spacing: 0px;
@@ -217,6 +234,23 @@ export component SettingsWindow inherits Window {
                     whatsapp-generate-pairing-code-clicked() => { root.whatsapp-generate-pairing-code-clicked(); }
                     whatsapp-browse-workspace-dir-clicked() => { root.whatsapp-browse-workspace-dir-clicked(); }
                     whatsapp-close-pairing-code-popup() => { root.whatsapp-close-pairing-code-popup(); }
+
+                    // Bind Telegram configuration properties
+                    telegram-bot-token <=> root.telegram-bot-token;
+                    telegram-owner-chat-id <=> root.telegram-owner-chat-id;
+                    telegram-allowlist <=> root.telegram-allowlist;
+                    telegram-connection-status <=> root.telegram-connection-status;
+                    telegram-workspace-dir <=> root.telegram-workspace-dir;
+                    telegram-resolved-workspace-dir-placeholder: root.telegram-resolved-workspace-dir-placeholder;
+                    telegram-is-policy-covered: root.telegram-is-policy-covered;
+                    telegram-test-status-message <=> root.telegram-test-status-message;
+
+                    // Bind Telegram callbacks
+                    telegram-save-clicked(token, owner-id, list) => { root.telegram-save-clicked(token, owner-id, list); }
+                    telegram-test-connection-clicked() => { root.telegram-test-connection-clicked(); }
+                    telegram-add-allowlist(num) => { root.telegram-add-allowlist(num); }
+                    telegram-remove-allowlist(idx) => { root.telegram-remove-allowlist(idx); }
+                    telegram-browse-workspace-dir-clicked() => { root.telegram-browse-workspace-dir-clicked(); }
                     
                     github_requested => { root.github_requested(); }
                     documentation_requested => { root.documentation_requested(); }
