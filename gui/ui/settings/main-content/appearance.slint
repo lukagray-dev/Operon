@@ -3,12 +3,13 @@
 // Hey friend! This component defines the complete Appearance Settings panel.
 // It organizes visual customization preferences into 3 clear sections:
 // 1. Theme & Color Palette (4 side-by-side live syntax code preview cards)
-// 2. UI Scale & Density (UI scaling preset buttons, compact mode, smooth animations)
-// 3. Typography & Code Styling (UI font family, code font family, cursor blink toggle)
+// 2. UI Scale & Density (UI scaling preset buttons, compact mode, smooth animations, animated thinking orb selector)
+// 3. Typography & Code Styling (UI font family, assistant font family, code font family, cursor blink toggle)
 
 import { Tokens } from "../../shared/tokens.slint";
 import { ToggleSwitch } from "../../shared/toggle.slint";
 import { ScrollView } from "std-widgets.slint";
+import { ComposingOrb, SolvingOrb, BreathingOrb } from "../../shared/orbs/mod.slint";
 
 // Segmented 3-option selector for Theme Modes or Font choices
 component SegmentedChoice3 inherits Rectangle {
@@ -388,6 +389,93 @@ component ThemeCardPreview inherits Rectangle {
     }
 }
 
+// Preview card component for Model Thinking Orb Animation selection
+component OrbCardPreview inherits Rectangle {
+    in property <int> orb-type: 0; // 0=composing, 1=solving, 2=breathing
+    in property <string> orb-name: "Composing";
+    in property <string> orb-subtitle: "Ribbon Undulation";
+    in property <bool> is-selected: false;
+    callback clicked();
+
+    background: #0f0f0f;
+    border-width: root.is-selected ? 2px : 1px;
+    border-color: root.is-selected ? #ffffff : rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+
+    animate border-color { duration: 150ms; easing: ease-in-out; }
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 10px;
+        alignment: center;
+
+        // Top Header with checkmark badge if selected
+        HorizontalLayout {
+            alignment: space-between;
+
+            Text {
+                text: root.orb-name;
+                color: root.is-selected ? #ffffff : Tokens.text_primary;
+                font-size: Tokens.body_font_size;
+                font-weight: 600;
+            }
+
+            // Selection active checkmark badge
+            if (root.is-selected) : Rectangle {
+                width: 16px;
+                height: 16px;
+                y: (parent.height - self.height) / 2;
+                border-radius: 8px;
+                background: #ffffff;
+
+                Image {
+                    source: @image-url("../../../assets/icons/settings/check.svg");
+                    width: 10px;
+                    height: 10px;
+                    colorize: #000000;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Center Animated Thinking Orb Display
+        Rectangle {
+            height: 70px;
+            background: transparent;
+
+            if (root.orb-type == 0) : ComposingOrb {
+                size: 64px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+            if (root.orb-type == 1) : SolvingOrb {
+                size: 64px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+            if (root.orb-type == 2) : BreathingOrb {
+                size: 64px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        // Subtitle description
+        Text {
+            text: root.orb-subtitle;
+            color: Tokens.text_muted;
+            font-size: Tokens.body_font_size - 2px;
+            horizontal-alignment: center;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
 export component AppearanceSettings inherits Rectangle {
     background: transparent;
 
@@ -399,6 +487,7 @@ export component AppearanceSettings inherits Rectangle {
     in-out property <int> ui-scale-index: 1; // 0=80%, 1=100%, 2=120%, 3=140%, 4=160%
     in-out property <bool> compact-mode-enabled: false;
     in-out property <bool> animations-enabled: true;
+    in-out property <int> selected-thinking-orb: 0; // 0=composing, 1=solving, 2=breathing
 
     // ── Typography & Code Styling Properties ──
     in-out property <int> selected-ui-font: 0; // 0 = Open Sans, 1 = Inter, 2 = Roboto
@@ -412,6 +501,7 @@ export component AppearanceSettings inherits Rectangle {
     callback ui-scale-changed(int);
     callback compact-mode-toggled(bool);
     callback animations-toggled(bool);
+    callback thinking-orb-changed(int);
     callback ui-font-changed(int);
     callback assistant-font-changed(int);
     callback code-font-changed(int);
@@ -586,7 +676,7 @@ export component AppearanceSettings inherits Rectangle {
             }
 
             // ═════════════════════════════════════════════════════════════
-            // SECTION 2: UI Scale & Density Card
+            // SECTION 2: UI Scale & Density Card with Animated Thinking Orbs
             // ═════════════════════════════════════════════════════════════
             Rectangle {
                 background: #161616;
@@ -712,6 +802,75 @@ export component AppearanceSettings inherits Rectangle {
                             toggled(checked) => { root.animations-toggled(checked); }
                         }
                     }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 4: Model Thinking Orb Animation (3 Animated Orbs side-by-side)
+                    VerticalLayout {
+                        spacing: 12px;
+
+                        VerticalLayout {
+                            spacing: 2px;
+
+                            Text {
+                                text: "Model Thinking Orb Animation";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Select the live animated orb pattern displayed when the AI model is thinking";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        // 3 Side-by-Side Animated Thinking Orb Preview Cards
+                        HorizontalLayout {
+                            spacing: 12px;
+
+                            OrbCardPreview {
+                                horizontal-stretch: 1;
+                                orb-type: 0;
+                                orb-name: "Composing";
+                                orb-subtitle: "Ribbon Undulation";
+                                is-selected: root.selected-thinking-orb == 0;
+                                clicked => {
+                                    root.selected-thinking-orb = 0;
+                                    root.thinking-orb-changed(0);
+                                }
+                            }
+
+                            OrbCardPreview {
+                                horizontal-stretch: 1;
+                                orb-type: 1;
+                                orb-name: "Solving";
+                                orb-subtitle: "Lattice Scramble";
+                                is-selected: root.selected-thinking-orb == 1;
+                                clicked => {
+                                    root.selected-thinking-orb = 1;
+                                    root.thinking-orb-changed(1);
+                                }
+                            }
+
+                            OrbCardPreview {
+                                horizontal-stretch: 1;
+                                orb-type: 2;
+                                orb-name: "Breathing";
+                                orb-subtitle: "Harmonic Pulse";
+                                is-selected: root.selected-thinking-orb == 2;
+                                clicked => {
+                                    root.selected-thinking-orb = 2;
+                                    root.thinking-orb-changed(2);
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -823,7 +982,7 @@ export component AppearanceSettings inherits Rectangle {
                         background: rgba(255, 255, 255, 0.04);
                     }
 
-                    // Row 2: Monospace Code Font
+                    // Row 3: Monospace Code Font
                     HorizontalLayout {
                         alignment: space-between;
 
@@ -861,7 +1020,7 @@ export component AppearanceSettings inherits Rectangle {
                         background: rgba(255, 255, 255, 0.04);
                     }
 
-                    // Row 3: Cursor Blinking
+                    // Row 4: Cursor Blinking
                     HorizontalLayout {
                         alignment: space-between;
 

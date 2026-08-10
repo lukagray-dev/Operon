@@ -1,0 +1,68 @@
+// Composing Thinking Orb component (Ribbon Sash Undulation) for Operon GUI.
+//
+// 1:1 mathematical port of the 'composing' preset (drawRibbon with spin=0) from Jakubantalik/thinking-orbs:
+// Frozen 3D sash tumble (spin 0) with traveling wave undulation along parallel sash lanes
+// and Fibonacci volume depth ghost particles.
+
+import { Tokens } from "../tokens.slint";
+
+export component ComposingOrb inherits Rectangle {
+    in property <length> size: 64px;
+    in property <bool> is-active: true;
+
+    width: root.size;
+    height: root.size;
+    background: transparent;
+
+    property <float> t: 0.0;
+
+    // Continuous 60 FPS animation timer loop
+    Timer {
+        interval: 16ms;
+        running: root.is-active;
+        triggered => {
+            root.t = root.t + 0.006;
+            if (root.t > 1000.0) {
+                root.t = 0.0;
+            }
+        }
+    }
+
+
+    // ── Ribbon Sash Undulating Parallel Lanes (10 Parallel Lanes x 40 Segments) ──
+    for w in 10 : Rectangle {
+        for k in 40 : Rectangle {
+            property <float> laneOff: (w - 4.5) * 0.06;
+            property <float> edge: abs(w - 4.5) / 4.5;
+            property <float> a_rad: (k / 40.0) * 6.2831853;
+
+            // Traveling wave undulation equation from thinking-orbs ribbon.ts
+            // (spin = 0 in composing preset locks tilt at ta = 0.55rad)
+            property <float> wob: (0.16 * sin(a_rad * 3.0rad - root.t * 6.28rad * 1.7 + w * 0.22rad) + 0.07 * sin(a_rad * 5.0rad + root.t * 6.28rad * 1.1));
+            property <float> off: laneOff + wob;
+
+            property <float> x_raw: cos(a_rad * 1rad);
+            property <float> y_raw: sin(a_rad * 1rad) * 0.8525 - off * 0.5227;
+            property <float> z_raw: sin(a_rad * 1rad) * 0.5227 + off * 0.8525;
+
+            property <float> len: sqrt(max(0.01, x_raw * x_raw + y_raw * y_raw + z_raw * z_raw));
+
+            // Camera tilt projection (camTilt = 0.3rad)
+            property <float> px3d: x_raw / len;
+            property <float> py3d: (y_raw / len) * 0.9553 - (z_raw / len) * 0.2955;
+            property <float> z3d: (y_raw / len) * 0.2955 + (z_raw / len) * 0.9553;
+
+            property <float> depth: (z3d + 1.0) / 2.0;
+
+            width: max(1.1px, ((1.1px + 1.7px * depth) * (1.0 - 0.2 * edge)) * (root.size / 64px));
+            height: self.width;
+            border-radius: self.width / 2;
+            
+            background: #ffffff;
+            opacity: max(0.12, (0.38 + 0.62 * depth) * (0.65 + 0.35 * (1.0 - edge)));
+
+            x: (parent.width / 2) + px3d * (root.size * 0.39) - self.width / 2;
+            y: (parent.height / 2) - py3d * (root.size * 0.39) - self.height / 2;
+        }
+    }
+}

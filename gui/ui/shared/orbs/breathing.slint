@@ -1,0 +1,62 @@
+// Breathing Thinking Orb component (Ring Mode Face-On Undulation) for Operon GUI.
+//
+// 1:1 mathematical port of the 'breathing' (ring preset with faceOn=true) from Jakubantalik/thinking-orbs:
+// Face-on undulating ring (14 parallel lanes) with Fibonacci volume depth ghost particles
+// and inner breathing glow core.
+
+import { Tokens } from "../tokens.slint";
+
+export component BreathingOrb inherits Rectangle {
+    in property <length> size: 64px;
+    in property <bool> is-active: true;
+
+    width: root.size;
+    height: root.size;
+    background: transparent;
+
+    property <float> t: 0.0;
+
+    // Continuous 60 FPS animation timer loop
+    Timer {
+        interval: 16ms;
+        running: root.is-active;
+        triggered => {
+            root.t = root.t + 0.006;
+            if (root.t > 1000.0) {
+                root.t = 0.0;
+            }
+        }
+    }
+
+
+
+
+    // ── Face-On Harmonic Ring Lanes (8 Parallel Lanes x 36 Ring Segments) ──
+    for w in 8 : Rectangle {
+        for k in 36 : Rectangle {
+            property <float> laneOff: (w - 3.5) * 0.04;
+            property <float> edge: abs(w - 3.5) / 3.5;
+            property <float> a_rad: (k / 36.0) * 6.2831853;
+
+            // Exact in-plane radial undulation equation from thinking-orbs (ring faceOn)
+            // wobMul = 0.368, baseR tuned for face-on perspective
+            property <float> wob: (0.16 * sin(a_rad * 3.0rad - root.t * 6.28rad * 1.7 + w * 0.2rad) + 0.07 * sin(a_rad * 5.0rad + root.t * 6.28rad * 1.1)) * 0.368;
+            property <float> radial: (1.0 + wob) * 0.93;
+
+            property <float> ca: cos(a_rad * 1rad) * radial;
+            property <float> sa: sin(a_rad * 1rad) * radial;
+            property <float> x3d: ca + laneOff;
+            property <float> y3d: sa + laneOff;
+
+            width: max(1.1px, ((1.1px + 1.5px * (1.0 - 0.2 * edge))) * (root.size / 64px));
+            height: self.width;
+            border-radius: self.width / 2;
+
+            background: #ffffff;
+            opacity: max(0.12, (0.35 + 0.65 * sin(a_rad * 1rad + root.t * 360deg)) * (0.7 + 0.3 * (1.0 - edge)));
+
+            x: (parent.width / 2) + x3d * (root.size * 0.37) - self.width / 2;
+            y: (parent.height / 2) - y3d * (root.size * 0.37) - self.height / 2;
+        }
+    }
+}
