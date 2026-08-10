@@ -21,9 +21,9 @@ export component SettingsWindow inherits Window {
     min-width: 500px;
     min-height: 350px;
     
-    // Borderless frame styling
+    // Borderless frame styling: disable native frame and disable edge resize border when maximized
     no-frame: true;
-    resize-border-width: Tokens.window_resize_border_width;
+    resize-border-width: root.window_maximized ? 0px : Tokens.window_resize_border_width;
     
     title: "Settings";
     icon: @image-url("../../assets/brand/operon.svg");

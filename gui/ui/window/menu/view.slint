@@ -1,24 +1,30 @@
-// The View menu is the first menu with real behavior behind it.
+// The View menu component for the Operon GUI.
 //
-// The Rust side owns the actual reload and zoom state, while this file keeps
-// the visual dropdown shell small and predictable.
+// Hey friend! This menu lives in the titlebar and gives users quick options
+// to toggle the major layout panels: the left sidebar, the bottom terminal panel,
+// and the right git-diff sidebar panel.
 
 import { DropdownItem, DropdownSurface, DropdownTokens, DropdownTrigger } from "../../shared/dropdown.slint";
 import { Tokens } from "../../shared/tokens.slint";
 
 export component ViewMenu inherits Rectangle {
+    // Controls whether the dropdown menu panel is currently visible
     in property <bool> open: false;
     in property <float> ui_scale: 1.0;
+    
+    // Menu interaction callbacks
     callback header_clicked();
     callback dismiss();
-    callback reload_requested();
-    callback zoom_in_requested();
-    callback zoom_out_requested();
-    callback actual_size_requested();
+    
+    // Callbacks for layout panel toggles
+    callback toggle_sidebar_requested();
+    callback toggle_terminal_requested();
+    callback toggle_git_diff_requested();
 
     width: trigger.width;
     height: Tokens.titlebar_height;
 
+    // The clickable "View" header button in the titlebar menu bar
     trigger := DropdownTrigger {
         x: 0px;
         y: (Tokens.titlebar_height - DropdownTokens.trigger_hit_height) / 2;
@@ -30,54 +36,47 @@ export component ViewMenu inherits Rectangle {
         }
     }
 
+    // The popover panel surface containing the 3 toggle items
     panel := DropdownSurface {
         x: 0px;
         y: Tokens.titlebar_height;
         width: DropdownTokens.surface_width;
-        height: 130px;
+        height: 103px; // Scaled to cleanly fit 3 dropdown items
         visible: root.open;
 
-        reload_item := DropdownItem {
+        // 1. Option to open or close the left navigation sidebar
+        toggle_sidebar_item := DropdownItem {
             x: DropdownTokens.surface_padding;
             y: DropdownTokens.surface_padding;
-            label: "Reload";
+            label: "Toggle left-sidebar";
             ui_scale: root.ui_scale;
             clicked => {
                 root.dismiss();
-                root.reload_requested();
+                root.toggle_sidebar_requested();
             }
         }
 
-        zoom_in_item := DropdownItem {
+        // 2. Option to open or close the bottom integrated terminal panel
+        toggle_terminal_item := DropdownItem {
             x: DropdownTokens.surface_padding;
             y: DropdownTokens.surface_padding + DropdownTokens.item_height + DropdownTokens.item_gap;
-            label: "Zoom in";
+            label: "Toggle terminal";
             ui_scale: root.ui_scale;
             clicked => {
                 root.dismiss();
-                root.zoom_in_requested();
+                root.toggle_terminal_requested();
             }
         }
 
-        zoom_out_item := DropdownItem {
+        // 3. Option to open or close the right git-diff inspection sidebar
+        toggle_git_diff_item := DropdownItem {
             x: DropdownTokens.surface_padding;
             y: DropdownTokens.surface_padding + (DropdownTokens.item_height + DropdownTokens.item_gap) * 2;
-            label: "Zoom out";
+            label: "Toggle git-diff panel";
             ui_scale: root.ui_scale;
             clicked => {
                 root.dismiss();
-                root.zoom_out_requested();
-            }
-        }
-
-        actual_size_item := DropdownItem {
-            x: DropdownTokens.surface_padding;
-            y: DropdownTokens.surface_padding + (DropdownTokens.item_height + DropdownTokens.item_gap) * 3;
-            label: "Actual size";
-            ui_scale: root.ui_scale;
-            clicked => {
-                root.dismiss();
-                root.actual_size_requested();
+                root.toggle_git_diff_requested();
             }
         }
     }

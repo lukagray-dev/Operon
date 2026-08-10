@@ -42,10 +42,11 @@ component ChannelCard inherits Rectangle {
                 Image {
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
-                    source: @image-url("../../../assets/icons/settings/category-channels.svg");
+                    source: root.channel.id == "whatsapp"
+                        ? @image-url("../../../assets/icons/settings/connector-whatsapp.svg")
+                        : @image-url("../../../assets/icons/settings/connector-telegram.svg");
                     width: 20px;
                     height: 20px;
-                    colorize: Tokens.text_primary;
                 }
             }
         }
@@ -80,12 +81,12 @@ component ChannelCard inherits Rectangle {
 
                 Rectangle {
                     border-radius: 4px;
-                    background: root.channel.is-active 
-                        ? rgba(46, 204, 113, 0.15) 
+                    background: root.channel.is-active
+                        ? rgba(46, 204, 113, 0.15)
                         : rgba(255, 255, 255, 0.05);
                     border-width: 1px;
-                    border-color: root.channel.is-active 
-                        ? rgba(46, 204, 113, 0.4) 
+                    border-color: root.channel.is-active
+                        ? rgba(46, 204, 113, 0.4)
                         : rgba(255, 255, 255, 0.1);
 
                     HorizontalLayout {
@@ -207,8 +208,8 @@ export component ChannelsSettings inherits Rectangle {
                 }
 
                 Text {
-                    text: root.active-view == 0 
-                        ? "Channels Settings" 
+                    text: root.active-view == 0
+                        ? "Channels Settings"
                         : (root.active-view == 1 ? "Channels Settings | WhatsApp Setup" : "Channels Settings | Telegram Setup");
                     color: Tokens.text_primary;
                     font-size: Tokens.body_font_size + 4px;
@@ -217,11 +218,11 @@ export component ChannelsSettings inherits Rectangle {
             }
 
             Text {
-                text: root.active-view == 0 
+                text: root.active-view == 0
                     ? "Set up messaging channel integrations such as WhatsApp, Telegram, or Discord."
-                    : (root.active-view == 1 
-                        ? "Configure WhatsApp mobile pairing, Owner number, and access permission allowlist."
-                        : "Configure Telegram Bot Token, Owner Chat ID, and access permission allowlist.");
+                    : (root.active-view == 1
+                    ? "Configure WhatsApp mobile pairing, Owner number, and access permission allowlist."
+                    : "Configure Telegram Bot Token, Owner Chat ID, and access permission allowlist.");
                 color: Tokens.text_muted;
                 font-size: Tokens.body_font_size;
                 wrap: TextWrap.word-wrap;
@@ -233,10 +234,10 @@ export component ChannelsSettings inherits Rectangle {
             }
 
             // 2. View Switcher
-            if (root.active-view == 0) : VerticalLayout {
+            if (root.active-view == 0): VerticalLayout {
                 spacing: 10px;
 
-                for ch in root.channels : ChannelCard {
+                for ch in root.channels: ChannelCard {
                     channel: ch;
                     clicked => {
                         root.channel-selected(ch.id);
@@ -249,7 +250,7 @@ export component ChannelsSettings inherits Rectangle {
                 }
             }
 
-            if (root.active-view == 1) : WhatsAppSetup {
+            if (root.active-view == 1): WhatsAppSetup {
                 connection-status: root.whatsapp-connection-status;
                 owner-number <=> root.whatsapp-owner-number;
                 allowlist <=> root.whatsapp-allowlist;
@@ -293,7 +294,7 @@ export component ChannelsSettings inherits Rectangle {
                 }
             }
 
-            if (root.active-view == 2) : TelegramSetup {
+            if (root.active-view == 2): TelegramSetup {
                 connection-status: root.telegram-connection-status;
                 bot-token <=> root.telegram-bot-token;
                 owner-chat-id <=> root.telegram-owner-chat-id;
@@ -325,4 +326,3 @@ export component ChannelsSettings inherits Rectangle {
         }
     }
 }
-

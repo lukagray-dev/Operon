@@ -40,6 +40,10 @@ export component Titlebar inherits Rectangle {
     callback follow_creator_requested();
     callback see_repo_requested();
     callback open_project_requested();
+    callback settings_requested();
+    callback new_conversation_requested();
+    callback toggle_terminal_requested();
+    callback toggle_git_diff_requested();
 
     height: Tokens.titlebar_height;
     background: Tokens.titlebar_background;
@@ -47,11 +51,12 @@ export component Titlebar inherits Rectangle {
     // This invisible drag region sits behind the visible controls. The empty
     // parts of the titlebar can grab the window, while the buttons and menus
     // above it keep their own interactions.
+    // When maximized, y starts at 0px (topmost edge) since there is no edge resize border.
     drag_area := TouchArea {
         x: 0px;
-        y: Tokens.window_resize_border_width;
+        y: root.is_maximized ? 0px : Tokens.window_resize_border_width;
         width: parent.width;
-        height: parent.height - Tokens.window_resize_border_width;
+        height: root.is_maximized ? parent.height : (parent.height - Tokens.window_resize_border_width);
         mouse-cursor: default;
         pointer-event(event) => {
             if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
@@ -118,6 +123,12 @@ export component Titlebar inherits Rectangle {
         dismiss => {
             root.active_menu = 0;
         }
+        new_conversation_clicked => {
+            root.new_conversation_requested();
+        }
+        settings_clicked => {
+            root.settings_requested();
+        }
         open_project_clicked => {
             root.open_project_requested();
         }
@@ -135,17 +146,15 @@ export component Titlebar inherits Rectangle {
         dismiss => {
             root.active_menu = 0;
         }
-        reload_requested => {
-            root.reload_requested();
+        toggle_sidebar_requested => {
+            root.sidebar_open = !root.sidebar_open;
+            root.sidebar_toggle_requested();
         }
-        zoom_in_requested => {
-            root.zoom_in_requested();
+        toggle_terminal_requested => {
+            root.toggle_terminal_requested();
         }
-        zoom_out_requested => {
-            root.zoom_out_requested();
-        }
-        actual_size_requested => {
-            root.actual_size_requested();
+        toggle_git_diff_requested => {
+            root.toggle_git_diff_requested();
         }
     }
 

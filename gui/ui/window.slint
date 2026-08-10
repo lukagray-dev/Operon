@@ -21,7 +21,8 @@ export component OperonWindow inherits Window {
     min-width: 800px;
     min-height: 450px;
     no-frame: true;
-    resize-border-width: Tokens.window_resize_border_width;
+    // Disable the invisible edge resize border when maximized so hovering over edges doesn't trigger the resize mouse cursor
+    resize-border-width: root.window_maximized ? 0px : Tokens.window_resize_border_width;
 
     // Keep the shell background neutral so the UI reads as black and gray
     // instead of drifting toward a bluish desktop aesthetic.
@@ -499,5 +500,14 @@ export component OperonWindow inherits Window {
         follow_creator_requested => { root.follow_creator_requested(); }
         see_repo_requested => { root.see_repo_requested(); }
         open_project_requested => { root.open_project_requested(); }
+        settings_requested => { root.sidebar_settings_clicked(); }
+        new_conversation_requested => { root.sidebar_new_chat_clicked(); }
+        toggle_terminal_requested => { root.is_terminal_open = !root.is_terminal_open; }
+        toggle_git_diff_requested => {
+            root.right_sidebar_open = !root.right_sidebar_open;
+            if (root.right_sidebar_open) {
+                root.git_refresh_requested();
+            }
+        }
     }
 }

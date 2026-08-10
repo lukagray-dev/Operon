@@ -11,6 +11,8 @@ export component FilesMenu inherits Rectangle {
     in property <float> ui_scale: 1.0;
     callback header_clicked();
     callback dismiss();
+    callback new_conversation_clicked();
+    callback settings_clicked();
     callback open_project_clicked();
 
     width: trigger.width;
@@ -19,7 +21,8 @@ export component FilesMenu inherits Rectangle {
     trigger := DropdownTrigger {
         x: 0px;
         y: (Tokens.titlebar_height - DropdownTokens.trigger_hit_height) / 2;
-        label: "Files";
+        // Display "File" instead of "Files" as standard window menu header
+        label: "File";
         active: root.open;
         ui_scale: root.ui_scale;
         clicked => {
@@ -41,6 +44,7 @@ export component FilesMenu inherits Rectangle {
             ui_scale: root.ui_scale;
             clicked => {
                 root.dismiss();
+                root.new_conversation_clicked();
             }
         }
 
@@ -51,6 +55,7 @@ export component FilesMenu inherits Rectangle {
             ui_scale: root.ui_scale;
             clicked => {
                 root.dismiss();
+                root.settings_clicked();
             }
         }
 
