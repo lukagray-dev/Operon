@@ -92,6 +92,9 @@ export component SettingsWindow inherits Window {
     in-out property <bool> whatsapp-show-qr-popup: false;
     in-out property <string> whatsapp-pairing-code: "";
     in-out property <bool> whatsapp-show-pairing-code-popup: false;
+    in-out property <string> whatsapp-workspace-dir: "";
+    in property <string> whatsapp-resolved-workspace-dir-placeholder: "";
+    in property <bool> whatsapp-is-policy-covered: false;
 
     // WhatsApp callbacks
     callback whatsapp-save-clicked(string, [string]);
@@ -102,6 +105,7 @@ export component SettingsWindow inherits Window {
     callback whatsapp-pair-account-clicked();
     callback whatsapp-generate-pairing-code-clicked();
     callback whatsapp-close-pairing-code-popup();
+    callback whatsapp-browse-workspace-dir-clicked();
 
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
@@ -199,6 +203,9 @@ export component SettingsWindow inherits Window {
                     whatsapp-show-qr-popup <=> root.whatsapp-show-qr-popup;
                     whatsapp-pairing-code <=> root.whatsapp-pairing-code;
                     whatsapp-show-pairing-code-popup <=> root.whatsapp-show-pairing-code-popup;
+                    whatsapp-workspace-dir <=> root.whatsapp-workspace-dir;
+                    whatsapp-resolved-workspace-dir-placeholder: root.whatsapp-resolved-workspace-dir-placeholder;
+                    whatsapp-is-policy-covered: root.whatsapp-is-policy-covered;
 
                     // Bind WhatsApp callbacks
                     whatsapp-save-clicked(num, list) => { root.whatsapp-save-clicked(num, list); }
@@ -208,6 +215,7 @@ export component SettingsWindow inherits Window {
                     whatsapp-close-qr-popup() => { root.whatsapp-close-qr-popup(); }
                     whatsapp-pair-account-clicked() => { root.whatsapp-pair-account-clicked(); }
                     whatsapp-generate-pairing-code-clicked() => { root.whatsapp-generate-pairing-code-clicked(); }
+                    whatsapp-browse-workspace-dir-clicked() => { root.whatsapp-browse-workspace-dir-clicked(); }
                     whatsapp-close-pairing-code-popup() => { root.whatsapp-close-pairing-code-popup(); }
                     
                     github_requested => { root.github_requested(); }

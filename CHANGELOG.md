@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+- **WhatsApp Shared Workspace Directory & Policy Coverage**:
+  - Migrated WhatsApp session workspace directory resolution from per-contact subdirectories (`~/.operon/channels/whatsapp/workspace/<number>/`) to a single shared workspace root (`WhatsAppConfig.workspace_dir`, defaulting to `~/.operon/workspace/`).
+  - Added a configuration option `workspace_dir` to `WhatsAppConfig` with GUI settings panel integration, including a folder picker and real-time policy coverage indicator.
+  - Role-specific `AGENTS.md` system prompt guidelines are now generated fresh in the shared workspace root prior to each turn based on the message sender's resolved role.
+  - Per-contact session history storage remains fully isolated under `~/.operon/sessions/whatsapp/<number>/<session_id>.json`.
+  - **Migration Note**: Legacy per-contact workspace folders under `~/.operon/channels/whatsapp/workspace/<number>/` are no longer used by WhatsApp session turns and can be safely removed manually.
+
 ## [0.0.2-beta] - 2026-07-21
 
 This release marks the migration of the desktop GUI framework from Tauri v2 to Slint, achieving a truly native graphics-rendered desktop interface with zero browser/WebView overhead, alongside significant markdown rendering and UI improvements.

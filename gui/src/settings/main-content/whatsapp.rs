@@ -47,6 +47,7 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
     // Resolve the default auth directory and check if credentials already exist.
     let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     let default_auth = home.join(".operon").join("channels").join("whatsapp").join("auth");
+    let default_ws = WhatsAppConfig::default().resolved_workspace_dir();
 
     // Default configuration: empty initial allowlist, no owner number.
     let owner_str = "".to_string();
@@ -55,6 +56,10 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
     window.set_whatsapp_owner_number(owner_str.into());
     let allow_model: Vec<SharedString> = allow_list.into_iter().map(SharedString::from).collect();
     window.set_whatsapp_allowlist(ModelRc::from(Rc::new(VecModel::from(allow_model))));
+    window.set_whatsapp_resolved_workspace_dir_placeholder(default_ws.to_string_lossy().as_ref().into());
+
+    // Check policy coverage for current workspace directory setting
+    check_and_update_policy_coverage(window);
 
     // Check if we already have persisted credentials from a prior session.
     let auth_checker = WhatsAppAuth::new(default_auth.clone());
@@ -91,12 +96,23 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                 .map(|s| ContactId::new(s.as_str()))
                 .collect();
 
+            let workspace_dir_str = weak_window
+                .upgrade()
+                .map(|w| w.get_whatsapp_workspace_dir().to_string())
+                .unwrap_or_default();
+            let workspace_dir = if workspace_dir_str.trim().is_empty() {
+                None
+            } else {
+                Some(std::path::PathBuf::from(workspace_dir_str.trim()))
+            };
+
             // Build the config struct (persisted by the backend layer).
             let _config = WhatsAppConfig {
                 enabled: true,
                 owner_number: owner_contact,
                 allowlist,
                 auth_dir: Some(auth_dir_for_save.clone()),
+                workspace_dir,
             };
 
             println!(
@@ -104,10 +120,9 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                 owner_number
             );
 
-            // Refresh the displayed status from the live client or on-disk
-            // credentials. Do NOT blindly reset to "Disconnected" — the user
-            // may have a live bot running from a prior QR scan.
+            // Refresh the displayed status and policy coverage from live state
             if let Some(win) = weak_window.upgrade() {
+                check_and_update_policy_coverage(&win);
                 let has_live_client = client_handle_for_save
                     .lock()
                     .ok()
@@ -125,6 +140,33 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                         "Disconnected"
                     };
                     win.set_whatsapp_connection_status(label.into());
+                }
+            }
+        }
+    });
+
+    // ── 2b. Handle Browse Workspace Directory Clicked ────────────────────────
+    window.on_whatsapp_browse_workspace_dir_clicked({
+        let weak_window = weak_window.clone();
+        let default_ws = default_ws.clone();
+        move || {
+            if let Some(win) = weak_window.upgrade() {
+                let current_val = win.get_whatsapp_workspace_dir().to_string();
+                let starting_dir = if current_val.trim().is_empty() {
+                    default_ws.clone()
+                } else {
+                    std::path::PathBuf::from(current_val.trim())
+                };
+
+                let mut dialog = rfd::FileDialog::new();
+                if starting_dir.exists() {
+                    dialog = dialog.set_directory(&starting_dir);
+                }
+
+                if let Some(folder) = dialog.pick_folder() {
+                    let folder_str = folder.to_string_lossy().to_string();
+                    win.set_whatsapp_workspace_dir(folder_str.into());
+                    check_and_update_policy_coverage(&win);
                 }
             }
         }
@@ -148,6 +190,16 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                 .map(|w| w.get_whatsapp_owner_number().to_string())
                 .unwrap_or_default();
 
+            let workspace_dir_str = weak
+                .upgrade()
+                .map(|w| w.get_whatsapp_workspace_dir().to_string())
+                .unwrap_or_default();
+            let workspace_dir = if workspace_dir_str.trim().is_empty() {
+                None
+            } else {
+                Some(std::path::PathBuf::from(workspace_dir_str.trim()))
+            };
+
             // Build config — QR flow does NOT set pair_phone (that's for pairing-code only).
             let config = WhatsAppConfig {
                 enabled: true,
@@ -158,6 +210,7 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                 },
                 allowlist: vec![],
                 auth_dir: Some(auth_dir),
+                workspace_dir,
             };
 
             // Create the client and store it in the shared handle.
@@ -293,12 +346,23 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                 return;
             }
 
+            let workspace_dir_str = weak
+                .upgrade()
+                .map(|w| w.get_whatsapp_workspace_dir().to_string())
+                .unwrap_or_default();
+            let workspace_dir = if workspace_dir_str.trim().is_empty() {
+                None
+            } else {
+                Some(std::path::PathBuf::from(workspace_dir_str.trim()))
+            };
+
             // Build config — pair-code flow uses owner_number as the pair_phone.
             let config = WhatsAppConfig {
                 enabled: true,
                 owner_number: Some(ContactId::new(&owner_number)),
                 allowlist: vec![],
                 auth_dir: Some(auth_dir),
+                workspace_dir,
             };
 
             // Create the client and store it in the shared handle.
@@ -503,5 +567,25 @@ fn remove_allowlist_handler(
         }
     }
 }
+
+// ── Helper: Check policy coverage for current WhatsApp workspace setting ────
+// Evaluates whether PolicyConfig covers the configured or default workspace directory
+// and updates the UI status badge accordingly.
+fn check_and_update_policy_coverage(win: &crate::SettingsWindow) {
+    let ws_input = win.get_whatsapp_workspace_dir().to_string();
+    let resolved_path = if ws_input.trim().is_empty() {
+        WhatsAppConfig::default().resolved_workspace_dir()
+    } else {
+        std::path::PathBuf::from(ws_input.trim())
+    };
+    let canonical = std::fs::canonicalize(&resolved_path).unwrap_or_else(|_| resolved_path.clone());
+    let is_covered = if let Ok(app_config) = operon_rs::load() {
+        app_config.policy.any_directory_covers(&canonical)
+    } else {
+        false
+    };
+    win.set_whatsapp_is_policy_covered(is_covered);
+}
+
 
 

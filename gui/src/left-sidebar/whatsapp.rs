@@ -287,6 +287,7 @@ pub fn wire_whatsapp(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                 owner_number,
                 allowlist: vec![],
                 auth_dir: Some(default_auth),
+                workspace_dir: None,
             };
 
             let client = Arc::new(WhatsAppClient::new(&config));

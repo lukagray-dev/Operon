@@ -67,6 +67,9 @@ export component SettingsMainContent inherits Rectangle {
     in-out property <bool> whatsapp-show-qr-popup: false;
     in-out property <string> whatsapp-pairing-code: "";
     in-out property <bool> whatsapp-show-pairing-code-popup: false;
+    in-out property <string> whatsapp-workspace-dir: "";
+    in property <string> whatsapp-resolved-workspace-dir-placeholder: "";
+    in property <bool> whatsapp-is-policy-covered: false;
 
     // WhatsApp channel callbacks
     callback whatsapp-save-clicked(string, [string]);
@@ -77,6 +80,7 @@ export component SettingsMainContent inherits Rectangle {
     callback whatsapp-pair-account-clicked();
     callback whatsapp-generate-pairing-code-clicked();
     callback whatsapp-close-pairing-code-popup();
+    callback whatsapp-browse-workspace-dir-clicked();
 
     // Same background color as the main window sidebar
     background: Tokens.titlebar_background;
@@ -118,6 +122,9 @@ export component SettingsMainContent inherits Rectangle {
             whatsapp-show-qr-popup <=> root.whatsapp-show-qr-popup;
             whatsapp-pairing-code <=> root.whatsapp-pairing-code;
             whatsapp-show-pairing-code-popup <=> root.whatsapp-show-pairing-code-popup;
+            whatsapp-workspace-dir <=> root.whatsapp-workspace-dir;
+            whatsapp-resolved-workspace-dir-placeholder: root.whatsapp-resolved-workspace-dir-placeholder;
+            whatsapp-is-policy-covered: root.whatsapp-is-policy-covered;
 
             whatsapp-save-clicked(num, list) => { root.whatsapp-save-clicked(num, list); }
             whatsapp-scan-qr-clicked => { root.whatsapp-scan-qr-clicked(); }
@@ -127,6 +134,7 @@ export component SettingsMainContent inherits Rectangle {
             whatsapp-pair-account-clicked => { root.whatsapp-pair-account-clicked(); }
             whatsapp-generate-pairing-code-clicked => { root.whatsapp-generate-pairing-code-clicked(); }
             whatsapp-close-pairing-code-popup => { root.whatsapp-close-pairing-code-popup(); }
+            whatsapp-browse-workspace-dir-clicked => { root.whatsapp-browse-workspace-dir-clicked(); }
         }
         if (root.active-category == 4) : PermissionsSettings {
             allowed-directories: root.allowed-directories;

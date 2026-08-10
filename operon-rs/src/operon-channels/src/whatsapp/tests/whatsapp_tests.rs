@@ -32,6 +32,7 @@ fn test_role_classification() {
         owner_number: Some(owner_num.clone()),
         allowlist: vec![allow_num.clone()],
         auth_dir: None,
+        workspace_dir: None,
     };
 
     assert!(
@@ -56,6 +57,7 @@ async fn test_slash_new_command_detection() {
         owner_number: Some(owner_num.clone()),
         allowlist: vec![],
         auth_dir: None,
+        workspace_dir: None,
     };
 
     let router = WhatsAppRouter::new(config);
@@ -83,31 +85,52 @@ async fn test_slash_new_command_detection() {
 }
 
 #[test]
+fn test_whatsapp_config_workspace_dir_resolution() {
+    let mut config = WhatsAppConfig::default();
+    assert!(
+        config.resolved_workspace_dir().ends_with("workspace"),
+        "Default workspace dir must resolve to workspace root"
+    );
+
+    let custom_path = PathBuf::from("/tmp/custom_whatsapp_ws");
+    config.workspace_dir = Some(custom_path.clone());
+    assert_eq!(
+        config.resolved_workspace_dir(),
+        custom_path,
+        "Custom workspace dir must be returned when set"
+    );
+}
+
+#[test]
 fn test_workspace_directory_provisioning_and_role_agents_md() {
     let tmp_dir = TempDir::new().unwrap();
     let base_ws = tmp_dir
         .path()
-        .join("channels")
-        .join("whatsapp")
         .join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
-    let manager = WhatsAppWorkspaceManager::with_paths(base_ws, base_sess);
+    let manager = WhatsAppWorkspaceManager::with_paths(base_ws.clone(), base_sess);
 
     let owner_contact = ContactId::new("15551112222");
     let ext_contact = ContactId::new("15558889999");
 
-    // Provision owner workspace
+    // Both contacts must map to the SAME shared workspace root directory
+    assert_eq!(manager.workspace_dir_for(&owner_contact), base_ws);
+    assert_eq!(manager.workspace_dir_for(&ext_contact), base_ws);
+
+    // Provision owner workspace — writes Owner AGENTS.md in shared root
     let owner_ws = manager.provision_workspace(&owner_contact, true).unwrap();
-    let owner_agents_md = std::fs::read_to_string(owner_ws.join("AGENTS.md")).unwrap();
+    assert_eq!(owner_ws, base_ws);
+    let owner_agents_md = std::fs::read_to_string(base_ws.join("AGENTS.md")).unwrap();
     assert!(
         owner_agents_md.contains("ADMINISTRATOR"),
         "Owner AGENTS.md must contain ADMINISTRATOR"
     );
 
-    // Provision external workspace
+    // Provision external workspace — rewrites AGENTS.md in shared root fresh per-turn
     let ext_ws = manager.provision_workspace(&ext_contact, false).unwrap();
-    let ext_agents_md = std::fs::read_to_string(ext_ws.join("AGENTS.md")).unwrap();
+    assert_eq!(ext_ws, base_ws);
+    let ext_agents_md = std::fs::read_to_string(base_ws.join("AGENTS.md")).unwrap();
     assert!(
         ext_agents_md.contains("OUTSIDER"),
         "External AGENTS.md must contain OUTSIDER"
@@ -161,6 +184,7 @@ async fn test_cancel_in_flight_turn_on_slash_new() {
         owner_number: Some(contact.clone()),
         allowlist: vec![],
         auth_dir: None,
+        workspace_dir: None,
     };
     let router = WhatsAppRouter::new(config);
 
@@ -326,6 +350,7 @@ async fn test_whatsapp_service_orchestration_loop() {
         owner_number: Some(owner_contact.clone()),
         allowlist: vec![],
         auth_dir: Some(tmp_dir.path().join("auth")),
+        workspace_dir: None,
     };
 
     let client = Arc::new(WhatsAppClient::new(&config));

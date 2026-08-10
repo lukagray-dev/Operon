@@ -143,6 +143,9 @@ export component ChannelsSettings inherits Rectangle {
     in-out property <bool> whatsapp-show-qr-popup: false;
     in-out property <string> whatsapp-pairing-code: "";
     in-out property <bool> whatsapp-show-pairing-code-popup: false;
+    in-out property <string> whatsapp-workspace-dir: "";
+    in property <string> whatsapp-resolved-workspace-dir-placeholder: "";
+    in property <bool> whatsapp-is-policy-covered: false;
 
     // Callbacks
     callback channel-selected(string);
@@ -154,6 +157,7 @@ export component ChannelsSettings inherits Rectangle {
     callback whatsapp-pair-account-clicked();
     callback whatsapp-generate-pairing-code-clicked();
     callback whatsapp-close-pairing-code-popup();
+    callback whatsapp-browse-workspace-dir-clicked();
 
     ScrollView {
         width: 100%;
@@ -225,6 +229,9 @@ export component ChannelsSettings inherits Rectangle {
                 show-qr-popup <=> root.whatsapp-show-qr-popup;
                 pairing-code <=> root.whatsapp-pairing-code;
                 show-pairing-code-popup <=> root.whatsapp-show-pairing-code-popup;
+                workspace-dir <=> root.whatsapp-workspace-dir;
+                resolved-workspace-dir-placeholder: root.whatsapp-resolved-workspace-dir-placeholder;
+                is-policy-covered: root.whatsapp-is-policy-covered;
 
                 back-clicked => {
                     root.active-view = 0;
@@ -252,6 +259,9 @@ export component ChannelsSettings inherits Rectangle {
                 }
                 close-pairing-code-popup => {
                     root.whatsapp-close-pairing-code-popup();
+                }
+                browse-workspace-dir-clicked => {
+                    root.whatsapp-browse-workspace-dir-clicked();
                 }
             }
         }

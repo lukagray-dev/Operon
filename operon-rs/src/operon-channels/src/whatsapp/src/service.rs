@@ -45,8 +45,19 @@ impl WhatsAppService {
         wa_config: WhatsAppConfig,
         app_config: AppConfig,
     ) -> Self {
-        let router = Arc::new(WhatsAppRouter::new(wa_config));
-        let workspace_manager = WhatsAppWorkspaceManager::new();
+        // Check policy coverage for the resolved workspace directory
+        wa_config.check_policy_coverage(&app_config.policy);
+
+        let router = Arc::new(WhatsAppRouter::new(wa_config.clone()));
+        let base_sessions_dir = dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".operon")
+            .join("sessions")
+            .join("whatsapp");
+        let workspace_manager = WhatsAppWorkspaceManager::with_paths(
+            wa_config.resolved_workspace_dir(),
+            base_sessions_dir,
+        );
         let (bridge_tx, bridge_rx) = mpsc::channel::<OutboundMessage>(64);
         let (client_tx, client_rx) = mpsc::channel::<OutboundMessage>(64);
         let outbound_queue = Arc::new(OutboundQueue::new(client_tx));

@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .join("whatsapp")
                 .join("auth"),
         ),
+        workspace_dir: None,
     };
 
     let router = WhatsAppRouter::new(config.clone());

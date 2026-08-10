@@ -84,6 +84,9 @@ export component WhatsAppSetup inherits Rectangle {
     in-out property <bool> show-qr-popup: false;
     in-out property <string> pairing-code: "";
     in-out property <bool> show-pairing-code-popup: false;
+    in-out property <string> workspace-dir: "";
+    in property <string> resolved-workspace-dir-placeholder: "";
+    in property <bool> is-policy-covered: false;
 
     callback back-clicked();
     callback save-clicked();
@@ -94,6 +97,7 @@ export component WhatsAppSetup inherits Rectangle {
     callback pair-account-clicked();
     callback generate-pairing-code-clicked();
     callback close-pairing-code-popup();
+    callback browse-workspace-dir-clicked();
 
     VerticalLayout {
         spacing: 16px;
@@ -174,6 +178,83 @@ export component WhatsAppSetup inherits Rectangle {
             InputField {
                 placeholder: "+1 (555) 019-2834";
                 text <=> root.owner-number;
+            }
+        }
+
+        // 2b. Workspace Directory Row
+        SettingRow {
+            label: "Workspace Directory";
+            subtitle: "Shared workspace root directory for WhatsApp session tool calls";
+
+            VerticalLayout {
+                spacing: 6px;
+
+                HorizontalLayout {
+                    spacing: 6px;
+
+                    InputField {
+                        horizontal-stretch: 1;
+                        placeholder: root.resolved-workspace-dir-placeholder;
+                        text <=> root.workspace-dir;
+                    }
+
+                    // Folder Browse Button
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 6px;
+                        background: browse_touch.has-hover ? #242424 : #1a1a1a;
+                        border-width: 1px;
+                        border-color: rgba(255, 255, 255, 0.08);
+
+                        Image {
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            source: @image-url("../../../../assets/icons/sidebar/folder.svg");
+                            width: 14px;
+                            height: 14px;
+                            colorize: browse_touch.has-hover ? #e0e0e0 : #888888;
+                        }
+
+                        browse_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.browse-workspace-dir-clicked(); }
+                        }
+                    }
+                }
+
+                // Inline Policy Coverage Indicator
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+
+                    Rectangle {
+                        border-radius: 4px;
+                        background: root.is-policy-covered
+                            ? rgba(46, 204, 113, 0.15)
+                            : rgba(230, 126, 34, 0.15);
+                        border-width: 1px;
+                        border-color: root.is-policy-covered
+                            ? rgba(46, 204, 113, 0.4)
+                            : rgba(230, 126, 34, 0.4);
+
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 6px;
+                            padding-top: 2px;
+                            padding-bottom: 2px;
+
+                            Text {
+                                text: root.is-policy-covered
+                                    ? "✓ Policy Covered"
+                                    : "⚠️ Uncovered by Policy (Tool calls will Deny)";
+                                color: root.is-policy-covered ? #2ecc71 : #e67e22;
+                                font-size: Tokens.body_font_size - 3px;
+                                font-weight: 600;
+                            }
+                        }
+                    }
+                }
             }
         }
 

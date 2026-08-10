@@ -1,25 +1,27 @@
-// workspace.rs — Per-user workspace directory & role-specific AGENTS.md manager.
+// workspace.rs — Shared workspace directory & role-specific AGENTS.md manager.
 //
-// Hey friend! This module manages individual workspace root directories for WhatsApp contacts
-// under `~/.operon/channels/whatsapp/workspace/<contact_number>/`.
+// Hey friend! This module manages the single shared workspace root directory for WhatsApp session turn execution.
+// By default, it targets `~/.operon/workspace/` (or a configured custom path) so that tool calls match pre-configured PolicyConfig rules.
 //
-// It also auto-generates a role-specific `AGENTS.md` file in each contact's workspace:
+// It also auto-generates a role-specific `AGENTS.md` file in the shared workspace root immediately before each turn:
 //   - Owner / Allowlisted contacts get Owner instructions (full administrative capabilities).
 //   - External contacts get External/Outsider instructions (restricted external posture).
 //
-// Finally, it computes per-user JSON session file paths at `~/.operon/sessions/whatsapp/<contact_number>/<session_id>.json`.
+// Finally, it computes per-user JSON session file paths at `~/.operon/sessions/whatsapp/<contact_number>/<session_id>.json`
+// to maintain complete conversation history isolation between contacts.
 
 use std::path::PathBuf;
 use tracing::info;
 
+use crate::config::WhatsAppConfig;
 use crate::error::WhatsAppError;
 use crate::types::ContactId;
 
-/// Workspace manager for per-contact isolation in WhatsApp.
+/// Workspace manager for shared workspace directory and per-contact session isolation in WhatsApp.
 pub struct WhatsAppWorkspaceManager {
-    /// Base directory for channel workspaces (`~/.operon/channels/whatsapp/workspace/`).
+    /// Single shared base directory for channel workspace (`~/.operon/workspace/` by default).
     base_workspace_dir: PathBuf,
-    /// Base directory for channel sessions (`~/.operon/sessions/whatsapp/`).
+    /// Base directory for per-contact channel sessions (`~/.operon/sessions/whatsapp/`).
     base_sessions_dir: PathBuf,
 }
 
@@ -30,14 +32,10 @@ impl Default for WhatsAppWorkspaceManager {
 }
 
 impl WhatsAppWorkspaceManager {
-    /// Creates a new `WhatsAppWorkspaceManager` using standard system default paths under `~/.operon/`.
+    /// Creates a new `WhatsAppWorkspaceManager` using standard system default paths (`~/.operon/workspace`).
     pub fn new() -> Self {
+        let base_workspace_dir = WhatsAppConfig::default().resolved_workspace_dir();
         let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-        let base_workspace_dir = home
-            .join(".operon")
-            .join("channels")
-            .join("whatsapp")
-            .join("workspace");
         let base_sessions_dir = home.join(".operon").join("sessions").join("whatsapp");
 
         Self {
@@ -46,7 +44,7 @@ impl WhatsAppWorkspaceManager {
         }
     }
 
-    /// Creates a custom `WhatsAppWorkspaceManager` targeting specified root directories (useful for testing).
+    /// Creates a custom `WhatsAppWorkspaceManager` targeting specified root directories (useful for testing or custom paths).
     pub fn with_paths(base_workspace_dir: PathBuf, base_sessions_dir: PathBuf) -> Self {
         Self {
             base_workspace_dir,
@@ -54,11 +52,12 @@ impl WhatsAppWorkspaceManager {
         }
     }
 
-    /// Computes the absolute workspace directory path for a specific contact.
+    /// Returns the single shared workspace directory path.
     ///
-    /// Path format: `~/.operon/channels/whatsapp/workspace/<contact_number>/`
-    pub fn workspace_dir_for(&self, contact: &ContactId) -> PathBuf {
-        self.base_workspace_dir.join(contact.as_str())
+    /// The `_contact` argument is retained for signature compatibility and logging context, but all WhatsApp contacts
+    /// now share the single configured workspace root to ensure policy coverage matches pre-configured DirectoryPolicy rules.
+    pub fn workspace_dir_for(&self, _contact: &ContactId) -> PathBuf {
+        self.base_workspace_dir.clone()
     }
 
     /// Computes the JSON session file path for a specific contact and session ID.
@@ -70,9 +69,9 @@ impl WhatsAppWorkspaceManager {
             .join(format!("{}.json", session_id))
     }
 
-    /// Provisions and ensures existence of a contact's workspace folder and role-specific `AGENTS.md`.
+    /// Provisions and ensures existence of the shared workspace folder and role-specific `AGENTS.md`.
     ///
-    /// If `AGENTS.md` does not yet exist in the contact's workspace, it is auto-generated based on `is_owner`.
+    /// `AGENTS.md` is updated fresh in the shared workspace root per-turn to reflect the current message's sender role at write time.
     pub fn provision_workspace(
         &self,
         contact: &ContactId,
@@ -85,8 +84,8 @@ impl WhatsAppWorkspaceManager {
                 WhatsAppError::Workspace(format!("Failed to create workspace dir {:?}: {e}", dir))
             })?;
             info!(
-                "Created workspace directory for WhatsApp contact: {}",
-                contact
+                "Created shared workspace directory for WhatsApp: {:?}",
+                dir
             );
         }
 
@@ -110,7 +109,7 @@ impl WhatsAppWorkspaceManager {
                 ))
             })?;
             info!(
-                "Updated AGENTS.md ({}) for contact {}",
+                "Updated AGENTS.md ({}) in shared workspace for contact {}",
                 if is_owner { "Owner" } else { "External" },
                 contact
             );
