@@ -13,3 +13,6 @@ pub use trait_def::{Channel, ChannelId, ChannelMessage, ChannelStatus, QrCodeSta
 
 /// Re-exported WhatsApp channel sub-crate.
 pub use operon_channels_whatsapp as whatsapp;
+
+/// Re-exported Telegram channel sub-crate.
+pub use operon_channels_telegram as telegram;

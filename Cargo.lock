@@ -5728,8 +5728,31 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "operon-channels-telegram",
  "operon-channels-whatsapp",
  "serde",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "operon-channels-telegram"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dirs 6.0.0",
+ "operon-config",
+ "operon-context",
+ "operon-events",
+ "operon-policy",
+ "operon-session",
+ "parking_lot",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
