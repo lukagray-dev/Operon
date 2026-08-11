@@ -14,14 +14,14 @@ use crate::http::send_streaming;
 use crate::lifecycle::LifecycleState;
 use crate::request::build_request;
 
-use super::message_build::{build_assistant_message, extract_usage_record};
+use super::message_build::{build_assistant_message, build_user_message, extract_usage_record};
 use super::tool_dispatch::ToolCallFlow;
 use super::SessionRunner;
 
 impl SessionRunner {
     /// Run one user turn through the agent loop.
     ///
-    /// Pushes `user_message` into the conversation, then loops:
+    /// Pushes `user_message` and optional attached images/files into the conversation, then loops:
     ///   1. Check compaction threshold → compact if needed
     ///   2. Build snapshot + sanitize
     ///   3. Collect tool definitions
@@ -34,7 +34,12 @@ impl SessionRunner {
     ///  10. Policy-check each tool call; Ask waits, Deny blocks
     ///  11. Dispatch allowed tool calls sequentially + emit ToolDegraded if needed
     ///  12. Loop back for the next model turn
-    pub async fn run(&mut self, user_message: String) -> Result<(), SessionError> {
+    pub async fn run(
+        &mut self,
+        user_message: String,
+        image_blocks: Vec<ContentBlock>,
+        file_paths: Vec<std::path::PathBuf>,
+    ) -> Result<(), SessionError> {
         // Guard: only Idle and Paused sessions may enter the loop.
         if !self.lifecycle.can_run() {
             return Err(SessionError::InvalidState {
@@ -44,10 +49,8 @@ impl SessionRunner {
         self.lifecycle = LifecycleState::Running;
 
         // Push the user's message into the conversation history.
-        self.messages
-            .push(ConversationMessage::user(vec![ContentBlock::Text(
-                user_message,
-            )]));
+        let user_blocks = build_user_message(&user_message, image_blocks, &file_paths);
+        self.messages.push(ConversationMessage::user(user_blocks));
 
         // The agent loop — continues until the model returns no tool calls.
         loop {

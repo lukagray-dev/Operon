@@ -6,6 +6,7 @@
 slint::include_modules!();
 
 pub mod app;
+pub mod media;
 pub mod settings;
 pub mod state;
 pub mod window;

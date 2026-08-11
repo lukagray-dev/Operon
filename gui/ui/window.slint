@@ -8,9 +8,11 @@ import { Tokens } from "./shared/tokens.slint";
 import { Titlebar } from "./window/titlebar.slint";
 import { Sidebar } from "./left-sidebar/sidebar.slint";
 import { SidebarConversation, SidebarProject } from "./left-sidebar/types.slint";
-import { MainContent, ChatMessage } from "./main-content/main-content.slint";
+import { MainContent, ChatMessage, AttachmentChip } from "./main-content/main-content.slint";
 import { RightSidebar, GitFileDiff, GitDiffHunk, GitDiffLine } from "./right-sidebar/right-sidebar.slint";
 export { SettingsWindow } from "./settings/settings.slint";
+export { AttachmentChip }
+
 
 export component OperonWindow inherits Window {
     // The window opens in a centered 16:9-ish landscape shape. The runtime
@@ -97,6 +99,7 @@ export component OperonWindow inherits Window {
     // Main content / input panel callbacks - wire these to Rust handlers
     callback message_submitted(string /* message-text */);
     callback attach_clicked();
+    callback attachment_removed(int /* index */);
     callback auto_approve_toggled(bool /* enabled */);
     callback context_clicked();
     callback model_clicked();
@@ -124,6 +127,7 @@ export component OperonWindow inherits Window {
     
     // Main content properties - bind these from Rust
     in-out property <string> input_text: "";
+    in-out property <[AttachmentChip]> pending_attachments: [];
     in-out property <string> selected_model: "";
     in-out property <string> selected_reasoning: "";
     in-out property <bool> auto_approve_enabled: false;
@@ -279,6 +283,7 @@ export component OperonWindow inherits Window {
                 
                 // Bind properties from root
                 input-text <=> root.input_text;
+                pending-attachments <=> root.pending_attachments;
                 selected-model <=> root.selected_model;
                 selected-reasoning <=> root.selected_reasoning;
                 auto-approve-enabled <=> root.auto_approve_enabled;
@@ -342,6 +347,10 @@ export component OperonWindow inherits Window {
                 
                 attach-clicked => {
                     root.attach_clicked();
+                }
+                
+                attachment-removed(idx) => {
+                    root.attachment_removed(idx);
                 }
                 
                 auto-approve-toggled(enabled) => {

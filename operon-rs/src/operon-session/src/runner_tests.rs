@@ -357,3 +357,84 @@ fn test_build_assistant_message_includes_reasoning() {
         other => panic!("expected ContentBlock::Text, got {:?}", other),
     }
 }
+
+#[test]
+fn test_build_user_message_plain_text_regression() {
+    let blocks = build_user_message("Hello world", vec![], &[]);
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        ContentBlock::Text(t) => assert_eq!(t, "Hello world"),
+        other => panic!("expected Text block, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_build_user_message_image_only() {
+    use operon_context::{ImageBlock, ImageSource};
+    let img_block = ContentBlock::Image(ImageBlock {
+        source: ImageSource::Base64 {
+            media_type: "image/png".to_string(),
+            data: "base64data".to_string(),
+        },
+    });
+
+    let blocks = build_user_message("", vec![img_block.clone()], &[]);
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        ContentBlock::Image(img) => match &img.source {
+            ImageSource::Base64 { media_type, data } => {
+                assert_eq!(media_type, "image/png");
+                assert_eq!(data, "base64data");
+            }
+            other => panic!("expected ImageSource::Base64, got {:?}", other),
+        },
+        other => panic!("expected Image block, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_build_user_message_file_only() {
+    let file_path = std::path::PathBuf::from("D:\\Operon\\notes.txt");
+    let blocks = build_user_message("", vec![], &[file_path]);
+    assert_eq!(blocks.len(), 1);
+    match &blocks[0] {
+        ContentBlock::Text(t) => {
+            assert_eq!(t, "[Attached file: D:\\Operon\\notes.txt]");
+        }
+        other => panic!("expected Text block with attached file path, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_build_user_message_mixed_turn() {
+    use operon_context::{ImageBlock, ImageSource};
+    let img_block = ContentBlock::Image(ImageBlock {
+        source: ImageSource::Base64 {
+            media_type: "image/jpeg".to_string(),
+            data: "jpegbase64".to_string(),
+        },
+    });
+    let file1 = std::path::PathBuf::from("D:\\Operon\\doc1.pdf");
+    let file2 = std::path::PathBuf::from("D:\\Operon\\src\\main.rs");
+
+    let blocks = build_user_message("Please analyze these attachments", vec![img_block], &[file1, file2]);
+    assert_eq!(blocks.len(), 2);
+
+    match &blocks[0] {
+        ContentBlock::Image(img) => match &img.source {
+            ImageSource::Base64 { media_type, .. } => {
+                assert_eq!(media_type, "image/jpeg");
+            }
+            other => panic!("expected ImageSource::Base64, got {:?}", other),
+        },
+        other => panic!("expected Image block first, got {:?}", other),
+    }
+
+    match &blocks[1] {
+        ContentBlock::Text(t) => {
+            let expected = "Please analyze these attachments\n[Attached file: D:\\Operon\\doc1.pdf]\n[Attached file: D:\\Operon\\src\\main.rs]";
+            assert_eq!(t, expected);
+        }
+        other => panic!("expected Text block second, got {:?}", other),
+    }
+}

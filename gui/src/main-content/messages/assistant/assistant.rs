@@ -129,6 +129,7 @@ pub fn wire_assistant_messages(window: &crate::OperonWindow, state: Rc<RefCell<A
                                 crate::executor::submit_prompt(
                                     &win,
                                     prompt,
+                                    Vec::new(),
                                     session_id,
                                     false,
                                     project_dir_clone,

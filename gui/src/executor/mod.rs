@@ -26,19 +26,37 @@ pub fn get_active_cmd_tx() -> Option<tokio::sync::mpsc::Sender<operon_rs::Sessio
 /// Entry point to submit a prompt to the agent session runner.
 ///
 /// Hey friend! This function initiates the prompt turn by:
-/// 1. Instantly posting the user's message to the chat view.
+/// 1. Instantly posting the user's message (with attachment indicators) to the chat view.
 /// 2. Setting the GUI responding/spinner state.
 /// 3. Spawning a tokio task to run the agent session in the background.
 pub fn submit_prompt(
     window: &crate::OperonWindow,
     message_text: String,
+    attachments: Vec<crate::media::PendingAttachment>,
     session_id: String,
     is_new_session: bool,
     project_dir: Option<String>,
 ) {
     println!("[operon-gui][executor] Submitting prompt: {}", message_text);
 
-    // 1. Append user message to UI instantly so the user gets immediate feedback.
+    // 1. Build chat bubble display text including attachment summaries
+    let mut display_text_parts = Vec::new();
+    if !message_text.is_empty() {
+        display_text_parts.push(message_text.clone());
+    }
+    for att in &attachments {
+        match att {
+            crate::media::PendingAttachment::Image { display_name, .. } => {
+                display_text_parts.push(format!("[Attached image: {display_name}]"));
+            }
+            crate::media::PendingAttachment::File { path, .. } => {
+                display_text_parts.push(format!("[Attached file: {}]", path.display()));
+            }
+        }
+    }
+    let display_text = display_text_parts.join("\n");
+
+    // Append user message to UI instantly so the user gets immediate feedback.
     let mut msgs: Vec<crate::ChatMessage> = Vec::new();
     let model = window.get_chat_messages();
     for i in 0..model.row_count() {
@@ -46,11 +64,11 @@ pub fn submit_prompt(
             msgs.push(msg);
         }
     }
-    let parsed_user = crate::main_content::user_messages::markdown::parse_markdown(&message_text);
+    let parsed_user = crate::main_content::user_messages::markdown::parse_markdown(&display_text);
     msgs.push(crate::ChatMessage {
         id: "".into(),
         is_user: true,
-        text: message_text.clone().into(),
+        text: display_text.into(),
         time: "".into(),
         markdown_elements: slint::ModelRc::from(Rc::new(slint::VecModel::from(parsed_user))),
         reasoning_text: "".into(),
@@ -63,6 +81,32 @@ pub fn submit_prompt(
     window.set_is_responding(true);
 
     let window_weak = window.as_weak();
+
+    // Separate attachments into image content blocks and file paths
+    let mut image_blocks = Vec::new();
+    let mut file_paths = Vec::new();
+
+    for att in attachments {
+        match att {
+            crate::media::PendingAttachment::Image {
+                media_type,
+                base64_data,
+                ..
+            } => {
+                image_blocks.push(operon_rs::context::ContentBlock::Image(
+                    operon_rs::context::ImageBlock {
+                        source: operon_rs::context::ImageSource::Base64 {
+                            media_type,
+                            data: base64_data,
+                        },
+                    },
+                ));
+            }
+            crate::media::PendingAttachment::File { path, .. } => {
+                file_paths.push(path);
+            }
+        }
+    }
 
     // 3. Launch tokio prompt task in the background.
     let session_id_clone = session_id.clone();
@@ -88,8 +132,11 @@ pub fn submit_prompt(
             .await?;
 
             // Spawn runner thread.
-            let runner_handle =
-                tokio::spawn(async move { runner.run(message_text.to_string()).await });
+            let runner_handle = tokio::spawn(async move {
+                runner
+                    .run(message_text.to_string(), image_blocks, file_paths)
+                    .await
+            });
 
             // Spawn event handler loop.
             let win_weak_event = window_weak.clone();

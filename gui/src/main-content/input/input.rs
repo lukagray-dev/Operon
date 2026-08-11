@@ -53,6 +53,7 @@ pub fn wire_input_panel(window: &crate::OperonWindow, state: Rc<RefCell<AppState
 
     // Wire submodules
     attach::wire_attach(window, Rc::clone(&state));
+    attach::wire_attachment_removed(window, Rc::clone(&state));
     auto_approve::wire_auto_approve(window, Rc::clone(&state));
     context::wire_context(window, Rc::clone(&state));
     models::wire_models(window, Rc::clone(&state));

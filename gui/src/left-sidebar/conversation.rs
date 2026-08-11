@@ -71,12 +71,23 @@ pub async fn load_session_history(
                     let mut msg_items = Vec::new();
                     let mut text_parts = Vec::new();
                     for block in &msg.content {
-                        if let operon_rs::context::ContentBlock::Text(s) = block {
-                            text_parts.push(s.clone());
-                            msg_items.push(ParsedMarkdownItem::new_default(
-                                "text".to_string(),
-                                s.clone(),
-                            ));
+                        match block {
+                            operon_rs::context::ContentBlock::Text(s) => {
+                                text_parts.push(s.clone());
+                                msg_items.push(ParsedMarkdownItem::new_default(
+                                    "text".to_string(),
+                                    s.clone(),
+                                ));
+                            }
+                            operon_rs::context::ContentBlock::Image(_) => {
+                                let img_str = "[Attached image]".to_string();
+                                text_parts.push(img_str.clone());
+                                msg_items.push(ParsedMarkdownItem::new_default(
+                                    "text".to_string(),
+                                    img_str,
+                                ));
+                            }
+                            _ => {}
                         }
                     }
                     let text = text_parts.join("\n");

@@ -29,8 +29,13 @@ syntect = { version = "5.3", default-features = false, features = ["parsing", "r
 merman = { version = "0.7", features = ["render"] }
 regex = "1.10"
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading"] }
+sha2 = "0.10"
+base64 = "0.22"
 
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
+
+[dev-dependencies]
+tempfile.workspace = true
 
 # Slint GUI framework — declarative UI language and runtime
 slint = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }

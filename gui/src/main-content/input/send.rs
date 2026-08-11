@@ -19,6 +19,11 @@ pub fn wire_send(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
 
     window.on_message_submitted(move |message_text| {
         if let Some(win) = window_weak.upgrade() {
+            // Read pending attachments and clear state
+            let attachments = app_state.borrow().pending_attachments().to_vec();
+            app_state.borrow_mut().clear_attachments();
+            super::attach::update_attachment_chips(&win, &app_state.borrow());
+
             // Resolve workspace settings on the main thread
             let (session_id, is_new_session) = {
                 let mut s = app_state.borrow_mut();
@@ -43,6 +48,7 @@ pub fn wire_send(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
             executor::submit_prompt(
                 &win,
                 message_text.to_string(),
+                attachments,
                 session_id,
                 is_new_session,
                 project_dir,

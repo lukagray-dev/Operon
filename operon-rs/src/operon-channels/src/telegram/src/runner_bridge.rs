@@ -193,7 +193,8 @@ impl SessionRunnerBridge {
         }
 
         // ── 7. Spawn runner task ────────────────────────────────────────────
-        let runner_handle = tokio::spawn(async move { runner.run(user_message).await });
+        let runner_handle =
+            tokio::spawn(async move { runner.run(user_message, vec![], vec![]).await });
 
         // ── 8. Event consumer loop — forward tool progress & final text ─────
         forward_session_events_to_outbound(chat, &self.outbound_tx, &mut event_rx).await;

@@ -17,6 +17,8 @@ pub struct AppState {
     active_session_id: Option<String>,
     current_project_dir: Option<String>,
     discovered_models: Vec<operon_rs::DiscoveredModel>,
+    /// Pending attachments for the next message send, in the order attached.
+    pending_attachments: Vec<crate::media::PendingAttachment>,
 }
 
 impl Default for AppState {
@@ -27,6 +29,7 @@ impl Default for AppState {
             active_session_id: None,
             current_project_dir: None,
             discovered_models: Vec::new(),
+            pending_attachments: Vec::new(),
         }
     }
 }
@@ -101,5 +104,27 @@ impl AppState {
     /// Sets the list of discovered models.
     pub fn set_discovered_models(&mut self, models: Vec<operon_rs::DiscoveredModel>) {
         self.discovered_models = models;
+    }
+
+    /// Returns a slice of current pending attachments.
+    pub fn pending_attachments(&self) -> &[crate::media::PendingAttachment] {
+        &self.pending_attachments
+    }
+
+    /// Adds a new attachment to the pending list.
+    pub fn add_attachment(&mut self, attachment: crate::media::PendingAttachment) {
+        self.pending_attachments.push(attachment);
+    }
+
+    /// Removes a pending attachment by index.
+    pub fn remove_attachment(&mut self, index: usize) {
+        if index < self.pending_attachments.len() {
+            self.pending_attachments.remove(index);
+        }
+    }
+
+    /// Clears all pending attachments.
+    pub fn clear_attachments(&mut self) {
+        self.pending_attachments.clear();
     }
 }

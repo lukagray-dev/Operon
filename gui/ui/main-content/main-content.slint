@@ -20,13 +20,13 @@
 // creating a floating effect over the chat messages area.
 
 import { Tokens } from "../shared/tokens.slint";
-import { InputPanel } from "./input/input.slint";
+import { InputPanel, AttachmentChip } from "./input/input.slint";
 import { Topbar } from "./topbar/topbar.slint";
 import { WarningText } from "./input/warning.slint";
 import { TerminalPanel } from "./terminal/terminal.slint";
 import { FloatingPermissionPanel } from "./permission/permission.slint";
 import { MessageList, ChatMessage } from "./messages/message-list.slint";
-export { ChatMessage }
+export { ChatMessage, AttachmentChip }
 
 // Main content area component that contains the chat interface.
 // This is the primary workspace where users interact with the AI agent.
@@ -43,6 +43,9 @@ export component MainContent inherits Rectangle {
     
     // Current text in the input field
     in-out property <string> input-text: "";
+    
+    // Pending attachments list
+    in-out property <[AttachmentChip]> pending-attachments: [];
     
     // Selected model and settings
     in-out property <string> selected-model: "";
@@ -112,6 +115,7 @@ export component MainContent inherits Rectangle {
     // Forward all input panel callbacks to parent
     callback message-submitted(string /* message-text */);
     callback attach-clicked();
+    callback attachment-removed(int /* index */);
     callback auto-approve-toggled(bool /* enabled */);
     callback context-clicked();
     callback model-clicked();
@@ -286,6 +290,7 @@ export component MainContent inherits Rectangle {
                             
                             // Bind all properties
                             input-text <=> root.input-text;
+                            pending-attachments <=> root.pending-attachments;
                             selected-model <=> root.selected-model;
                             selected-reasoning <=> root.selected-reasoning;
                             auto-approve-enabled <=> root.auto-approve-enabled;
@@ -308,6 +313,10 @@ export component MainContent inherits Rectangle {
                             
                             attach-clicked => {
                                 root.attach-clicked();
+                            }
+                            
+                            attachment-removed(idx) => {
+                                root.attachment-removed(idx);
                             }
                             
                             auto-approve-toggled(enabled) => {

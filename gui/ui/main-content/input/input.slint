@@ -27,12 +27,21 @@ import { SendButton } from "./send.slint";
 import { WarningText } from "./warning.slint";
 import { ScrollView } from "std-widgets.slint";
 
+export struct AttachmentChip {
+    display_name: string,
+    is_image: bool,
+    thumbnail: image,
+}
+
 // Main input panel component that combines all input controls.
 // This is the primary user interaction point for sending messages to the AI.
 export component InputPanel inherits Rectangle {
     // ===== Text Input Properties =====
     // Current text content in the input field
     in-out property <string> input-text: "";
+
+    // Pending attachments list for prompt context
+    in-out property <[AttachmentChip]> pending-attachments: [];
 
     // Placeholder text shown when input is empty
     in property <string> placeholder: "Do anything with Operon...";
@@ -73,6 +82,9 @@ export component InputPanel inherits Rectangle {
     // Fired when attach button is clicked
     callback attach-clicked();
 
+    // Fired when an attachment chip is removed by index
+    callback attachment-removed(int /* index */);
+
     // Fired when auto-approve is toggled
     callback auto-approve-toggled(bool /* enabled */);
 
@@ -97,12 +109,10 @@ export component InputPanel inherits Rectangle {
     // ===== Layout Properties =====
     // Width is controlled by parent - no min-width to allow flexibility
     
-    // Dynamic height based on text content
-    // Minimum: 1 line, Maximum: 10 lines
-    // Formula: text-field height + toolbar (32px) + padding (32px total: 8px top + 8px bottom + 8px spacing + 8px internal)
+    // Dynamic height based on text content and pending attachment chips
     property <length> min-panel-height: 48px;  // 1 line: 20px + 32px toolbar + padding
-    property <length> max-panel-height: 248px; // 10 lines: 200px + 32px toolbar + padding
-    property <length> dynamic-panel-height: text-field.height + 32px + 32px;
+    property <length> max-panel-height: 284px; // 10 lines + chips + toolbar + padding
+    property <length> dynamic-panel-height: text-field.height + 32px + (root.pending-attachments.length > 0 ? 36px : 0px) + 32px;
 
     height: max(min-panel-height, min(dynamic-panel-height, max-panel-height));
 
@@ -141,13 +151,81 @@ export component InputPanel inherits Rectangle {
     }
 
     // ===== Main Layout =====
-    // Vertical layout dividing the panel into text area and toolbar
+    // Vertical layout dividing the panel into attachment chips, text area and toolbar
     VerticalLayout {
         padding-left: 8px;
         padding-right: 8px;
         padding-top: 8px;
         padding-bottom: 8px;  // Reduced padding for more compact appearance
         spacing: 8px;
+
+        // ===== ATTACHMENT CHIPS AREA =====
+        if (root.pending-attachments.length > 0): HorizontalLayout {
+            spacing: 6px;
+            height: 28px;
+
+            for chip[idx] in root.pending-attachments: Rectangle {
+                height: 26px;
+                border-radius: 6px;
+                background: Tokens.dropdown-surface;
+                border-width: 1px;
+                border-color: Tokens.dropdown-border;
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 6px;
+                    alignment: center;
+
+                    if (chip.is-image): Image {
+                        source: chip.thumbnail;
+                        width: 16px;
+                        height: 16px;
+                        image-fit: cover;
+                    }
+                    if (!chip.is-image): Image {
+                        source: @image-url("../../../assets/icons/main-content/input/attach.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: Tokens.text-secondary;
+                    }
+
+                    Text {
+                        text: chip.display-name;
+                        color: Tokens.text-primary;
+                        font-size: Tokens.body-font-size - 1px;
+                        font-family: Tokens.font-family;
+                        overflow: elide;
+                        vertical-alignment: center;
+                        max-width: 160px;
+                    }
+
+                    // Remove button
+                    remove-btn := Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        border-radius: 8px;
+                        background: remove-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
+
+                        Image {
+                            source: @image-url("../../../assets/icons/action/close.svg");
+                            width: 10px;
+                            height: 10px;
+                            colorize: remove-touch.has-hover ? Tokens.text-primary : Tokens.text-secondary;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        remove-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.attachment-removed(idx);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // ===== TEXT INPUT AREA =====
         // Multiline text input field - takes most of the space
@@ -164,10 +242,9 @@ export component InputPanel inherits Rectangle {
             
             // Handle submit (Enter key pressed)
             submit => {
-                // Only submit if there's actual text content
-                if (root.input-text != "") {
+                // Submit if there's actual text content or pending attachments
+                if (root.input-text != "" || root.pending-attachments.length > 0) {
                     root.message-submitted(root.input-text);
-                    // Clear the input after submission
                     root.input-text = "";
                 }
             }
@@ -266,15 +343,15 @@ export component InputPanel inherits Rectangle {
                         }
                     }
 
-                    // Send button - stop when responding, submit when text present
+                    // Send button - stop when responding, submit when text or attachments present
                     SendButton {
-                        enabled: root.input-text != "" || root.is-responding;
+                        enabled: root.input-text != "" || root.pending-attachments.length > 0 || root.is-responding;
                         is-responding: root.is-responding;
 
                         clicked => {
                             if (root.is-responding) {
                                 root.cancel-clicked();
-                            } else if (root.input-text != "") {
+                            } else if (root.input-text != "" || root.pending-attachments.length > 0) {
                                 root.message-submitted(root.input-text);
                                 root.input-text = "";
                             }

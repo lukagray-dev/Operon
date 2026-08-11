@@ -15,6 +15,32 @@ use crate::http::StreamResult;
 // Message construction
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Builds the user turn's content blocks: attached images first (if any),
+/// then the file-path references inlined as text, then the user's own text.
+pub fn build_user_message(
+    text: &str,
+    image_blocks: Vec<ContentBlock>,
+    file_paths: &[std::path::PathBuf],
+) -> Vec<ContentBlock> {
+    let mut blocks = image_blocks;
+
+    let mut text_parts = Vec::new();
+    if !text.is_empty() {
+        text_parts.push(text.to_string());
+    }
+    for path in file_paths {
+        text_parts.push(format!("[Attached file: {}]", path.display()));
+    }
+
+    if !text_parts.is_empty() {
+        blocks.push(ContentBlock::Text(text_parts.join("\n")));
+    } else if blocks.is_empty() {
+        blocks.push(ContentBlock::Text(text.to_string()));
+    }
+
+    blocks
+}
+
 /// Build a `ConversationMessage` from a fully assembled `StreamResult`.
 pub(super) fn build_assistant_message(result: &StreamResult) -> ConversationMessage {
     let mut blocks: Vec<ContentBlock> = Vec::new();

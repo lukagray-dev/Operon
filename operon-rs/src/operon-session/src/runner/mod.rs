@@ -71,6 +71,7 @@ mod tool_dispatch;
 
 // ── Re-imports ───────────────────────────────────────────────────────────────
 // Bring submodule items into this scope for use in mod.rs code (e.g. new()).
+pub use message_build::build_user_message;
 use message_build::{context_usage_event, generate_session_id};
 
 // Re-import free functions so runner_tests.rs (`use super::*`) can access them.
@@ -306,9 +307,14 @@ impl SessionRunner {
         Ok(())
     }
 
-    /// Resume a paused session with a new user message.
-    pub async fn resume(&mut self, user_message: String) -> Result<(), SessionError> {
-        self.run(user_message).await
+    /// Resume a paused session with a new user message and attachments.
+    pub async fn resume(
+        &mut self,
+        user_message: String,
+        image_blocks: Vec<ContentBlock>,
+        file_paths: Vec<std::path::PathBuf>,
+    ) -> Result<(), SessionError> {
+        self.run(user_message, image_blocks, file_paths).await
     }
 
     /// Returns the current session ID.
