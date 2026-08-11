@@ -144,16 +144,19 @@ pub fn stage_hunk<P: AsRef<Path>>(
 ) -> Result<(), DiffError> {
     let repo = discover_repository(workspace_root)?;
     
-    // Fetch workdir diff for the target file
+    // Fetch workdir diff for the target file, including untracked files
     let mut opts = DiffOptions::new();
     opts.pathspec(relative_path);
+    opts.include_untracked(true);
+    opts.recurse_untracked_dirs(true);
+    opts.show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
     let file_diffs = parse_diff(&repo, &diff)?;
 
     let target_file = file_diffs.iter().find(|f| f.path == relative_path);
     if let Some(file_diff) = target_file {
         if let Some(hunk) = file_diff.hunks.iter().find(|h| h.header.trim() == hunk_header.trim() || h.header.contains(hunk_header)) {
-            let patch_str = build_unified_patch(relative_path, hunk);
+            let patch_str = build_unified_patch(relative_path, &file_diff.status, hunk);
             let patch_diff = git2::Diff::from_buffer(patch_str.as_bytes())?;
             repo.apply(&patch_diff, ApplyLocation::Index, None)?;
             return Ok(());
@@ -175,21 +178,17 @@ pub fn unstage_hunk<P: AsRef<Path>>(
 ) -> Result<(), DiffError> {
     let repo = discover_repository(workspace_root)?;
 
-    // Fetch staged diff (HEAD vs Index) for the target file
-    let mut staged_files = Vec::new();
-    if let Ok(head_ref) = repo.head() {
-        if let Ok(head_tree) = head_ref.peel_to_tree() {
-            let mut opts = DiffOptions::new();
-            opts.pathspec(relative_path);
-            let diff = repo.diff_tree_to_index(Some(&head_tree), None, Some(&mut opts))?;
-            staged_files = parse_diff(&repo, &diff)?;
-        }
-    }
+    // Fetch staged diff (HEAD vs Index) for the target file, handling unborn HEAD
+    let head_tree = repo.head().ok().and_then(|r| r.peel_to_tree().ok());
+    let mut opts = DiffOptions::new();
+    opts.pathspec(relative_path);
+    let diff = repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))?;
+    let staged_files = parse_diff(&repo, &diff)?;
 
     let target_file = staged_files.iter().find(|f| f.path == relative_path);
     if let Some(file_diff) = target_file {
         if let Some(hunk) = file_diff.hunks.iter().find(|h| h.header.trim() == hunk_header.trim() || h.header.contains(hunk_header)) {
-            let reverse_patch_str = build_reverse_unified_patch(relative_path, hunk);
+            let reverse_patch_str = build_reverse_unified_patch(relative_path, &file_diff.status, hunk);
             let patch_diff = git2::Diff::from_buffer(reverse_patch_str.as_bytes())?;
             repo.apply(&patch_diff, ApplyLocation::Index, None)?;
             return Ok(());
@@ -202,11 +201,25 @@ pub fn unstage_hunk<P: AsRef<Path>>(
 }
 
 /// Helper function to build a unified patch string for a single hunk.
-fn build_unified_patch(relative_path: &str, hunk: &crate::dto::DiffHunk) -> String {
+fn build_unified_patch(relative_path: &str, status: &str, hunk: &crate::dto::DiffHunk) -> String {
     let mut patch = String::new();
     patch.push_str(&format!("diff --git a/{relative_path} b/{relative_path}\n"));
-    patch.push_str(&format!("--- a/{relative_path}\n"));
-    patch.push_str(&format!("+++ b/{relative_path}\n"));
+    match status {
+        "added" | "untracked" => {
+            patch.push_str("new file mode 100644\n");
+            patch.push_str("--- /dev/null\n");
+            patch.push_str(&format!("+++ b/{relative_path}\n"));
+        }
+        "deleted" => {
+            patch.push_str("deleted file mode 100644\n");
+            patch.push_str(&format!("--- a/{relative_path}\n"));
+            patch.push_str("+++ /dev/null\n");
+        }
+        _ => {
+            patch.push_str(&format!("--- a/{relative_path}\n"));
+            patch.push_str(&format!("+++ b/{relative_path}\n"));
+        }
+    }
     patch.push_str(&format!("{}\n", hunk.header.trim_end()));
     for line in &hunk.lines {
         patch.push(line.line_type);
@@ -219,11 +232,27 @@ fn build_unified_patch(relative_path: &str, hunk: &crate::dto::DiffHunk) -> Stri
 }
 
 /// Helper function to build a reverse unified patch string for unstaging a single hunk.
-fn build_reverse_unified_patch(relative_path: &str, hunk: &crate::dto::DiffHunk) -> String {
+fn build_reverse_unified_patch(relative_path: &str, status: &str, hunk: &crate::dto::DiffHunk) -> String {
     let mut patch = String::new();
     patch.push_str(&format!("diff --git a/{relative_path} b/{relative_path}\n"));
-    patch.push_str(&format!("--- a/{relative_path}\n"));
-    patch.push_str(&format!("+++ b/{relative_path}\n"));
+    match status {
+        "added" | "untracked" => {
+            // Unstaging a staged addition means removing it from the Index
+            patch.push_str("deleted file mode 100644\n");
+            patch.push_str(&format!("--- a/{relative_path}\n"));
+            patch.push_str("+++ /dev/null\n");
+        }
+        "deleted" => {
+            // Unstaging a staged deletion means restoring it back to the Index
+            patch.push_str("new file mode 100644\n");
+            patch.push_str("--- /dev/null\n");
+            patch.push_str(&format!("+++ b/{relative_path}\n"));
+        }
+        _ => {
+            patch.push_str(&format!("--- a/{relative_path}\n"));
+            patch.push_str(&format!("+++ b/{relative_path}\n"));
+        }
+    }
     
     // Invert header ranges for reverse patch
     patch.push_str(&format!(

@@ -161,6 +161,104 @@ fn test_hunk_staging_and_unstaging() {
 }
 
 #[test]
+fn test_hunk_staging_new_untracked_file() {
+    let (dir, repo) = setup_test_repo();
+    let root = dir.path();
+
+    let init_path = root.join("init.txt");
+    fs::write(&init_path, "init").unwrap();
+    stage_file(root, "init.txt").unwrap();
+    commit(&repo, "Base commit", false).unwrap();
+
+    let new_file_path = root.join("new_untracked.txt");
+    fs::write(&new_file_path, "brand new content line 1\nbrand new content line 2\n").unwrap();
+
+    let details = get_diff_details(root).unwrap();
+    let untracked = details.unstaged_files.iter().find(|f| f.path == "new_untracked.txt").expect("Should find untracked file");
+    assert!(untracked.status == "untracked" || untracked.status == "added");
+    assert!(!untracked.hunks.is_empty());
+    let hunk_header = &untracked.hunks[0].header;
+
+    // Stage the hunk for the new untracked file
+    stage_hunk(root, "new_untracked.txt", hunk_header).unwrap();
+
+    let details_staged = get_diff_details(root).unwrap();
+    assert_eq!(details_staged.staged_files.len(), 1);
+    assert_eq!(details_staged.staged_files[0].path, "new_untracked.txt");
+    assert_eq!(details_staged.unstaged_files.len(), 0);
+}
+
+#[test]
+fn test_hunk_unstaging_new_untracked_file() {
+    let (dir, repo) = setup_test_repo();
+    let root = dir.path();
+
+    let init_path = root.join("init.txt");
+    fs::write(&init_path, "init").unwrap();
+    stage_file(root, "init.txt").unwrap();
+    commit(&repo, "Base commit", false).unwrap();
+
+    let new_file_path = root.join("new_untracked.txt");
+    fs::write(&new_file_path, "content to stage then unstage\n").unwrap();
+
+    let details = get_diff_details(root).unwrap();
+    let untracked = details.unstaged_files.iter().find(|f| f.path == "new_untracked.txt").unwrap();
+    let hunk_header = &untracked.hunks[0].header;
+
+    stage_hunk(root, "new_untracked.txt", hunk_header).unwrap();
+
+    let details_staged = get_diff_details(root).unwrap();
+    let staged_item = details_staged.staged_files.iter().find(|f| f.path == "new_untracked.txt").unwrap();
+    let staged_hunk_header = &staged_item.hunks[0].header;
+
+    // Unstage the hunk
+    unstage_hunk(root, "new_untracked.txt", staged_hunk_header).unwrap();
+
+    let details_after = get_diff_details(root).unwrap();
+    assert!(details_after.staged_files.iter().all(|f| f.path != "new_untracked.txt"));
+    assert!(details_after.unstaged_files.iter().any(|f| f.path == "new_untracked.txt"));
+}
+
+#[test]
+fn test_hunk_staging_full_file_deletion() {
+    let (dir, repo) = setup_test_repo();
+    let root = dir.path();
+
+    let file_path = root.join("to_delete.txt");
+    fs::write(&file_path, "line 1 to delete\nline 2 to delete\n").unwrap();
+    stage_file(root, "to_delete.txt").unwrap();
+    commit(&repo, "Commit file before deleting", false).unwrap();
+
+    // Remove file from workdir completely
+    fs::remove_file(&file_path).unwrap();
+
+    let details = get_diff_details(root).unwrap();
+    let deleted_item = details.unstaged_files.iter().find(|f| f.path == "to_delete.txt").expect("Should find deleted file");
+    assert_eq!(deleted_item.status, "deleted");
+    assert!(!deleted_item.hunks.is_empty());
+    let hunk_header = &deleted_item.hunks[0].header;
+
+    // Stage hunk for full file deletion
+    stage_hunk(root, "to_delete.txt", hunk_header).unwrap();
+
+    let details_staged = get_diff_details(root).unwrap();
+    assert_eq!(details_staged.staged_files.len(), 1);
+    assert_eq!(details_staged.staged_files[0].path, "to_delete.txt");
+    assert_eq!(details_staged.staged_files[0].status, "deleted");
+    assert_eq!(details_staged.unstaged_files.len(), 0);
+
+    // Unstage the deletion hunk
+    let staged_hunk_header = &details_staged.staged_files[0].hunks[0].header;
+    unstage_hunk(root, "to_delete.txt", staged_hunk_header).unwrap();
+
+    let details_after = get_diff_details(root).unwrap();
+    assert_eq!(details_after.staged_files.len(), 0);
+    assert_eq!(details_after.unstaged_files.len(), 1);
+    assert_eq!(details_after.unstaged_files[0].path, "to_delete.txt");
+    assert!(!file_path.exists());
+}
+
+#[test]
 fn test_branch_lifecycle_and_ahead_behind() {
     let (dir, repo) = setup_test_repo();
     let root = dir.path();
