@@ -9,7 +9,7 @@ import { Titlebar } from "./window/titlebar.slint";
 import { Sidebar } from "./left-sidebar/sidebar.slint";
 import { SidebarConversation, SidebarProject } from "./left-sidebar/types.slint";
 import { MainContent, ChatMessage, AttachmentChip } from "./main-content/main-content.slint";
-import { RightSidebar, GitFileDiff, GitDiffHunk, GitDiffLine } from "./right-sidebar/right-sidebar.slint";
+import { RightSidebar, GitFileDiff, GitDiffHunk, GitDiffLine, GitRepositoryInfo, GitGraphCommit } from "./right-sidebar/right-sidebar.slint";
 export { SettingsWindow } from "./settings/settings.slint";
 export { AttachmentChip }
 
@@ -179,6 +179,8 @@ export component OperonWindow inherits Window {
     in property <int> git_total_deletions: 0;
     in property <[GitFileDiff]> git_unstaged_files: [];
     in property <[GitFileDiff]> git_staged_files: [];
+    in property <[GitRepositoryInfo]> git_repositories: [];
+    in property <[GitGraphCommit]> git_commits: [];
 
     callback git_stage_file_requested(string /* path */);
     callback git_unstage_file_requested(string /* path */);
@@ -188,6 +190,18 @@ export component OperonWindow inherits Window {
     callback git_refresh_requested();
     callback git_file_expanded_toggled(bool /* is_staged */, int /* file_index */);
     callback right_sidebar_width_changed(length /* new-width */);
+    callback git_commit_submitted(string /* message */);
+    callback git_generate_commit_message_requested();
+    callback git_repository_selected(string /* name */);
+    callback git_repo_refresh_requested(string /* name */);
+    callback git_commit_selected(string /* hash */);
+    callback git_graph_refresh_requested();
+    callback git_graph_center_head_requested();
+    callback git_graph_pull_requested();
+    callback git_graph_push_requested();
+    callback git_graph_filter_branch_requested();
+    callback git_menu_item_selected(string /* item_id */);
+    callback git_open_file_requested(string /* path */);
 
     // Fired when user selects a model from the dropdown
     callback model_selected(string /* selected-model */);
@@ -444,6 +458,8 @@ export component OperonWindow inherits Window {
             has-repo: root.git_has_repo;
             unstaged-files: root.git_unstaged_files;
             staged-files: root.git_staged_files;
+            repositories: root.git_repositories;
+            commits: root.git_commits;
 
             stage-file-clicked(path) => {
                 root.git_stage_file_requested(path);
@@ -466,6 +482,42 @@ export component OperonWindow inherits Window {
             width-changed(new-width) => {
                 root.right_sidebar_width = new-width;
                 root.right_sidebar_width_changed(new-width);
+            }
+            commit-submitted(msg) => {
+                root.git_commit_submitted(msg);
+            }
+            generate-commit-message-requested => {
+                root.git_generate_commit_message_requested();
+            }
+            repository-selected(name) => {
+                root.git_repository_selected(name);
+            }
+            refresh-repo-requested(name) => {
+                root.git_repo_refresh_requested(name);
+            }
+            commit-selected(hash) => {
+                root.git_commit_selected(hash);
+            }
+            graph-refresh-requested => {
+                root.git_graph_refresh_requested();
+            }
+            graph-center-head-requested => {
+                root.git_graph_center_head_requested();
+            }
+            graph-pull-requested => {
+                root.git_graph_pull_requested();
+            }
+            graph-push-requested => {
+                root.git_graph_push_requested();
+            }
+            graph-filter-branch-requested => {
+                root.git_graph_filter_branch_requested();
+            }
+            menu-item-clicked(id) => {
+                root.git_menu_item_selected(id);
+            }
+            open-file-in-editor(path) => {
+                root.git_open_file_requested(path);
             }
         }
     }

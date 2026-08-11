@@ -106,6 +106,17 @@ export component RightSidebar inherits Rectangle {
     callback generate-commit-message-requested();
     callback menu-item-clicked(string /* item_id */);
 
+    // Forwarded child callbacks
+    callback repository-selected(string /* name */);
+    callback refresh-repo-requested(string /* name */);
+    callback commit-selected(string /* hash */);
+    callback graph-refresh-requested();
+    callback graph-center-head-requested();
+    callback graph-pull-requested();
+    callback graph-push-requested();
+    callback graph-filter-branch-requested();
+    callback open-file-in-editor(string /* path */);
+
     width: root.sidebar-width;
     background: #181818;
     clip: true;
@@ -138,10 +149,10 @@ export component RightSidebar inherits Rectangle {
             section-height <=> root.repos-section-height;
 
             repository-clicked(name) => {
-                // Switch active repository
+                root.repository-selected(name);
             }
             refresh-repo-clicked(name) => {
-                // Refresh repository
+                root.refresh-repo-requested(name);
             }
             header-actions-clicked => {
                 root.submenu-open = false;
@@ -267,6 +278,17 @@ export component RightSidebar inherits Rectangle {
                 commit-clicked => {
                     root.commit-submitted(root.commit-message);
                 }
+                commit-dropdown-clicked => {
+                    root.submenu-open = false;
+                    root.active-menu-items = [
+                        { id: "commit_now", label: "Commit", shortcut: "", has_submenu: false, is_separator: false, is_disabled: false },
+                        { id: "commit_and_push", label: "Commit & Push", shortcut: "", has_submenu: false, is_separator: false, is_disabled: false },
+                        { id: "commit_and_sync", label: "Commit & Sync", shortcut: "", has_submenu: false, is_separator: false, is_disabled: false }
+                    ];
+                    root.menu-pos-x = root.sidebar-width - 235px;
+                    root.menu-pos-y = 167px + (root.repos-visible ? (root.repos-expanded ? root.repos-section-height + 4px : 24px) : 0px);
+                    root.menu-open = true;
+                }
             }
 
             // File Changes List (Sub-accordion: v Changes 3)
@@ -285,7 +307,7 @@ export component RightSidebar inherits Rectangle {
                     root.revert-file-clicked(path);
                 }
                 open-file-clicked(path) => {
-                    // Open file
+                    root.open-file-in-editor(path);
                 }
             }
 
@@ -302,6 +324,9 @@ export component RightSidebar inherits Rectangle {
                 }
                 discard-file-clicked(path) => {
                     root.revert-file-clicked(path);
+                }
+                open-file-clicked(path) => {
+                    root.open-file-in-editor(path);
                 }
             }
         }
@@ -331,7 +356,22 @@ export component RightSidebar inherits Rectangle {
             vertical-stretch: 1;
 
             commit-clicked(hash) => {
-                // Inspect commit
+                root.commit-selected(hash);
+            }
+            refresh-graph-clicked => {
+                root.graph-refresh-requested();
+            }
+            center-head-clicked => {
+                root.graph-center-head-requested();
+            }
+            pull-clicked => {
+                root.graph-pull-requested();
+            }
+            push-clicked => {
+                root.graph-push-requested();
+            }
+            filter-branch-clicked => {
+                root.graph-filter-branch-requested();
             }
             more-graph-clicked => {
                 root.submenu-open = false;
@@ -361,36 +401,38 @@ export component RightSidebar inherits Rectangle {
             item-hovered(id) => {
                 if (id == "commit_sub") {
                     root.active-submenu-items = MenuData.commit-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 120px;
+                    root.submenu-pos-y = root.menu-pos-y + 131px;
                     root.submenu-open = true;
                 } else if (id == "changes_sub") {
                     root.active-submenu-items = MenuData.changes-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 144px;
+                    root.submenu-pos-y = root.menu-pos-y + 155px;
                     root.submenu-open = true;
                 } else if (id == "pull_push_sub") {
                     root.active-submenu-items = MenuData.pull-push-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 168px;
+                    root.submenu-pos-y = root.menu-pos-y + 179px;
                     root.submenu-open = true;
                 } else if (id == "branch_sub") {
                     root.active-submenu-items = MenuData.branch-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 192px;
+                    root.submenu-pos-y = root.menu-pos-y + 203px;
                     root.submenu-open = true;
                 } else if (id == "remote_sub") {
                     root.active-submenu-items = MenuData.remote-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 216px;
+                    root.submenu-pos-y = root.menu-pos-y + 227px;
                     root.submenu-open = true;
                 } else if (id == "stash_sub") {
                     root.active-submenu-items = MenuData.stash-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 240px;
+                    root.submenu-pos-y = root.menu-pos-y + 251px;
                     root.submenu-open = true;
                 } else if (id == "tags_sub") {
                     root.active-submenu-items = MenuData.tags-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 264px;
+                    root.submenu-pos-y = root.menu-pos-y + 275px;
                     root.submenu-open = true;
                 } else if (id == "worktrees_sub") {
                     root.active-submenu-items = MenuData.worktrees-submenu;
-                    root.submenu-pos-y = root.menu-pos-y + 288px;
+                    root.submenu-pos-y = root.menu-pos-y + 299px;
                     root.submenu-open = true;
+                } else {
+                    root.submenu-open = false;
                 }
             }
 
@@ -415,7 +457,7 @@ export component RightSidebar inherits Rectangle {
 
         // Secondary Nested Submenu Overlay
         if (root.submenu-open) : submenu-popup := ContextMenuPopup {
-            x: root.menu-pos-x > 240px ? root.menu-pos-x - 235px : root.menu-pos-x + 235px;
+            x: max(10px, root.menu-pos-x - 220px);
             y: root.submenu-pos-y;
             items: root.active-submenu-items;
 

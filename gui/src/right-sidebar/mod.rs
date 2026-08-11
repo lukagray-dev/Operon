@@ -188,6 +188,55 @@ pub fn wire_right_sidebar(window: &crate::OperonWindow, state: Rc<RefCell<AppSta
         }
     });
 
+    // 9. Stub handlers for newly wired right-sidebar callbacks
+    window.on_git_commit_submitted(|msg| {
+        tracing::debug!("git: commit_submitted requested: {:?}", msg);
+    });
+
+    window.on_git_generate_commit_message_requested(|| {
+        tracing::debug!("git: generate_commit_message requested");
+    });
+
+    window.on_git_repository_selected(|name| {
+        tracing::debug!("git: repository_selected requested: {:?}", name);
+    });
+
+    window.on_git_repo_refresh_requested(|name| {
+        tracing::debug!("git: repo_refresh requested: {:?}", name);
+    });
+
+    window.on_git_commit_selected(|hash| {
+        tracing::debug!("git: commit_selected requested: {:?}", hash);
+    });
+
+    window.on_git_graph_refresh_requested(|| {
+        tracing::debug!("git: graph_refresh requested");
+    });
+
+    window.on_git_graph_center_head_requested(|| {
+        tracing::debug!("git: graph_center_head requested");
+    });
+
+    window.on_git_graph_pull_requested(|| {
+        tracing::debug!("git: graph_pull requested");
+    });
+
+    window.on_git_graph_push_requested(|| {
+        tracing::debug!("git: graph_push requested");
+    });
+
+    window.on_git_graph_filter_branch_requested(|| {
+        tracing::debug!("git: graph_filter_branch requested");
+    });
+
+    window.on_git_menu_item_selected(|item_id| {
+        tracing::debug!("git: menu_item_selected requested: {:?}", item_id);
+    });
+
+    window.on_git_open_file_requested(|path| {
+        tracing::debug!("git: open_file requested: {:?}", path);
+    });
+
     // 9. Periodic background sync timer (refreshes stats every 2 seconds when sidebar is open or project session active)
     let window_weak_loop = window.as_weak();
     let state_loop = Rc::clone(&state);

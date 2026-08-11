@@ -6,7 +6,6 @@
 // - Primary split "✓ Commit v" action button matching VS Code Source Control panel layout.
 
 import { Tokens } from "../shared/tokens.slint";
-import { LineEdit } from "std-widgets.slint";
 
 export component CommitInputSection inherits VerticalLayout {
     // Commit message text property (two-way bound)
@@ -25,77 +24,106 @@ export component CommitInputSection inherits VerticalLayout {
 
     // ===== COMMIT MESSAGE INPUT BOX WITH INTEGRATED GENERATE BUTTON =====
     input-container := Rectangle {
-        height: 64px;
+        // Dynamic height: starts at 64px, expands with text up to 256px (approx 15 visible lines), then scrolls inside
+        height: min(256px, max(64px, commit-input.preferred-height + 16px));
         background: #252526;
         border-width: 1px;
-        border-color: input-touch.has-hover ? Tokens.accent-blue : #3c3c3c;
+        border-color: commit-input.has-focus ? Tokens.accent-blue : #3c3c3c;
         border-radius: 4px;
 
-        VerticalLayout {
-            padding-left: 8px;
-            padding-right: 8px;
-            padding-top: 6px;
-            padding-bottom: 6px;
-            spacing: 4px;
+        // Allows clicking anywhere inside the dark container to focus the text input
+        container-touch := TouchArea {
+            width: 100%;
+            height: 100%;
+            mouse-cursor: text;
+            clicked => {
+                commit-input.focus();
+            }
+        }
 
-            HorizontalLayout {
-                spacing: 6px;
+        // Scrollable Flickable area for multi-line text input with auto-scroll to bottom
+        text-flickable := Flickable {
+            x: 4px;
+            y: 4px;
+            width: parent.width - 8px;
+            height: parent.height - 8px;
+            viewport-width: self.width;
+            viewport-height: max(self.height, commit-input.preferred-height);
+            viewport-y: self.height < commit-input.preferred-height ? -(commit-input.preferred-height - self.height) : 0px;
+            interactive: true;
 
-                // Commit message text edit area
-                commit-input := Text {
-                    text: root.commit-message != "" 
-                        ? root.commit-message 
-                        : "Message (Ctrl+Enter to commit on \"" + root.active-branch + "\")";
+            Rectangle {
+                width: 100%;
+                height: max(parent.height, commit-input.preferred-height);
+
+                commit-input := TextInput {
+                    width: parent.width - 82px;
+                    single-line: false;
+                    text <=> root.commit-message;
                     font-size: 11px;
-                    color: root.commit-message != "" ? Tokens.text-primary : Tokens.text-muted;
+                    color: Tokens.text-primary;
                     font-family: Tokens.font-family;
-                    horizontal-stretch: 1;
                     wrap: word-wrap;
-                    vertical-alignment: top;
+
+                    key-pressed(event) => {
+                        if (event.modifiers.control && event.text == "\n") {
+                            root.commit-clicked();
+                            return accept;
+                        }
+                        return reject;
+                    }
                 }
 
-                // AI "Generate 🪄" action button
-                generate-btn := Rectangle {
-                    height: 22px;
-                    width: 80px;
-                    y: (parent.height - self.height) / 2;
-                    border-radius: 3px;
-                    background: generate-touch.has-hover ? #007acc : #0e639c;
-
-                    HorizontalLayout {
-                        spacing: 4px;
-                        alignment: center;
-
-                        Image {
-                            source: @image-url("../../assets/icons/right-sidebar/sparkles.svg");
-                            width: 12px;
-                            height: 12px;
-                            y: (parent.height - self.height) / 2;
-                            colorize: #ffffff;
-                        }
-
-                        Text {
-                            text: "Generate";
-                            font-size: 10.5px;
-                            font-weight: 600;
-                            color: #ffffff;
-                            font-family: Tokens.font-family;
-                            vertical-alignment: center;
-                        }
-                    }
-
-                    generate-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.generate-message-clicked();
-                        }
-                    }
+                if (root.commit-message == "" && !commit-input.has-focus) : Text {
+                    width: parent.width - 82px;
+                    text: "Message (Ctrl+Enter to commit on \"" + root.active-branch + "\")";
+                    font-size: 11px;
+                    color: Tokens.text-muted;
+                    font-family: Tokens.font-family;
+                    wrap: word-wrap;
+                    vertical-alignment: top;
                 }
             }
         }
 
-        input-touch := TouchArea {
-            // Allows focus interaction for text entry
+        // AI "Generate 🪄" action button overlay in top-right corner
+        generate-btn := Rectangle {
+            x: parent.width - self.width - 6px;
+            y: 6px;
+            height: 22px;
+            width: 80px;
+            z: 10;
+            border-radius: 3px;
+            background: generate-touch.has-hover ? #007acc : #0e639c;
+
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+
+                Image {
+                    source: @image-url("../../assets/icons/right-sidebar/sparkles.svg");
+                    width: 12px;
+                    height: 12px;
+                    y: (parent.height - self.height) / 2;
+                    colorize: #ffffff;
+                }
+
+                Text {
+                    text: "Generate";
+                    font-size: 10.5px;
+                    font-weight: 600;
+                    color: #ffffff;
+                    font-family: Tokens.font-family;
+                    vertical-alignment: center;
+                }
+            }
+
+            generate-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.generate-message-clicked();
+                }
+            }
         }
     }
 
@@ -103,34 +131,43 @@ export component CommitInputSection inherits VerticalLayout {
     commit-split-btn := Rectangle {
         height: 28px;
         border-radius: 3px;
-        background: commit-touch.has-hover ? #0062a3 : #0078d4;
+        background: (commit-touch.has-hover || dropdown-touch.has-hover) ? #0062a3 : #0078d4;
 
         HorizontalLayout {
-            padding-left: 10px;
-            padding-right: 8px;
-            alignment: space-between;
+            spacing: 0px;
 
-            // Main Commit click area
-            commit-main-area := HorizontalLayout {
-                spacing: 6px;
-                alignment: center;
+            // Main Commit click area (Left side)
+            commit-main-area := Rectangle {
                 horizontal-stretch: 1;
+                background: commit-touch.has-hover ? #0062a3 : transparent;
 
-                Image {
-                    source: @image-url("../../assets/icons/right-sidebar/check.svg");
-                    width: 14px;
-                    height: 14px;
-                    y: (parent.height - self.height) / 2;
-                    colorize: #ffffff;
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: center;
+
+                    Image {
+                        source: @image-url("../../assets/icons/right-sidebar/check.svg");
+                        width: 14px;
+                        height: 14px;
+                        y: (parent.height - self.height) / 2;
+                        colorize: #ffffff;
+                    }
+
+                    Text {
+                        text: "Commit";
+                        font-size: 11.5px;
+                        font-weight: 600;
+                        color: #ffffff;
+                        font-family: Tokens.font-family;
+                        vertical-alignment: center;
+                    }
                 }
 
-                Text {
-                    text: "Commit";
-                    font-size: 11.5px;
-                    font-weight: 600;
-                    color: #ffffff;
-                    font-family: Tokens.font-family;
-                    vertical-alignment: center;
+                commit-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.commit-clicked();
+                    }
                 }
             }
 
@@ -139,14 +176,14 @@ export component CommitInputSection inherits VerticalLayout {
                 width: 1px;
                 height: 16px;
                 y: (parent.height - self.height) / 2;
-                background: rgba(255, 255, 255, 0.2);
+                background: rgba(255, 255, 255, 0.3);
             }
 
-            // Dropdown chevron button
+            // Dropdown chevron button (Right side)
             dropdown-area := Rectangle {
-                width: 20px;
-                height: 24px;
-                y: (parent.height - self.height) / 2;
+                width: 26px;
+                height: 28px;
+                background: dropdown-touch.has-hover ? #005a96 : transparent;
 
                 Image {
                     source: @image-url("../../assets/icons/right-sidebar/chevron-down.svg");
@@ -163,13 +200,6 @@ export component CommitInputSection inherits VerticalLayout {
                         root.commit-dropdown-clicked();
                     }
                 }
-            }
-        }
-
-        commit-touch := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                root.commit-clicked();
             }
         }
     }

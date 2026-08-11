@@ -98,7 +98,7 @@ export component ContextMenuPopup inherits Rectangle {
                 item-touch := TouchArea {
                     enabled: !item.is_disabled;
                     mouse-cursor: pointer;
-                    pointer-event(event) => {
+                    changed has-hover => {
                         if (self.has-hover) {
                             root.item-hovered(item.id);
                         }
