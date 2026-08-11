@@ -599,6 +599,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "auth-git2"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aec364a6ee335b23a7e77703100f5103965810f91a9ef6319a004a7e7b8e2b66"
+dependencies = [
+ "dirs 6.0.0",
+ "git2",
+ "terminal-prompt",
+]
+
+[[package]]
 name = "auto_enums"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2802,6 +2813,7 @@ dependencies = [
  "libc",
  "libgit2-sys",
  "log",
+ "url",
 ]
 
 [[package]]
@@ -5931,9 +5943,12 @@ dependencies = [
 name = "operon-diff"
 version = "0.1.0"
 dependencies = [
+ "auth-git2",
  "git2",
  "serde",
+ "tempfile",
  "thiserror 2.0.18",
+ "tokio",
  "tracing",
 ]
 
@@ -9189,6 +9204,16 @@ checksum = "c59df8ac95d96ff9bede18eb7300b0fda5e5d8d90960e76f8e14ae765eedbf1f"
 dependencies = [
  "dirs-next",
  "rustversion",
+ "winapi",
+]
+
+[[package]]
+name = "terminal-prompt"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "572818b3472910acbd5dff46a3413715c18e934b071ab2ba464a7b2c2af16376"
+dependencies = [
+ "libc",
  "winapi",
 ]
 

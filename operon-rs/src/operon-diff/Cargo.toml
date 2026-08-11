@@ -10,9 +10,17 @@ repository.workspace = true
 [dependencies]
 # git2: Workspace shared dependency for high-performance libgit2 integration
 git2.workspace = true
+# auth-git2: Git SSH/HTTPS credential management
+auth-git2.workspace = true
+# tokio: Async runtime for non-blocking UI task execution
+tokio = { workspace = true, features = ["rt", "sync"] }
 # serde: Serialization/deserialization for Tauri IPC transfer
 serde.workspace = true
 # thiserror: Clean, ergonomic Rust error structures
 thiserror.workspace = true
 # tracing: Core diagnostic and profiling logs
 tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["full"] }
