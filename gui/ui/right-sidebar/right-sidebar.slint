@@ -1,60 +1,98 @@
-// Right sidebar component (Git Diff preview panel) for Operon GUI.
+// Main RightSidebar component for Git Diff / Source Control panel.
 //
-// This component displays:
-// - A top header bar with "CHANGES" title and total insertion/deletion counts.
-// - An Unstaged Changes accordion section (file list with status tags, insertions/deletions, stage (+), revert buttons).
-// - A Staged Changes accordion section (file list with status tags, insertions/deletions, unstage (-) buttons).
-// - Expandable hunk diff viewer with KodeMono font, syntax highlighting, red deletion lines, and vertically centered text.
-// - Bottom action footer with "Revert All" and "Stage All" bulk action buttons.
-// - Left-edge resize handle for dragging to adjust sidebar width.
+// Assembles all modular Source Control sections into a cohesive panel:
+// 1. SourceControlHeader: Top panel title bar "SOURCE CONTROL" with section visibility toggle dropdown menu.
+// 2. RepositoriesSection: Expandable list of workspace repositories with active branch badges, header options, & item dropdowns.
+// 3. CommitInputSection: Commit message box with AI "Generate 🪄" button and primary "✓ Commit v" split button.
+// 4. ChangesListSection: File changes list accordion with file status badges (M, A, D, U) and line diff preview.
+// 5. CommitGraphSection: Visual Git commit history graph matching VS Code Source Control view.
+// 6. ContextMenuPopup: Dark VS Code floating dropdown context menus & submenus.
+// 7. Left-edge resize handle with blue accent hover highlight matching left sidebar.
 
 import { Tokens } from "../shared/tokens.slint";
-import { ScrollView } from "std-widgets.slint";
+import { GitFileDiff, GitDiffHunk, GitDiffLine, GitRepositoryInfo, GitGraphCommit } from "./types.slint";
+import { SourceControlHeader } from "./header.slint";
+import { RepositoriesSection } from "./repositories.slint";
+import { CommitInputSection } from "./commit-input.slint";
+import { ChangesListSection } from "./changes-list.slint";
+import { CommitGraphSection } from "./commit-graph.slint";
+import { ContextMenuPopup, ContextMenuItem } from "./context-menu.slint";
+import { MenuData } from "./menu-data.slint";
 
-// Line-by-line diff entry in a hunk
-export struct GitDiffLine {
-    line_type: string,     // "+" for insertion, "-" for deletion, " " for context
-    content: string,       // syntax-highlighted line content (HTML)
-    old_line_num: string,  // line number in old file
-    new_line_num: string,  // line number in new file
-}
+// Export all struct types so they remain accessible to window.slint and Rust bindings
+export { GitFileDiff, GitDiffHunk, GitDiffLine, GitRepositoryInfo, GitGraphCommit, ContextMenuItem }
 
-// Hunk of modifications in a file diff
-export struct GitDiffHunk {
-    header: string,        // e.g. "@@ -10,4 +10,6 @@"
-    lines: [GitDiffLine],  // lines inside this hunk
-}
-
-// File diff structure representing a modified or untracked file
-export struct GitFileDiff {
-    path: string,          // relative file path from workspace root
-    file_name: string,     // basename of the file
-    status: string,        // "modified", "added", "deleted", "untracked"
-    insertions: int,       // count of inserted lines (+X)
-    deletions: int,        // count of deleted lines (-Y)
-    hunks: [GitDiffHunk],  // list of hunks in this file
-    is_expanded: bool,     // whether the hunk diff viewer is expanded for this file
-}
-
-// Main RightSidebar component for Git Diff management
+// Main RightSidebar component
 export component RightSidebar inherits Rectangle {
     // Current width of the sidebar (resizable via left drag handle)
     in-out property <length> sidebar-width: 340px;
-    property <length> min-sidebar-width: 240px;
-    property <length> max-sidebar-width: 650px;
+    
+    // Minimum and maximum width constraints for resizing (matching left sidebar)
+    property <length> sidebar-min-width: 240px;
+    property <length> sidebar-max-width: 400px;
     
     // Overall repository diff stats
     in property <int> total-insertions: 0;
     in property <int> total-deletions: 0;
     in property <bool> has-repo: true;
+    in property <string> active-branch: "revert-tool-protocol-provider-native*";
 
     // Files lists bound from Rust
-    in property <[GitFileDiff]> unstaged-files: [];
+    in property <[GitFileDiff]> unstaged-files: [
+        { path: "Cargo.toml", file_name: "Cargo.toml", dir_path: "gui", status: "modified", insertions: 2, deletions: 1, hunks: [], is_expanded: false },
+        { path: "gui/ui/window.slint", file_name: "window.slint", dir_path: "gui\\ui", status: "modified", insertions: 1, deletions: 0, hunks: [], is_expanded: false },
+        { path: "gui/ui/right-sidebar/right-sidebar.slint", file_name: "right-sidebar.slint", dir_path: "gui\\ui\\right-sidebar", status: "modified", insertions: 15, deletions: 8, hunks: [], is_expanded: false }
+    ];
     in property <[GitFileDiff]> staged-files: [];
 
-    // Accordion section collapse/expand states
-    in-out property <bool> unstaged-expanded: true;
-    in-out property <bool> staged-expanded: true;
+    // Repository list for Repositories accordion
+    in property <[GitRepositoryInfo]> repositories: [
+        { name: "Operon", branch: "revert-tool-protocol-provider-native*", is_active: true, has_changes: true },
+        { name: "codex", branch: "main", is_active: false, has_changes: false },
+        { name: "openclaw", branch: "main", is_active: false, has_changes: false },
+        { name: "picoclaw", branch: "main", is_active: false, has_changes: false },
+        { name: "thinking-orbs", branch: "main", is_active: false, has_changes: false },
+        { name: "zeroclaw", branch: "master", is_active: false, has_changes: false }
+    ];
+
+    // Commit Graph history for Graph accordion
+    in property <[GitGraphCommit]> commits: [
+        { hash: "c1", short_hash: "feat", message: "feat(gui): implement image and file attachment support in GUI composer", author: "lukagray-dev", branch_tag: "revert-tool-proto...", is_head: true, is_local: true },
+        { hash: "c2", short_hash: "feat", message: "feat(gui): set minimum window dimensions and center main window on desktop startup", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c3", short_hash: "feat", message: "feat(gui): implement animated 3D thinking orb components and settings selector", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c4", short_hash: "feat", message: "feat(gui): implement General & Appearance settings pages with live theme previews", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c5", short_hash: "feat", message: "feat(gui): fix titlebar edge resize cursor, wire settings menu & replace view options", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c6", short_hash: "feat", message: "feat(gui): wire telegram channel backend into Slint GUI settings and left sidebar", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c7", short_hash: "impl", message: "implement telegram channel backend", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c8", short_hash: "fix", message: "fix(whatsapp): push channel role instructions in-memory via snapshot context to eliminate AGENTS.md race", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c9", short_hash: "refactor", message: "refactor(whatsapp): harden channel security, prune contact locks, and fix LID/FIFO handling", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c10", short_hash: "fix", message: "fix(whatsapp): migrate workspace directory to shared root & add policy coverage GUI settings", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c11", short_hash: "fix", message: "fix(gui): load WhatsApp sessions from channel-specific storage", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
+        { hash: "c12", short_hash: "feat", message: "feat(channels/whatsapp): enhance outbound queueing, history restoration, and event handling", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false }
+    ];
+
+    // Two-way bound commit message, section collapse, and visibility states
+    in-out property <string> commit-message: "";
+    in-out property <bool> repos-expanded: true;
+    in-out property <bool> changes-expanded: true;
+    in-out property <bool> graph-expanded: true;
+    in-out property <bool> repos-visible: true;
+    in-out property <bool> changes-visible: true;
+    in-out property <bool> graph-visible: true;
+
+    // Resizable heights for individual sections
+    in-out property <length> repos-section-height: 120px;
+    in-out property <length> changes-section-height: 200px;
+    in-out property <length> graph-section-height: 250px;
+
+    // Context menu popup & submenu state
+    in-out property <bool> menu-open: false;
+    in-out property <bool> submenu-open: false;
+    in-out property <[ContextMenuItem]> active-menu-items: [];
+    in-out property <[ContextMenuItem]> active-submenu-items: [];
+    in-out property <length> menu-pos-x: 100px;
+    in-out property <length> menu-pos-y: 35px;
+    in-out property <length> submenu-pos-y: 35px;
 
     // Callbacks for user actions
     callback stage-file-clicked(string /* path */);
@@ -64,766 +102,380 @@ export component RightSidebar inherits Rectangle {
     callback revert-all-clicked();
     callback file-expanded-toggled(bool /* is_staged */, int /* file_index */);
     callback width-changed(length);
+    callback commit-submitted(string /* message */);
+    callback generate-commit-message-requested();
+    callback menu-item-clicked(string /* item_id */);
 
     width: root.sidebar-width;
-    background: Tokens.titlebar-background;
+    background: #181818;
     clip: true;
 
+    // Main layout containing header and independent resizable/scrollable sections
     VerticalLayout {
         width: 100%;
         height: 100%;
         spacing: 0px;
 
-        // ===== PANEL HEADER =====
-        header := Rectangle {
-            height: 40px;
-            background: #0f0f0f;
-            border-width: 1px;
-            border-color: Tokens.dropdown-border;
+        // ===== PANEL HEADER BAR =====
+        SourceControlHeader {
+            more-actions-clicked => {
+                root.submenu-open = false;
+                root.active-menu-items = [
+                    { id: "toggle_repos", label: root.repos-visible ? "✓ Repositories" : "   Repositories", shortcut: "", has_submenu: false, is_separator: false, is_disabled: false },
+                    { id: "toggle_changes", label: root.changes-visible ? "✓ Changes" : "   Changes", shortcut: "", has_submenu: false, is_separator: false, is_disabled: false },
+                    { id: "toggle_graph", label: root.graph-visible ? "✓ Graph" : "   Graph", shortcut: "", has_submenu: false, is_separator: false, is_disabled: false }
+                ];
+                root.menu-pos-x = root.sidebar-width - 235px;
+                root.menu-pos-y = 35px;
+                root.menu-open = true;
+            }
+        }
+
+        // ===== 1. REPOSITORIES SECTION =====
+        if (root.repos-visible) : repos-sec := RepositoriesSection {
+            repositories: root.repositories;
+            is-expanded <=> root.repos-expanded;
+            section-height <=> root.repos-section-height;
+
+            repository-clicked(name) => {
+                // Switch active repository
+            }
+            refresh-repo-clicked(name) => {
+                // Refresh repository
+            }
+            header-actions-clicked => {
+                root.submenu-open = false;
+                root.active-menu-items = MenuData.repo-heading-menu;
+                root.menu-pos-x = root.sidebar-width - 235px;
+                root.menu-pos-y = 60px;
+                root.menu-open = true;
+            }
+            repo-actions-clicked(name) => {
+                root.submenu-open = false;
+                root.active-menu-items = MenuData.git-main-menu;
+                root.menu-pos-x = root.sidebar-width - 235px;
+                root.menu-pos-y = 80px;
+                root.menu-open = true;
+            }
+        }
+
+        // Horizontal Divider for Resizing Repositories Section
+        if (root.repos-visible && root.repos-expanded) : repos-divider := Rectangle {
+            height: 4px;
+            background: repos-divider-touch.has-hover ? Tokens.accent-blue : transparent;
+            animate background { duration: 150ms; }
+
+            repos-divider-touch := TouchArea {
+                mouse-cursor: ns-resize;
+                moved => {
+                    if (self.pressed) {
+                        let delta = self.mouse-y - self.pressed-y;
+                        root.repos-section-height = max(50px, min(350px, root.repos-section-height + delta));
+                    }
+                }
+            }
+        }
+
+        // ===== 2. MAIN CHANGES SECTION HEADER =====
+        if (root.changes-visible) : changes-header := Rectangle {
+            height: 24px;
+            background: changes-title-touch.has-hover || changes-more-touch.has-hover ? rgba(255, 255, 255, 0.05) : #1e1e1e;
 
             HorizontalLayout {
-                padding-left: 14px;
-                padding-right: 14px;
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 4px;
                 alignment: space-between;
 
-                // Title and changes stats badge
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-
-                    Text {
-                        text: "CHANGES";
-                        font-size: 11px;
-                        font-weight: 700;
-                        font-family: Tokens.font-family;
-                        color: Tokens.text-muted;
-                        vertical-alignment: center;
-                    }
-
-                    if (root.total-insertions > 0 || root.total-deletions > 0) : HorizontalLayout {
+                // Title & Chevron (Clickable area to toggle expand/collapse)
+                changes-title-area := Rectangle {
+                    HorizontalLayout {
                         spacing: 4px;
                         alignment: start;
-                        
-                        if (root.total-insertions > 0) : Text {
-                            text: "+" + root.total-insertions;
+
+                        Image {
+                            source: root.changes-expanded 
+                                ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
+                                : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
+                            width: 14px;
+                            height: 14px;
+                            y: (parent.height - self.height) / 2;
+                            colorize: Tokens.text-muted;
+                        }
+
+                        Text {
+                            text: "Changes";
                             font-size: 11px;
-                            font-weight: 600;
-                            color: #23d18b;
+                            font-weight: 700;
+                            color: Tokens.text-primary;
+                            font-family: Tokens.font-family;
                             vertical-alignment: center;
                         }
-                        if (root.total-deletions > 0) : Text {
-                            text: "-" + root.total-deletions;
-                            font-size: 11px;
-                            font-weight: 600;
-                            color: #f14c4c;
-                            vertical-alignment: center;
+                    }
+
+                    changes-title-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.changes-expanded = !root.changes-expanded;
+                        }
+                    }
+                }
+
+                // Changes More Options button (...)
+                changes-more-btn := Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 3px;
+                    background: changes-more-touch.has-hover ? rgba(255, 255, 255, 0.15) : transparent;
+
+                    Image {
+                        source: @image-url("../../assets/icons/right-sidebar/ellipsis.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: changes-more-touch.has-hover ? Tokens.text-primary : Tokens.text-muted;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    changes-more-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.submenu-open = false;
+                            root.active-menu-items = MenuData.git-main-menu;
+                            root.menu-pos-x = root.sidebar-width - 235px;
+                            root.menu-pos-y = 160px;
+                            root.menu-open = true;
                         }
                     }
                 }
             }
         }
 
-        // ===== PANEL BODY =====
-        body := Rectangle {
+        // Main Changes Section Body
+        if (root.changes-visible && root.changes-expanded) : VerticalLayout {
+            spacing: 0px;
+
+            // Commit Message Input Box & Split Commit Button
+            CommitInputSection {
+                commit-message <=> root.commit-message;
+                active-branch: root.active-branch;
+
+                generate-message-clicked => {
+                    root.generate-commit-message-requested();
+                }
+                commit-clicked => {
+                    root.commit-submitted(root.commit-message);
+                }
+            }
+
+            // File Changes List (Sub-accordion: v Changes 3)
+            ChangesListSection {
+                title: "Changes";
+                files: root.unstaged-files.length > 0 ? root.unstaged-files : root.staged-files;
+                section-height <=> root.changes-section-height;
+
+                file-clicked(path, idx) => {
+                    root.file-expanded-toggled(false, idx);
+                }
+                stage-file-clicked(path) => {
+                    root.stage-file-clicked(path);
+                }
+                discard-file-clicked(path) => {
+                    root.revert-file-clicked(path);
+                }
+                open-file-clicked(path) => {
+                    // Open file
+                }
+            }
+
+            // Staged Changes List (If Any)
+            if (root.staged-files.length > 0) : ChangesListSection {
+                title: "Staged Changes";
+                files: root.staged-files;
+
+                file-clicked(path, idx) => {
+                    root.file-expanded-toggled(true, idx);
+                }
+                stage-file-clicked(path) => {
+                    root.unstage-file-clicked(path);
+                }
+                discard-file-clicked(path) => {
+                    root.revert-file-clicked(path);
+                }
+            }
+        }
+
+        // Horizontal Divider for Resizing Changes Section
+        if (root.changes-visible && root.changes-expanded) : changes-divider := Rectangle {
+            height: 4px;
+            background: changes-divider-touch.has-hover ? Tokens.accent-blue : transparent;
+            animate background { duration: 150ms; }
+
+            changes-divider-touch := TouchArea {
+                mouse-cursor: ns-resize;
+                moved => {
+                    if (self.pressed) {
+                        let delta = self.mouse-y - self.pressed-y;
+                        root.changes-section-height = max(80px, min(500px, root.changes-section-height + delta));
+                    }
+                }
+            }
+        }
+
+        // ===== 3. COMMIT GRAPH SECTION =====
+        if (root.graph-visible) : graph-sec := CommitGraphSection {
+            commits: root.commits;
+            is-expanded <=> root.graph-expanded;
+            section-height <=> root.graph-section-height;
             vertical-stretch: 1;
-            background: transparent;
 
-            if (!root.has-repo) : Rectangle {
-                Text {
-                    text: "No git repository found in workspace.";
-                    font-size: 12px;
-                    color: Tokens.text-muted;
-                    font-family: Tokens.font-family;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
+            commit-clicked(hash) => {
+                // Inspect commit
             }
-
-            if (root.has-repo) : ScrollView {
-                width: 100%;
-                height: 100%;
-
-                VerticalLayout {
-                    padding: 8px;
-                    spacing: 12px;
-
-                    // ===== UNSTAGED SECTION =====
-                    unstaged-section := VerticalLayout {
-                        spacing: 4px;
-
-                        // Section Header
-                        unstaged-header := Rectangle {
-                            height: 28px;
-                            background: unstaged-header-touch.has-hover ? rgba(255, 255, 255, 0.04) : transparent;
-                            border-radius: 4px;
-
-                            HorizontalLayout {
-                                padding-left: 6px;
-                                padding-right: 6px;
-                                spacing: 6px;
-                                alignment: space-between;
-
-                                HorizontalLayout {
-                                    spacing: 6px;
-                                    alignment: start;
-
-                                    Image {
-                                        source: root.unstaged-expanded 
-                                            ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
-                                            : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
-                                        width: 14px;
-                                        height: 14px;
-                                        colorize: Tokens.text-muted;
-                                    }
-
-                                    Text {
-                                        text: "Unstaged Changes";
-                                        font-size: 12px;
-                                        font-weight: 600;
-                                        color: Tokens.text-primary;
-                                        font-family: Tokens.font-family;
-                                        vertical-alignment: center;
-                                    }
-
-                                    // Count badge
-                                    Rectangle {
-                                        background: rgba(255, 255, 255, 0.08);
-                                        border-radius: 10px;
-                                        height: 16px;
-                                        width: count-text.preferred-width + 10px;
-
-                                        count-text := Text {
-                                            text: root.unstaged-files.length;
-                                            font-size: 10px;
-                                            font-weight: 600;
-                                            color: Tokens.text-primary;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-                                }
-                            }
-
-                            unstaged-header-touch := TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => {
-                                    root.unstaged-expanded = !root.unstaged-expanded;
-                                }
-                            }
-                        }
-
-                        // File List
-                        if (root.unstaged-expanded) : VerticalLayout {
-                            spacing: 2px;
-
-                            if (root.unstaged-files.length == 0) : Text {
-                                text: "No unstaged changes";
-                                font-size: 11px;
-                                color: Tokens.text-muted;
-                                font-family: Tokens.font-family;
-                            }
-
-                            for file[file-idx] in root.unstaged-files : VerticalLayout {
-                                spacing: 0px;
-
-                                // File Row Header
-                                file-row := Rectangle {
-                                    height: 28px;
-                                    background: file-row-touch.has-hover ? rgba(255, 255, 255, 0.05) : transparent;
-                                    border-radius: 4px;
-
-                                    HorizontalLayout {
-                                        padding-left: 8px;
-                                        padding-right: 8px;
-                                        spacing: 6px;
-
-                                        // Expand chevron icon
-                                        Image {
-                                            source: file.is_expanded 
-                                                ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
-                                                : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
-                                            width: 12px;
-                                            height: 12px;
-                                            colorize: Tokens.text-muted;
-                                        }
-
-                                        // File path / name
-                                        Text {
-                                            text: file.file_name != "" ? file.file_name : file.path;
-                                            font-size: 12px;
-                                            color: Tokens.text-primary;
-                                            font-family: Tokens.font-family;
-                                            horizontal-stretch: 1;
-                                            overflow: elide;
-                                            vertical-alignment: center;
-                                        }
-
-                                        // Stats (+X -Y)
-                                        if (file.insertions > 0 || file.deletions > 0) : HorizontalLayout {
-                                            spacing: 4px;
-                                            if (file.insertions > 0) : Text {
-                                                text: "+" + file.insertions;
-                                                font-size: 10px;
-                                                color: #23d18b;
-                                                vertical-alignment: center;
-                                            }
-                                            if (file.deletions > 0) : Text {
-                                                text: "-" + file.deletions;
-                                                font-size: 10px;
-                                                color: #f14c4c;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-
-                                        // Status tag (M, A, D, U)
-                                        status-tag := Rectangle {
-                                            height: 16px;
-                                            width: 18px;
-                                            border-radius: 3px;
-                                            background: file.status == "added" ? rgba(35, 209, 139, 0.2) :
-                                                        (file.status == "deleted" ? rgba(241, 76, 76, 0.2) :
-                                                        (file.status == "untracked" ? rgba(255, 255, 255, 0.1) : rgba(245, 245, 67, 0.2)));
-
-                                            Text {
-                                                text: file.status == "added" ? "A" :
-                                                      (file.status == "deleted" ? "D" :
-                                                      (file.status == "untracked" ? "U" : "M"));
-                                                font-size: 9px;
-                                                font-weight: 700;
-                                                color: file.status == "added" ? #23d18b :
-                                                       (file.status == "deleted" ? #f14c4c :
-                                                       (file.status == "untracked" ? #cccccc : #f5f543));
-                                                horizontal-alignment: center;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-
-                                        // Action buttons (Revert, Stage)
-                                        HorizontalLayout {
-                                            spacing: 4px;
-
-                                            // Revert button
-                                            revert-btn := Rectangle {
-                                                width: 20px;
-                                                height: 20px;
-                                                border-radius: 3px;
-                                                background: revert-touch.has-hover ? rgba(241, 76, 76, 0.2) : transparent;
-
-                                                Image {
-                                                    source: @image-url("../../assets/icons/right-sidebar/trash-2.svg");
-                                                    width: 14px;
-                                                    height: 14px;
-                                                    colorize: revert-touch.has-hover ? #f14c4c : Tokens.text-muted;
-                                                }
-
-                                                revert-touch := TouchArea {
-                                                    mouse-cursor: pointer;
-                                                    clicked => {
-                                                        root.revert-file-clicked(file.path);
-                                                    }
-                                                }
-                                            }
-
-                                            // Stage button (+)
-                                            stage-btn := Rectangle {
-                                                width: 20px;
-                                                height: 20px;
-                                                border-radius: 3px;
-                                                background: stage-touch.has-hover ? rgba(35, 209, 139, 0.2) : transparent;
-
-                                                Image {
-                                                    source: @image-url("../../assets/icons/right-sidebar/plus.svg");
-                                                    width: 14px;
-                                                    height: 14px;
-                                                    colorize: stage-touch.has-hover ? #23d18b : Tokens.text-muted;
-                                                }
-
-                                                stage-touch := TouchArea {
-                                                    mouse-cursor: pointer;
-                                                    clicked => {
-                                                        root.stage-file-clicked(file.path);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    file-row-touch := TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            root.file-expanded-toggled(false, file-idx);
-                                        }
-                                    }
-                                }
-
-                                // Hunk Diff View (KodeMono font & Syntax Highlighted lines)
-                                if (file.is_expanded) : Rectangle {
-                                    background: #050505;
-                                    border-radius: 4px;
-                                    clip: true;
-
-                                    VerticalLayout {
-                                        padding: 4px;
-                                        spacing: 2px;
-
-                                        for hunk in file.hunks : VerticalLayout {
-                                            spacing: 1px;
-
-                                            // Hunk Header
-                                            Rectangle {
-                                                height: 22px;
-                                                background: rgba(255, 255, 255, 0.03);
-
-                                                HorizontalLayout {
-                                                    padding-left: 6px;
-                                                    padding-right: 6px;
-                                                    alignment: start;
-
-                                                    Text {
-                                                        text: hunk.header;
-                                                        font-size: 11px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: #79c0ff;
-                                                        vertical-alignment: center;
-                                                    }
-                                                }
-                                            }
-
-                                            // Hunk Lines
-                                            for line in hunk.lines : Rectangle {
-                                                height: 22px;
-                                                background: line.line_type == "+" ? rgba(35, 209, 139, 0.15) :
-                                                            (line.line_type == "-" ? rgba(241, 76, 76, 0.18) : transparent);
-
-                                                HorizontalLayout {
-                                                    padding-left: 6px;
-                                                    padding-right: 6px;
-                                                    spacing: 8px;
-
-                                                    // Old Line Number
-                                                    Text {
-                                                        text: line.old_line_num;
-                                                        font-size: 10px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: line.line_type == "-" ? #f14c4c : Tokens.text-muted;
-                                                        width: 28px;
-                                                        horizontal-alignment: right;
-                                                        vertical-alignment: center;
-                                                    }
-
-                                                    // New Line Number
-                                                    Text {
-                                                        text: line.new_line_num;
-                                                        font-size: 10px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: line.line_type == "+" ? #23d18b : Tokens.text-muted;
-                                                        width: 28px;
-                                                        horizontal-alignment: right;
-                                                        vertical-alignment: center;
-                                                    }
-
-                                                    // Line type sign (+ / - / space)
-                                                    Text {
-                                                        text: line.line_type;
-                                                        font-size: 11px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: line.line_type == "+" ? #23d18b :
-                                                               (line.line_type == "-" ? #f14c4c : Tokens.text-muted);
-                                                        width: 10px;
-                                                        horizontal-alignment: center;
-                                                        vertical-alignment: center;
-                                                    }
-
-                                                    // Code Content (Syntax Highlighted HTML)
-                                                    Text {
-                                                        text: line.content;
-                                                        font-size: 11px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        horizontal-stretch: 1;
-                                                        vertical-alignment: center;
-                                                        overflow: elide;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ===== STAGED SECTION =====
-                    staged-section := VerticalLayout {
-                        spacing: 4px;
-
-                        // Section Header
-                        staged-header := Rectangle {
-                            height: 28px;
-                            background: staged-header-touch.has-hover ? rgba(255, 255, 255, 0.04) : transparent;
-                            border-radius: 4px;
-
-                            HorizontalLayout {
-                                padding-left: 6px;
-                                padding-right: 6px;
-                                spacing: 6px;
-                                alignment: space-between;
-
-                                HorizontalLayout {
-                                    spacing: 6px;
-                                    alignment: start;
-
-                                    Image {
-                                        source: root.staged-expanded 
-                                            ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
-                                            : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
-                                        width: 14px;
-                                        height: 14px;
-                                        colorize: Tokens.text-muted;
-                                    }
-
-                                    Text {
-                                        text: "Staged Changes";
-                                        font-size: 12px;
-                                        font-weight: 600;
-                                        color: Tokens.text-primary;
-                                        font-family: Tokens.font-family;
-                                        vertical-alignment: center;
-                                    }
-
-                                    // Count badge
-                                    Rectangle {
-                                        background: rgba(255, 255, 255, 0.08);
-                                        border-radius: 10px;
-                                        height: 16px;
-                                        width: staged-count-text.preferred-width + 10px;
-
-                                        staged-count-text := Text {
-                                            text: root.staged-files.length;
-                                            font-size: 10px;
-                                            font-weight: 600;
-                                            color: Tokens.text-primary;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-                                }
-                            }
-
-                            staged-header-touch := TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => {
-                                    root.staged-expanded = !root.staged-expanded;
-                                }
-                            }
-                        }
-
-                        // File List
-                        if (root.staged-expanded) : VerticalLayout {
-                            spacing: 2px;
-
-                            if (root.staged-files.length == 0) : Text {
-                                text: "No staged changes";
-                                font-size: 11px;
-                                color: Tokens.text-muted;
-                                font-family: Tokens.font-family;
-                            }
-
-                            for file[file-idx] in root.staged-files : VerticalLayout {
-                                spacing: 0px;
-
-                                file-staged-row := Rectangle {
-                                    height: 28px;
-                                    background: file-staged-touch.has-hover ? rgba(255, 255, 255, 0.05) : transparent;
-                                    border-radius: 4px;
-
-                                    HorizontalLayout {
-                                        padding-left: 8px;
-                                        padding-right: 8px;
-                                        spacing: 6px;
-
-                                        Image {
-                                            source: file.is_expanded 
-                                                ? @image-url("../../assets/icons/right-sidebar/chevron-down.svg") 
-                                                : @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
-                                            width: 12px;
-                                            height: 12px;
-                                            colorize: Tokens.text-muted;
-                                        }
-
-                                        Text {
-                                            text: file.file_name != "" ? file.file_name : file.path;
-                                            font-size: 12px;
-                                            color: Tokens.text-primary;
-                                            font-family: Tokens.font-family;
-                                            horizontal-stretch: 1;
-                                            overflow: elide;
-                                            vertical-alignment: center;
-                                        }
-
-                                        if (file.insertions > 0 || file.deletions > 0) : HorizontalLayout {
-                                            spacing: 4px;
-                                            if (file.insertions > 0) : Text {
-                                                text: "+" + file.insertions;
-                                                font-size: 10px;
-                                                color: #23d18b;
-                                                vertical-alignment: center;
-                                            }
-                                            if (file.deletions > 0) : Text {
-                                                text: "-" + file.deletions;
-                                                font-size: 10px;
-                                                color: #f14c4c;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-
-                                        // Status tag
-                                        Rectangle {
-                                            height: 16px;
-                                            width: 18px;
-                                            border-radius: 3px;
-                                            background: file.status == "added" ? rgba(35, 209, 139, 0.2) :
-                                                        (file.status == "deleted" ? rgba(241, 76, 76, 0.2) : rgba(245, 245, 67, 0.2));
-
-                                            Text {
-                                                text: file.status == "added" ? "A" :
-                                                      (file.status == "deleted" ? "D" : "M");
-                                                font-size: 9px;
-                                                font-weight: 700;
-                                                color: file.status == "added" ? #23d18b :
-                                                       (file.status == "deleted" ? #f14c4c : #f5f543);
-                                                horizontal-alignment: center;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-
-                                        // Unstage (-) button
-                                        Rectangle {
-                                            width: 20px;
-                                            height: 20px;
-                                            border-radius: 3px;
-                                            background: unstage-touch.has-hover ? rgba(255, 255, 255, 0.1) : transparent;
-
-                                            Image {
-                                                source: @image-url("../../assets/icons/right-sidebar/minus.svg");
-                                                width: 14px;
-                                                height: 14px;
-                                                colorize: unstage-touch.has-hover ? Tokens.text-primary : Tokens.text-muted;
-                                            }
-
-                                            unstage-touch := TouchArea {
-                                                mouse-cursor: pointer;
-                                                clicked => {
-                                                    root.unstage-file-clicked(file.path);
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    file-staged-touch := TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => {
-                                            root.file-expanded-toggled(true, file-idx);
-                                        }
-                                    }
-                                }
-
-                                // Hunk diff for staged files
-                                if (file.is_expanded) : Rectangle {
-                                    background: #050505;
-                                    border-radius: 4px;
-                                    clip: true;
-
-                                    VerticalLayout {
-                                        padding: 4px;
-                                        spacing: 2px;
-
-                                        for hunk in file.hunks : VerticalLayout {
-                                            spacing: 1px;
-
-                                            Rectangle {
-                                                height: 22px;
-                                                background: rgba(255, 255, 255, 0.03);
-
-                                                HorizontalLayout {
-                                                    padding-left: 6px;
-                                                    padding-right: 6px;
-                                                    alignment: start;
-
-                                                    Text {
-                                                        text: hunk.header;
-                                                        font-size: 11px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: #79c0ff;
-                                                        vertical-alignment: center;
-                                                    }
-                                                }
-                                            }
-
-                                            for line in hunk.lines : Rectangle {
-                                                height: 22px;
-                                                background: line.line_type == "+" ? rgba(35, 209, 139, 0.15) :
-                                                            (line.line_type == "-" ? rgba(241, 76, 76, 0.18) : transparent);
-
-                                                HorizontalLayout {
-                                                    padding-left: 6px;
-                                                    padding-right: 6px;
-                                                    spacing: 8px;
-
-                                                    Text {
-                                                        text: line.old_line_num;
-                                                        font-size: 10px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: line.line_type == "-" ? #f14c4c : Tokens.text-muted;
-                                                        width: 28px;
-                                                        horizontal-alignment: right;
-                                                        vertical-alignment: center;
-                                                    }
-
-                                                    Text {
-                                                        text: line.new_line_num;
-                                                        font-size: 10px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: line.line_type == "+" ? #23d18b : Tokens.text-muted;
-                                                        width: 28px;
-                                                        horizontal-alignment: right;
-                                                        vertical-alignment: center;
-                                                    }
-
-                                                    Text {
-                                                        text: line.line_type;
-                                                        font-size: 11px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        color: line.line_type == "+" ? #23d18b :
-                                                               (line.line_type == "-" ? #f14c4c : Tokens.text-muted);
-                                                        width: 10px;
-                                                        horizontal-alignment: center;
-                                                        vertical-alignment: center;
-                                                    }
-
-                                                    Text {
-                                                        text: line.content;
-                                                        font-size: 11px;
-                                                        font-family: Tokens.mono_font_family;
-                                                        horizontal-stretch: 1;
-                                                        vertical-alignment: center;
-                                                        overflow: elide;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ===== PANEL FOOTER =====
-        if (root.has-repo) : Rectangle {
-            height: 48px;
-            background: #0c0c0c;
-            border-width: 1px;
-            border-color: Tokens.dropdown-border;
-
-            HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                spacing: 8px;
-                alignment: center;
-
-                // Revert All button
-                revert-all-btn := Rectangle {
-                    horizontal-stretch: 1;
-                    height: 28px;
-                    border-radius: 4px;
-                    border-width: 1px;
-                    border-color: revert-all-touch.has-hover ? rgba(241, 76, 76, 0.5) : Tokens.dropdown-border;
-                    background: revert-all-touch.has-hover ? rgba(241, 76, 76, 0.1) : transparent;
-
-                    HorizontalLayout {
-                        spacing: 6px;
-                        alignment: center;
-
-                        Image {
-                            source: @image-url("../../assets/icons/right-sidebar/rotate-ccw.svg");
-                            width: 12px;
-                            height: 12px;
-                            colorize: revert-all-touch.has-hover ? #f14c4c : Tokens.text-primary;
-                        }
-
-                        Text {
-                            text: "Revert All";
-                            font-size: 11px;
-                            font-weight: 500;
-                            color: revert-all-touch.has-hover ? #f14c4c : Tokens.text-primary;
-                            font-family: Tokens.font-family;
-                            vertical-alignment: center;
-                        }
-                    }
-
-                    revert-all-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.revert-all-clicked();
-                        }
-                    }
-                }
-
-                // Stage All button
-                stage-all-btn := Rectangle {
-                    horizontal-stretch: 1;
-                    height: 28px;
-                    border-radius: 4px;
-                    background: stage-all-touch.has-hover ? #e5e5e5 : #ffffff;
-
-                    HorizontalLayout {
-                        spacing: 6px;
-                        alignment: center;
-
-                        Image {
-                            source: @image-url("../../assets/icons/right-sidebar/plus.svg");
-                            width: 12px;
-                            height: 12px;
-                            colorize: #000000;
-                        }
-
-                        Text {
-                            text: "Stage All";
-                            font-size: 11px;
-                            font-weight: 600;
-                            color: #000000;
-                            font-family: Tokens.font-family;
-                            vertical-alignment: center;
-                        }
-                    }
-
-                    stage-all-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            root.stage-all-clicked();
-                        }
-                    }
-                }
+            more-graph-clicked => {
+                root.submenu-open = false;
+                root.active-menu-items = MenuData.graph-heading-menu;
+                root.menu-pos-x = root.sidebar-width - 235px;
+                root.menu-pos-y = 180px;
+                root.menu-open = true;
             }
         }
     }
 
-    // Left-edge drag handle for resizing the right sidebar
-    drag-handle := TouchArea {
-        x: 0px;
-        y: 0px;
-        width: 8px;
+    // ===== FLOATING DROPDOWN CONTEXT MENU OVERLAY =====
+    if (root.menu-open) : popup-backdrop := TouchArea {
+        width: 100%;
         height: 100%;
-        mouse-cursor: ew-resize;
+        z: 999;
+        clicked => {
+            root.menu-open = false;
+            root.submenu-open = false;
+        }
 
-        moved => {
-            if (self.pressed) {
-                let max-allowed = Math.min(650px, root.width * 0.5);
-                let new-width = Math.clamp(root.sidebar-width - (self.mouse-x - self.pressed-x), root.min-sidebar-width, max-allowed);
-                root.sidebar-width = new-width;
-                root.width-changed(new-width);
+        popup-menu := ContextMenuPopup {
+            x: root.menu-pos-x;
+            y: root.menu-pos-y;
+            items: root.active-menu-items;
+
+            item-hovered(id) => {
+                if (id == "commit_sub") {
+                    root.active-submenu-items = MenuData.commit-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 120px;
+                    root.submenu-open = true;
+                } else if (id == "changes_sub") {
+                    root.active-submenu-items = MenuData.changes-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 144px;
+                    root.submenu-open = true;
+                } else if (id == "pull_push_sub") {
+                    root.active-submenu-items = MenuData.pull-push-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 168px;
+                    root.submenu-open = true;
+                } else if (id == "branch_sub") {
+                    root.active-submenu-items = MenuData.branch-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 192px;
+                    root.submenu-open = true;
+                } else if (id == "remote_sub") {
+                    root.active-submenu-items = MenuData.remote-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 216px;
+                    root.submenu-open = true;
+                } else if (id == "stash_sub") {
+                    root.active-submenu-items = MenuData.stash-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 240px;
+                    root.submenu-open = true;
+                } else if (id == "tags_sub") {
+                    root.active-submenu-items = MenuData.tags-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 264px;
+                    root.submenu-open = true;
+                } else if (id == "worktrees_sub") {
+                    root.active-submenu-items = MenuData.worktrees-submenu;
+                    root.submenu-pos-y = root.menu-pos-y + 288px;
+                    root.submenu-open = true;
+                }
+            }
+
+            item-selected(id) => {
+                if (id == "toggle_repos") {
+                    root.repos-visible = !root.repos-visible;
+                } else if (id == "toggle_changes") {
+                    root.changes-visible = !root.changes-visible;
+                } else if (id == "toggle_graph") {
+                    root.graph-visible = !root.graph-visible;
+                } else {
+                    root.menu-item-clicked(id);
+                }
+                root.menu-open = false;
+                root.submenu-open = false;
+            }
+            close-requested => {
+                root.menu-open = false;
+                root.submenu-open = false;
+            }
+        }
+
+        // Secondary Nested Submenu Overlay
+        if (root.submenu-open) : submenu-popup := ContextMenuPopup {
+            x: root.menu-pos-x > 240px ? root.menu-pos-x - 235px : root.menu-pos-x + 235px;
+            y: root.submenu-pos-y;
+            items: root.active-submenu-items;
+
+            item-selected(id) => {
+                root.menu-item-clicked(id);
+                root.menu-open = false;
+                root.submenu-open = false;
+            }
+            close-requested => {
+                root.menu-open = false;
+                root.submenu-open = false;
+            }
+        }
+    }
+
+    // ===== RESIZE HANDLE =====
+    // Positioned on the left edge of the right sidebar (git diff panel).
+    // Allows users to drag and adjust panel width smoothly just like the left sidebar.
+    resize-handle := Rectangle {
+        x: - self.width / 2;
+        width: 4px;
+        height: parent.height;
+        
+        // Subtle visual indicator (blue accent highlight) on mouse hover
+        background: resize-touch.has-hover 
+            ? Tokens.accent-blue 
+            : transparent;
+        
+        // Smooth color transition on hover start/end
+        animate background { duration: 150ms; }
+        
+        // Touch area for detecting mouse drag events
+        resize-touch := TouchArea {
+            // Stores initial panel width when drag interaction begins
+            property <length> drag-start-width: root.sidebar-width;
+            
+            // Set double-ended horizontal resize cursor (east-west resize)
+            mouse-cursor: ew-resize;
+            
+            // Capture initial drag state on mouse press
+            pointer-event(event) => {
+                if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                    self.drag-start-width = root.sidebar-width;
+                }
+            }
+            
+            // Track pointer movement while pressed to adjust panel width smoothly
+            moved => {
+                if (self.pressed) {
+                    root.sidebar-width = max(
+                        root.sidebar-min-width,
+                        min(
+                            root.sidebar-max-width,
+                            root.sidebar-width - (self.mouse-x - self.pressed-x)
+                        )
+                    );
+                    
+                    // Notify window/parent container of updated sidebar width
+                    root.width-changed(root.sidebar-width);
+                }
             }
         }
     }

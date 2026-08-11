@@ -1,0 +1,116 @@
+// Context Menu popup component for Source Control panel with nested submenus support.
+//
+// Displays dark VS Code styled context menus & submenus when clicking `...` (more options) buttons across:
+// - Source Control Header (Toggle section visibility)
+// - Repositories heading area (Sort & Selection options)
+// - Repositories item & Changes section (Full Git commands & submenus with chevron-right icons)
+// - Commit Graph section (Graph options)
+
+import { Tokens } from "../shared/tokens.slint";
+
+export struct ContextMenuItem {
+    id: string,
+    label: string,
+    shortcut: string,
+    has_submenu: bool,
+    is_separator: bool,
+    is_disabled: bool,
+}
+
+export component ContextMenuPopup inherits Rectangle {
+    in property <[ContextMenuItem]> items: [];
+    in property <bool> is-open: false;
+    
+    // Callbacks
+    callback item-selected(string /* id */);
+    callback item-hovered(string /* id */);
+    callback close-requested();
+
+    width: 230px;
+    height: items-layout.preferred-height + 8px;
+    background: #252526;
+    border-width: 1px;
+    border-color: #454545;
+    border-radius: 5px;
+    drop-shadow-color: rgba(0, 0, 0, 0.5);
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 4px;
+
+    items-layout := VerticalLayout {
+        padding: 4px;
+        spacing: 1px;
+
+        for item[idx] in root.items : VerticalLayout {
+            spacing: 0px;
+
+            if (item.is_separator) : Rectangle {
+                height: 7px;
+
+                Rectangle {
+                    height: 1px;
+                    y: 3px;
+                    background: #3c3c3c;
+                }
+            }
+
+            if (!item.is_separator) : item-row := Rectangle {
+                height: 24px;
+                border-radius: 3px;
+                background: item-touch.has-hover && !item.is_disabled
+                    ? #04395e
+                    : transparent;
+
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    alignment: space-between;
+
+                    Text {
+                        text: item.label;
+                        font-size: 11.5px;
+                        font-family: Tokens.font-family;
+                        color: item.is_disabled 
+                            ? Tokens.text-muted 
+                            : (item-touch.has-hover ? #ffffff : Tokens.text-primary);
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                        overflow: elide;
+                    }
+
+                    if (item.has_submenu) : Image {
+                        source: @image-url("../../assets/icons/right-sidebar/chevron-right.svg");
+                        width: 12px;
+                        height: 12px;
+                        y: (parent.height - self.height) / 2;
+                        colorize: item-touch.has-hover ? #ffffff : Tokens.text-muted;
+                    }
+
+                    if (!item.has_submenu && item.shortcut != "") : Text {
+                        text: item.shortcut;
+                        font-size: 10.5px;
+                        font-family: Tokens.font-family;
+                        color: item-touch.has-hover ? #cccccc : Tokens.text-muted;
+                        vertical-alignment: center;
+                    }
+                }
+
+                item-touch := TouchArea {
+                    enabled: !item.is_disabled;
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        if (self.has-hover) {
+                            root.item-hovered(item.id);
+                        }
+                    }
+                    clicked => {
+                        root.item-selected(item.id);
+                        if (!item.has_submenu) {
+                            root.close-requested();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -32,13 +32,12 @@ windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_Wind
 sha2 = "0.10"
 base64 = "0.22"
 
+slint = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
+
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 
 [dev-dependencies]
 tempfile.workspace = true
-
-# Slint GUI framework — declarative UI language and runtime
-slint = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
 
 [build-dependencies]
 # Slint build script — compiles .slint files to Rust

@@ -437,6 +437,7 @@ export component OperonWindow inherits Window {
             visible: root.right_sidebar_open;
             width: root.right_sidebar_open ? self.sidebar-width : 0px;
             sidebar-width <=> root.right_sidebar_width;
+            horizontal-stretch: 0;
 
             total-insertions: root.git_total_insertions;
             total-deletions: root.git_total_deletions;

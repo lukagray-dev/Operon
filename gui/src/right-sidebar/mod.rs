@@ -257,10 +257,17 @@ pub fn refresh_git_workspace(window: &crate::OperonWindow, workspace: PathBuf, i
             if let Some(ui) = window_weak.upgrade() {
                 // Convert operon_rs::diff DTOs into Slint generated types on UI thread
                 let convert_file = |f: operon_rs::diff::FileDiff| -> crate::GitFileDiff {
-                    let file_name = std::path::Path::new(&f.path)
+                    let path_obj = std::path::Path::new(&f.path);
+                    let file_name = path_obj
                         .file_name()
                         .and_then(|n| n.to_str())
                         .unwrap_or(&f.path)
+                        .to_string();
+
+                    let dir_path = path_obj
+                        .parent()
+                        .and_then(|p| p.to_str())
+                        .unwrap_or("")
                         .to_string();
 
                     let is_expanded = expanded_cache.contains(&f.path);
@@ -288,6 +295,7 @@ pub fn refresh_git_workspace(window: &crate::OperonWindow, workspace: PathBuf, i
                     crate::GitFileDiff {
                         path: f.path.into(),
                         file_name: file_name.into(),
+                        dir_path: dir_path.into(),
                         status: f.status.into(),
                         insertions: f.insertions as i32,
                         deletions: f.deletions as i32,
