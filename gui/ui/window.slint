@@ -181,6 +181,7 @@ export component OperonWindow inherits Window {
     in property <[GitFileDiff]> git_staged_files: [];
     in property <[GitRepositoryInfo]> git_repositories: [];
     in property <[GitGraphCommit]> git_commits: [];
+    in-out property <string> git_commit_message: "";
 
     callback git_stage_file_requested(string /* path */);
     callback git_unstage_file_requested(string /* path */);
@@ -460,6 +461,7 @@ export component OperonWindow inherits Window {
             staged-files: root.git_staged_files;
             repositories: root.git_repositories;
             commits: root.git_commits;
+            commit-message <=> root.git_commit_message;
 
             stage-file-clicked(path) => {
                 root.git_stage_file_requested(path);

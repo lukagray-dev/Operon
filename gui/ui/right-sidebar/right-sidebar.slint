@@ -35,41 +35,17 @@ export component RightSidebar inherits Rectangle {
     in property <int> total-insertions: 0;
     in property <int> total-deletions: 0;
     in property <bool> has-repo: true;
-    in property <string> active-branch: "revert-tool-protocol-provider-native*";
+    in property <string> active-branch: "";
 
     // Files lists bound from Rust
-    in property <[GitFileDiff]> unstaged-files: [
-        { path: "Cargo.toml", file_name: "Cargo.toml", dir_path: "gui", status: "modified", insertions: 2, deletions: 1, hunks: [], is_expanded: false },
-        { path: "gui/ui/window.slint", file_name: "window.slint", dir_path: "gui\\ui", status: "modified", insertions: 1, deletions: 0, hunks: [], is_expanded: false },
-        { path: "gui/ui/right-sidebar/right-sidebar.slint", file_name: "right-sidebar.slint", dir_path: "gui\\ui\\right-sidebar", status: "modified", insertions: 15, deletions: 8, hunks: [], is_expanded: false }
-    ];
+    in property <[GitFileDiff]> unstaged-files: [];
     in property <[GitFileDiff]> staged-files: [];
 
     // Repository list for Repositories accordion
-    in property <[GitRepositoryInfo]> repositories: [
-        { name: "Operon", branch: "revert-tool-protocol-provider-native*", is_active: true, has_changes: true },
-        { name: "codex", branch: "main", is_active: false, has_changes: false },
-        { name: "openclaw", branch: "main", is_active: false, has_changes: false },
-        { name: "picoclaw", branch: "main", is_active: false, has_changes: false },
-        { name: "thinking-orbs", branch: "main", is_active: false, has_changes: false },
-        { name: "zeroclaw", branch: "master", is_active: false, has_changes: false }
-    ];
+    in property <[GitRepositoryInfo]> repositories: [];
 
     // Commit Graph history for Graph accordion
-    in property <[GitGraphCommit]> commits: [
-        { hash: "c1", short_hash: "feat", message: "feat(gui): implement image and file attachment support in GUI composer", author: "lukagray-dev", branch_tag: "revert-tool-proto...", is_head: true, is_local: true },
-        { hash: "c2", short_hash: "feat", message: "feat(gui): set minimum window dimensions and center main window on desktop startup", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c3", short_hash: "feat", message: "feat(gui): implement animated 3D thinking orb components and settings selector", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c4", short_hash: "feat", message: "feat(gui): implement General & Appearance settings pages with live theme previews", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c5", short_hash: "feat", message: "feat(gui): fix titlebar edge resize cursor, wire settings menu & replace view options", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c6", short_hash: "feat", message: "feat(gui): wire telegram channel backend into Slint GUI settings and left sidebar", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c7", short_hash: "impl", message: "implement telegram channel backend", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c8", short_hash: "fix", message: "fix(whatsapp): push channel role instructions in-memory via snapshot context to eliminate AGENTS.md race", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c9", short_hash: "refactor", message: "refactor(whatsapp): harden channel security, prune contact locks, and fix LID/FIFO handling", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c10", short_hash: "fix", message: "fix(whatsapp): migrate workspace directory to shared root & add policy coverage GUI settings", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c11", short_hash: "fix", message: "fix(gui): load WhatsApp sessions from channel-specific storage", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false },
-        { hash: "c12", short_hash: "feat", message: "feat(channels/whatsapp): enhance outbound queueing, history restoration, and event handling", author: "lukagray-dev", branch_tag: "", is_head: false, is_local: false }
-    ];
+    in property <[GitGraphCommit]> commits: [];
 
     // Two-way bound commit message, section collapse, and visibility states
     in-out property <string> commit-message: "";
