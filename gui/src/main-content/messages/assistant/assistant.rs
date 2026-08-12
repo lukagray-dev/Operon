@@ -183,4 +183,105 @@ pub fn wire_assistant_messages(window: &crate::OperonWindow, state: Rc<RefCell<A
             }
         }
     });
+
+    let window_weak = window.as_weak();
+    window.on_work_group_toggled(move |msg_idx, element_idx| {
+        let Some(win) = window_weak.upgrade() else {
+            return;
+        };
+        let Ok(msg_idx) = usize::try_from(msg_idx) else {
+            return;
+        };
+        let Ok(element_idx) = usize::try_from(element_idx) else {
+            return;
+        };
+
+        let model = win.get_chat_messages();
+        let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+        for i in 0..model.row_count() {
+            if let Some(msg) = model.row_data(i) {
+                msgs.push(msg);
+            }
+        }
+
+        let Some(msg) = msgs.get_mut(msg_idx) else {
+            return;
+        };
+
+        let mut elements = collect_markdown_elements(&msg.markdown_elements);
+        let Some(element) = elements.get_mut(element_idx) else {
+            return;
+        };
+
+        element.work_group_expanded = !element.work_group_expanded;
+        msg.markdown_elements = slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
+        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+    });
+
+    let window_weak = window.as_weak();
+    window.on_work_group_item_toggled(move |msg_idx, element_idx, item_idx| {
+        let Some(win) = window_weak.upgrade() else {
+            return;
+        };
+        let Ok(msg_idx) = usize::try_from(msg_idx) else {
+            return;
+        };
+        let Ok(element_idx) = usize::try_from(element_idx) else {
+            return;
+        };
+        let Ok(item_idx) = usize::try_from(item_idx) else {
+            return;
+        };
+
+        let model = win.get_chat_messages();
+        let mut msgs: Vec<crate::ChatMessage> = Vec::new();
+        for i in 0..model.row_count() {
+            if let Some(msg) = model.row_data(i) {
+                msgs.push(msg);
+            }
+        }
+
+        let Some(msg) = msgs.get_mut(msg_idx) else {
+            return;
+        };
+
+        let mut elements = collect_markdown_elements(&msg.markdown_elements);
+        let Some(element) = elements.get_mut(element_idx) else {
+            return;
+        };
+
+        let mut work_items = collect_work_group_items(&element.work_group_items);
+        let Some(work_item) = work_items.get_mut(item_idx) else {
+            return;
+        };
+
+        work_item.item_expanded = !work_item.item_expanded;
+        element.work_group_items = slint::ModelRc::from(Rc::new(slint::VecModel::from(work_items)));
+        msg.markdown_elements = slint::ModelRc::from(Rc::new(slint::VecModel::from(elements)));
+        win.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(msgs))));
+    });
+}
+
+fn collect_markdown_elements(
+    model: &slint::ModelRc<crate::MarkdownElement>,
+) -> Vec<crate::MarkdownElement> {
+    let mut elements = Vec::new();
+    for i in 0..model.row_count() {
+        if let Some(element) = model.row_data(i) {
+            elements.push(element);
+        }
+    }
+    elements
+}
+
+fn collect_work_group_items(
+    model: &slint::ModelRc<crate::WorkGroupItem>,
+) -> Vec<crate::WorkGroupItem> {
+    let mut items = Vec::new();
+    for i in 0..model.row_count() {
+        if let Some(item) = model.row_data(i) {
+            items.push(item);
+        }
+    }
+    items
 }

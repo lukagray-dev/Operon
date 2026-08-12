@@ -66,7 +66,9 @@ impl AppState {
     pub fn set_auto_scroll_stream(&mut self, enabled: bool) {
         self.prefs.auto_scroll_stream = enabled;
         if let Err(err) = self.prefs.save() {
-            tracing::warn!("[operon-gui][state] Failed to save prefs after updating auto_scroll_stream: {err:#}");
+            tracing::warn!(
+                "[operon-gui][state] Failed to save prefs after updating auto_scroll_stream: {err:#}"
+            );
         }
         if let Some(weak) = &self.main_window {
             if let Some(window) = weak.upgrade() {
@@ -75,11 +77,28 @@ impl AppState {
         }
     }
 
+    /// Updates the thinking orb style preference, saves it, and live-syncs the main window.
+    pub fn set_thinking_orb_style(&mut self, style: crate::settings::prefs::ThinkingOrbStyle) {
+        self.prefs.thinking_orb_style = style;
+        if let Err(err) = self.prefs.save() {
+            tracing::warn!(
+                "[operon-gui][state] Failed to save prefs after updating thinking_orb_style: {err:#}"
+            );
+        }
+        if let Some(weak) = &self.main_window {
+            if let Some(window) = weak.upgrade() {
+                window.set_thinking_orb_style(style.to_index());
+            }
+        }
+    }
+
     /// Updates the notify-on-permission-request preference and saves it to `~/.operon/gui_settings.toml`.
     pub fn set_notify_on_permission_request(&mut self, enabled: bool) {
         self.prefs.notify_on_permission_request = enabled;
         if let Err(err) = self.prefs.save() {
-            tracing::warn!("[operon-gui][state] Failed to save prefs after updating notify_on_permission_request: {err:#}");
+            tracing::warn!(
+                "[operon-gui][state] Failed to save prefs after updating notify_on_permission_request: {err:#}"
+            );
         }
     }
 
@@ -87,7 +106,9 @@ impl AppState {
     pub fn set_notify_on_response_complete(&mut self, enabled: bool) {
         self.prefs.notify_on_response_complete = enabled;
         if let Err(err) = self.prefs.save() {
-            tracing::warn!("[operon-gui][state] Failed to save prefs after updating notify_on_response_complete: {err:#}");
+            tracing::warn!(
+                "[operon-gui][state] Failed to save prefs after updating notify_on_response_complete: {err:#}"
+            );
         }
     }
 

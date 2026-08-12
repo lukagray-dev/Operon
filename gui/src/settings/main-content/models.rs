@@ -12,8 +12,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Mutex, OnceLock};
 
-use crate::state::AppState;
-use crate::ProviderSummary; // Slint-generated struct
+use crate::ProviderSummary;
+use crate::state::AppState; // Slint-generated struct
 
 /// Thread-safe cache to hold discovered model IDs per provider.
 fn discovered_models_cache() -> &'static Mutex<HashMap<String, Vec<String>>> {

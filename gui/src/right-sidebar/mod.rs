@@ -11,8 +11,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Mutex;
 
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use crate::state::AppState;
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 /// Current repository list sort mode (0 = Discovery order, 1 = Name, 2 = Path).
 static REPO_SORT_MODE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
@@ -27,7 +27,10 @@ pub async fn get_commit_message_async(win_w: &slint::Weak<crate::OperonWindow>) 
     let (tx, rx) = tokio::sync::oneshot::channel();
     let win_w2 = win_w.clone();
     let _ = slint::invoke_from_event_loop(move || {
-        let msg = win_w2.upgrade().map(|w| w.get_git_commit_message().to_string()).unwrap_or_default();
+        let msg = win_w2
+            .upgrade()
+            .map(|w| w.get_git_commit_message().to_string())
+            .unwrap_or_default();
         let _ = tx.send(msg);
     });
     rx.await.unwrap_or_default()
@@ -41,7 +44,8 @@ fn get_expanded_files_cache() -> &'static Mutex<HashSet<String>> {
 
 /// Global repository registry tracking multi-repo workspaces across calls thread-safely.
 fn get_repo_registry() -> &'static Mutex<operon_rs::diff::RepoRegistry> {
-    static REGISTRY: std::sync::OnceLock<Mutex<operon_rs::diff::RepoRegistry>> = std::sync::OnceLock::new();
+    static REGISTRY: std::sync::OnceLock<Mutex<operon_rs::diff::RepoRegistry>> =
+        std::sync::OnceLock::new();
     REGISTRY.get_or_init(|| Mutex::new(operon_rs::diff::RepoRegistry::new()))
 }
 
@@ -258,7 +262,10 @@ pub fn wire_right_sidebar(window: &crate::OperonWindow, state: Rc<RefCell<AppSta
         tokio::spawn(async move {
             let target_root = {
                 if let Ok(reg) = get_repo_registry().lock() {
-                    reg.list_repos().into_iter().find(|r| r.name == name_str).map(|r| r.root)
+                    reg.list_repos()
+                        .into_iter()
+                        .find(|r| r.name == name_str)
+                        .map(|r| r.root)
                 } else {
                     None
                 }
@@ -328,7 +335,9 @@ pub fn wire_right_sidebar(window: &crate::OperonWindow, state: Rc<RefCell<AppSta
 
     // 15. Graph center HEAD callback
     window.on_git_graph_center_head_requested(|| {
-        tracing::debug!("git: graph_center_head requested (scroll position control not exposed in UI)");
+        tracing::debug!(
+            "git: graph_center_head requested (scroll position control not exposed in UI)"
+        );
     });
 
     // 16. Graph pull callback
@@ -351,7 +360,9 @@ pub fn wire_right_sidebar(window: &crate::OperonWindow, state: Rc<RefCell<AppSta
 
     // 18. Graph filter branch callback
     window.on_git_graph_filter_branch_requested(|| {
-        tracing::debug!("git: graph_filter_branch requested (branch filter UI state not yet implemented)");
+        tracing::debug!(
+            "git: graph_filter_branch requested (branch filter UI state not yet implemented)"
+        );
     });
 
     // 19. Open file requested callback
@@ -733,13 +744,15 @@ pub fn sync_workspace_repos(window: &crate::OperonWindow, workspace_root: PathBu
         match REPO_SORT_MODE.load(std::sync::atomic::Ordering::Relaxed) {
             1 => repo_entries.sort_by_key(|a| a.name.to_lowercase()),
             2 => repo_entries.sort_by_key(|a| a.root.clone()),
-            _ => {},
+            _ => {}
         }
 
         let mut slint_repos = Vec::new();
         for r in repo_entries {
             let branch_res = operon_rs::diff::current_branch_async(r.root.clone()).await;
-            let branch_name = branch_res.map(|b| b.name).unwrap_or_else(|_| "main".to_string());
+            let branch_name = branch_res
+                .map(|b| b.name)
+                .unwrap_or_else(|_| "main".to_string());
 
             slint_repos.push(crate::GitRepositoryInfo {
                 name: r.name.into(),
@@ -763,15 +776,18 @@ pub fn refresh_git_graph(window: &crate::OperonWindow, workspace_root: PathBuf) 
     tokio::spawn(async move {
         let graph_res = operon_rs::diff::get_commit_graph_async(workspace_root, 50, 0).await;
         if let Ok(commits) = graph_res {
-            let slint_commits: Vec<crate::GitGraphCommit> = commits.into_iter().map(|c| crate::GitGraphCommit {
-                hash: c.hash.into(),
-                short_hash: c.short_hash.into(),
-                message: c.message.into(),
-                author: c.author.into(),
-                branch_tag: c.branch_tag.into(),
-                is_head: c.is_head,
-                is_local: c.is_local,
-            }).collect();
+            let slint_commits: Vec<crate::GitGraphCommit> = commits
+                .into_iter()
+                .map(|c| crate::GitGraphCommit {
+                    hash: c.hash.into(),
+                    short_hash: c.short_hash.into(),
+                    message: c.message.into(),
+                    author: c.author.into(),
+                    branch_tag: c.branch_tag.into(),
+                    is_head: c.is_head,
+                    is_local: c.is_local,
+                })
+                .collect();
 
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = window_weak.upgrade() {
@@ -796,7 +812,13 @@ pub fn execute_git_sync(window: &crate::OperonWindow, state: Rc<RefCell<AppState
             }
         };
 
-        match operon_rs::diff::pull_async(workspace.clone(), "origin".to_string(), branch_name.clone()).await {
+        match operon_rs::diff::pull_async(
+            workspace.clone(),
+            "origin".to_string(),
+            branch_name.clone(),
+        )
+        .await
+        {
             Ok(()) => {
                 tracing::info!("git: sync pull successful");
             }
@@ -820,7 +842,9 @@ pub fn execute_git_sync(window: &crate::OperonWindow, state: Rc<RefCell<AppState
             }
         }
 
-        match operon_rs::diff::push_async(workspace.clone(), "origin".to_string(), branch_name).await {
+        match operon_rs::diff::push_async(workspace.clone(), "origin".to_string(), branch_name)
+            .await
+        {
             Ok(()) => {
                 tracing::info!("git: sync push successful");
             }
@@ -855,7 +879,9 @@ pub fn execute_git_pull(window: &crate::OperonWindow, state: Rc<RefCell<AppState
             }
         };
 
-        match operon_rs::diff::pull_async(workspace.clone(), "origin".to_string(), branch_name).await {
+        match operon_rs::diff::pull_async(workspace.clone(), "origin".to_string(), branch_name)
+            .await
+        {
             Ok(()) => {
                 tracing::info!("git: pull successful");
                 let _ = slint::invoke_from_event_loop(move || {
@@ -892,7 +918,9 @@ pub fn execute_git_push(window: &crate::OperonWindow, state: Rc<RefCell<AppState
             }
         };
 
-        match operon_rs::diff::push_async(workspace.clone(), "origin".to_string(), branch_name).await {
+        match operon_rs::diff::push_async(workspace.clone(), "origin".to_string(), branch_name)
+            .await
+        {
             Ok(()) => {
                 tracing::info!("git: push successful");
                 let _ = slint::invoke_from_event_loop(move || {
@@ -927,7 +955,11 @@ fn highlight_diff_line(content: &str, file_path: &str, line_type: char) -> Strin
 }
 
 /// Asynchronously fetches git details for a workspace path and updates Slint UI properties.
-pub fn refresh_git_workspace(window: &crate::OperonWindow, workspace: PathBuf, is_project_session: bool) {
+pub fn refresh_git_workspace(
+    window: &crate::OperonWindow,
+    workspace: PathBuf,
+    is_project_session: bool,
+) {
     let window_weak = window.as_weak();
 
     tokio::spawn(async move {
@@ -968,16 +1000,27 @@ pub fn refresh_git_workspace(window: &crate::OperonWindow, workspace: PathBuf, i
 
                     let is_expanded = expanded_cache.contains(&f.path);
 
-                    let slint_hunks: Vec<crate::GitDiffHunk> = f.hunks
+                    let slint_hunks: Vec<crate::GitDiffHunk> = f
+                        .hunks
                         .into_iter()
                         .map(|h| {
-                            let slint_lines: Vec<crate::GitDiffLine> = h.lines
+                            let slint_lines: Vec<crate::GitDiffLine> = h
+                                .lines
                                 .into_iter()
                                 .map(|l| crate::GitDiffLine {
                                     line_type: l.line_type.to_string().into(),
-                                    content: highlight_diff_line(&l.content, &f.path, l.line_type).into(),
-                                    old_line_num: l.old_line_num.map(|n| n.to_string()).unwrap_or_default().into(),
-                                    new_line_num: l.new_line_num.map(|n| n.to_string()).unwrap_or_default().into(),
+                                    content: highlight_diff_line(&l.content, &f.path, l.line_type)
+                                        .into(),
+                                    old_line_num: l
+                                        .old_line_num
+                                        .map(|n| n.to_string())
+                                        .unwrap_or_default()
+                                        .into(),
+                                    new_line_num: l
+                                        .new_line_num
+                                        .map(|n| n.to_string())
+                                        .unwrap_or_default()
+                                        .into(),
                                 })
                                 .collect();
 
@@ -1000,8 +1043,13 @@ pub fn refresh_git_workspace(window: &crate::OperonWindow, workspace: PathBuf, i
                     }
                 };
 
-                let unstaged: Vec<crate::GitFileDiff> = details.unstaged_files.into_iter().map(convert_file).collect();
-                let staged: Vec<crate::GitFileDiff> = details.staged_files.into_iter().map(convert_file).collect();
+                let unstaged: Vec<crate::GitFileDiff> = details
+                    .unstaged_files
+                    .into_iter()
+                    .map(convert_file)
+                    .collect();
+                let staged: Vec<crate::GitFileDiff> =
+                    details.staged_files.into_iter().map(convert_file).collect();
 
                 ui.set_is_project_session(is_project_session);
                 ui.set_git_has_repo(details.has_repo);
@@ -1021,7 +1069,9 @@ mod tests {
     #[test]
     fn test_resolve_workspace_project_session() {
         let state = Rc::new(RefCell::new(AppState::new()));
-        state.borrow_mut().set_current_project_dir(Some("/path/to/project".to_string()));
+        state
+            .borrow_mut()
+            .set_current_project_dir(Some("/path/to/project".to_string()));
 
         let (path, is_project) = resolve_workspace(&state);
         assert!(is_project);

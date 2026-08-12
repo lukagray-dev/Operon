@@ -42,6 +42,10 @@ export component SettingsMainContent inherits Rectangle {
     callback general-notify-response-complete-toggled(bool);
     callback general-auto-collapse-reasoning-tools-toggled(bool);
 
+    // Appearance settings properties and callbacks that already persist in Rust.
+    in-out property <int> appearance-selected-thinking-orb: 0;
+    callback appearance-thinking-orb-changed(int);
+
     // Callbacks to forward click events to the window controller
     callback github_requested();
     callback documentation_requested();
@@ -153,7 +157,13 @@ export component SettingsMainContent inherits Rectangle {
             notify-response-complete-toggled(val) => { root.general-notify-response-complete-toggled(val); }
             auto-collapse-reasoning-tools-toggled(val) => { root.general-auto-collapse-reasoning-tools-toggled(val); }
         }
-        if (root.active-category == 1) : AppearanceSettings {}
+        if (root.active-category == 1) : AppearanceSettings {
+            selected-thinking-orb <=> root.appearance-selected-thinking-orb;
+
+            thinking-orb-changed(idx) => {
+                root.appearance-thinking-orb-changed(idx);
+            }
+        }
         if (root.active-category == 2) : ModelsSettings {
             providers: root.providers;
             selected-provider-id <=> root.selected-provider-id;

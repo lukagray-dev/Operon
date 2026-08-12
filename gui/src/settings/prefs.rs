@@ -24,6 +24,44 @@ impl Default for CloseButtonAction {
     }
 }
 
+/// Animated orb style displayed in the collapsed work activity summary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ThinkingOrbStyle {
+    /// Ribbon-like composing animation.
+    Composing,
+    /// Lattice-style solving animation.
+    Solving,
+    /// Pulsing breathing-ring animation.
+    Breathing,
+}
+
+impl Default for ThinkingOrbStyle {
+    fn default() -> Self {
+        ThinkingOrbStyle::Composing
+    }
+}
+
+impl ThinkingOrbStyle {
+    /// Converts the persisted enum into the Slint selector index.
+    pub fn to_index(self) -> i32 {
+        match self {
+            ThinkingOrbStyle::Composing => 0,
+            ThinkingOrbStyle::Solving => 1,
+            ThinkingOrbStyle::Breathing => 2,
+        }
+    }
+
+    /// Converts the Slint selector index into a persisted enum value.
+    pub fn from_index(idx: i32) -> Self {
+        match idx {
+            1 => ThinkingOrbStyle::Solving,
+            2 => ThinkingOrbStyle::Breathing,
+            _ => ThinkingOrbStyle::Composing,
+        }
+    }
+}
+
 /// Helper function providing default value (true) for `auto_scroll_stream`.
 fn default_auto_scroll_stream() -> bool {
     true
@@ -54,6 +92,9 @@ pub struct GuiPrefs {
     /// Action taken when the main window close (X) button is clicked.
     #[serde(default)]
     pub close_button_action: CloseButtonAction,
+    /// Which animated orb style is used for collapsed thinking/tool activity summaries.
+    #[serde(default)]
+    pub thinking_orb_style: ThinkingOrbStyle,
     /// Whether the chat viewport automatically scrolls to the bottom when new response tokens arrive from the model.
     #[serde(default = "default_auto_scroll_stream")]
     pub auto_scroll_stream: bool,
@@ -72,6 +113,7 @@ impl Default for GuiPrefs {
             minimize_to_tray_enabled: false,
             start_minimized: false,
             close_button_action: CloseButtonAction::default(),
+            thinking_orb_style: ThinkingOrbStyle::default(),
             auto_scroll_stream: true,
             notify_on_permission_request: true,
             notify_on_response_complete: false,
@@ -131,7 +173,10 @@ impl GuiPrefs {
 
         let content = toml::to_string_pretty(self)?;
         fs::write(&path, content)?;
-        tracing::info!("[operon-gui][prefs] Settings saved successfully to {}", path.display());
+        tracing::info!(
+            "[operon-gui][prefs] Settings saved successfully to {}",
+            path.display()
+        );
         Ok(())
     }
 }
@@ -147,6 +192,7 @@ mod tests {
         assert!(!prefs.minimize_to_tray_enabled);
         assert!(!prefs.start_minimized);
         assert_eq!(prefs.close_button_action, CloseButtonAction::Exit);
+        assert_eq!(prefs.thinking_orb_style, ThinkingOrbStyle::Composing);
         assert!(prefs.auto_scroll_stream);
         assert!(prefs.notify_on_permission_request);
         assert!(!prefs.notify_on_response_complete);
@@ -159,6 +205,7 @@ mod tests {
             minimize_to_tray_enabled: true,
             start_minimized: false,
             close_button_action: CloseButtonAction::Exit,
+            thinking_orb_style: ThinkingOrbStyle::Solving,
             auto_scroll_stream: false,
             notify_on_permission_request: false,
             notify_on_response_complete: true,
@@ -167,18 +214,32 @@ mod tests {
         let serialized = toml::to_string(&original).expect("serialization failed");
         assert!(serialized.contains("autostart_enabled = true"));
         assert!(serialized.contains("close_button_action = \"exit\""));
+        assert!(serialized.contains("thinking_orb_style = \"solving\""));
         assert!(serialized.contains("auto_scroll_stream = false"));
         assert!(serialized.contains("notify_on_permission_request = false"));
         assert!(serialized.contains("notify_on_response_complete = true"));
 
         let deserialized: GuiPrefs = toml::from_str(&serialized).expect("deserialization failed");
         assert_eq!(deserialized.autostart_enabled, original.autostart_enabled);
-        assert_eq!(deserialized.minimize_to_tray_enabled, original.minimize_to_tray_enabled);
+        assert_eq!(
+            deserialized.minimize_to_tray_enabled,
+            original.minimize_to_tray_enabled
+        );
         assert_eq!(deserialized.start_minimized, original.start_minimized);
-        assert_eq!(deserialized.close_button_action, original.close_button_action);
+        assert_eq!(
+            deserialized.close_button_action,
+            original.close_button_action
+        );
+        assert_eq!(deserialized.thinking_orb_style, original.thinking_orb_style);
         assert_eq!(deserialized.auto_scroll_stream, original.auto_scroll_stream);
-        assert_eq!(deserialized.notify_on_permission_request, original.notify_on_permission_request);
-        assert_eq!(deserialized.notify_on_response_complete, original.notify_on_response_complete);
+        assert_eq!(
+            deserialized.notify_on_permission_request,
+            original.notify_on_permission_request
+        );
+        assert_eq!(
+            deserialized.notify_on_response_complete,
+            original.notify_on_response_complete
+        );
     }
 
     #[test]
@@ -192,9 +253,9 @@ mod tests {
         assert!(!prefs.minimize_to_tray_enabled);
         assert!(!prefs.start_minimized);
         assert_eq!(prefs.close_button_action, CloseButtonAction::Exit);
+        assert_eq!(prefs.thinking_orb_style, ThinkingOrbStyle::Composing);
         assert!(prefs.auto_scroll_stream);
         assert!(prefs.notify_on_permission_request);
         assert!(!prefs.notify_on_response_complete);
     }
 }
-

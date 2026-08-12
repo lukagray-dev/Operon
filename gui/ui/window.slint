@@ -120,6 +120,8 @@ export component OperonWindow inherits Window {
     callback assistant_message_fork_clicked(int /* message-index */);
     callback cancel_clicked();
     callback code_copied(int /* message-index */, int /* item-index */);
+    callback work_group_toggled(int /* message-index */, int /* element-index */);
+    callback work_group_item_toggled(int /* message-index */, int /* element-index */, int /* item-index */);
     
     // Callbacks for permission dialog resolutions
     callback permission_approved(string /* permission_id */);
@@ -132,6 +134,7 @@ export component OperonWindow inherits Window {
     in-out property <string> selected_reasoning: "";
     in-out property <bool> auto_approve_enabled: false;
     in-out property <bool> auto_scroll_stream: true;
+    in-out property <int> thinking_orb_style: 0;
     in property <float> context_usage: 0.0;
     in property <int> tokens_used: 0;
     in property <int> tokens_total: 0;
@@ -304,6 +307,7 @@ export component OperonWindow inherits Window {
                 selected-reasoning <=> root.selected_reasoning;
                 auto-approve-enabled <=> root.auto_approve_enabled;
                 auto-scroll-stream <=> root.auto_scroll_stream;
+                thinking-orb-style: root.thinking_orb_style;
                 context-usage: root.context_usage;
                 tokens-used: root.tokens_used;
                 tokens-total: root.tokens_total;
@@ -357,6 +361,12 @@ export component OperonWindow inherits Window {
                  }
                  code-copied(msg_idx, item_idx) => {
                      root.code_copied(msg_idx, item_idx);
+                 }
+                 work-group-toggled(msg_idx, element_idx) => {
+                     root.work_group_toggled(msg_idx, element_idx);
+                 }
+                 work-group-item-toggled(msg_idx, element_idx, item_idx) => {
+                     root.work_group_item_toggled(msg_idx, element_idx, item_idx);
                  }
                 message-submitted(text) => {
                     root.message_submitted(text);

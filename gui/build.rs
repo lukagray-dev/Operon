@@ -61,8 +61,9 @@ fn rasterize_tray_icons(manifest_dir: &Path, out_dir: &Path) {
 
         let png_data = pixmap.encode_png().expect("failed to encode PNG data");
         let png_path = out_dir.join(filename);
-        fs::write(&png_path, &png_data)
-            .unwrap_or_else(|err| panic!("failed to write PNG icon to {}: {err}", png_path.display()));
+        fs::write(&png_path, &png_data).unwrap_or_else(|err| {
+            panic!("failed to write PNG icon to {}: {err}", png_path.display())
+        });
 
         let file = fs::File::open(&png_path)
             .unwrap_or_else(|err| panic!("failed to open PNG file for ICO encoding: {err}"));
@@ -76,8 +77,12 @@ fn rasterize_tray_icons(manifest_dir: &Path, out_dir: &Path) {
     let ico_path = out_dir.join("tray_icon.ico");
     let ico_file = fs::File::create(&ico_path)
         .unwrap_or_else(|err| panic!("failed to create ICO file at {}: {err}", ico_path.display()));
-    icon_dir.write(ico_file)
-        .unwrap_or_else(|err| panic!("failed to write ICO container to {}: {err}", ico_path.display()));
+    icon_dir.write(ico_file).unwrap_or_else(|err| {
+        panic!(
+            "failed to write ICO container to {}: {err}",
+            ico_path.display()
+        )
+    });
 }
 
 fn watch_tree(path: &Path) {
@@ -98,4 +103,3 @@ fn watch_tree(path: &Path) {
         println!("cargo:rerun-if-changed={}", path.display());
     }
 }
-

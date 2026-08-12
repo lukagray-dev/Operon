@@ -11,4 +11,3 @@ pub mod notification;
 pub mod startup;
 pub mod titlebar;
 pub mod tray;
-

@@ -74,8 +74,7 @@ pub fn run() -> anyhow::Result<()> {
     // must opt out of that policy explicitly and instead rely solely on
     // `slint::quit_event_loop()` (wired in `action::exit_application`) to end
     // the process.
-    slint::run_event_loop_until_quit()
-        .context("failed while running the Operon event loop")?;
+    slint::run_event_loop_until_quit().context("failed while running the Operon event loop")?;
 
     eprintln!("[operon-gui] GUI event loop exited cleanly.");
     Ok(())

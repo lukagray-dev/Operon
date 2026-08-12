@@ -8,7 +8,6 @@ pub mod main_content;
 
 pub mod prefs;
 
-
 use crate::state::AppState;
 use std::cell::RefCell;
 use std::rc::Rc;

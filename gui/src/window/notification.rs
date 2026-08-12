@@ -14,7 +14,10 @@ fn get_app_icon_path() -> Option<std::path::PathBuf> {
     let ico_path = temp_dir.join("operon_app.ico");
     if !ico_path.exists() {
         if let Err(err) = std::fs::write(&ico_path, APP_ICO_BYTES) {
-            tracing::warn!("[operon-gui][notification] Failed to write app icon to {}: {err:#}", ico_path.display());
+            tracing::warn!(
+                "[operon-gui][notification] Failed to write app icon to {}: {err:#}",
+                ico_path.display()
+            );
             return None;
         }
     }
@@ -75,10 +78,7 @@ pub fn send_permission_asking_notification(action: &str, target: &str) {
             let safe_title = summary_clone.replace('"', "\\\"");
             let safe_msg = body_clone.replace('"', "\\\"");
             let script = format!("display notification \"{safe_msg}\" with title \"{safe_title}\"");
-            let _ = Command::new("osascript")
-                .arg("-e")
-                .arg(&script)
-                .output();
+            let _ = Command::new("osascript").arg("-e").arg(&script).output();
         }
 
         #[cfg(target_os = "linux")]
@@ -144,10 +144,7 @@ pub fn send_response_complete_notification(session_title: &str) {
             let safe_title = summary_clone.replace('"', "\\\"");
             let safe_msg = body_clone.replace('"', "\\\"");
             let script = format!("display notification \"{safe_msg}\" with title \"{safe_title}\"");
-            let _ = Command::new("osascript")
-                .arg("-e")
-                .arg(&script)
-                .output();
+            let _ = Command::new("osascript").arg("-e").arg(&script).output();
         }
 
         #[cfg(target_os = "linux")]

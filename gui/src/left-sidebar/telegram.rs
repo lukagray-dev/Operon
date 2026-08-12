@@ -1,4 +1,6 @@
-use notify::{Config as NotifyConfig, Event as NotifyEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{
+    Config as NotifyConfig, Event as NotifyEvent, RecommendedWatcher, RecursiveMode, Watcher,
+};
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -51,7 +53,8 @@ pub fn load_telegram_sidebar_data() -> Vec<SidebarProject> {
                                 .unwrap_or("")
                                 .to_string();
 
-                            let title = format!("Session {}", &session_id[..session_id.len().min(8)]);
+                            let title =
+                                format!("Session {}", &session_id[..session_id.len().min(8)]);
 
                             conversations.push(SidebarConversation {
                                 id: session_id.into(),
@@ -143,7 +146,10 @@ pub fn wire_telegram(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
     );
 
     if let Ok(mut watcher) = watcher_res {
-        if watcher.watch(&base_sessions, RecursiveMode::Recursive).is_ok() {
+        if watcher
+            .watch(&base_sessions, RecursiveMode::Recursive)
+            .is_ok()
+        {
             if let Ok(mut guard) = TELEGRAM_WATCHER.lock() {
                 *guard = Some(watcher);
             }
@@ -190,12 +196,16 @@ pub fn wire_telegram(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                             let win_weak_inner = win.as_weak();
                             let active_id_clone = active_id.clone();
                             tokio::spawn(async move {
-                                if let Ok((title, raw_messages, last_token_count, context_window_opt)) =
-                                    crate::left_sidebar::conversation::load_session_history(
-                                        &active_id_clone,
-                                        None,
-                                    )
-                                    .await
+                                if let Ok((
+                                    title,
+                                    raw_messages,
+                                    last_token_count,
+                                    context_window_opt,
+                                )) = crate::left_sidebar::conversation::load_session_history(
+                                    &active_id_clone,
+                                    None,
+                                )
+                                .await
                                 {
                                     let context_window = context_window_opt.unwrap_or(128_000);
                                     let utilization = if context_window > 0 {
@@ -203,17 +213,20 @@ pub fn wire_telegram(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                                     } else {
                                         0.0
                                     };
-                                    let context_text = crate::main_content::input::context::format_tokens(
-                                        last_token_count as i32,
-                                        context_window as i32,
-                                    );
+                                    let context_text =
+                                        crate::main_content::input::context::format_tokens(
+                                            last_token_count as i32,
+                                            context_window as i32,
+                                        );
 
                                     let _ = slint::invoke_from_event_loop(move || {
                                         if let Some(ui) = win_weak_inner.upgrade() {
                                             if ui.get_active_session_id() != active_id_clone {
                                                 return;
                                             }
-                                            crate::main_content::title::set_session_title(&ui, &title);
+                                            crate::main_content::title::set_session_title(
+                                                &ui, &title,
+                                            );
                                             let slint_messages: Vec<crate::ChatMessage> = raw_messages
                                                 .into_iter()
                                                 .map(|(is_user, text, items)| {
@@ -232,9 +245,9 @@ pub fn wire_telegram(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                                                 })
                                                 .collect();
 
-                                            ui.set_chat_messages(slint::ModelRc::from(Rc::new(slint::VecModel::from(
-                                                slint_messages,
-                                            ))));
+                                            ui.set_chat_messages(slint::ModelRc::from(Rc::new(
+                                                slint::VecModel::from(slint_messages),
+                                            )));
                                             ui.set_context_usage(utilization);
                                             ui.set_tokens_used(last_token_count as i32);
                                             ui.set_tokens_total(context_window as i32);

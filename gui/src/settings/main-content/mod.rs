@@ -6,8 +6,8 @@ pub mod extensions;
 pub mod general;
 pub mod models;
 pub mod permissions;
-pub mod whatsapp;
 pub mod telegram;
+pub mod whatsapp;
 
 use crate::state::AppState;
 use std::cell::RefCell;
@@ -18,9 +18,11 @@ pub fn wire_settings_content(window: &crate::SettingsWindow, state: Rc<RefCell<A
     // Wire general settings panel
     general::wire_general_settings(window, Rc::clone(&state));
 
+    // Wire persisted appearance settings panel controls
+    appearance::wire_appearance_settings(window, Rc::clone(&state));
+
     // Wire models configuration settings panel
     models::wire_models_settings(window, Rc::clone(&state));
-
 
     // Wire permissions settings panel
     permissions::wire_permissions_settings(window, Rc::clone(&state));

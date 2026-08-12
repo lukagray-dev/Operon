@@ -18,6 +18,9 @@ export component AssistantMessage inherits Rectangle {
     
     // Parsed markdown elements
     in property <[MarkdownElement]> markdown-elements: [];
+
+    // Selected collapsed work activity orb style.
+    in property <int> thinking-orb-style: 0;
     
     // Whether to show the blinking typing indicator cursor
     in property <bool> show-cursor: false;
@@ -54,6 +57,10 @@ export component AssistantMessage inherits Rectangle {
     // Callback fired when a code block's copy button is clicked
     callback code-copied(int /* item-index */);
 
+    // Callbacks fired when work activity groups or nested tool details are toggled
+    callback work-group-toggled(int /* element-index */);
+    callback work-group-item-toggled(int /* element-index */, int /* item-index */);
+
     // Callbacks forwarded when permission prompts are resolved
     callback permission-approved(string /* permission_id */);
     callback permission-denied(string /* permission_id */);
@@ -83,9 +90,18 @@ export component AssistantMessage inherits Rectangle {
                 horizontal-stretch: 1;
                 elements: root.markdown-elements;
                 font-family: Tokens.serif_font_family;
+                orb-style: root.thinking-orb-style;
 
                 copy-code(item_idx) => {
                     root.code-copied(item_idx);
+                }
+
+                work-group-toggled(element_idx) => {
+                    root.work-group-toggled(element_idx);
+                }
+
+                work-group-item-toggled(element_idx, item_idx) => {
+                    root.work-group-item-toggled(element_idx, item_idx);
                 }
             }
 

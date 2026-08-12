@@ -16,8 +16,8 @@
 //! Connected / Error transitions and closes popups accordingly.
 
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex as StdMutex};
 
 use crate::state::AppState;
@@ -46,7 +46,11 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
     // ── 1. Initial State Loading ─────────────────────────────────────────────
     // Resolve the default auth directory and check if credentials already exist.
     let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-    let default_auth = home.join(".operon").join("channels").join("whatsapp").join("auth");
+    let default_auth = home
+        .join(".operon")
+        .join("channels")
+        .join("whatsapp")
+        .join("auth");
     let default_ws = WhatsAppConfig::default().resolved_workspace_dir();
 
     // Default configuration: empty initial allowlist, no owner number.
@@ -56,7 +60,9 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
     window.set_whatsapp_owner_number(owner_str.into());
     let allow_model: Vec<SharedString> = allow_list.into_iter().map(SharedString::from).collect();
     window.set_whatsapp_allowlist(ModelRc::from(Rc::new(VecModel::from(allow_model))));
-    window.set_whatsapp_resolved_workspace_dir_placeholder(default_ws.to_string_lossy().as_ref().into());
+    window.set_whatsapp_resolved_workspace_dir_placeholder(
+        default_ws.to_string_lossy().as_ref().into(),
+    );
 
     // Check policy coverage for current workspace directory setting
     check_and_update_policy_coverage(window);
@@ -64,7 +70,11 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
     // Check if we already have persisted credentials from a prior session.
     let auth_checker = WhatsAppAuth::new(default_auth.clone());
     let has_creds = auth_checker.has_credentials();
-    let initial_status = if has_creds { "Connected" } else { "Disconnected" };
+    let initial_status = if has_creds {
+        "Connected"
+    } else {
+        "Disconnected"
+    };
     window.set_whatsapp_connection_status(initial_status.into());
     window.set_whatsapp_show_qr_popup(false);
 
@@ -243,9 +253,7 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                                     if let Some(win) = weak2.upgrade() {
                                         if let Some(svg_str) = svg {
                                             if let Ok(img) =
-                                                slint::Image::load_from_svg_data(
-                                                    svg_str.as_bytes(),
-                                                )
+                                                slint::Image::load_from_svg_data(svg_str.as_bytes())
                                             {
                                                 win.set_whatsapp_qr_code_image(img);
                                             }
@@ -278,10 +286,14 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                     } else {
                         // Bot started successfully — spawn WhatsAppService.
                         if let Ok(app_config) = operon_rs::load() {
-                            let service = WhatsAppService::new(client.clone(), wa_config, app_config);
+                            let service =
+                                WhatsAppService::new(client.clone(), wa_config, app_config);
                             tokio::spawn(async move {
                                 if let Err(e) = service.run().await {
-                                    eprintln!("[operon-gui][whatsapp-settings] WhatsAppService error: {}", e);
+                                    eprintln!(
+                                        "[operon-gui][whatsapp-settings] WhatsAppService error: {}",
+                                        e
+                                    );
                                 }
                             });
                         }
@@ -424,10 +436,14 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                     } else {
                         // Bot started successfully — spawn WhatsAppService.
                         if let Ok(app_config) = operon_rs::load() {
-                            let service = WhatsAppService::new(client.clone(), wa_config, app_config);
+                            let service =
+                                WhatsAppService::new(client.clone(), wa_config, app_config);
                             tokio::spawn(async move {
                                 if let Err(e) = service.run().await {
-                                    eprintln!("[operon-gui][whatsapp-settings] WhatsAppService error: {}", e);
+                                    eprintln!(
+                                        "[operon-gui][whatsapp-settings] WhatsAppService error: {}",
+                                        e
+                                    );
                                 }
                             });
                         }
@@ -463,14 +479,10 @@ pub fn wire_whatsapp_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
 // IMPORTANT: Does NOT break on Disconnected — the client starts in Disconnected
 // state before connect() sets it to Connecting. Breaking early would cause the
 // poller to exit before the bot even starts.
-fn spawn_status_poller(
-    weak: slint::Weak<crate::SettingsWindow>,
-    client: Arc<WhatsAppClient>,
-) {
+fn spawn_status_poller(weak: slint::Weak<crate::SettingsWindow>, client: Arc<WhatsAppClient>) {
     tokio::spawn(async move {
         // Hard deadline: stop polling after 5 minutes regardless of state.
-        let deadline = tokio::time::Instant::now()
-            + tokio::time::Duration::from_secs(300);
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(300);
         loop {
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
@@ -552,9 +564,7 @@ fn add_allowlist_handler(
 }
 
 // ── Helper: Remove allowlist number callback ─────────────────────────────────
-fn remove_allowlist_handler(
-    weak_window: slint::Weak<crate::SettingsWindow>,
-) -> impl FnMut(i32) {
+fn remove_allowlist_handler(weak_window: slint::Weak<crate::SettingsWindow>) -> impl FnMut(i32) {
     move |idx| {
         if let Some(win) = weak_window.upgrade() {
             let current_model = win.get_whatsapp_allowlist();
@@ -586,6 +596,3 @@ fn check_and_update_policy_coverage(win: &crate::SettingsWindow) {
     };
     win.set_whatsapp_is_policy_covered(is_covered);
 }
-
-
-

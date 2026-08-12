@@ -64,6 +64,7 @@ export component MainContent inherits Rectangle {
     // Generator / responding state
     in-out property <bool> is-responding: false;
     in property <bool> cursor-blink: true;
+    in property <int> thinking-orb-style: 0;
     
     // Session loading state
     in-out property <bool> is-loading-session: false;
@@ -139,6 +140,8 @@ export component MainContent inherits Rectangle {
     callback assistant-regenerate-clicked(int /* message-index */);
     callback assistant_fork_clicked(int /* message-index */);
     callback code-copied(int /* message-index */, int /* item-index */);
+    callback work-group-toggled(int /* message-index */, int /* element-index */);
+    callback work-group-item-toggled(int /* message-index */, int /* element-index */, int /* item-index */);
     
     // Callbacks for permission approved/denied actions
     callback permission_approved(string /* permission_id */);
@@ -193,6 +196,7 @@ export component MainContent inherits Rectangle {
                 is-loading-session: root.is-loading-session;
                 is-responding: root.is-responding;
                 cursor-blink: root.cursor-blink;
+                thinking-orb-style: root.thinking-orb-style;
                 auto-scroll-stream: root.auto-scroll-stream;
 
                 message-edit-clicked(idx) => {
@@ -218,6 +222,12 @@ export component MainContent inherits Rectangle {
                 }
                 code-copied(msg-idx, item-idx) => {
                     root.code-copied(msg-idx, item-idx);
+                }
+                work-group-toggled(msg-idx, element-idx) => {
+                    root.work-group-toggled(msg-idx, element-idx);
+                }
+                work-group-item-toggled(msg-idx, element-idx, item-idx) => {
+                    root.work-group-item-toggled(msg-idx, element-idx, item-idx);
                 }
                 permission-approved(id) => {
                     root.permission-approved(id);

@@ -18,7 +18,8 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
         let prefs = app_state.prefs();
 
         // Sync autostart toggle display with OS truth
-        let autostart_display = autostart::is_autostart_enabled().unwrap_or(prefs.autostart_enabled);
+        let autostart_display =
+            autostart::is_autostart_enabled().unwrap_or(prefs.autostart_enabled);
 
         window.set_general_autostart_enabled(autostart_display);
         window.set_general_minimize_to_tray_enabled(prefs.minimize_to_tray_enabled);
@@ -66,7 +67,12 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
         app_state.prefs_mut().minimize_to_tray_enabled = enabled;
 
         // If tray is disabled, close button action cannot remain MinimizeToTray
-        if !enabled && matches!(app_state.prefs().close_button_action, CloseButtonAction::MinimizeToTray) {
+        if !enabled
+            && matches!(
+                app_state.prefs().close_button_action,
+                CloseButtonAction::MinimizeToTray
+            )
+        {
             app_state.prefs_mut().close_button_action = CloseButtonAction::Exit;
             if let Some(w) = window_weak.upgrade() {
                 w.set_general_close_button_action(0);
@@ -85,7 +91,9 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
         let mut app_state = state_minimized.borrow_mut();
         app_state.prefs_mut().start_minimized = enabled;
         if let Err(err) = app_state.prefs().save() {
-            eprintln!("[operon-gui][general] Failed to save prefs after start_minimized update: {err:#}");
+            eprintln!(
+                "[operon-gui][general] Failed to save prefs after start_minimized update: {err:#}"
+            );
         }
     });
 
@@ -101,7 +109,9 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
         let mut app_state = state_close.borrow_mut();
         app_state.prefs_mut().close_button_action = action;
         if let Err(err) = app_state.prefs().save() {
-            eprintln!("[operon-gui][general] Failed to save prefs after close action update: {err:#}");
+            eprintln!(
+                "[operon-gui][general] Failed to save prefs after close action update: {err:#}"
+            );
         }
     });
 
@@ -109,20 +119,26 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
     let state_auto_scroll = Rc::clone(&state);
     window.on_general_auto_scroll_stream_toggled(move |enabled| {
         eprintln!("[operon-gui][general] Auto-scroll chat view on new tokens toggled: {enabled}");
-        state_auto_scroll.borrow_mut().set_auto_scroll_stream(enabled);
+        state_auto_scroll
+            .borrow_mut()
+            .set_auto_scroll_stream(enabled);
     });
 
     // Callback 6: Desktop notification on permission request toggle
     let state_notify_perm = Rc::clone(&state);
     window.on_general_notify_permission_request_toggled(move |enabled| {
         eprintln!("[operon-gui][general] Notify on permission request toggled: {enabled}");
-        state_notify_perm.borrow_mut().set_notify_on_permission_request(enabled);
+        state_notify_perm
+            .borrow_mut()
+            .set_notify_on_permission_request(enabled);
     });
 
     // Callback 7: Desktop notification on response complete toggle
     let state_notify_resp = Rc::clone(&state);
     window.on_general_notify_response_complete_toggled(move |enabled| {
         eprintln!("[operon-gui][general] Notify on response complete toggled: {enabled}");
-        state_notify_resp.borrow_mut().set_notify_on_response_complete(enabled);
+        state_notify_resp
+            .borrow_mut()
+            .set_notify_on_response_complete(enabled);
     });
 }

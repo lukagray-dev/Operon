@@ -8,45 +8,59 @@ use crate::main_content::reasoning::ResponseState;
 
 /// Called on ToolCallDetected — the streaming-phase event that fires first.
 pub fn append_tool_detected(state: &mut ResponseState, stream_call_id: &str, name: &str) {
-    state.flush_text();
     state.in_thinking = false;
 
-    let idx = state.current_blocks.len();
+    let group_idx = state.ensure_work_group_open();
     let title = get_tool_friendly_title(name, "", false);
     let mut tool_item = ParsedMarkdownItem::new_default("tool".to_string(), String::new());
     tool_item.tool_name = name.to_string();
     tool_item.tool_title = title;
     tool_item.tool_status = "running".to_string();
 
-    state.current_blocks.push(tool_item);
-    state
-        .active_tool_calls
-        .insert(stream_call_id.to_string(), idx);
+    if let Some(group) = state.current_blocks.get_mut(group_idx) {
+        let item_idx = group.work_group_items.len();
+        group.work_group_items.push(tool_item);
+        state
+            .active_tool_calls
+            .insert(stream_call_id.to_string(), (group_idx, item_idx));
+    }
 }
 
 /// Called on ToolCallStart — the post-parse event with the real provider call_id.
 pub fn append_tool_start(state: &mut ResponseState, call_id: &str, name: &str) {
     let stream_id = derive_stream_id(call_id);
     if let Some(stream_key) = stream_id {
-        if let Some(&idx) = state.active_tool_calls.get(&stream_key) {
+        if let Some(&(group_idx, item_idx)) = state.active_tool_calls.get(&stream_key) {
+            if let Some(tool_item) = get_tool_item_mut(state, group_idx, item_idx) {
+                tool_item.tool_call_id = call_id.to_string();
+                tool_item.tool_name = name.to_string();
+                tool_item.tool_title = get_tool_friendly_title(name, "", false);
+            }
             state.active_tool_calls.remove(&stream_key);
-            state.active_tool_calls.insert(call_id.to_string(), idx);
+            state
+                .active_tool_calls
+                .insert(call_id.to_string(), (group_idx, item_idx));
             return;
         }
     }
 
-    state.flush_text();
     state.in_thinking = false;
 
-    let idx = state.current_blocks.len();
+    let group_idx = state.ensure_work_group_open();
     let title = get_tool_friendly_title(name, "", false);
     let mut tool_item = ParsedMarkdownItem::new_default("tool".to_string(), String::new());
     tool_item.tool_name = name.to_string();
     tool_item.tool_title = title;
     tool_item.tool_status = "running".to_string();
+    tool_item.tool_call_id = call_id.to_string();
 
-    state.current_blocks.push(tool_item);
-    state.active_tool_calls.insert(call_id.to_string(), idx);
+    if let Some(group) = state.current_blocks.get_mut(group_idx) {
+        let item_idx = group.work_group_items.len();
+        group.work_group_items.push(tool_item);
+        state
+            .active_tool_calls
+            .insert(call_id.to_string(), (group_idx, item_idx));
+    }
 }
 
 fn derive_stream_id(call_id: &str) -> Option<String> {
@@ -66,9 +80,10 @@ pub fn append_tool_args_ready(
     name: &str,
     args_json: &str,
 ) {
-    if let Some(&idx) = state.active_tool_calls.get(call_id) {
-        if let Some(tool_item) = state.current_blocks.get_mut(idx) {
-            let pretty_args = if let Ok(val) = serde_json::from_str::<serde_json::Value>(args_json) {
+    if let Some(&(group_idx, item_idx)) = state.active_tool_calls.get(call_id) {
+        if let Some(tool_item) = get_tool_item_mut(state, group_idx, item_idx) {
+            let pretty_args = if let Ok(val) = serde_json::from_str::<serde_json::Value>(args_json)
+            {
                 serde_json::to_string_pretty(&val).unwrap_or_else(|_| args_json.to_string())
             } else {
                 args_json.to_string()
@@ -101,8 +116,8 @@ pub fn append_tool_result(
 
     let title = get_tool_friendly_title(name, "", true);
 
-    if let Some(&idx) = state.active_tool_calls.get(call_id) {
-        if let Some(tool_item) = state.current_blocks.get_mut(idx) {
+    if let Some(&(group_idx, item_idx)) = state.active_tool_calls.get(call_id) {
+        if let Some(tool_item) = get_tool_item_mut(state, group_idx, item_idx) {
             tool_item.tool_status = if is_error { "failed" } else { "completed" }.to_string();
             tool_item.tool_result = result_text;
             tool_item.tool_title = title;
@@ -111,22 +126,39 @@ pub fn append_tool_result(
             crate::main_content::tools::diff::apply_diff_overlay(tool_item, name, &tool_args);
         }
     } else {
-        state.flush_text();
         state.in_thinking = false;
 
-        let idx = state.current_blocks.len();
+        let group_idx = state.ensure_work_group_open();
         let mut tool_item = ParsedMarkdownItem::new_default("tool".to_string(), String::new());
         tool_item.tool_name = name.to_string();
         tool_item.tool_title = title;
         tool_item.tool_status = if is_error { "failed" } else { "completed" }.to_string();
         tool_item.tool_result = result_text;
+        tool_item.tool_call_id = call_id.to_string();
 
         let tool_args = tool_item.tool_args.clone();
         crate::main_content::tools::diff::apply_diff_overlay(&mut tool_item, name, &tool_args);
 
-        state.current_blocks.push(tool_item);
-        state.active_tool_calls.insert(call_id.to_string(), idx);
+        if let Some(group) = state.current_blocks.get_mut(group_idx) {
+            let item_idx = group.work_group_items.len();
+            group.work_group_items.push(tool_item);
+            state
+                .active_tool_calls
+                .insert(call_id.to_string(), (group_idx, item_idx));
+        }
     }
+}
+
+fn get_tool_item_mut(
+    state: &mut ResponseState,
+    group_idx: usize,
+    item_idx: usize,
+) -> Option<&mut ParsedMarkdownItem> {
+    state
+        .current_blocks
+        .get_mut(group_idx)?
+        .work_group_items
+        .get_mut(item_idx)
 }
 
 pub fn get_tool_friendly_title(name: &str, args_json: &str, is_completed: bool) -> String {
@@ -148,30 +180,80 @@ pub fn get_tool_friendly_title(name: &str, args_json: &str, is_completed: bool) 
     match name {
         "write" | "edit" | "append" => {
             if is_completed {
-                format!("Edited {}", if display_name.is_empty() { "file" } else { &display_name })
+                format!(
+                    "Edited {}",
+                    if display_name.is_empty() {
+                        "file"
+                    } else {
+                        &display_name
+                    }
+                )
             } else {
-                format!("Editing {}", if display_name.is_empty() { "file" } else { &display_name })
+                format!(
+                    "Editing {}",
+                    if display_name.is_empty() {
+                        "file"
+                    } else {
+                        &display_name
+                    }
+                )
             }
         }
         "read" => {
             if is_completed {
-                format!("Read {}", if display_name.is_empty() { "file" } else { &display_name })
+                format!(
+                    "Read {}",
+                    if display_name.is_empty() {
+                        "file"
+                    } else {
+                        &display_name
+                    }
+                )
             } else {
-                format!("Reading {}", if display_name.is_empty() { "file" } else { &display_name })
+                format!(
+                    "Reading {}",
+                    if display_name.is_empty() {
+                        "file"
+                    } else {
+                        &display_name
+                    }
+                )
             }
         }
         "ls" | "list_dir" => {
             if is_completed {
-                format!("Listed {}", if display_name.is_empty() { "directory" } else { &display_name })
+                format!(
+                    "Listed {}",
+                    if display_name.is_empty() {
+                        "directory"
+                    } else {
+                        &display_name
+                    }
+                )
             } else {
-                format!("Listing {}", if display_name.is_empty() { "directory" } else { &display_name })
+                format!(
+                    "Listing {}",
+                    if display_name.is_empty() {
+                        "directory"
+                    } else {
+                        &display_name
+                    }
+                )
             }
         }
         "bash" | "run_command" => {
-            if is_completed { "Executed command".to_string() } else { "Executing command".to_string() }
+            if is_completed {
+                "Executed command".to_string()
+            } else {
+                "Executing command".to_string()
+            }
         }
         _ => {
-            if is_completed { format!("Ran {}", name) } else { format!("Running {}", name) }
+            if is_completed {
+                format!("Ran {}", name)
+            } else {
+                format!("Running {}", name)
+            }
         }
     }
 }

@@ -68,10 +68,7 @@ pub fn wire_voice(window: &crate::OperonWindow, _state: Rc<RefCell<AppState>>) {
         }
     };
 
-    eprintln!(
-        "[operon-gui][voice] Model path: {}",
-        model_path.display()
-    );
+    eprintln!("[operon-gui][voice] Model path: {}", model_path.display());
 
     // ── Create and store the VoiceEngine ─────────────────────────────────
     let engine = std::sync::Arc::new(operon_rs::VoiceEngine::new(model_path));
@@ -111,8 +108,7 @@ pub fn wire_voice(window: &crate::OperonWindow, _state: Rc<RefCell<AppState>>) {
                 win.set_voice_state(1);
 
                 // Create a channel for VoiceEvents
-                let (tx, mut rx) =
-                    tokio::sync::mpsc::unbounded_channel::<operon_rs::VoiceEvent>();
+                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<operon_rs::VoiceEvent>();
 
                 let win_weak = win.as_weak();
 

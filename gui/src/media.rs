@@ -4,10 +4,10 @@
 //! `~/.operon/media/<sha256>.<ext>` so repeat uploads dedupe and the GUI has
 //! a stable path to reference for chip rendering / later history replay.
 
-use std::fs;
-use std::path::{Path, PathBuf};
 use base64::Engine;
 use sha2::{Digest, Sha256};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Pending attachment representation for the prompt composer.
 #[derive(Debug, Clone)]
@@ -83,7 +83,9 @@ pub fn is_image_mime(path: &Path) -> bool {
 pub fn encode_base64(path: &Path) -> anyhow::Result<(String, String)> {
     let bytes = fs::read(path)?;
 
-    let media_type = if bytes.len() >= 8 && &bytes[0..8] == &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A] {
+    let media_type = if bytes.len() >= 8
+        && &bytes[0..8] == &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]
+    {
         "image/png"
     } else if bytes.len() >= 3 && &bytes[0..3] == &[0xFF, 0xD8, 0xFF] {
         "image/jpeg"
@@ -111,7 +113,11 @@ mod tests {
 
         // 1. PNG magic bytes
         let png_path = temp_dir.path().join("test.png");
-        fs::write(&png_path, &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01]).unwrap();
+        fs::write(
+            &png_path,
+            &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01],
+        )
+        .unwrap();
         assert!(is_image_mime(&png_path));
 
         // 2. JPEG magic bytes

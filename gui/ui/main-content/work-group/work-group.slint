@@ -1,0 +1,340 @@
+// Collapsed assistant work activity group with an expandable timeline.
+
+import { Tokens } from "../../shared/tokens.slint";
+import { ComposingOrb, SolvingOrb, BreathingOrb } from "../../shared/orbs/mod.slint";
+import { ToolDetailBody } from "../tools/detail-body.slint";
+import { WorkGroupItem } from "./types.slint";
+
+export component WorkGroup inherits VerticalLayout {
+    in property <[WorkGroupItem]> items: [];
+    in property <bool> is-active: false;
+    in property <int> elapsed-secs: 0;
+    in property <bool> expanded: false;
+    in property <string> summary-text: "";
+    in property <int> orb-style: 0; // 0=composing, 1=solving, 2=breathing
+
+    callback toggle-expanded();
+    callback item-toggled(int /* item_idx */);
+
+    spacing: 6px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    width: 100%;
+
+    property <bool> has-hover: header-touch.has-hover;
+    in-out property <float> pulse-opacity: 0.85;
+
+    animate pulse-opacity {
+        duration: 900ms;
+        easing: ease-in-out;
+    }
+
+    pulse-timer := Timer {
+        interval: 900ms;
+        running: root.is-active;
+        triggered => {
+            if (root.pulse-opacity < 0.6) {
+                root.pulse-opacity = 0.9;
+            } else {
+                root.pulse-opacity = 0.45;
+            }
+        }
+    }
+
+    public pure function is_list_tool(name: string) -> bool {
+        return name == "ls" || name == "list_dir";
+    }
+
+    public pure function is_read_tool(name: string) -> bool {
+        return name == "read";
+    }
+
+    public pure function is_edit_tool(name: string) -> bool {
+        return name == "write" || name == "edit" || name == "append";
+    }
+
+    public pure function is_search_tool(name: string) -> bool {
+        return name == "search" || name == "web_search" || name == "search_web" || name == "grep" || name == "grep_search";
+    }
+
+    public pure function is_web_tool(name: string) -> bool {
+        return name == "web" || name == "web_fetch" || name == "read_url_content" || name == "fetch";
+    }
+
+    public pure function is_known_tool(name: string) -> bool {
+        return root.is_list_tool(name) || root.is_read_tool(name) || root.is_edit_tool(name) || root.is_search_tool(name) || root.is_web_tool(name);
+    }
+
+    public pure function item_icon_color(name: string, status: string) -> color {
+        if (status == "failed") { return #ef9a9a; }
+        if (status == "completed" && root.is_edit_tool(name)) { return #81c784; }
+        return #999999;
+    }
+
+    header-row := Rectangle {
+        height: 32px;
+        horizontal-stretch: 1;
+        background: header-touch.has-hover ? rgba(255, 255, 255, 0.025) : transparent;
+        border-radius: 6px;
+
+        animate background { duration: 120ms; easing: ease-in-out; }
+
+        header-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.toggle-expanded();
+            }
+
+            HorizontalLayout {
+                padding-left: 2px;
+                padding-right: 4px;
+                spacing: 8px;
+                alignment: center;
+
+                Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    background: transparent;
+
+                    if (root.orb-style == 0) : ComposingOrb {
+                        size: 20px;
+                        is-active: root.is-active;
+                    }
+                    if (root.orb-style == 1) : SolvingOrb {
+                        size: 20px;
+                        is-active: root.is-active;
+                    }
+                    if (root.orb-style == 2) : BreathingOrb {
+                        size: 20px;
+                        is-active: root.is-active;
+                    }
+                }
+
+                Text {
+                    text: root.is-active
+                        ? "Working..."
+                        : (root.summary-text + " | Worked for " + root.elapsed-secs + "s.");
+                    color: root.has-hover ? #d6d6d6 : #b8b8b8;
+                    opacity: root.is-active ? root.pulse-opacity : 1.0;
+                    font-size: 13px;
+                    font-family: Tokens.font_family;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+
+                    animate color { duration: 120ms; easing: ease-in-out; }
+                    animate opacity { duration: 900ms; easing: ease-in-out; }
+                }
+
+                Image {
+                    source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
+                    width: 12px;
+                    height: 12px;
+                    colorize: root.has-hover ? #a8a8a8 : #777777;
+                    opacity: 0.65;
+                    transform-rotation: root.expanded ? 0deg : -90deg;
+
+                    animate transform-rotation {
+                        duration: 150ms;
+                        easing: ease-in-out;
+                    }
+                    animate colorize { duration: 120ms; easing: ease-in-out; }
+                }
+            }
+        }
+    }
+
+    if (root.expanded) : VerticalLayout {
+        spacing: 0px;
+        padding-left: 2px;
+        padding-right: 0px;
+        padding-bottom: 4px;
+
+        for item[idx] in root.items : VerticalLayout {
+            spacing: 0px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                Rectangle {
+                    width: 20px;
+                    height: 22px;
+                    background: transparent;
+
+                    if (item.kind == "thinking") : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/work-thinking.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        colorize: #999999;
+                        opacity: 0.72;
+                    }
+
+                    if (item.kind == "tool" && root.is_list_tool(item.tool_name)) : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/work-list-dir.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        colorize: root.item_icon_color(item.tool_name, item.tool_status);
+                        opacity: 0.78;
+                    }
+
+                    if (item.kind == "tool" && root.is_read_tool(item.tool_name)) : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/work-read.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        colorize: root.item_icon_color(item.tool_name, item.tool_status);
+                        opacity: 0.78;
+                    }
+
+                    if (item.kind == "tool" && root.is_edit_tool(item.tool_name)) : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/work-edit.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        colorize: root.item_icon_color(item.tool_name, item.tool_status);
+                        opacity: 0.82;
+                    }
+
+                    if (item.kind == "tool" && root.is_search_tool(item.tool_name)) : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/work-search.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        colorize: root.item_icon_color(item.tool_name, item.tool_status);
+                        opacity: 0.78;
+                    }
+
+                    if (item.kind == "tool" && root.is_web_tool(item.tool_name)) : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/work-web.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        colorize: root.item_icon_color(item.tool_name, item.tool_status);
+                        opacity: 0.78;
+                    }
+
+                    if (item.kind == "tool" && !root.is_known_tool(item.tool_name)) : Image {
+                        source: @image-url("../../../assets/icons/main-content/messages/assistant/tool.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        colorize: root.item_icon_color(item.tool_name, item.tool_status);
+                        opacity: 0.72;
+                    }
+                }
+
+                if (item.kind == "thinking") : Text {
+                    text: item.thinking_text;
+                    color: #888888;
+                    font-size: 12px;
+                    font-family: Tokens.mono_font_family;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                }
+
+                if (item.kind == "tool") : VerticalLayout {
+                    spacing: 6px;
+                    horizontal-stretch: 1;
+
+                    Rectangle {
+                        height: 22px;
+                        horizontal-stretch: 1;
+                        background: tool-touch.has-hover ? rgba(255, 255, 255, 0.025) : transparent;
+                        border-radius: 4px;
+
+                        tool-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.item-toggled(idx);
+                            }
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: center;
+
+                                Text {
+                                    text: item.tool_title != "" ? item.tool_title : ("Running " + item.tool_name);
+                                    font-family: Tokens.font_family;
+                                    font-size: 12.5px;
+                                    color: tool-touch.has-hover ? #dfdfdf : #cccccc;
+                                    vertical-alignment: center;
+                                    horizontal-stretch: 1;
+                                }
+
+                                if (item.tool_is_diff && (item.tool_added_count > 0 || item.tool_deleted_count > 0)) : HorizontalLayout {
+                                    spacing: 5px;
+                                    if (item.tool_added_count > 0) : Text {
+                                        text: "+" + item.tool_added_count;
+                                        color: #81c784;
+                                        font-size: 11px;
+                                        font-family: Tokens.mono_font_family;
+                                    }
+                                    if (item.tool_deleted_count > 0) : Text {
+                                        text: "-" + item.tool_deleted_count;
+                                        color: #e57373;
+                                        font-size: 11px;
+                                        font-family: Tokens.mono_font_family;
+                                    }
+                                }
+
+                                Image {
+                                    source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
+                                    width: 10px;
+                                    height: 10px;
+                                    colorize: tool-touch.has-hover ? #999999 : #777777;
+                                    opacity: 0.5;
+                                    transform-rotation: item.item_expanded ? 0deg : -90deg;
+
+                                    animate transform-rotation {
+                                        duration: 150ms;
+                                        easing: ease-in-out;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (item.item_expanded) : ToolDetailBody {
+                        horizontal-stretch: 1;
+                        tool-args: item.tool_args;
+                        tool-result: item.tool_result;
+                        tool-status: item.tool_status;
+                        tool-is-diff: item.tool_is_diff;
+                        tool-diff-lines: item.tool_diff_lines;
+                    }
+                }
+            }
+
+            if (idx < root.items.length - 1) : HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    width: 20px;
+                    height: 10px;
+                    background: transparent;
+
+                    Rectangle {
+                        width: 1px;
+                        height: parent.height;
+                        x: (parent.width - self.width) / 2;
+                        background: rgba(255, 255, 255, 0.12);
+                    }
+                }
+                Rectangle {
+                    height: 10px;
+                    horizontal-stretch: 1;
+                    background: transparent;
+                }
+            }
+        }
+    }
+}

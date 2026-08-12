@@ -122,8 +122,8 @@ pub async fn load_session_history(
                                 tool_item.tool_name = tc.name.clone();
                                 tool_item.tool_call_id = call_id_str.clone();
 
-                                let args_str = serde_json::to_string_pretty(&tc.arguments)
-                                    .unwrap_or_default();
+                                let args_str =
+                                    serde_json::to_string_pretty(&tc.arguments).unwrap_or_default();
                                 tool_item.tool_args = args_str.clone();
 
                                 if let Some(tr) = tool_results.get(&call_id_str) {
@@ -134,7 +134,9 @@ pub async fn load_session_history(
                                     };
                                     let res_text = match &tr.content {
                                         operon_rs::context::ToolContent::Text(t) => t.clone(),
-                                        operon_rs::context::ToolContent::Json(val) => val.to_string(),
+                                        operon_rs::context::ToolContent::Json(val) => {
+                                            val.to_string()
+                                        }
                                     };
                                     tool_item.tool_result = res_text;
                                     tool_item.tool_title =

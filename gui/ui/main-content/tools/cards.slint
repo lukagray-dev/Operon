@@ -1,16 +1,10 @@
-// Slint UI component for tool execution details.
-//
-// Renders tool runs, statuses (running/completed/failed), modification stats
-// (+X, -Y), and expandable views containing code diffs or parameters/results.
-//
-// The expansion pattern mirrors the ThinkingCard: a Flickable viewport inside
-// a height-limited Rectangle, capped at ~15 lines (270px) with scroll support.
+// Slint UI component for standalone tool execution cards.
 
 import { Tokens } from "../../shared/tokens.slint";
-import { DiffLine, DiffLineView } from "./diff.slint";
+import { DiffLine } from "./diff.slint";
+import { ToolDetailBody } from "./detail-body.slint";
 
 export component ToolCard inherits Rectangle {
-    // Tool execution parameters
     in property <string> tool-name: "";
     in property <string> tool-title: "";
     in property <string> tool-args: "";
@@ -21,10 +15,7 @@ export component ToolCard inherits Rectangle {
     in property <int> tool-added-count: 0;
     in property <int> tool-deleted-count: 0;
 
-    // Toggle states
     in-out property <bool> collapsed: true;
-
-    // Visual state
     property <bool> has-hover: touch.has-hover;
 
     background: has-hover ? rgba(255, 255, 255, 0.035) : rgba(255, 255, 255, 0.02);
@@ -35,7 +26,6 @@ export component ToolCard inherits Rectangle {
     animate background { duration: 120ms; easing: ease-in-out; }
     animate border-color { duration: 120ms; easing: ease-in-out; }
 
-    // Auto-expand on failure, auto-collapse on completion
     changed tool-status => {
         if (root.tool-status == "failed") {
             root.collapsed = false;
@@ -48,7 +38,6 @@ export component ToolCard inherits Rectangle {
         spacing: 0px;
         alignment: start;
 
-        // ===== HEADER BAR (CLICKABLE TOGGLE) =====
         touch := TouchArea {
             clicked => {
                 root.collapsed = !root.collapsed;
@@ -60,10 +49,8 @@ export component ToolCard inherits Rectangle {
                 padding-top: 8px;
                 padding-bottom: 8px;
                 spacing: 8px;
-                // Left-aligned, not centered — tool name sits at the start
                 alignment: start;
 
-                // Tool identity icon
                 Image {
                     source: @image-url("../../../assets/icons/main-content/messages/assistant/tool.svg");
                     width: 14px;
@@ -75,7 +62,6 @@ export component ToolCard inherits Rectangle {
                     animate colorize { duration: 120ms; }
                 }
 
-                // Friendly text title — takes remaining space
                 Text {
                     text: root.tool-title != "" ? root.tool-title : ("Running " + root.tool-name);
                     color: root.has-hover ? #e6e6e6 : #cccccc;
@@ -88,7 +74,6 @@ export component ToolCard inherits Rectangle {
                     animate color { duration: 120ms; }
                 }
 
-                // Diff Statistics Badge (+Lines, -Lines)
                 if (root.tool-is-diff && (root.tool-added-count > 0 || root.tool-deleted-count > 0)) : HorizontalLayout {
                     spacing: 6px;
                     alignment: center;
@@ -97,7 +82,7 @@ export component ToolCard inherits Rectangle {
                         text: "+" + root.tool-added-count;
                         color: #81c784;
                         font-size: 11px;
-                        font-family: Tokens.mono-font-family;
+                        font-family: Tokens.mono_font_family;
                         font-weight: 600;
                         vertical-alignment: center;
                     }
@@ -105,18 +90,12 @@ export component ToolCard inherits Rectangle {
                         text: "-" + root.tool-deleted-count;
                         color: #e57373;
                         font-size: 11px;
-                        font-family: Tokens.mono-font-family;
+                        font-family: Tokens.mono_font_family;
                         font-weight: 600;
                         vertical-alignment: center;
                     }
                 }
 
-                // Execution Status Indicator
-                // Running → rotating spinner icon driven by animation-tick().
-                // animation-tick() is a monotonic frame-clock (like requestAnimationFrame
-                // in web browsers). Slint recomputes the angle every rendered frame,
-                // giving perfectly smooth, GPU-driven rotation — no Timer jank.
-                // 1 full revolution per second: tick * 360deg / 1s
                 if (root.tool-status == "running") : Image {
                     source: @image-url("../../../assets/icons/main-content/messages/assistant/tool.svg");
                     width: 14px;
@@ -125,7 +104,6 @@ export component ToolCard inherits Rectangle {
                     transform-rotation: mod(animation-tick() * 360deg / 1s, 360deg);
                 }
 
-                // Completed → green checkmark icon
                 if (root.tool-status == "completed") : Image {
                     source: @image-url("../../../assets/icons/main-content/messages/assistant/check.svg");
                     width: 14px;
@@ -133,7 +111,6 @@ export component ToolCard inherits Rectangle {
                     colorize: #81c784;
                 }
 
-                // Failed → red badge
                 if (root.tool-status == "failed") : Rectangle {
                     background: rgba(239, 154, 154, 0.08);
                     border-radius: 4px;
@@ -155,7 +132,6 @@ export component ToolCard inherits Rectangle {
                     }
                 }
 
-                // Collapsible Chevron
                 Image {
                     source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
                     width: 12px;
@@ -173,147 +149,19 @@ export component ToolCard inherits Rectangle {
             }
         }
 
-        // ===== DETAIL CONTAINER (ACCORDION — Flickable like ThinkingCard) =====
         if (!root.collapsed) : VerticalLayout {
-            // Separator line
             Rectangle {
                 height: 1px;
                 background: rgba(255, 255, 255, 0.04);
             }
 
-            Rectangle {
-                background: rgba(0, 0, 0, 0.1);
-
-                // Cap height at ~15 lines (270px), scroll the rest
-                height: Math.min(270px, detail-content.preferred-height);
-
-                detail-flickable := Flickable {
-                    width: 100%;
-                    height: parent.height;
-                    viewport-height: detail-content.preferred-height;
-                    interactive: true;
-
-                    // Scroll target for smooth auto-scroll
-                    property <length> target-scroll-y: 0px;
-                    viewport-y: self.target-scroll-y;
-
-                    // Auto-scroll to bottom when content grows
-                    changed viewport-height => {
-                        self.target-scroll-y = Math.min(0px, parent.height - self.viewport-height);
-                    }
-
-                    animate viewport-y {
-                        duration: 100ms;
-                        easing: ease-out;
-                    }
-
-                    // Mouse wheel support
-                    TouchArea {
-                        width: 100%;
-                        height: max(detail-flickable.height, detail-flickable.viewport-height);
-                        scroll-event(e) => {
-                            detail-flickable.target-scroll-y = Math.clamp(
-                                detail-flickable.target-scroll-y + e.delta-y,
-                                Math.min(0px, detail-flickable.height - detail-flickable.viewport-height),
-                                0px
-                            );
-                            EventResult.accept
-                        }
-                    }
-
-                    detail-content := VerticalLayout {
-                        alignment: start;
-                        spacing: 0px;
-
-                        // ── Diff view for file-modifying tools ──
-                        if (root.tool-is-diff) : VerticalLayout {
-                            padding: 8px;
-
-                            Rectangle {
-                                background: rgba(0, 0, 0, 0.2);
-                                border-radius: 4px;
-                                border-width: 1px;
-                                border-color: rgba(255, 255, 255, 0.03);
-
-                                VerticalLayout {
-                                    alignment: start;
-                                    for line in root.tool-diff-lines : DiffLineView {
-                                        kind: line.kind;
-                                        text: line.text;
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── Parameters + Result for generic tools ──
-                        if (!root.tool-is-diff) : VerticalLayout {
-                            padding: 10px;
-                            spacing: 8px;
-
-                            if (root.tool-args != "") : VerticalLayout {
-                                spacing: 4px;
-                                Text {
-                                    text: "INPUT PARAMETERS";
-                                    font-size: 9.5px;
-                                    font-weight: 600;
-                                    color: #555555;
-                                    font-family: Tokens.font_family;
-                                }
-                                Rectangle {
-                                    background: rgba(0, 0, 0, 0.25);
-                                    border-radius: 4px;
-                                    border-width: 1px;
-                                    border-color: rgba(255, 255, 255, 0.02);
-
-                                    VerticalLayout {
-                                        padding-left: 8px;
-                                        padding-right: 8px;
-                                        padding-top: 6px;
-                                        padding-bottom: 6px;
-                                        Text {
-                                            text: root.tool-args;
-                                            font-size: 11px;
-                                            font-family: Tokens.mono-font-family;
-                                            color: #bbbbbb;
-                                            wrap: word-wrap;
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (root.tool-result != "") : VerticalLayout {
-                                spacing: 4px;
-                                Text {
-                                    text: "OUTPUT RESULT";
-                                    font-size: 9.5px;
-                                    font-weight: 600;
-                                    color: #555555;
-                                    font-family: Tokens.font_family;
-                                }
-                                Rectangle {
-                                    background: rgba(0, 0, 0, 0.25);
-                                    border-radius: 4px;
-                                    border-width: 1px;
-                                    border-color: rgba(255, 255, 255, 0.02);
-
-                                    VerticalLayout {
-                                        padding-left: 8px;
-                                        padding-right: 8px;
-                                        padding-top: 6px;
-                                        padding-bottom: 6px;
-                                        Text {
-                                            text: root.tool-result;
-                                            font-size: 11px;
-                                            font-family: Tokens.mono-font-family;
-                                            color: root.tool-status == "failed" ? #ef9a9a : #bbbbbb;
-                                            wrap: word-wrap;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            ToolDetailBody {
+                horizontal-stretch: 1;
+                tool-args: root.tool-args;
+                tool-result: root.tool-result;
+                tool-status: root.tool-status;
+                tool-is-diff: root.tool-is-diff;
+                tool-diff-lines: root.tool-diff-lines;
             }
         }
     }

@@ -138,4 +138,3 @@ pub fn apply_diff_overlay(
         }
     }
 }
-

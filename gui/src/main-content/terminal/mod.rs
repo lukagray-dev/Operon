@@ -16,10 +16,10 @@ use std::sync::{Mutex, OnceLock};
 use crate::state::AppState;
 use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM, POINT};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetParent as Win32GetParent, GetWindowLongW, GetWindowTextW,
-    GetWindowThreadProcessId, IsWindowVisible, MoveWindow, SetParent, SetWindowLongW, SetWindowPos,
-    ShowWindow, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    SW_HIDE, SW_SHOW, WS_BORDER, WS_CAPTION, WS_CHILD, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
+    EnumWindows, GWL_STYLE, GetParent as Win32GetParent, GetWindowLongW, GetWindowTextW,
+    GetWindowThreadProcessId, IsWindowVisible, MoveWindow, SW_HIDE, SW_SHOW, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetParent, SetWindowLongW, SetWindowPos,
+    ShowWindow, WS_BORDER, WS_CAPTION, WS_CHILD, WS_POPUP, WS_THICKFRAME, WS_VISIBLE,
 };
 
 extern "system" {
@@ -321,7 +321,10 @@ async fn create_new_terminal_tab(
                 }
 
                 if console_hwnd.is_null() {
-                    eprintln!("[operon-gui][terminal] Failed to find HWND for titled console '{}' (PID {})", unique_title, pid);
+                    eprintln!(
+                        "[operon-gui][terminal] Failed to find HWND for titled console '{}' (PID {})",
+                        unique_title, pid
+                    );
                     return;
                 }
 

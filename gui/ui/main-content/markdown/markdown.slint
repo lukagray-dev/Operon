@@ -18,9 +18,9 @@ import { MarkdownDisplayMath } from "./math.slint";
 import { MarkdownBlockQuote } from "./blockquote.slint";
 import { MarkdownLink } from "./link.slint";
 import { MarkdownMermaid } from "./mermaid.slint";
-import { ThinkingCard } from "../reasoning/reasoning.slint";
-import { ToolCard } from "../tools/cards.slint";
 import { DiffLine } from "../tools/diff.slint";
+import { WorkGroup } from "../work-group/work-group.slint";
+import { WorkGroupItem } from "../work-group/types.slint";
 
 // Enum specifying the block type of a Markdown AST element
 export enum MarkdownBlockType {
@@ -35,8 +35,7 @@ export enum MarkdownBlockType {
     BlockQuote,
     Link,
     Mermaid,
-    Thinking,
-    Tool,
+    WorkGroup,
 }
 
 // Struct representing a single parsed Markdown block element.
@@ -75,6 +74,13 @@ export struct MarkdownElement {
     tool_deleted_count: int,
     tool_call_id: string,
 
+    // Collapsed assistant work activity summary fields
+    work_group_items: [WorkGroupItem],
+    work_group_active: bool,
+    work_group_elapsed_secs: int,
+    work_group_expanded: bool,
+    work_group_summary: string,
+
     // Permission Prompt fields
     permission_id: string,
     permission_tool: string,
@@ -88,8 +94,11 @@ export struct MarkdownElement {
 export component MarkdownView inherits VerticalLayout {
     in property <[MarkdownElement]> elements: [];
     in property <string> font_family: Tokens.font_family;
+    in property <int> orb_style: 0; // 0=composing, 1=solving, 2=breathing
     callback open-url(string);
     callback copy-code(int /* element_index */);
+    callback work-group-toggled(int /* element_index */);
+    callback work-group-item-toggled(int /* element_index */, int /* item_index */);
 
     spacing: 0px;
     padding: 0px;
@@ -163,21 +172,21 @@ export component MarkdownView inherits VerticalLayout {
             diagram_image: element.diagram_image;
         }
 
-        if (element.block_type == MarkdownBlockType.Thinking) : ThinkingCard {
-            text: element.thinking_text;
-            active: element.is_thinking_active;
-        }
+        if (element.block_type == MarkdownBlockType.WorkGroup) : WorkGroup {
+            items: element.work_group_items;
+            is-active: element.work_group_active;
+            elapsed-secs: element.work_group_elapsed_secs;
+            expanded: element.work_group_expanded;
+            summary-text: element.work_group_summary;
+            orb-style: root.orb_style;
 
-        if (element.block_type == MarkdownBlockType.Tool) : ToolCard {
-            tool-name: element.tool_name;
-            tool-title: element.tool_title;
-            tool-args: element.tool_args;
-            tool-result: element.tool_result;
-            tool-status: element.tool_status;
-            tool-is-diff: element.tool_is_diff;
-            tool-diff-lines: element.tool_diff_lines;
-            tool-added-count: element.tool_added_count;
-            tool-deleted-count: element.tool_deleted_count;
+            toggle-expanded => {
+                root.work-group-toggled(idx);
+            }
+
+            item-toggled(item_idx) => {
+                root.work-group-item-toggled(idx, item_idx);
+            }
         }
     }
 }

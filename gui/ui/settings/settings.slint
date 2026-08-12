@@ -61,6 +61,12 @@ export component SettingsWindow inherits Window {
     callback general-notify-response-complete-toggled(bool);
     callback general-auto-collapse-reasoning-tools-toggled(bool);
 
+    // Appearance settings properties
+    in-out property <int> appearance-selected-thinking-orb: 0;
+
+    // Appearance settings callbacks
+    callback appearance-thinking-orb-changed(int);
+
     // Callbacks
     callback minimize_requested();
     callback maximize_requested();
@@ -204,6 +210,9 @@ export component SettingsWindow inherits Window {
                     general-notify-on-response-complete <=> root.general-notify-on-response-complete;
                     general-auto-collapse-reasoning-tools <=> root.general-auto-collapse-reasoning-tools;
 
+                    // Bind persisted appearance settings
+                    appearance-selected-thinking-orb <=> root.appearance-selected-thinking-orb;
+
                     // Bind general settings callbacks
                     general-autostart-toggled(val) => { root.general-autostart-toggled(val); }
                     general-minimize-to-tray-toggled(val) => { root.general-minimize-to-tray-toggled(val); }
@@ -215,6 +224,8 @@ export component SettingsWindow inherits Window {
                     general-notify-response-complete-toggled(val) => { root.general-notify-response-complete-toggled(val); }
                     general-auto-collapse-reasoning-tools-toggled(val) => { root.general-auto-collapse-reasoning-tools-toggled(val); }
 
+                    // Bind persisted appearance callbacks
+                    appearance-thinking-orb-changed(val) => { root.appearance-thinking-orb-changed(val); }
 
                     // Bind models configuration properties
                     providers: root.providers;

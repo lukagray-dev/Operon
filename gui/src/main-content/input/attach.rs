@@ -36,9 +36,7 @@ pub fn update_attachment_chips(window: &crate::OperonWindow, state: &AppState) {
         })
         .collect();
 
-    window.set_pending_attachments(slint::ModelRc::from(Rc::new(slint::VecModel::from(
-        chips,
-    ))));
+    window.set_pending_attachments(slint::ModelRc::from(Rc::new(slint::VecModel::from(chips))));
 }
 
 /// Register attachment button click callback.

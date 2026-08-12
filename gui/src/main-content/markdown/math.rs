@@ -19,7 +19,9 @@ fn get_re_frac() -> &'static Regex {
 }
 
 fn get_re_text() -> &'static Regex {
-    RE_TEXT.get_or_init(|| Regex::new(r"\\(?:text|mathrm|mathbf|mathsf|mathtt)\s*\{([^}]+)\}").unwrap())
+    RE_TEXT.get_or_init(|| {
+        Regex::new(r"\\(?:text|mathrm|mathbf|mathsf|mathtt)\s*\{([^}]+)\}").unwrap()
+    })
 }
 
 fn get_re_sub_brac() -> &'static Regex {

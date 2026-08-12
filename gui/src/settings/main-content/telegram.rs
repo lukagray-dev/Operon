@@ -27,7 +27,9 @@ pub fn wire_telegram_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
     // ── 1. Initial State Loading ─────────────────────────────────────────────
     let default_ws = TelegramConfig::default().resolved_workspace_dir();
 
-    window.set_telegram_resolved_workspace_dir_placeholder(default_ws.to_string_lossy().as_ref().into());
+    window.set_telegram_resolved_workspace_dir_placeholder(
+        default_ws.to_string_lossy().as_ref().into(),
+    );
     window.set_telegram_connection_status("Disconnected".into());
 
     // Check policy coverage for current workspace directory setting
@@ -149,7 +151,9 @@ pub fn wire_telegram_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
 
             if bot_token_str.trim().is_empty() {
                 if let Some(win) = weak.upgrade() {
-                    win.set_telegram_test_status_message("❌ Please enter a bot token first".into());
+                    win.set_telegram_test_status_message(
+                        "❌ Please enter a bot token first".into(),
+                    );
                 }
                 return;
             }
@@ -173,7 +177,9 @@ pub fn wire_telegram_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                     Ok(_) => {
                         slint::invoke_from_event_loop(move || {
                             if let Some(win) = weak.upgrade() {
-                                win.set_telegram_test_status_message("✓ Bot token is valid and active!".into());
+                                win.set_telegram_test_status_message(
+                                    "✓ Bot token is valid and active!".into(),
+                                );
                             }
                         })
                         .ok();
@@ -182,7 +188,9 @@ pub fn wire_telegram_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
                         let err_str = e.to_string();
                         slint::invoke_from_event_loop(move || {
                             if let Some(win) = weak.upgrade() {
-                                win.set_telegram_test_status_message(format!("❌ Token test failed: {}", err_str).into());
+                                win.set_telegram_test_status_message(
+                                    format!("❌ Token test failed: {}", err_str).into(),
+                                );
                             }
                         })
                         .ok();
@@ -226,10 +234,7 @@ pub fn wire_telegram_settings(window: &crate::SettingsWindow, _state: Rc<RefCell
     window.on_telegram_remove_allowlist(remove_allowlist_handler(weak_window.clone()));
 }
 
-fn spawn_status_poller(
-    weak: slint::Weak<crate::SettingsWindow>,
-    client: Arc<TelegramClient>,
-) {
+fn spawn_status_poller(weak: slint::Weak<crate::SettingsWindow>, client: Arc<TelegramClient>) {
     tokio::spawn(async move {
         let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(300);
         loop {
@@ -283,9 +288,7 @@ fn add_allowlist_handler(
     }
 }
 
-fn remove_allowlist_handler(
-    weak_window: slint::Weak<crate::SettingsWindow>,
-) -> impl FnMut(i32) {
+fn remove_allowlist_handler(weak_window: slint::Weak<crate::SettingsWindow>) -> impl FnMut(i32) {
     move |idx| {
         if let Some(win) = weak_window.upgrade() {
             let current_model = win.get_telegram_allowlist();

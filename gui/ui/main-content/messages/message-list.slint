@@ -37,6 +37,9 @@ export component MessageList inherits Rectangle {
     // Auto-scroll chat view on streaming token updates
     in-out property <bool> auto-scroll-stream: true;
 
+    // Selected collapsed work activity orb style for assistant messages.
+    in property <int> thinking-orb-style: 0;
+
     // ===== Callbacks =====
     // Message action callbacks
     callback message-edit-clicked(int /* message-index */);
@@ -49,6 +52,8 @@ export component MessageList inherits Rectangle {
     callback assistant-regenerate-clicked(int /* message-index */);
     callback assistant-fork-clicked(int /* message-index */);
     callback code-copied(int /* message-index */, int /* item-index */);
+    callback work-group-toggled(int /* message-index */, int /* element-index */);
+    callback work-group-item-toggled(int /* message-index */, int /* element-index */, int /* item-index */);
     
     // Callbacks for permission approved/denied actions
     callback permission-approved(string /* permission_id */);
@@ -137,6 +142,7 @@ export component MessageList inherits Rectangle {
                                 markdown-elements: msg.markdown_elements;
                                 time-text: msg.time;
                                 is-thinking: msg.is_thinking;
+                                thinking-orb-style: root.thinking-orb-style;
                                 show-cursor: (idx == root.chat-messages.length - 1) && root.is-responding && root.cursor-blink;
                                 show-separator: (idx == root.chat-messages.length - 1) ? true : root.chat-messages[idx + 1].is-user;
                                 
@@ -169,6 +175,14 @@ export component MessageList inherits Rectangle {
                                 
                                 code-copied(item_idx) => {
                                     root.code-copied(idx, item_idx);
+                                }
+
+                                work-group-toggled(element_idx) => {
+                                    root.work-group-toggled(idx, element_idx);
+                                }
+
+                                work-group-item-toggled(element_idx, item_idx) => {
+                                    root.work-group-item-toggled(idx, element_idx, item_idx);
                                 }
                             }
                         }

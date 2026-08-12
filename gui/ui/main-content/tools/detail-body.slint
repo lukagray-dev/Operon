@@ -1,0 +1,89 @@
+// Shared compact body for tool input, output, and diff details.
+
+import { Tokens } from "../../shared/tokens.slint";
+import { DiffLine, DiffLineView } from "./diff.slint";
+
+export component ToolDetailBody inherits Rectangle {
+    in property <string> tool-args: "";
+    in property <string> tool-result: "";
+    in property <string> tool-status: "running";
+    in property <bool> tool-is-diff: false;
+    in property <[DiffLine]> tool-diff-lines: [];
+
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    clip: true;
+    height: Math.min(270px, detail-content.preferred-height);
+
+    detail-flickable := Flickable {
+        width: 100%;
+        height: parent.height;
+        viewport-height: detail-content.preferred-height;
+        interactive: true;
+
+        property <length> target-scroll-y: 0px;
+        viewport-y: self.target-scroll-y;
+
+        changed viewport-height => {
+            self.target-scroll-y = Math.min(0px, parent.height - self.viewport-height);
+        }
+
+        animate viewport-y {
+            duration: 100ms;
+            easing: ease-out;
+        }
+
+        TouchArea {
+            width: 100%;
+            height: max(detail-flickable.height, detail-flickable.viewport-height);
+            scroll-event(e) => {
+                detail-flickable.target-scroll-y = Math.clamp(
+                    detail-flickable.target-scroll-y + e.delta-y,
+                    Math.min(0px, detail-flickable.height - detail-flickable.viewport-height),
+                    0px
+                );
+                EventResult.accept
+            }
+        }
+
+        detail-content := VerticalLayout {
+            alignment: start;
+            spacing: 0px;
+
+            if (root.tool-is-diff) : VerticalLayout {
+                padding-top: 8px;
+                padding-bottom: 8px;
+                spacing: 0px;
+
+                for line in root.tool-diff-lines : DiffLineView {
+                    kind: line.kind;
+                    text: line.text;
+                }
+            }
+
+            if (!root.tool-is-diff) : VerticalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                spacing: 8px;
+
+                if (root.tool-args != "") : Text {
+                    text: "args: " + root.tool-args;
+                    color: #888888;
+                    font-size: 11px;
+                    font-family: Tokens.mono_font_family;
+                    wrap: word-wrap;
+                }
+
+                if (root.tool-result != "") : Text {
+                    text: root.tool-result;
+                    color: root.tool-status == "failed" ? #ef9a9a : #c7c7c7;
+                    font-size: 11px;
+                    font-family: Tokens.mono_font_family;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+}

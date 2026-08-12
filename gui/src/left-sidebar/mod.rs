@@ -10,8 +10,8 @@ pub mod new_chat;
 pub mod projects;
 pub mod search;
 pub mod settings;
-pub mod whatsapp;
 pub mod telegram;
+pub mod whatsapp;
 
 use crate::state::AppState;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};

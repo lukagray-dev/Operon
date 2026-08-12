@@ -134,12 +134,7 @@ pub async fn handle_session_events(
                 name,
                 args_json,
             } => {
-                cards::append_tool_args_ready(
-                    &mut response_state,
-                    &call_id,
-                    &name,
-                    &args_json,
-                );
+                cards::append_tool_args_ready(&mut response_state, &call_id, &name, &args_json);
                 let parsed_items = response_state.build_parsed_items();
                 let win_weak_update = win_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -284,11 +279,7 @@ pub async fn handle_session_events(
                     }
                 });
             }
-            operon_rs::SessionEvent::PermissionDenied {
-                tool,
-                path,
-                reason,
-            } => {
+            operon_rs::SessionEvent::PermissionDenied { tool, path, reason } => {
                 let path_str = path.unwrap_or_default();
                 perm::append_permission_denied_event(
                     &mut response_state,
