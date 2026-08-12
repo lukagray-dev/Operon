@@ -30,11 +30,31 @@ pub fn wire_titlebar_callbacks(app: &crate::OperonWindow, state: Rc<RefCell<AppS
     // alive by accident. That is the standard Slint pattern for UI callbacks.
     let app_weak = app.as_weak();
 
-    // If the operating system asks to close the window, we keep the behavior
-    // aligned with the titlebar close button and hide the component.
-    app.window().on_close_requested(|| {
-        eprintln!("[operon-gui][window] Close requested by the window manager.");
-        CloseRequestResponse::HideWindow
+    // If the operating system asks to close the window, we check preferences
+    // to decide whether to hide to tray or exit the application cleanly.
+    let state_close = Rc::clone(&state);
+    app.window().on_close_requested(move || {
+        let (close_action, tray_enabled) = {
+            let app_state = state_close.borrow();
+            (
+                app_state.prefs().close_button_action,
+                app_state.prefs().minimize_to_tray_enabled,
+            )
+        };
+
+        if tray_enabled
+            && matches!(
+                close_action,
+                crate::settings::prefs::CloseButtonAction::MinimizeToTray
+            )
+        {
+            eprintln!("[operon-gui][window] Close requested: hiding window to system tray.");
+            CloseRequestResponse::HideWindow
+        } else {
+            eprintln!("[operon-gui][window] Close requested: exiting application.");
+            action::exit_application();
+            CloseRequestResponse::HideWindow
+        }
     });
 
     app.on_minimize_requested({
@@ -52,14 +72,32 @@ pub fn wire_titlebar_callbacks(app: &crate::OperonWindow, state: Rc<RefCell<AppS
         }
     });
 
+    let state_titlebar_close = Rc::clone(&state);
     app.on_close_window_requested({
         let app_weak = app_weak.clone();
         move || {
-            with_window(&app_weak, "close window", |app| {
-                if let Err(error) = action::close_window(app) {
-                    eprintln!("[operon-gui][window] Failed to hide the window: {error:#}");
-                }
-            });
+            let (close_action, tray_enabled) = {
+                let app_state = state_titlebar_close.borrow();
+                (
+                    app_state.prefs().close_button_action,
+                    app_state.prefs().minimize_to_tray_enabled,
+                )
+            };
+
+            if tray_enabled
+                && matches!(
+                    close_action,
+                    crate::settings::prefs::CloseButtonAction::MinimizeToTray
+                )
+            {
+                with_window(&app_weak, "close window", |app| {
+                    if let Err(error) = action::close_window(app) {
+                        eprintln!("[operon-gui][window] Failed to hide the window: {error:#}");
+                    }
+                });
+            } else {
+                action::exit_application();
+            }
         }
     });
 

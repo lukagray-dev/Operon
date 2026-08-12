@@ -19,10 +19,24 @@ export component SettingsMainContent inherits Rectangle {
     // Current category selection index matching the sidebar selection
     in property <int> active-category: 2;
 
+    // General settings properties
+    in-out property <bool> general-autostart-enabled: false;
+    in-out property <bool> general-minimize-to-tray-enabled: false;
+    in-out property <bool> general-start-minimized: false;
+    in-out property <int> general-close-button-action: 0;
+
+
+    // General settings callbacks
+    callback general-autostart-toggled(bool);
+    callback general-minimize-to-tray-toggled(bool);
+    callback general-start-minimized-toggled(bool);
+    callback general-close-action-changed(int);
+
     // Callbacks to forward click events to the window controller
     callback github_requested();
     callback documentation_requested();
     callback report_issue_requested();
+
 
     // Models configuration properties forwarded from window
     in property <[ProviderSummary]> providers: [];
@@ -108,7 +122,17 @@ export component SettingsMainContent inherits Rectangle {
         height: 100%;
         background: transparent;
 
-        if (root.active-category == 0) : GeneralSettings {}
+        if (root.active-category == 0) : GeneralSettings {
+            autostart-enabled <=> root.general-autostart-enabled;
+            minimize-to-tray-enabled <=> root.general-minimize-to-tray-enabled;
+            start-minimized <=> root.general-start-minimized;
+            close-button-action <=> root.general-close-button-action;
+
+            autostart-toggled(val) => { root.general-autostart-toggled(val); }
+            minimize-to-tray-toggled(val) => { root.general-minimize-to-tray-toggled(val); }
+            start-minimized-toggled(val) => { root.general-start-minimized-toggled(val); }
+            close-action-changed(val) => { root.general-close-action-changed(val); }
+        }
         if (root.active-category == 1) : AppearanceSettings {}
         if (root.active-category == 2) : ModelsSettings {
             providers: root.providers;

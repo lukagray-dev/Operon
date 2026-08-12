@@ -4,7 +4,10 @@
 //! the side effects behind the buttons and menu items.
 
 pub mod action;
+pub mod autostart;
 pub mod menu;
 pub mod navigation;
 pub mod startup;
 pub mod titlebar;
+pub mod tray;
+

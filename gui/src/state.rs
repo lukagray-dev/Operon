@@ -19,6 +19,8 @@ pub struct AppState {
     discovered_models: Vec<operon_rs::DiscoveredModel>,
     /// Pending attachments for the next message send, in the order attached.
     pending_attachments: Vec<crate::media::PendingAttachment>,
+    /// User preferences loaded from disk.
+    prefs: crate::settings::prefs::GuiPrefs,
 }
 
 impl Default for AppState {
@@ -30,11 +32,27 @@ impl Default for AppState {
             current_project_dir: None,
             discovered_models: Vec::new(),
             pending_attachments: Vec::new(),
+            prefs: crate::settings::prefs::GuiPrefs::load(),
         }
     }
 }
 
 impl AppState {
+    /// Returns a reference to the active user preferences.
+    pub fn prefs(&self) -> &crate::settings::prefs::GuiPrefs {
+        &self.prefs
+    }
+
+    /// Returns a mutable reference to the user preferences.
+    pub fn prefs_mut(&mut self) -> &mut crate::settings::prefs::GuiPrefs {
+        &mut self.prefs
+    }
+
+    /// Sets the active user preferences.
+    pub fn set_prefs(&mut self, prefs: crate::settings::prefs::GuiPrefs) {
+        self.prefs = prefs;
+    }
+
     /// Creates a fresh state object with the normal 100% zoom level.
     pub fn new() -> Self {
         Self::default()

@@ -15,8 +15,12 @@ use std::rc::Rc;
 
 /// Wires all main settings view category panels.
 pub fn wire_settings_content(window: &crate::SettingsWindow, state: Rc<RefCell<AppState>>) {
+    // Wire general settings panel
+    general::wire_general_settings(window, Rc::clone(&state));
+
     // Wire models configuration settings panel
     models::wire_models_settings(window, Rc::clone(&state));
+
 
     // Wire permissions settings panel
     permissions::wire_permissions_settings(window, Rc::clone(&state));

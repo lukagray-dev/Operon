@@ -27,8 +27,16 @@ pub fn calculate_startup_geometry(
     monitor_x: i32,
     monitor_y: i32,
 ) -> StartupGeometry {
-    let width = 960u32.min(monitor_width);
-    let height = 540u32.min(monitor_height);
+    let target_width = ((monitor_width as f64) * 0.7).round() as u32;
+    let target_height = ((target_width as f64) * 9.0 / 16.0).round() as u32;
+
+    let (width, height) = if target_height <= ((monitor_height as f64) * 0.9) as u32 {
+        (target_width, target_height)
+    } else {
+        let h = ((monitor_height as f64) * 0.7).round() as u32;
+        let w = ((h as f64) * 16.0 / 9.0).round() as u32;
+        (w, h)
+    };
 
     let x = monitor_x + ((monitor_width as i32 - width as i32) / 2);
     let y = monitor_y + ((monitor_height as i32 - height as i32) / 2);

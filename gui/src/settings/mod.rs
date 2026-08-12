@@ -6,6 +6,9 @@ pub mod left_sidebar;
 #[path = "main-content/mod.rs"]
 pub mod main_content;
 
+pub mod prefs;
+
+
 use crate::state::AppState;
 use std::cell::RefCell;
 use std::rc::Rc;

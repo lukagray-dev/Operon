@@ -41,9 +41,40 @@ pub fn run() -> anyhow::Result<()> {
     // Wire right sidebar Git diff callbacks
     crate::right_sidebar::wire_right_sidebar(&ui, Rc::clone(&state));
 
-    // `run()` is the easiest Slint entry path for a normal desktop window:
-    // it shows the component, runs the event loop, and hides it on shutdown.
-    ui.run()
+    // Register main window with tray module so tray actions can show/restore it
+    crate::window::tray::register_main_window(&ui);
+
+    // Initialize tray icon if enabled in preferences
+    let (tray_enabled, start_minimized) = {
+        let app_state = state.borrow();
+        (
+            app_state.prefs().minimize_to_tray_enabled,
+            app_state.prefs().start_minimized,
+        )
+    };
+
+    if tray_enabled {
+        crate::window::tray::set_tray_active(true);
+    }
+
+    // Show the window unless the user has configured the app to start
+    // minimized to the system tray.
+    if start_minimized && tray_enabled {
+        eprintln!("[operon-gui] Starting app minimized to system tray.");
+    } else {
+        ui.show().context("failed to show the Operon window")?;
+    }
+
+    // `run_event_loop_until_quit` behaves like the default event loop, except
+    // it keeps running after the last visible window is hidden/closed — which
+    // is required for "minimize to tray": `ComponentHandle::run()` (and the
+    // plain `run_event_loop()` it wraps) both terminate the moment the last
+    // window is hidden, since Slint's default quit-on-last-window-closed
+    // policy treats a hidden window the same as a closed one. Tray-based apps
+    // must opt out of that policy explicitly and instead rely solely on
+    // `slint::quit_event_loop()` (wired in `action::exit_application`) to end
+    // the process.
+    slint::run_event_loop_until_quit()
         .context("failed while running the Operon event loop")?;
 
     eprintln!("[operon-gui] GUI event loop exited cleanly.");

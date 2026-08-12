@@ -34,6 +34,9 @@ sha2 = "0.10"
 base64 = "0.22"
 
 slint = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
+tray-icon = "0.19"
+auto-launch = "0.5"
+image = "0.25"
 
 # ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
 
@@ -43,3 +46,8 @@ tempfile.workspace = true
 [build-dependencies]
 # Slint build script — compiles .slint files to Rust
 slint-build = "1.16.1"
+resvg = "0.44"
+tiny-skia = "0.11"
+png = "0.17"
+ico = "0.3"
+

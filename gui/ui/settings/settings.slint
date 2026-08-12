@@ -39,6 +39,18 @@ export component SettingsWindow inherits Window {
     // Selected category index (0 = general, 1 = appearance, 2 = models, etc.)
     in-out property <int> active-category: 2; // Default to 'models' (idx 2) to match tauri
 
+    // General settings properties
+    in-out property <bool> general-autostart-enabled: false;
+    in-out property <bool> general-minimize-to-tray-enabled: false;
+    in-out property <bool> general-start-minimized: false;
+    in-out property <int> general-close-button-action: 0;
+
+    // General settings callbacks
+    callback general-autostart-toggled(bool);
+    callback general-minimize-to-tray-toggled(bool);
+    callback general-start-minimized-toggled(bool);
+    callback general-close-action-changed(int);
+
     // Callbacks
     callback minimize_requested();
     callback maximize_requested();
@@ -48,6 +60,7 @@ export component SettingsWindow inherits Window {
     callback github_requested();
     callback documentation_requested();
     callback report_issue_requested();
+
 
     // Models configuration properties forwarded to viewport
     in property <[ProviderSummary]> providers: [];
@@ -170,6 +183,19 @@ export component SettingsWindow inherits Window {
                 main-content := SettingsMainContent {
                     horizontal-stretch: 1;
                     active-category: root.active-category;
+
+                    // Bind general settings properties
+                    general-autostart-enabled <=> root.general-autostart-enabled;
+                    general-minimize-to-tray-enabled <=> root.general-minimize-to-tray-enabled;
+                    general-start-minimized <=> root.general-start-minimized;
+                    general-close-button-action <=> root.general-close-button-action;
+
+                    // Bind general settings callbacks
+                    general-autostart-toggled(val) => { root.general-autostart-toggled(val); }
+                    general-minimize-to-tray-toggled(val) => { root.general-minimize-to-tray-toggled(val); }
+                    general-start-minimized-toggled(val) => { root.general-start-minimized-toggled(val); }
+                    general-close-action-changed(val) => { root.general-close-action-changed(val); }
+
 
                     // Bind models configuration properties
                     providers: root.providers;

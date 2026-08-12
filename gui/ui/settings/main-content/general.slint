@@ -14,6 +14,7 @@ import { ScrollView } from "std-widgets.slint";
 component SegmentedChoice2 inherits Rectangle {
     in property <string> option1: "Option 1";
     in property <string> option2: "Option 2";
+    in property <bool> enabled: true;
     in-out property <int> selected-index: 0;
     
     callback selected-changed(int);
@@ -23,6 +24,7 @@ component SegmentedChoice2 inherits Rectangle {
     border-width: 1px;
     border-color: rgba(255, 255, 255, 0.08);
     border-radius: 6px;
+    opacity: root.enabled ? 1.0 : 0.4;
     
     HorizontalLayout {
         spacing: 0px;
@@ -44,7 +46,8 @@ component SegmentedChoice2 inherits Rectangle {
             }
             
             TouchArea {
-                mouse-cursor: pointer;
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
                 clicked => {
                     root.selected-index = 0;
                     root.selected-changed(0);
@@ -68,7 +71,8 @@ component SegmentedChoice2 inherits Rectangle {
             }
             
             TouchArea {
-                mouse-cursor: pointer;
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
                 clicked => {
                     root.selected-index = 1;
                     root.selected-changed(1);
@@ -173,6 +177,7 @@ export component GeneralSettings inherits Rectangle {
 
     // ── Bindable State Properties Exposed to Rust ──
     in-out property <bool> autostart-enabled: false;
+    in-out property <bool> minimize-to-tray-enabled: false;
     in-out property <bool> start-minimized: false;
     in-out property <int> close-button-action: 0; // 0 = Exit App, 1 = Minimize to Tray
     in-out property <string> default-workspace-path: "";
@@ -186,6 +191,7 @@ export component GeneralSettings inherits Rectangle {
 
     // ── Interaction Callbacks ──
     callback autostart-toggled(bool);
+    callback minimize-to-tray-toggled(bool);
     callback start-minimized-toggled(bool);
     callback close-action-changed(int);
     callback browse-default-workspace-clicked();
@@ -298,13 +304,48 @@ export component GeneralSettings inherits Rectangle {
                         background: rgba(255, 255, 255, 0.04);
                     }
 
-                    // Row 2: Start Minimized
+                    // Row 2: Minimize to System Tray
                     HorizontalLayout {
                         alignment: space-between;
 
                         VerticalLayout {
                             spacing: 2px;
                             horizontal-stretch: 1;
+
+                            Text {
+                                text: "Minimize to System Tray";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Keep Operon accessible from the system notification area";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.minimize-to-tray-enabled;
+                            toggled(checked) => { root.minimize-to-tray-toggled(checked); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 3: Start Minimized
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+                            opacity: root.minimize-to-tray-enabled ? 1.0 : 0.4;
 
                             Text {
                                 text: "Start Minimized to System Tray";
@@ -321,6 +362,7 @@ export component GeneralSettings inherits Rectangle {
                         }
 
                         ToggleSwitch {
+                            enabled: root.minimize-to-tray-enabled;
                             checked <=> root.start-minimized;
                             toggled(checked) => { root.start-minimized-toggled(checked); }
                         }
@@ -332,13 +374,14 @@ export component GeneralSettings inherits Rectangle {
                         background: rgba(255, 255, 255, 0.04);
                     }
 
-                    // Row 3: Close Button Action
+                    // Row 4: Close Button Action
                     HorizontalLayout {
                         alignment: space-between;
 
                         VerticalLayout {
                             spacing: 2px;
                             horizontal-stretch: 1;
+                            opacity: root.minimize-to-tray-enabled ? 1.0 : 0.4;
 
                             Text {
                                 text: "Window Close (X) Action";
@@ -356,12 +399,14 @@ export component GeneralSettings inherits Rectangle {
 
                         SegmentedChoice2 {
                             width: 200px;
+                            enabled: root.minimize-to-tray-enabled;
                             option1: "Exit App";
                             option2: "Minimize to Tray";
                             selected-index <=> root.close-button-action;
                             selected-changed(idx) => { root.close-action-changed(idx); }
                         }
                     }
+
 
                     // Divider line
                     Rectangle {
