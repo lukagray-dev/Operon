@@ -89,24 +89,29 @@ export component WorkGroup inherits VerticalLayout {
                 padding-left: 2px;
                 padding-right: 4px;
                 spacing: 8px;
-                alignment: center;
+                // Left-align the work activity pill and text instead of horizontally centering it
+                alignment: start;
 
-                Rectangle {
-                    width: 20px;
-                    height: 20px;
-                    background: transparent;
+                // Vertically center the thinking orb animation container in the header row
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 20px;
+                        height: 20px;
+                        background: transparent;
 
-                    if (root.orb-style == 0) : ComposingOrb {
-                        size: 20px;
-                        is-active: root.is-active;
-                    }
-                    if (root.orb-style == 1) : SolvingOrb {
-                        size: 20px;
-                        is-active: root.is-active;
-                    }
-                    if (root.orb-style == 2) : BreathingOrb {
-                        size: 20px;
-                        is-active: root.is-active;
+                        if (root.orb-style == 0) : ComposingOrb {
+                            size: 20px;
+                            is-active: root.is-active;
+                        }
+                        if (root.orb-style == 1) : SolvingOrb {
+                            size: 20px;
+                            is-active: root.is-active;
+                        }
+                        if (root.orb-style == 2) : BreathingOrb {
+                            size: 20px;
+                            is-active: root.is-active;
+                        }
                     }
                 }
 
@@ -126,19 +131,23 @@ export component WorkGroup inherits VerticalLayout {
                     animate opacity { duration: 900ms; easing: ease-in-out; }
                 }
 
-                Image {
-                    source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
-                    width: 12px;
-                    height: 12px;
-                    colorize: root.has-hover ? #a8a8a8 : #777777;
-                    opacity: 0.65;
-                    transform-rotation: root.expanded ? 0deg : -90deg;
+                // Vertically center the expand/collapse chevron icon in the header row
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
+                        width: 12px;
+                        height: 12px;
+                        colorize: root.has-hover ? #a8a8a8 : #777777;
+                        opacity: 0.65;
+                        transform-rotation: root.expanded ? 0deg : -90deg;
 
-                    animate transform-rotation {
-                        duration: 150ms;
-                        easing: ease-in-out;
+                        animate transform-rotation {
+                            duration: 150ms;
+                            easing: ease-in-out;
+                        }
+                        animate colorize { duration: 120ms; easing: ease-in-out; }
                     }
-                    animate colorize { duration: 120ms; easing: ease-in-out; }
                 }
             }
         }
@@ -155,7 +164,7 @@ export component WorkGroup inherits VerticalLayout {
 
             HorizontalLayout {
                 spacing: 8px;
-                alignment: start;
+                // Default stretch alignment so tool items and detail cards expand across full available width
 
                 Rectangle {
                     width: 20px;
@@ -260,7 +269,6 @@ export component WorkGroup inherits VerticalLayout {
 
                             HorizontalLayout {
                                 spacing: 6px;
-                                alignment: center;
 
                                 Text {
                                     text: item.tool_title != "" ? item.tool_title : ("Running " + item.tool_name);
@@ -287,17 +295,21 @@ export component WorkGroup inherits VerticalLayout {
                                     }
                                 }
 
-                                Image {
-                                    source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
-                                    width: 10px;
-                                    height: 10px;
-                                    colorize: tool-touch.has-hover ? #999999 : #777777;
-                                    opacity: 0.5;
-                                    transform-rotation: item.item_expanded ? 0deg : -90deg;
+                                // Vertically center the chevron icon in the sub-tool detail row
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
+                                        width: 10px;
+                                        height: 10px;
+                                        colorize: tool-touch.has-hover ? #999999 : #777777;
+                                        opacity: 0.5;
+                                        transform-rotation: item.item_expanded ? 0deg : -90deg;
 
-                                    animate transform-rotation {
-                                        duration: 150ms;
-                                        easing: ease-in-out;
+                                        animate transform-rotation {
+                                            duration: 150ms;
+                                            easing: ease-in-out;
+                                        }
                                     }
                                 }
                             }
@@ -305,6 +317,7 @@ export component WorkGroup inherits VerticalLayout {
                     }
 
                     if (item.item_expanded) : ToolDetailBody {
+                        width: 100%;
                         horizontal-stretch: 1;
                         tool-args: item.tool_args;
                         tool-result: item.tool_result;

@@ -11,6 +11,9 @@ export component DiffLineView inherits Rectangle {
     in property <string> kind;
     in property <string> text;
 
+    width: 100%;
+    horizontal-stretch: 1;
+
     background: kind == "added" ? rgba(76, 175, 80, 0.15) : 
                 kind == "removed" ? rgba(244, 67, 54, 0.15) : 
                 transparent;
@@ -20,6 +23,8 @@ export component DiffLineView inherits Rectangle {
         padding-right: 8px;
         padding-top: 2px;
         padding-bottom: 2px;
+        width: 100%;
+        horizontal-stretch: 1;
 
         Text {
             // Re-prefixing allows easier visual alignment for mono text columns
@@ -30,6 +35,8 @@ export component DiffLineView inherits Rectangle {
                    root.kind == "removed" ? #ef9a9a : 
                    #cccccc;
             wrap: word-wrap;
+            width: 100%;
+            horizontal-stretch: 1;
         }
     }
 }

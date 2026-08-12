@@ -22,6 +22,8 @@ export component ToolCard inherits Rectangle {
     border-radius: 6px;
     border-width: 1px;
     border-color: has-hover ? rgba(255, 255, 255, 0.12) : rgba(255, 255, 255, 0.06);
+    width: 100%;
+    horizontal-stretch: 1;
 
     animate background { duration: 120ms; easing: ease-in-out; }
     animate border-color { duration: 120ms; easing: ease-in-out; }
@@ -36,7 +38,8 @@ export component ToolCard inherits Rectangle {
 
     VerticalLayout {
         spacing: 0px;
-        alignment: start;
+        width: 100%;
+        horizontal-stretch: 1;
 
         touch := TouchArea {
             clicked => {
@@ -49,7 +52,6 @@ export component ToolCard inherits Rectangle {
                 padding-top: 8px;
                 padding-bottom: 8px;
                 spacing: 8px;
-                alignment: start;
 
                 Image {
                     source: @image-url("../../../assets/icons/main-content/messages/assistant/tool.svg");
