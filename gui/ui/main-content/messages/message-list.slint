@@ -34,6 +34,9 @@ export component MessageList inherits Rectangle {
     in property <bool> is-responding: false;
     in property <bool> cursor-blink: true;
 
+    // Auto-scroll chat view on streaming token updates
+    in-out property <bool> auto-scroll-stream: true;
+
     // ===== Callbacks =====
     // Message action callbacks
     callback message-edit-clicked(int /* message-index */);
@@ -74,7 +77,7 @@ export component MessageList inherits Rectangle {
         }
         
         changed viewport-height => {
-            if (self.is-near-bottom) {
+            if (root.auto-scroll-stream && self.is-near-bottom) {
                 self.viewport-y = min(0px, self.height - self.viewport-height);
             }
         }

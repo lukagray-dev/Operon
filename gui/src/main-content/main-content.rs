@@ -43,6 +43,12 @@ use std::rc::Rc;
 
 /// Wire all callbacks and update properties inside the main content view.
 pub fn wire_main_content(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>) {
+    // Register main window instance with AppState for live preference propagation
+    state.borrow_mut().register_main_window(window);
+
+    // Initialize auto-scroll-stream setting on the chat viewport from user preferences
+    window.set_auto_scroll_stream(state.borrow().prefs().auto_scroll_stream);
+
     // Wire prompt input area
     input::wire_input_panel(window, Rc::clone(&state));
 

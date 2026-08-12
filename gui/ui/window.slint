@@ -131,6 +131,7 @@ export component OperonWindow inherits Window {
     in-out property <string> selected_model: "";
     in-out property <string> selected_reasoning: "";
     in-out property <bool> auto_approve_enabled: false;
+    in-out property <bool> auto_scroll_stream: true;
     in property <float> context_usage: 0.0;
     in property <int> tokens_used: 0;
     in property <int> tokens_total: 0;
@@ -302,6 +303,7 @@ export component OperonWindow inherits Window {
                 selected-model <=> root.selected_model;
                 selected-reasoning <=> root.selected_reasoning;
                 auto-approve-enabled <=> root.auto_approve_enabled;
+                auto-scroll-stream <=> root.auto_scroll_stream;
                 context-usage: root.context_usage;
                 tokens-used: root.tokens_used;
                 tokens-total: root.tokens_total;

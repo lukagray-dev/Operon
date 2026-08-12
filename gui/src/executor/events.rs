@@ -243,9 +243,18 @@ pub async fn handle_session_events(
                         win.set_pending_permission_tool(tool.into());
                         win.set_pending_permission_path(path_str.into());
                         win.set_pending_permission_reason(reason.into());
-                        win.set_pending_permission_action(display_action.into());
-                        win.set_pending_permission_target(display_target.into());
+                        win.set_pending_permission_action(display_action.as_str().into());
+                        win.set_pending_permission_target(display_target.as_str().into());
                         win.set_has_pending_permission(true);
+
+                        // Dispatch system notification if notify_on_permission_request is enabled in preferences
+                        let prefs = crate::settings::prefs::GuiPrefs::load();
+                        if prefs.notify_on_permission_request {
+                            crate::window::notification::send_permission_asking_notification(
+                                &display_action,
+                                &display_target,
+                            );
+                        }
                     }
                 });
             }
@@ -367,7 +376,14 @@ pub async fn handle_session_events(
             }
             win.set_is_responding(false);
             win.set_has_pending_permission(false);
+            let session_title = win.get_session_title().to_string();
             crate::left_sidebar::refresh_sidebar(&win, Some(session_id));
+
+            // Dispatch desktop notification if notify_on_response_complete is enabled in preferences
+            let prefs = crate::settings::prefs::GuiPrefs::load();
+            if prefs.notify_on_response_complete {
+                crate::window::notification::send_response_complete_notification(&session_title);
+            }
         }
     });
 }

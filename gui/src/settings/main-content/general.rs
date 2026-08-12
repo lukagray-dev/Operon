@@ -27,6 +27,9 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
             CloseButtonAction::Exit => 0,
             CloseButtonAction::MinimizeToTray => 1,
         });
+        window.set_general_auto_scroll_stream(prefs.auto_scroll_stream);
+        window.set_general_notify_on_permission_request(prefs.notify_on_permission_request);
+        window.set_general_notify_on_response_complete(prefs.notify_on_response_complete);
     }
 
     // Callback 1: Autostart toggle
@@ -100,5 +103,26 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
         if let Err(err) = app_state.prefs().save() {
             eprintln!("[operon-gui][general] Failed to save prefs after close action update: {err:#}");
         }
+    });
+
+    // Callback 5: Auto-scroll chat view on new tokens toggle
+    let state_auto_scroll = Rc::clone(&state);
+    window.on_general_auto_scroll_stream_toggled(move |enabled| {
+        eprintln!("[operon-gui][general] Auto-scroll chat view on new tokens toggled: {enabled}");
+        state_auto_scroll.borrow_mut().set_auto_scroll_stream(enabled);
+    });
+
+    // Callback 6: Desktop notification on permission request toggle
+    let state_notify_perm = Rc::clone(&state);
+    window.on_general_notify_permission_request_toggled(move |enabled| {
+        eprintln!("[operon-gui][general] Notify on permission request toggled: {enabled}");
+        state_notify_perm.borrow_mut().set_notify_on_permission_request(enabled);
+    });
+
+    // Callback 7: Desktop notification on response complete toggle
+    let state_notify_resp = Rc::clone(&state);
+    window.on_general_notify_response_complete_toggled(move |enabled| {
+        eprintln!("[operon-gui][general] Notify on response complete toggled: {enabled}");
+        state_notify_resp.borrow_mut().set_notify_on_response_complete(enabled);
     });
 }

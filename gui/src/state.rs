@@ -10,7 +10,7 @@ const UI_SCALE_STEP: f32 = 0.1;
 const DEFAULT_UI_SCALE: f32 = 1.0;
 
 /// Small state bundle that tracks the titlebar's user-facing view controls and active session state.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppState {
     ui_scale: f32,
     reload_generation: i32,
@@ -21,6 +21,23 @@ pub struct AppState {
     pending_attachments: Vec<crate::media::PendingAttachment>,
     /// User preferences loaded from disk.
     prefs: crate::settings::prefs::GuiPrefs,
+    /// Optional weak reference to the main application window handle for live property synchronization.
+    main_window: Option<slint::Weak<crate::OperonWindow>>,
+}
+
+impl std::fmt::Debug for AppState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppState")
+            .field("ui_scale", &self.ui_scale)
+            .field("reload_generation", &self.reload_generation)
+            .field("active_session_id", &self.active_session_id)
+            .field("current_project_dir", &self.current_project_dir)
+            .field("discovered_models", &self.discovered_models)
+            .field("pending_attachments", &self.pending_attachments)
+            .field("prefs", &self.prefs)
+            .field("main_window", &self.main_window.is_some())
+            .finish()
+    }
 }
 
 impl Default for AppState {
@@ -33,11 +50,47 @@ impl Default for AppState {
             discovered_models: Vec::new(),
             pending_attachments: Vec::new(),
             prefs: crate::settings::prefs::GuiPrefs::load(),
+            main_window: None,
         }
     }
 }
 
 impl AppState {
+    /// Registers the active main window instance so state updates can propagate live to the UI.
+    pub fn register_main_window(&mut self, window: &crate::OperonWindow) {
+        use slint::ComponentHandle;
+        self.main_window = Some(window.as_weak());
+    }
+
+    /// Updates the auto-scroll-stream preference, saves it to `~/.operon/gui_settings.toml`, and live-syncs the main window.
+    pub fn set_auto_scroll_stream(&mut self, enabled: bool) {
+        self.prefs.auto_scroll_stream = enabled;
+        if let Err(err) = self.prefs.save() {
+            tracing::warn!("[operon-gui][state] Failed to save prefs after updating auto_scroll_stream: {err:#}");
+        }
+        if let Some(weak) = &self.main_window {
+            if let Some(window) = weak.upgrade() {
+                window.set_auto_scroll_stream(enabled);
+            }
+        }
+    }
+
+    /// Updates the notify-on-permission-request preference and saves it to `~/.operon/gui_settings.toml`.
+    pub fn set_notify_on_permission_request(&mut self, enabled: bool) {
+        self.prefs.notify_on_permission_request = enabled;
+        if let Err(err) = self.prefs.save() {
+            tracing::warn!("[operon-gui][state] Failed to save prefs after updating notify_on_permission_request: {err:#}");
+        }
+    }
+
+    /// Updates the notify-on-response-complete preference and saves it to `~/.operon/gui_settings.toml`.
+    pub fn set_notify_on_response_complete(&mut self, enabled: bool) {
+        self.prefs.notify_on_response_complete = enabled;
+        if let Err(err) = self.prefs.save() {
+            tracing::warn!("[operon-gui][state] Failed to save prefs after updating notify_on_response_complete: {err:#}");
+        }
+    }
+
     /// Returns a reference to the active user preferences.
     pub fn prefs(&self) -> &crate::settings::prefs::GuiPrefs {
         &self.prefs

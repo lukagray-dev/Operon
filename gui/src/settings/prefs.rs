@@ -24,6 +24,21 @@ impl Default for CloseButtonAction {
     }
 }
 
+/// Helper function providing default value (true) for `auto_scroll_stream`.
+fn default_auto_scroll_stream() -> bool {
+    true
+}
+
+/// Helper function providing default value (true) for `notify_on_permission_request`.
+fn default_notify_on_permission_request() -> bool {
+    true
+}
+
+/// Helper function providing default value (false) for `notify_on_response_complete`.
+fn default_notify_on_response_complete() -> bool {
+    false
+}
+
 /// GUI preferences state saved on disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiPrefs {
@@ -39,6 +54,15 @@ pub struct GuiPrefs {
     /// Action taken when the main window close (X) button is clicked.
     #[serde(default)]
     pub close_button_action: CloseButtonAction,
+    /// Whether the chat viewport automatically scrolls to the bottom when new response tokens arrive from the model.
+    #[serde(default = "default_auto_scroll_stream")]
+    pub auto_scroll_stream: bool,
+    /// Whether a desktop OS notification is sent when an agent asks for manual user permission confirmation.
+    #[serde(default = "default_notify_on_permission_request")]
+    pub notify_on_permission_request: bool,
+    /// Whether a desktop OS notification is sent when an agent response turn finishes.
+    #[serde(default = "default_notify_on_response_complete")]
+    pub notify_on_response_complete: bool,
 }
 
 impl Default for GuiPrefs {
@@ -48,6 +72,9 @@ impl Default for GuiPrefs {
             minimize_to_tray_enabled: false,
             start_minimized: false,
             close_button_action: CloseButtonAction::default(),
+            auto_scroll_stream: true,
+            notify_on_permission_request: true,
+            notify_on_response_complete: false,
         }
     }
 }
@@ -120,6 +147,9 @@ mod tests {
         assert!(!prefs.minimize_to_tray_enabled);
         assert!(!prefs.start_minimized);
         assert_eq!(prefs.close_button_action, CloseButtonAction::Exit);
+        assert!(prefs.auto_scroll_stream);
+        assert!(prefs.notify_on_permission_request);
+        assert!(!prefs.notify_on_response_complete);
     }
 
     #[test]
@@ -129,17 +159,26 @@ mod tests {
             minimize_to_tray_enabled: true,
             start_minimized: false,
             close_button_action: CloseButtonAction::Exit,
+            auto_scroll_stream: false,
+            notify_on_permission_request: false,
+            notify_on_response_complete: true,
         };
 
         let serialized = toml::to_string(&original).expect("serialization failed");
         assert!(serialized.contains("autostart_enabled = true"));
         assert!(serialized.contains("close_button_action = \"exit\""));
+        assert!(serialized.contains("auto_scroll_stream = false"));
+        assert!(serialized.contains("notify_on_permission_request = false"));
+        assert!(serialized.contains("notify_on_response_complete = true"));
 
         let deserialized: GuiPrefs = toml::from_str(&serialized).expect("deserialization failed");
         assert_eq!(deserialized.autostart_enabled, original.autostart_enabled);
         assert_eq!(deserialized.minimize_to_tray_enabled, original.minimize_to_tray_enabled);
         assert_eq!(deserialized.start_minimized, original.start_minimized);
         assert_eq!(deserialized.close_button_action, original.close_button_action);
+        assert_eq!(deserialized.auto_scroll_stream, original.auto_scroll_stream);
+        assert_eq!(deserialized.notify_on_permission_request, original.notify_on_permission_request);
+        assert_eq!(deserialized.notify_on_response_complete, original.notify_on_response_complete);
     }
 
     #[test]
@@ -153,6 +192,9 @@ mod tests {
         assert!(!prefs.minimize_to_tray_enabled);
         assert!(!prefs.start_minimized);
         assert_eq!(prefs.close_button_action, CloseButtonAction::Exit);
+        assert!(prefs.auto_scroll_stream);
+        assert!(prefs.notify_on_permission_request);
+        assert!(!prefs.notify_on_response_complete);
     }
 }
 

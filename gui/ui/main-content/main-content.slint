@@ -51,6 +51,7 @@ export component MainContent inherits Rectangle {
     in-out property <string> selected-model: "";
     in-out property <string> selected-reasoning: "";
     in-out property <bool> auto-approve-enabled: false;
+    in-out property <bool> auto-scroll-stream: true;
     
     // Context window information
     in property <float> context-usage: 0.0;
@@ -192,6 +193,7 @@ export component MainContent inherits Rectangle {
                 is-loading-session: root.is-loading-session;
                 is-responding: root.is-responding;
                 cursor-blink: root.cursor-blink;
+                auto-scroll-stream: root.auto-scroll-stream;
 
                 message-edit-clicked(idx) => {
                     root.message-edit-clicked(idx);

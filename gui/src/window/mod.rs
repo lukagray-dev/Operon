@@ -7,6 +7,7 @@ pub mod action;
 pub mod autostart;
 pub mod menu;
 pub mod navigation;
+pub mod notification;
 pub mod startup;
 pub mod titlebar;
 pub mod tray;
