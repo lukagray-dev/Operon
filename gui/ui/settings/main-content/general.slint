@@ -2,8 +2,8 @@
 //
 // Hey friend! This component defines the complete General Settings panel.
 // It organizes general application configurations into 3 clear sections:
-// 1. System Startup & Window Behavior (autostart, minimize to tray, default workspace)
-// 2. Default Agent Execution Preferences (global auto-approve, default system prompt, token threshold)
+// 1. System Startup & Window Behavior (autostart, minimize to tray, window close action)
+// 2. Default Agent Execution Preferences (global auto-approve)
 // 3. Updates & Diagnostics (automatic update check, anonymous telemetry)
 
 import { Tokens } from "../../shared/tokens.slint";
@@ -82,96 +82,6 @@ component SegmentedChoice2 inherits Rectangle {
     }
 }
 
-// Segmented 4-option selector for Context Token Limits (16K, 32K, 64K, 128K)
-component TokenLimitSelector inherits Rectangle {
-    in-out property <int> selected-index: 1; // 0 = 16k, 1 = 32k, 2 = 64k, 3 = 128k
-    callback limit-changed(int);
-    
-    height: 30px;
-    width: 220px;
-    background: #0d0d0d;
-    border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-
-    HorizontalLayout {
-        spacing: 0px;
-        padding: 2px;
-
-        Rectangle {
-            horizontal-stretch: 1;
-            border-radius: 4px;
-            background: root.selected-index == 0 ? rgba(255, 255, 255, 0.12) : transparent;
-            Text {
-                text: "16K";
-                color: root.selected-index == 0 ? #ffffff : #666666;
-                font-size: Tokens.body_font_size - 2px;
-                font-weight: 600;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.selected-index = 0; root.limit-changed(0); }
-            }
-        }
-
-        Rectangle {
-            horizontal-stretch: 1;
-            border-radius: 4px;
-            background: root.selected-index == 1 ? rgba(255, 255, 255, 0.12) : transparent;
-            Text {
-                text: "32K";
-                color: root.selected-index == 1 ? #ffffff : #666666;
-                font-size: Tokens.body_font_size - 2px;
-                font-weight: 600;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.selected-index = 1; root.limit-changed(1); }
-            }
-        }
-
-        Rectangle {
-            horizontal-stretch: 1;
-            border-radius: 4px;
-            background: root.selected-index == 2 ? rgba(255, 255, 255, 0.12) : transparent;
-            Text {
-                text: "64K";
-                color: root.selected-index == 2 ? #ffffff : #666666;
-                font-size: Tokens.body_font_size - 2px;
-                font-weight: 600;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.selected-index = 2; root.limit-changed(2); }
-            }
-        }
-
-        Rectangle {
-            horizontal-stretch: 1;
-            border-radius: 4px;
-            background: root.selected-index == 3 ? rgba(255, 255, 255, 0.12) : transparent;
-            Text {
-                text: "128K";
-                color: root.selected-index == 3 ? #ffffff : #666666;
-                font-size: Tokens.body_font_size - 2px;
-                font-weight: 600;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.selected-index = 3; root.limit-changed(3); }
-            }
-        }
-    }
-}
-
 export component GeneralSettings inherits Rectangle {
     background: transparent;
 
@@ -180,11 +90,12 @@ export component GeneralSettings inherits Rectangle {
     in-out property <bool> minimize-to-tray-enabled: false;
     in-out property <bool> start-minimized: false;
     in-out property <int> close-button-action: 0; // 0 = Exit App, 1 = Minimize to Tray
-    in-out property <string> default-workspace-path: "";
 
     in-out property <bool> global-auto-approve-default: false;
-    in-out property <string> default-system-instructions: "";
-    in-out property <int> context-token-limit-index: 1; // 0=16K, 1=32K, 2=64K, 3=128K
+    in-out property <bool> auto-scroll-stream: true;
+    in-out property <bool> notify-on-permission-request: true;
+    in-out property <bool> notify-on-response-complete: false;
+    in-out property <bool> auto-collapse-reasoning-tools: false;
 
     in-out property <bool> auto-update-checks: true;
     in-out property <bool> telemetry-enabled: false;
@@ -194,10 +105,11 @@ export component GeneralSettings inherits Rectangle {
     callback minimize-to-tray-toggled(bool);
     callback start-minimized-toggled(bool);
     callback close-action-changed(int);
-    callback browse-default-workspace-clicked();
     callback global-auto-approve-toggled(bool);
-    callback default-system-instructions-changed(string);
-    callback token-limit-changed(int);
+    callback auto-scroll-stream-toggled(bool);
+    callback notify-permission-request-toggled(bool);
+    callback notify-response-complete-toggled(bool);
+    callback auto-collapse-reasoning-tools-toggled(bool);
     callback auto-update-toggled(bool);
     callback telemetry-toggled(bool);
 
@@ -230,7 +142,7 @@ export component GeneralSettings inherits Rectangle {
                     }
 
                     Text {
-                        text: "Configure application launch behavior, default agent preferences, and system defaults.";
+                        text: "Configure application launch behavior, window controls, and system defaults.";
                         color: Tokens.text_muted;
                         font-size: Tokens.body_font_size - 1px;
                         wrap: TextWrap.word-wrap;
@@ -406,86 +318,6 @@ export component GeneralSettings inherits Rectangle {
                             selected-changed(idx) => { root.close-action-changed(idx); }
                         }
                     }
-
-
-                    // Divider line
-                    Rectangle {
-                        height: 1px;
-                        background: rgba(255, 255, 255, 0.04);
-                    }
-
-                    // Row 4: Default Workspace Folder
-                    VerticalLayout {
-                        spacing: 8px;
-
-                        VerticalLayout {
-                            spacing: 2px;
-
-                            Text {
-                                text: "Default Workspace Directory";
-                                color: Tokens.text_primary;
-                                font-size: Tokens.body_font_size;
-                                font-weight: 500;
-                            }
-
-                            Text {
-                                text: "Default root directory loaded when starting new agent projects";
-                                color: Tokens.text_muted;
-                                font-size: Tokens.body_font_size - 2px;
-                            }
-                        }
-
-                        HorizontalLayout {
-                            spacing: 8px;
-
-                            // Display container for the chosen workspace path
-                            path_box := Rectangle {
-                                horizontal-stretch: 1;
-                                height: 32px;
-                                background: #0d0d0d;
-                                border-width: 1px;
-                                border-color: rgba(255, 255, 255, 0.08);
-                                border-radius: 6px;
-
-                                HorizontalLayout {
-                                    padding-left: 10px;
-                                    padding-right: 10px;
-
-                                    Text {
-                                        text: root.default-workspace-path == "" ? "No directory selected (using working directory)" : root.default-workspace-path;
-                                        color: root.default-workspace-path == "" ? Tokens.text_muted : Tokens.text_primary;
-                                        font-size: Tokens.body_font_size - 1px;
-                                        vertical-alignment: center;
-                                        overflow: TextOverflow.elide;
-                                    }
-                                }
-                            }
-
-                            // Browse button
-                            browse_btn := Rectangle {
-                                width: 80px;
-                                height: 32px;
-                                background: browse_touch.has-hover ? rgba(255, 255, 255, 0.12) : rgba(255, 255, 255, 0.06);
-                                border-width: 1px;
-                                border-color: rgba(255, 255, 255, 0.1);
-                                border-radius: 6px;
-
-                                Text {
-                                    text: "Browse...";
-                                    color: Tokens.text_primary;
-                                    font-size: Tokens.body_font_size - 1px;
-                                    font-weight: 500;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-
-                                browse_touch := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => { root.browse-default-workspace-clicked(); }
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -555,7 +387,7 @@ export component GeneralSettings inherits Rectangle {
                         background: rgba(255, 255, 255, 0.04);
                     }
 
-                    // Row 2: Context Token Threshold
+                    // Row 2: Auto-Scroll Chat View on New Tokens
                     HorizontalLayout {
                         alignment: space-between;
 
@@ -564,22 +396,22 @@ export component GeneralSettings inherits Rectangle {
                             horizontal-stretch: 1;
 
                             Text {
-                                text: "Max Context Token Buffer";
+                                text: "Auto-Scroll Chat View on New Tokens";
                                 color: Tokens.text_primary;
                                 font-size: Tokens.body_font_size;
                                 font-weight: 500;
                             }
 
                             Text {
-                                text: "Token threshold before background conversation compaction is automatically triggered";
+                                text: "Automatically keep chat viewport anchored to the latest streaming response text";
                                 color: Tokens.text_muted;
                                 font-size: Tokens.body_font_size - 2px;
                             }
                         }
 
-                        TokenLimitSelector {
-                            selected-index <=> root.context-token-limit-index;
-                            limit-changed(idx) => { root.token-limit-changed(idx); }
+                        ToggleSwitch {
+                            checked <=> root.auto-scroll-stream;
+                            toggled(checked) => { root.auto-scroll-stream-toggled(checked); }
                         }
                     }
 
@@ -589,45 +421,99 @@ export component GeneralSettings inherits Rectangle {
                         background: rgba(255, 255, 255, 0.04);
                     }
 
-                    // Row 3: Default System Instructions Input
-                    VerticalLayout {
-                        spacing: 8px;
+                    // Row 3: Desktop Notification on Permission Requests
+                    HorizontalLayout {
+                        alignment: space-between;
 
                         VerticalLayout {
                             spacing: 2px;
+                            horizontal-stretch: 1;
 
                             Text {
-                                text: "Default System Instructions";
+                                text: "Desktop Notification on Permission Asking";
                                 color: Tokens.text_primary;
                                 font-size: Tokens.body_font_size;
                                 font-weight: 500;
                             }
 
                             Text {
-                                text: "Custom instructions prepended to the system prompt for all new agent sessions";
+                                text: "Send a system notification when an agent action requires manual user confirmation";
                                 color: Tokens.text_muted;
                                 font-size: Tokens.body_font_size - 2px;
                             }
                         }
 
-                        // Multiline prompt box container
-                        prompt_box := Rectangle {
-                            height: 72px;
-                            background: #0d0d0d;
-                            border-width: 1px;
-                            border-color: prompt_input.has-focus ? Tokens.text_primary : rgba(255, 255, 255, 0.08);
-                            border-radius: 6px;
+                        ToggleSwitch {
+                            checked <=> root.notify-on-permission-request;
+                            toggled(checked) => { root.notify-permission-request-toggled(checked); }
+                        }
+                    }
 
-                            prompt_input := TextInput {
-                                text <=> root.default-system-instructions;
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 4: Desktop Notification on Response Complete
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Desktop Notification on Response Complete";
                                 color: Tokens.text_primary;
-                                font-size: Tokens.body_font_size - 1px;
-                                wrap: TextWrap.word-wrap;
-                                single-line: false;
-                                edited => {
-                                    root.default-system-instructions-changed(self.text);
-                                }
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
                             }
+
+                            Text {
+                                text: "Send a system notification when long-running agent responses and tool turns finish";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.notify-on-response-complete;
+                            toggled(checked) => { root.notify-response-complete-toggled(checked); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 5: Auto-Collapse Reasoning / Thinking and Tool Cards
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Auto-Collapse Reasoning & Tool Cards";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Automatically collapse extended thinking blocks and tool execution cards in session chat";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.auto-collapse-reasoning-tools;
+                            toggled(checked) => { root.auto-collapse-reasoning-tools-toggled(checked); }
                         }
                     }
                 }
@@ -731,3 +617,6 @@ export component GeneralSettings inherits Rectangle {
         }
     }
 }
+
+
+

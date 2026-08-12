@@ -20,11 +20,11 @@ export component SettingsWindow inherits Window {
     preferred-height: 540px;
     min-width: 960px;
     min-height: 540px;
-    
+
     // Borderless frame styling: disable native frame and disable edge resize border when maximized
     no-frame: true;
     resize-border-width: root.window_maximized ? 0px : Tokens.window_resize_border_width;
-    
+
     title: "Settings";
     icon: @image-url("../../assets/brand/operon.svg");
     background: Tokens.window_background;
@@ -35,7 +35,7 @@ export component SettingsWindow inherits Window {
     in-out property <float> ui_scale: 1.0;
     // Current visibility state of the left sidebar (within settings - can default to true)
     in-out property <bool> sidebar_open: true;
-    
+
     // Selected category index (0 = general, 1 = appearance, 2 = models, etc.)
     in-out property <int> active-category: 2; // Default to 'models' (idx 2) to match tauri
 
@@ -44,12 +44,22 @@ export component SettingsWindow inherits Window {
     in-out property <bool> general-minimize-to-tray-enabled: false;
     in-out property <bool> general-start-minimized: false;
     in-out property <int> general-close-button-action: 0;
+    in-out property <bool> general-global-auto-approve-default: false;
+    in-out property <bool> general-auto-scroll-stream: true;
+    in-out property <bool> general-notify-on-permission-request: true;
+    in-out property <bool> general-notify-on-response-complete: false;
+    in-out property <bool> general-auto-collapse-reasoning-tools: false;
 
     // General settings callbacks
     callback general-autostart-toggled(bool);
     callback general-minimize-to-tray-toggled(bool);
     callback general-start-minimized-toggled(bool);
     callback general-close-action-changed(int);
+    callback general-global-auto-approve-toggled(bool);
+    callback general-auto-scroll-stream-toggled(bool);
+    callback general-notify-permission-request-toggled(bool);
+    callback general-notify-response-complete-toggled(bool);
+    callback general-auto-collapse-reasoning-tools-toggled(bool);
 
     // Callbacks
     callback minimize_requested();
@@ -60,7 +70,6 @@ export component SettingsWindow inherits Window {
     callback github_requested();
     callback documentation_requested();
     callback report_issue_requested();
-
 
     // Models configuration properties forwarded to viewport
     in property <[ProviderSummary]> providers: [];
@@ -140,7 +149,7 @@ export component SettingsWindow inherits Window {
     // Main layout container: Titlebar on top, body content below
     VerticalLayout {
         spacing: 0px;
-        
+
         // 1. Custom Titlebar (no menus, no navigation, but keeps logo/toggle and minimize/maximize/close actions)
         titlebar := Titlebar {
             width: 100%;
@@ -148,7 +157,7 @@ export component SettingsWindow inherits Window {
             is_maximized: root.window_maximized;
             ui_scale: root.ui_scale;
             sidebar_open: root.sidebar_open;
-            
+
             // Hide navigation controls and dropdown menus
             show_navigation: false;
             show_menus: false;
@@ -171,14 +180,14 @@ export component SettingsWindow inherits Window {
 
             HorizontalLayout {
                 spacing: 0px;
-                
+
                 // Left settings category navigation sidebar (absolute black background)
                 sidebar := SettingsSidebar {
                     active-category <=> root.active-category;
                     width: root.sidebar_open ? 200px : 0px;
                     visible: root.sidebar_open;
                 }
-                
+
                 // Main settings content viewport (same background color as main app sidebar)
                 main-content := SettingsMainContent {
                     horizontal-stretch: 1;
@@ -189,12 +198,22 @@ export component SettingsWindow inherits Window {
                     general-minimize-to-tray-enabled <=> root.general-minimize-to-tray-enabled;
                     general-start-minimized <=> root.general-start-minimized;
                     general-close-button-action <=> root.general-close-button-action;
+                    general-global-auto-approve-default <=> root.general-global-auto-approve-default;
+                    general-auto-scroll-stream <=> root.general-auto-scroll-stream;
+                    general-notify-on-permission-request <=> root.general-notify-on-permission-request;
+                    general-notify-on-response-complete <=> root.general-notify-on-response-complete;
+                    general-auto-collapse-reasoning-tools <=> root.general-auto-collapse-reasoning-tools;
 
                     // Bind general settings callbacks
                     general-autostart-toggled(val) => { root.general-autostart-toggled(val); }
                     general-minimize-to-tray-toggled(val) => { root.general-minimize-to-tray-toggled(val); }
                     general-start-minimized-toggled(val) => { root.general-start-minimized-toggled(val); }
                     general-close-action-changed(val) => { root.general-close-action-changed(val); }
+                    general-global-auto-approve-toggled(val) => { root.general-global-auto-approve-toggled(val); }
+                    general-auto-scroll-stream-toggled(val) => { root.general-auto-scroll-stream-toggled(val); }
+                    general-notify-permission-request-toggled(val) => { root.general-notify-permission-request-toggled(val); }
+                    general-notify-response-complete-toggled(val) => { root.general-notify-response-complete-toggled(val); }
+                    general-auto-collapse-reasoning-tools-toggled(val) => { root.general-auto-collapse-reasoning-tools-toggled(val); }
 
 
                     // Bind models configuration properties
@@ -277,7 +296,7 @@ export component SettingsWindow inherits Window {
                     telegram-add-allowlist(num) => { root.telegram-add-allowlist(num); }
                     telegram-remove-allowlist(idx) => { root.telegram-remove-allowlist(idx); }
                     telegram-browse-workspace-dir-clicked() => { root.telegram-browse-workspace-dir-clicked(); }
-                    
+
                     github_requested => { root.github_requested(); }
                     documentation_requested => { root.documentation_requested(); }
                     report_issue_requested => { root.report_issue_requested(); }

@@ -482,6 +482,7 @@ export component AppearanceSettings inherits Rectangle {
     // ── Theme & Color Palette Properties ──
     in-out property <int> selected-theme-mode: 0; // 0 = Dark Immersive, 1 = OLED Pitch Black, 2 = Dimmed Gray
     in-out property <int> selected-syntax-theme: 0; // 0 = Operon Dark, 1 = One Dark, 2 = Monokai Pro, 3 = Nord
+    in-out property <bool> show-line-numbers-in-code: true;
 
     // ── UI Scale & Density Properties ──
     in-out property <int> ui-scale-index: 1; // 0=80%, 1=100%, 2=120%, 3=140%, 4=160%
@@ -498,6 +499,7 @@ export component AppearanceSettings inherits Rectangle {
     // ── Interaction Callbacks ──
     callback theme-mode-changed(int);
     callback syntax-theme-changed(int);
+    callback show-line-numbers-toggled(bool);
     callback ui-scale-changed(int);
     callback compact-mode-toggled(bool);
     callback animations-toggled(bool);
@@ -670,6 +672,40 @@ export component AppearanceSettings inherits Rectangle {
                             option3: "Dimmed Gray";
                             selected-index <=> root.selected-theme-mode;
                             selected-changed(idx) => { root.theme-mode-changed(idx); }
+                        }
+                    }
+
+                    // Divider line
+                    Rectangle {
+                        height: 1px;
+                        background: rgba(255, 255, 255, 0.04);
+                    }
+
+                    // Row 3: Show Line Numbers in Code Blocks
+                    HorizontalLayout {
+                        alignment: space-between;
+
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: "Show Line Numbers in Code Blocks";
+                                color: Tokens.text_primary;
+                                font-size: Tokens.body_font_size;
+                                font-weight: 500;
+                            }
+
+                            Text {
+                                text: "Display line numbers inside formatted code blocks in assistant messages";
+                                color: Tokens.text_muted;
+                                font-size: Tokens.body_font_size - 2px;
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked <=> root.show-line-numbers-in-code;
+                            toggled(checked) => { root.show-line-numbers-toggled(checked); }
                         }
                     }
                 }

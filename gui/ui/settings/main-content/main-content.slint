@@ -25,12 +25,22 @@ export component SettingsMainContent inherits Rectangle {
     in-out property <bool> general-start-minimized: false;
     in-out property <int> general-close-button-action: 0;
 
+    in-out property <bool> general-global-auto-approve-default: false;
+    in-out property <bool> general-auto-scroll-stream: true;
+    in-out property <bool> general-notify-on-permission-request: true;
+    in-out property <bool> general-notify-on-response-complete: false;
+    in-out property <bool> general-auto-collapse-reasoning-tools: false;
 
     // General settings callbacks
     callback general-autostart-toggled(bool);
     callback general-minimize-to-tray-toggled(bool);
     callback general-start-minimized-toggled(bool);
     callback general-close-action-changed(int);
+    callback general-global-auto-approve-toggled(bool);
+    callback general-auto-scroll-stream-toggled(bool);
+    callback general-notify-permission-request-toggled(bool);
+    callback general-notify-response-complete-toggled(bool);
+    callback general-auto-collapse-reasoning-tools-toggled(bool);
 
     // Callbacks to forward click events to the window controller
     callback github_requested();
@@ -127,11 +137,21 @@ export component SettingsMainContent inherits Rectangle {
             minimize-to-tray-enabled <=> root.general-minimize-to-tray-enabled;
             start-minimized <=> root.general-start-minimized;
             close-button-action <=> root.general-close-button-action;
+            global-auto-approve-default <=> root.general-global-auto-approve-default;
+            auto-scroll-stream <=> root.general-auto-scroll-stream;
+            notify-on-permission-request <=> root.general-notify-on-permission-request;
+            notify-on-response-complete <=> root.general-notify-on-response-complete;
+            auto-collapse-reasoning-tools <=> root.general-auto-collapse-reasoning-tools;
 
             autostart-toggled(val) => { root.general-autostart-toggled(val); }
             minimize-to-tray-toggled(val) => { root.general-minimize-to-tray-toggled(val); }
             start-minimized-toggled(val) => { root.general-start-minimized-toggled(val); }
             close-action-changed(val) => { root.general-close-action-changed(val); }
+            global-auto-approve-toggled(val) => { root.general-global-auto-approve-toggled(val); }
+            auto-scroll-stream-toggled(val) => { root.general-auto-scroll-stream-toggled(val); }
+            notify-permission-request-toggled(val) => { root.general-notify-permission-request-toggled(val); }
+            notify-response-complete-toggled(val) => { root.general-notify-response-complete-toggled(val); }
+            auto-collapse-reasoning-tools-toggled(val) => { root.general-auto-collapse-reasoning-tools-toggled(val); }
         }
         if (root.active-category == 1) : AppearanceSettings {}
         if (root.active-category == 2) : ModelsSettings {
