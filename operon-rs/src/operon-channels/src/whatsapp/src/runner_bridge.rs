@@ -189,6 +189,11 @@ impl SessionRunnerBridge {
                 .map_err(|e| WhatsAppError::Session(e.to_string()))?;
         }
 
+        let history = store
+            .load_full_history(session_id)
+            .await
+            .map_err(|e| WhatsAppError::Session(e.to_string()))?;
+
         // Load prior turn history from the store (empty vec if new session).
         let history_turns = store
             .load_turns(session_id)
@@ -229,11 +234,8 @@ impl SessionRunnerBridge {
             .map_err(|e| WhatsAppError::Session(e.to_string()))?;
 
         // If we have prior history, restore it on the runner so the model sees all
-        // previous conversation context. The last element of history_turns contains
-        // the full message list up to the most recent turn (each turn stores the
-        // cumulative conversation — see store.rs::TurnJson::messages).
-        if !history_turns.is_empty() {
-            let history = history_turns.last().cloned().unwrap_or_default();
+        // previous conversation context.
+        if !history.is_empty() {
             runner.set_history(history, turn_index, last_token_count);
         }
 

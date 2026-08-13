@@ -156,7 +156,11 @@ impl SessionRunnerBridge {
                 .map_err(|e| TelegramError::Session(e.to_string()))?;
         }
 
-        // Load prior turn history from the store
+        let history = store
+            .load_full_history(session_id)
+            .await
+            .map_err(|e| TelegramError::Session(e.to_string()))?;
+
         let history_turns = store
             .load_turns(session_id)
             .await
@@ -187,8 +191,7 @@ impl SessionRunnerBridge {
             .await
             .map_err(|e| TelegramError::Session(e.to_string()))?;
 
-        if !history_turns.is_empty() {
-            let history = history_turns.last().cloned().unwrap_or_default();
+        if !history.is_empty() {
             runner.set_history(history, turn_index, last_token_count);
         }
 

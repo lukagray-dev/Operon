@@ -48,6 +48,8 @@ impl SessionRunner {
         }
         self.lifecycle = LifecycleState::Running;
 
+        let turn_start_len = self.messages.len();
+
         // Push the user's message into the conversation history.
         let user_blocks = build_user_message(&user_message, image_blocks, &file_paths);
         self.messages.push(ConversationMessage::user(user_blocks));
@@ -258,27 +260,26 @@ impl SessionRunner {
 
             // ── 8. Persist turn ──────────────────────────────────────────────
             if let Some(store) = &self.store {
+                let turn_messages = &self.messages[turn_start_len..];
                 store
                     .save_turn(
                         &self.session_id,
                         self.turn_index,
-                        &self.messages,
+                        turn_messages,
                         Some(self.token_state.current_context_tokens),
                     )
                     .await?;
             }
 
-            // Emit TurnComplete so the UI can update turn counters.
-            let _ = self
-                .event_tx
-                .send(SessionEvent::TurnComplete {
-                    turn_index: self.turn_index,
-                })
-                .await;
-            self.turn_index += 1;
-
             // ── 9. No tool calls → loop is done ─────────────────────────────
             if stream_result.tool_calls.is_empty() {
+                let _ = self
+                    .event_tx
+                    .send(SessionEvent::TurnComplete {
+                        turn_index: self.turn_index,
+                    })
+                    .await;
+                self.turn_index += 1;
                 let _ = self.event_tx.send(SessionEvent::Done).await;
                 self.lifecycle = LifecycleState::Done;
                 break;
@@ -291,6 +292,7 @@ impl SessionRunner {
             let mut should_stop = self.take_matching_command(None).is_some();
             if should_stop {
                 tracing::info!("Session cancelled by user command");
+                self.turn_index += 1;
             }
 
             // ── 11. Policy-check and dispatch tool calls sequentially ────────

@@ -230,6 +230,21 @@ impl SessionStore {
         Ok(session.turns.into_iter().map(|t| t.messages).collect())
     }
 
+    /// Load all messages across all turns in chronological order.
+    ///
+    /// Flattens the per-turn message vectors into a single combined conversation vector.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
+    pub async fn load_full_history(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ConversationMessage>, SessionError> {
+        let turns = self.load_turns(session_id).await?;
+        Ok(turns.into_iter().flatten().collect())
+    }
+
     /// List all sessions in the store with their metadata.
     ///
     /// Since each JSON file represents exactly one session, this returns a single row.
@@ -293,9 +308,9 @@ impl SessionStore {
         let session = serde_json::from_str::<SessionJson>(&file_content)
             .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
 
-        // Let's find turn 0 and search for the first user message block in it.
-        if let Some(first_turn) = session.turns.iter().find(|t| t.turn_index == 0) {
-            for msg in &first_turn.messages {
+        // Search turns in ascending order for the first user text message.
+        for turn in &session.turns {
+            for msg in &turn.messages {
                 if msg.role == operon_context::MessageRole::User {
                     for block in &msg.content {
                         if let operon_context::ContentBlock::Text(text) = block {
@@ -474,6 +489,32 @@ mod tests {
         assert_eq!(loaded[0], turn0, "Turn 0 should be first");
         assert_eq!(loaded[1], turn1, "Turn 1 should be second");
         assert_eq!(loaded[2], turn2, "Turn 2 should be third");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn load_full_history_flattens_per_turn_messages() {
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
+
+        store
+            .create_session("session-fh", "/ws", "model", "provider")
+            .await
+            .unwrap();
+
+        let turn0 = make_messages("Turn zero");
+        let turn1 = make_messages("Turn one");
+
+        store.save_turn("session-fh", 0, &turn0, None).await.unwrap();
+        store.save_turn("session-fh", 1, &turn1, None).await.unwrap();
+
+        let full = store.load_full_history("session-fh").await.unwrap();
+        assert_eq!(full.len(), 2);
+        assert_eq!(full[0], turn0[0]);
+        assert_eq!(full[1], turn1[0]);
 
         let _ = std::fs::remove_file(path);
     }

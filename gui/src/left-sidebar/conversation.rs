@@ -38,10 +38,10 @@ pub async fn load_session_history(
         crate::main_content::title::determine_session_title(first_msg.as_deref(), "New Chat");
 
     let mut raw_messages = Vec::new();
-    if let Ok(history_turns) = store.load_turns(session_id).await {
-        if let Some(last_turn) = history_turns.last() {
+    if let Ok(full_history) = store.load_full_history(session_id).await {
+        if !full_history.is_empty() {
             let mut tool_results = std::collections::HashMap::new();
-            for msg in last_turn {
+            for msg in &full_history {
                 if msg.role == operon_rs::context::MessageRole::Tool {
                     for block in &msg.content {
                         if let operon_rs::context::ContentBlock::ToolResult(tr) = block {
@@ -54,7 +54,7 @@ pub async fn load_session_history(
             let mut current_assistant_items = Vec::new();
             let mut current_assistant_text_parts = Vec::new();
 
-            for msg in last_turn {
+            for msg in &full_history {
                 let is_user = msg.role == operon_rs::context::MessageRole::User;
                 let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
 
