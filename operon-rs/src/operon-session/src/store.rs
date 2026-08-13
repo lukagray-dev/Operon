@@ -204,6 +204,38 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Truncate all saved turns with turn_index >= keep_turns_count for a session.
+    ///
+    /// This removes all saved turns starting from `keep_turns_count` onwards,
+    /// enabling editing a previous user turn and continuing the conversation from there.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read/write or JSON serialization failure.
+    pub async fn truncate_turns(
+        &self,
+        _session_id: &str,
+        keep_turns_count: usize,
+    ) -> Result<(), SessionError> {
+        if !self.path.exists() {
+            return Ok(());
+        }
+
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let mut session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        session.turns.retain(|t| t.turn_index < keep_turns_count);
+
+        let json_str = serde_json::to_string_pretty(&session)
+            .map_err(|e| SessionError::Store(format!("Failed to serialize session: {e}")))?;
+        std::fs::write(&self.path, json_str)
+            .map_err(|e| SessionError::Store(format!("Failed to write session file: {e}")))?;
+
+        Ok(())
+    }
+
     /// Load all turns for a session in ascending turn_index order.
     ///
     /// Returns a `Vec` where each element is the `Vec<ConversationMessage>` for that turn.
@@ -515,6 +547,36 @@ mod tests {
         assert_eq!(full.len(), 2);
         assert_eq!(full[0], turn0[0]);
         assert_eq!(full[1], turn1[0]);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn truncate_turns_removes_turns_at_and_after_specified_index() {
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
+
+        store
+            .create_session("session-tr", "/ws", "model", "provider")
+            .await
+            .unwrap();
+
+        let turn0 = make_messages("Turn zero");
+        let turn1 = make_messages("Turn one");
+        let turn2 = make_messages("Turn two");
+
+        store.save_turn("session-tr", 0, &turn0, None).await.unwrap();
+        store.save_turn("session-tr", 1, &turn1, None).await.unwrap();
+        store.save_turn("session-tr", 2, &turn2, None).await.unwrap();
+
+        // Truncate turns starting from index 1 (removes turn 1 and turn 2)
+        store.truncate_turns("session-tr", 1).await.unwrap();
+
+        let loaded = store.load_turns("session-tr").await.unwrap();
+        assert_eq!(loaded.len(), 1, "Only turn 0 should remain");
+        assert_eq!(loaded[0], turn0);
 
         let _ = std::fs::remove_file(path);
     }

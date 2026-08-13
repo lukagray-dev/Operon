@@ -175,3 +175,88 @@ pub fn submit_prompt(
         }
     });
 }
+
+/// Truncate session turns at/after `target_turn_index` and execute `new_text` as the updated prompt for that turn.
+pub fn resubmit_edited_prompt(
+    window: &crate::OperonWindow,
+    session_id: String,
+    new_text: String,
+    target_turn_index: usize,
+    project_dir: Option<String>,
+) {
+    let window_weak = window.as_weak();
+
+    // Set responding state in UI
+    window.set_is_responding(true);
+
+    tokio::spawn(async move {
+        let run_edited = async {
+            // Truncate persistent session store file on disk before loading session
+            let app_config = operon_rs::load()?;
+            let store_path = app_config.paths.session_db(&session_id);
+            let store = operon_rs::session::store::SessionStore::open(&store_path).await?;
+            store.truncate_turns(&session_id, target_turn_index).await?;
+
+            // Create event/command channels for communicating with the runner.
+            let (event_tx, event_rx) = tokio::sync::mpsc::channel(100);
+            let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel(100);
+
+            // Store command sender in global static reference.
+            {
+                *ACTIVE_CMD_TX.lock().unwrap() = Some(cmd_tx);
+            }
+
+            // Start agent session (loads truncated history up to target_turn_index).
+            let (mut runner, _turn_index, _last_token_count) = session::start_agent_session(
+                &session_id,
+                false,
+                project_dir,
+                event_tx,
+                cmd_rx,
+            )
+            .await?;
+
+            // Spawn runner thread to run target_turn_index.
+            let runner_handle = tokio::spawn(async move {
+                runner
+                    .run(new_text, Vec::new(), Vec::new())
+                    .await
+            });
+
+            // Spawn event handler loop.
+            let win_weak_event = window_weak.clone();
+            let session_id_final = session_id.clone();
+            tokio::spawn(async move {
+                events::handle_session_events(win_weak_event, session_id_final, event_rx).await;
+            });
+
+            // Wait for runner task to complete.
+            if let Ok(res) = runner_handle.await {
+                if let Err(e) = res {
+                    eprintln!(
+                        "[operon-gui][executor] Runner failed to process edited prompt: {}",
+                        e
+                    );
+                }
+            }
+
+            // Clear active command channel sender.
+            {
+                *ACTIVE_CMD_TX.lock().unwrap() = None;
+            }
+
+            anyhow::Ok(())
+        }
+        .await;
+
+        if let Err(e) = run_edited {
+            eprintln!("[operon-gui][executor] Failed to launch edited prompt run: {}", e);
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(win) = window_weak.upgrade() {
+                    win.set_is_responding(false);
+                    win.set_has_pending_permission(false);
+                }
+            });
+        }
+    });
+}
