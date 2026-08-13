@@ -77,6 +77,11 @@ fn default_notify_on_response_complete() -> bool {
     false
 }
 
+/// Helper function providing default value (false) for `auto_collapse_reasoning_tools`.
+fn default_auto_collapse_reasoning_tools() -> bool {
+    false
+}
+
 /// GUI preferences state saved on disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiPrefs {
@@ -104,6 +109,9 @@ pub struct GuiPrefs {
     /// Whether a desktop OS notification is sent when an agent response turn finishes.
     #[serde(default = "default_notify_on_response_complete")]
     pub notify_on_response_complete: bool,
+    /// Whether reasoning/thinking and tool activity summary pills automatically collapse.
+    #[serde(default = "default_auto_collapse_reasoning_tools")]
+    pub auto_collapse_reasoning_tools: bool,
 }
 
 impl Default for GuiPrefs {
@@ -117,6 +125,7 @@ impl Default for GuiPrefs {
             auto_scroll_stream: true,
             notify_on_permission_request: true,
             notify_on_response_complete: false,
+            auto_collapse_reasoning_tools: false,
         }
     }
 }

@@ -31,6 +31,7 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
         window.set_general_auto_scroll_stream(prefs.auto_scroll_stream);
         window.set_general_notify_on_permission_request(prefs.notify_on_permission_request);
         window.set_general_notify_on_response_complete(prefs.notify_on_response_complete);
+        window.set_general_auto_collapse_reasoning_tools(prefs.auto_collapse_reasoning_tools);
     }
 
     // Callback 1: Autostart toggle
@@ -140,5 +141,14 @@ pub fn wire_general_settings(window: &crate::SettingsWindow, state: Rc<RefCell<A
         state_notify_resp
             .borrow_mut()
             .set_notify_on_response_complete(enabled);
+    });
+
+    // Callback 8: Auto-collapse reasoning & tool cards toggle
+    let state_auto_collapse = Rc::clone(&state);
+    window.on_general_auto_collapse_reasoning_tools_toggled(move |enabled| {
+        eprintln!("[operon-gui][general] Auto-collapse reasoning tools toggled: {enabled}");
+        state_auto_collapse
+            .borrow_mut()
+            .set_auto_collapse_reasoning_tools(enabled);
     });
 }

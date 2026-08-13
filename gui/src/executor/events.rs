@@ -16,7 +16,8 @@ pub async fn handle_session_events(
     session_id: String,
     mut event_rx: tokio::sync::mpsc::Receiver<operon_rs::SessionEvent>,
 ) {
-    let mut response_state = ResponseState::new();
+    let auto_collapse = crate::settings::prefs::GuiPrefs::load().auto_collapse_reasoning_tools;
+    let mut response_state = ResponseState::with_auto_collapse(auto_collapse);
 
     while let Some(event) = event_rx.recv().await {
         println!("[operon-gui][executor] Received session event: {:?}", event);
@@ -44,7 +45,7 @@ pub async fn handle_session_events(
                                 id: "".into(),
                                 is_user: false,
                                 text: "".into(),
-                                time: "Just now".into(),
+                                time: "".into(),
                                 markdown_elements: slint::ModelRc::from(Rc::new(
                                     slint::VecModel::from(elements),
                                 )),
@@ -85,7 +86,7 @@ pub async fn handle_session_events(
                                 id: "".into(),
                                 is_user: false,
                                 text: "".into(),
-                                time: "Just now".into(),
+                                time: "".into(),
                                 markdown_elements: slint::ModelRc::from(Rc::new(
                                     slint::VecModel::from(elements),
                                 )),

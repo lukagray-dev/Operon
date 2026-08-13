@@ -30,12 +30,23 @@ pub struct ResponseState {
 
     /// Start time used to summarize how long the current activity group ran.
     pub work_group_start: Option<Instant>,
+
+    /// Whether working/worked summary pills automatically collapse by default.
+    pub auto_collapse: bool,
 }
 
 impl ResponseState {
     /// Helper to get a new ResponseState instance.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Helper to get a new ResponseState instance with custom auto_collapse preference.
+    pub fn with_auto_collapse(auto_collapse: bool) -> Self {
+        Self {
+            auto_collapse,
+            ..Self::default()
+        }
     }
 
     /// Flushes any accumulated text deltas into a text markdown block.
@@ -78,6 +89,7 @@ impl ResponseState {
         let mut work_group =
             ParsedMarkdownItem::new_default("work_group".to_string(), String::new());
         work_group.work_group_active = true;
+        work_group.work_group_expanded = !self.auto_collapse;
         self.current_blocks.push(work_group);
         self.work_group_open = true;
         self.work_group_start = Some(Instant::now());
@@ -106,6 +118,7 @@ impl ResponseState {
                 group.work_group_active = false;
                 group.work_group_elapsed_secs = elapsed_secs;
                 group.work_group_summary = build_work_summary(&group.work_group_items);
+                group.work_group_expanded = !self.auto_collapse;
 
                 for item in group.work_group_items.iter_mut() {
                     if item.kind == "thinking" {

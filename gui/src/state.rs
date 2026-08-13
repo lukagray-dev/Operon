@@ -112,6 +112,16 @@ impl AppState {
         }
     }
 
+    /// Updates the auto-collapse-reasoning-tools preference and saves it to `~/.operon/gui_settings.toml`.
+    pub fn set_auto_collapse_reasoning_tools(&mut self, enabled: bool) {
+        self.prefs.auto_collapse_reasoning_tools = enabled;
+        if let Err(err) = self.prefs.save() {
+            tracing::warn!(
+                "[operon-gui][state] Failed to save prefs after updating auto_collapse_reasoning_tools: {err:#}"
+            );
+        }
+    }
+
     /// Returns a reference to the active user preferences.
     pub fn prefs(&self) -> &crate::settings::prefs::GuiPrefs {
         &self.prefs
