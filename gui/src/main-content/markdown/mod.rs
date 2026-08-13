@@ -221,6 +221,18 @@ pub fn to_slint_elements(items: Vec<ParsedMarkdownItem>) -> Vec<crate::MarkdownE
         result.push(convert_legacy_work_items(pending_legacy_work_items));
     }
 
+    // Remove any Spacer element that immediately follows a WorkGroup
+    let mut i = 0;
+    while i + 1 < result.len() {
+        if result[i].block_type == crate::MarkdownBlockType::WorkGroup
+            && result[i + 1].block_type == crate::MarkdownBlockType::Spacer
+        {
+            result.remove(i + 1);
+        } else {
+            i += 1;
+        }
+    }
+
     result
 }
 
@@ -830,5 +842,15 @@ pub fn parse_markdown(markdown_text: &str) -> Vec<MarkdownElement> {
             || e.block_type == MarkdownBlockType::WorkGroup
             || !e.text.is_empty()
     });
+
+    // Remove leading Spacers to prevent top gap above first paragraph
+    while elements.first().map_or(false, |e| e.block_type == MarkdownBlockType::Spacer) {
+        elements.remove(0);
+    }
+    // Remove trailing Spacers to prevent bottom gap
+    while elements.last().map_or(false, |e| e.block_type == MarkdownBlockType::Spacer) {
+        elements.pop();
+    }
+
     elements
 }

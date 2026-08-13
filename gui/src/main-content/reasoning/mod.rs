@@ -69,11 +69,9 @@ impl ResponseState {
                 .iter()
                 .rposition(|block| block.kind == "work_group")
             {
-                if idx == self.current_blocks.len() - 1 {
-                    let group = &mut self.current_blocks[idx];
-                    group.work_group_active = true;
-                    return idx;
-                }
+                let group = &mut self.current_blocks[idx];
+                group.work_group_active = true;
+                return idx;
             }
         }
 
