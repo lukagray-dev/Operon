@@ -44,7 +44,7 @@ pub async fn handle_session_events(
                                 id: "".into(),
                                 is_user: false,
                                 text: "".into(),
-                                time: "".into(),
+                                time: "Just now".into(),
                                 markdown_elements: slint::ModelRc::from(Rc::new(
                                     slint::VecModel::from(elements),
                                 )),
@@ -85,7 +85,7 @@ pub async fn handle_session_events(
                                 id: "".into(),
                                 is_user: false,
                                 text: "".into(),
-                                time: "".into(),
+                                time: "Just now".into(),
                                 markdown_elements: slint::ModelRc::from(Rc::new(
                                     slint::VecModel::from(elements),
                                 )),
@@ -358,6 +358,11 @@ pub async fn handle_session_events(
                             m.markdown_elements = slint::ModelRc::from(std::rc::Rc::new(
                                 slint::VecModel::from(elements),
                             ));
+                            let now = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_secs() as i64)
+                                .unwrap_or(0);
+                            m.time = crate::main_content::assistant_messages::format_timestamp(now).into();
                         }
                         win.set_chat_messages(slint::ModelRc::from(std::rc::Rc::new(
                             slint::VecModel::from(msgs),

@@ -13,7 +13,7 @@ pub async fn load_session_history(
     session_path: Option<std::path::PathBuf>,
 ) -> anyhow::Result<(
     String,
-    Vec<(bool, String, Vec<ParsedMarkdownItem>)>,
+    Vec<(bool, String, Vec<ParsedMarkdownItem>, String)>,
     usize,
     Option<usize>,
 )> {
@@ -38,131 +38,126 @@ pub async fn load_session_history(
         crate::main_content::title::determine_session_title(first_msg.as_deref(), "New Chat");
 
     let mut raw_messages = Vec::new();
-    if let Ok(full_history) = store.load_full_history(session_id).await {
-        if !full_history.is_empty() {
-            let mut tool_results = std::collections::HashMap::new();
-            for msg in &full_history {
-                if msg.role == operon_rs::context::MessageRole::Tool {
-                    for block in &msg.content {
-                        if let operon_rs::context::ContentBlock::ToolResult(tr) = block {
-                            tool_results.insert(tr.call_id.0.clone(), tr.clone());
+    if let Ok(turns) = store.load_turns_with_timestamps(session_id).await {
+        if !turns.is_empty() {
+            for (created_at, turn_messages) in &turns {
+                let time_str = crate::main_content::assistant_messages::format_timestamp(*created_at);
+
+                let mut tool_results = std::collections::HashMap::new();
+                for msg in turn_messages {
+                    if msg.role == operon_rs::context::MessageRole::Tool {
+                        for block in &msg.content {
+                            if let operon_rs::context::ContentBlock::ToolResult(tr) = block {
+                                tool_results.insert(tr.call_id.0.clone(), tr.clone());
+                            }
                         }
                     }
                 }
-            }
 
-            let mut current_assistant_items = Vec::new();
-            let mut current_assistant_text_parts = Vec::new();
+                let mut current_assistant_items = Vec::new();
+                let mut current_assistant_text_parts = Vec::new();
 
-            for msg in &full_history {
-                let is_user = msg.role == operon_rs::context::MessageRole::User;
-                let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
+                for msg in turn_messages {
+                    let is_user = msg.role == operon_rs::context::MessageRole::User;
+                    let is_assistant = msg.role == operon_rs::context::MessageRole::Assistant;
 
-                if is_user {
-                    if !current_assistant_items.is_empty()
-                        || !current_assistant_text_parts.is_empty()
-                    {
-                        let text = current_assistant_text_parts.join("\n");
-                        raw_messages.push((false, text, current_assistant_items.clone()));
-                        current_assistant_items.clear();
-                        current_assistant_text_parts.clear();
-                    }
-
-                    let mut msg_items = Vec::new();
-                    let mut text_parts = Vec::new();
-                    for block in &msg.content {
-                        match block {
-                            operon_rs::context::ContentBlock::Text(s) => {
-                                text_parts.push(s.clone());
-                                msg_items.push(ParsedMarkdownItem::new_default(
-                                    "text".to_string(),
-                                    s.clone(),
-                                ));
-                            }
-                            operon_rs::context::ContentBlock::Image(_) => {
-                                let img_str = "[Attached image]".to_string();
-                                text_parts.push(img_str.clone());
-                                msg_items.push(ParsedMarkdownItem::new_default(
-                                    "text".to_string(),
-                                    img_str,
-                                ));
-                            }
-                            _ => {}
-                        }
-                    }
-                    let text = text_parts.join("\n");
-                    if !text.is_empty() || !msg_items.is_empty() {
-                        raw_messages.push((true, text, msg_items));
-                    }
-                } else if is_assistant {
-                    for block in &msg.content {
-                        match block {
-                            operon_rs::context::ContentBlock::Text(s) => {
-                                if !s.trim().is_empty() {
-                                    current_assistant_text_parts.push(s.clone());
-                                    current_assistant_items.push(ParsedMarkdownItem::new_default(
+                    if is_user {
+                        let mut msg_items = Vec::new();
+                        let mut text_parts = Vec::new();
+                        for block in &msg.content {
+                            match block {
+                                operon_rs::context::ContentBlock::Text(s) => {
+                                    text_parts.push(s.clone());
+                                    msg_items.push(ParsedMarkdownItem::new_default(
                                         "text".to_string(),
                                         s.clone(),
                                     ));
                                 }
-                            }
-                            operon_rs::context::ContentBlock::Reasoning(rb) => {
-                                let mut item = ParsedMarkdownItem::new_default(
-                                    "thinking".to_string(),
-                                    String::new(),
-                                );
-                                item.thinking_text = rb.thinking.clone();
-                                item.is_thinking_active = false;
-                                current_assistant_items.push(item);
-                            }
-                            operon_rs::context::ContentBlock::ToolCall(tc) => {
-                                let call_id_str = tc.id.0.clone();
-                                let mut tool_item = ParsedMarkdownItem::new_default(
-                                    "tool".to_string(),
-                                    String::new(),
-                                );
-                                tool_item.tool_name = tc.name.clone();
-                                tool_item.tool_call_id = call_id_str.clone();
-
-                                let args_str =
-                                    serde_json::to_string_pretty(&tc.arguments).unwrap_or_default();
-                                tool_item.tool_args = args_str.clone();
-
-                                if let Some(tr) = tool_results.get(&call_id_str) {
-                                    tool_item.tool_status = if tr.is_error {
-                                        "failed".to_string()
-                                    } else {
-                                        "completed".to_string()
-                                    };
-                                    let res_text = match &tr.content {
-                                        operon_rs::context::ToolContent::Text(t) => t.clone(),
-                                        operon_rs::context::ToolContent::Json(val) => {
-                                            val.to_string()
-                                        }
-                                    };
-                                    tool_item.tool_result = res_text;
-                                    tool_item.tool_title =
-                                        crate::main_content::tools::cards::get_tool_friendly_title(
-                                            &tc.name, &args_str, true,
-                                        );
-                                } else {
-                                    tool_item.tool_status = "running".to_string();
-                                    tool_item.tool_title =
-                                        crate::main_content::tools::cards::get_tool_friendly_title(
-                                            &tc.name, &args_str, false,
-                                        );
+                                operon_rs::context::ContentBlock::Image(_) => {
+                                    let img_str = "[Attached image]".to_string();
+                                    text_parts.push(img_str.clone());
+                                    msg_items.push(ParsedMarkdownItem::new_default(
+                                        "text".to_string(),
+                                        img_str,
+                                    ));
                                 }
-                                current_assistant_items.push(tool_item);
+                                _ => {}
                             }
-                            _ => {}
+                        }
+                        let text = text_parts.join("\n");
+                        if !text.is_empty() || !msg_items.is_empty() {
+                            raw_messages.push((true, text, msg_items, String::new()));
+                        }
+                    } else if is_assistant {
+                        for block in &msg.content {
+                            match block {
+                                operon_rs::context::ContentBlock::Text(s) => {
+                                    if !s.trim().is_empty() {
+                                        current_assistant_text_parts.push(s.clone());
+                                        current_assistant_items.push(ParsedMarkdownItem::new_default(
+                                            "text".to_string(),
+                                            s.clone(),
+                                        ));
+                                    }
+                                }
+                                operon_rs::context::ContentBlock::Reasoning(rb) => {
+                                    let mut item = ParsedMarkdownItem::new_default(
+                                        "thinking".to_string(),
+                                        String::new(),
+                                    );
+                                    item.thinking_text = rb.thinking.clone();
+                                    item.is_thinking_active = false;
+                                    current_assistant_items.push(item);
+                                }
+                                operon_rs::context::ContentBlock::ToolCall(tc) => {
+                                    let call_id_str = tc.id.0.clone();
+                                    let mut tool_item = ParsedMarkdownItem::new_default(
+                                        "tool".to_string(),
+                                        String::new(),
+                                    );
+                                    tool_item.tool_name = tc.name.clone();
+                                    tool_item.tool_call_id = call_id_str.clone();
+
+                                    let args_str =
+                                        serde_json::to_string_pretty(&tc.arguments).unwrap_or_default();
+                                    tool_item.tool_args = args_str.clone();
+
+                                    if let Some(tr) = tool_results.get(&call_id_str) {
+                                        tool_item.tool_status = if tr.is_error {
+                                            "failed".to_string()
+                                        } else {
+                                            "completed".to_string()
+                                        };
+                                        let res_text = match &tr.content {
+                                            operon_rs::context::ToolContent::Text(t) => t.clone(),
+                                            operon_rs::context::ToolContent::Json(val) => {
+                                                val.to_string()
+                                            }
+                                        };
+                                        tool_item.tool_result = res_text;
+                                        tool_item.tool_title =
+                                            crate::main_content::tools::cards::get_tool_friendly_title(
+                                                &tc.name, &args_str, true,
+                                            );
+                                    } else {
+                                        tool_item.tool_status = "running".to_string();
+                                        tool_item.tool_title =
+                                            crate::main_content::tools::cards::get_tool_friendly_title(
+                                                &tc.name, &args_str, false,
+                                            );
+                                    }
+                                    current_assistant_items.push(tool_item);
+                                }
+                                _ => {}
+                            }
                         }
                     }
                 }
-            }
 
-            if !current_assistant_items.is_empty() || !current_assistant_text_parts.is_empty() {
-                let text = current_assistant_text_parts.join("\n");
-                raw_messages.push((false, text, current_assistant_items));
+                if !current_assistant_items.is_empty() || !current_assistant_text_parts.is_empty() {
+                    let text = current_assistant_text_parts.join("\n");
+                    raw_messages.push((false, text, current_assistant_items, time_str));
+                }
             }
         }
     }

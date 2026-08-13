@@ -47,102 +47,101 @@ export component UserMessage inherits Rectangle {
     callback code-copied(int /* item-index */);
     
     // ===== Layout =====
-    // Background is transparent
     background: transparent;
     
-    // Outer TouchArea as a sibling overlay wrapping the entire area for hover detection.
+    // Outer TouchArea wrapping all children so hover remains active while interacting with child buttons
     hover-touch := TouchArea {
         width: 100%;
         height: 100%;
-    }
-    
-    // Main layout determining the height of the component
-    HorizontalLayout {
-        // Add 12px padding on the right to match assistant message padding
-        padding-right: 12px;
-        
-        // Left spacer - pushes content to the right
-        Rectangle {
-            horizontal-stretch: 1;
-            background: transparent;
-        }
-        
-        // Right section containing the message bubble and buttons
-        right-section := Rectangle {
-            width: root.max-bubble-width;
-            horizontal-stretch: 0;
-            background: transparent;
-            height: right-section-layout.preferred-height;
+
+        // Main layout determining the height of the component
+        HorizontalLayout {
+            // Add 12px padding on the right to match assistant message padding
+            padding-right: 12px;
             
-            // Vertical layout for bubble and buttons
-            right-section-layout := VerticalLayout {
-                spacing: 4px;
-                alignment: start;
+            // Left spacer - pushes content to the right
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
+            
+            // Right section containing the message bubble and buttons
+            right-section := Rectangle {
+                width: root.max-bubble-width;
+                horizontal-stretch: 0;
+                background: transparent;
+                height: right-section-layout.preferred-height;
                 
-                // ===== MESSAGE BUBBLE =====
-                bubble := MessageBubble {
-                    message-text: root.message-text;
-                    markdown-elements: root.markdown-elements;
-                    is-expanded <=> root.is-expanded;
-                    is-editing <=> root.is-editing;
-                    edit-text <=> root.edit-text;
+                // Vertical layout for bubble and buttons
+                right-section-layout := VerticalLayout {
+                    spacing: 4px;
+                    alignment: start;
                     
-                    // Forward the expand callback
-                    expand-clicked => {
-                        root.expand-clicked();
-                    }
-
-                    code-copied(idx) => {
-                        root.code-copied(idx);
-                    }
-
-                    save-clicked(new_text) => {
-                        root.save-edit-clicked(new_text);
-                    }
-
-                    cancel-clicked => {
-                        root.cancel-edit-clicked();
-                    }
-                }
-                
-                action-buttons-container := Rectangle {
-                    height: root.is-editing ? 0px : 28px;
-                    visible: !root.is-editing;
-                    vertical-stretch: 0;
-                    horizontal-stretch: 1;
-
-                    action-buttons := Rectangle {
-                        width: 100%;
-                        height: 100%;
-                        background: transparent;
-
-                        // Fade effect linked to parent hover state
-                        opacity: hover-touch.has-hover && !root.is-editing ? 1.0 : 0.0;
+                    // ===== MESSAGE BUBBLE =====
+                    bubble := MessageBubble {
+                        message-text: root.message-text;
+                        markdown-elements: root.markdown-elements;
+                        is-expanded <=> root.is-expanded;
+                        is-editing <=> root.is-editing;
+                        edit-text <=> root.edit-text;
                         
-                        // Fully disable interactions when completely faded out
-                        visible: self.opacity > 0.0;
+                        // Forward the expand callback
+                        expand-clicked => {
+                            root.expand-clicked();
+                        }
 
-                        // Smooth opacity transition on hover enter/exit
-                        animate opacity { duration: 150ms; easing: ease-in-out; }
+                        code-copied(idx) => {
+                            root.code-copied(idx);
+                        }
 
-                        // Horizontal layout for buttons
-                        HorizontalLayout {
-                            spacing: 8px;
-                            alignment: start;
+                        save-clicked(new_text) => {
+                            root.save-edit-clicked(new_text);
+                        }
+
+                        cancel-clicked => {
+                            root.cancel-edit-clicked();
+                        }
+                    }
+                    
+                    action-buttons-container := Rectangle {
+                        height: root.is-editing ? 0px : 28px;
+                        visible: !root.is-editing;
+                        vertical-stretch: 0;
+                        horizontal-stretch: 1;
+
+                        action-buttons := Rectangle {
+                            width: 100%;
+                            height: 100%;
+                            background: transparent;
+
+                            // Fade effect linked to parent hover state
+                            opacity: hover-touch.has-hover && !root.is-editing ? 1.0 : 0.0;
                             
-                            // Edit button
-                            EditButton {
-                                clicked => {
-                                    root.is-editing = true;
-                                    root.edit-text = root.message-text;
-                                    root.edit-clicked();
+                            // Fully disable interactions when completely faded out
+                            visible: self.opacity > 0.0;
+
+                            // Smooth opacity transition on hover enter/exit
+                            animate opacity { duration: 150ms; easing: ease-in-out; }
+
+                            // Horizontal layout for buttons
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
+                                
+                                // Edit button
+                                EditButton {
+                                    clicked => {
+                                        root.is-editing = true;
+                                        root.edit-text = root.message-text;
+                                        root.edit-clicked();
+                                    }
                                 }
-                            }
-                            
-                            // Copy button
-                            CopyButton {
-                                clicked => {
-                                    root.copy-clicked();
+                                
+                                // Copy button
+                                CopyButton {
+                                    clicked => {
+                                        root.copy-clicked();
+                                    }
                                 }
                             }
                         }

@@ -262,6 +262,36 @@ impl SessionStore {
         Ok(session.turns.into_iter().map(|t| t.messages).collect())
     }
 
+    /// Load all turns for a session with their created_at timestamps in ascending order.
+    ///
+    /// Returns a `Vec<(i64, Vec<ConversationMessage>)>` where the first element is the
+    /// Unix timestamp `created_at` for that turn, and the second is the messages list.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
+    pub async fn load_turns_with_timestamps(
+        &self,
+        _session_id: &str,
+    ) -> Result<Vec<(i64, Vec<ConversationMessage>)>, SessionError> {
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let mut session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        session.turns.sort_by_key(|t| t.turn_index);
+
+        Ok(session
+            .turns
+            .into_iter()
+            .map(|t| (t.created_at, t.messages))
+            .collect())
+    }
+
     /// Load all messages across all turns in chronological order.
     ///
     /// Flattens the per-turn message vectors into a single combined conversation vector.

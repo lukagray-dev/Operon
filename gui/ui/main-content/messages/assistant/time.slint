@@ -10,12 +10,13 @@ import { Tokens } from "../../../shared/tokens.slint";
 // Shows when the message was generated.
 export component TimeDisplay inherits Rectangle {
     // The time text to display (e.g., "2m ago", "1h ago")
-    in property <string> time-text: "Just now";
+    in property <string> time-text: "";
     
-    // Dynamic width based on text content
-    width: time-label.preferred-width + 8px;
+    // Dynamic width based on text content (0px if empty)
+    width: root.time-text != "" ? (time-label.preferred-width + 8px) : 0px;
     height: 24px;
     background: transparent;
+    visible: root.time-text != "";
     
     // Center the time text
     HorizontalLayout {

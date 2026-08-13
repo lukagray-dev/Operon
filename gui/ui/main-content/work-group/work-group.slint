@@ -5,11 +5,79 @@ import { ComposingOrb, SolvingOrb, BreathingOrb } from "../../shared/orbs/mod.sl
 import { ToolDetailBody } from "../tools/detail-body.slint";
 import { WorkGroupItem } from "./types.slint";
 
+component WorkGroupToolItem inherits VerticalLayout {
+    in property <WorkGroupItem> item;
+    in property <int> item-idx;
+    callback item-toggled(int);
+
+    in-out property <bool> is-expanded: root.item.item_expanded;
+
+    spacing: 6px;
+    horizontal-stretch: 1;
+
+    Rectangle {
+        height: 22px;
+        horizontal-stretch: 1;
+        background: transparent;
+
+        tool-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.is-expanded = !root.is-expanded;
+                root.item-toggled(root.item-idx);
+            }
+
+            HorizontalLayout {
+                spacing: 6px;
+
+                Text {
+                    text: root.item.tool_title != "" ? root.item.tool_title : ("Running " + root.item.tool_name);
+                    font-family: Tokens.font_family;
+                    font-size: 12.5px;
+                    color: tool-touch.has-hover ? #ffffff : #a8a8a8;
+                    font-weight: tool-touch.has-hover ? 500 : 400;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+
+                    animate color { duration: 120ms; easing: ease-in-out; }
+                }
+
+                // Vertically center the chevron icon in the sub-tool detail row
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
+                        width: 10px;
+                        height: 10px;
+                        colorize: tool-touch.has-hover ? #ffffff : #777777;
+                        opacity: 0.5;
+                        transform-rotation: root.is-expanded ? 0deg : -90deg;
+
+                        animate transform-rotation {
+                            duration: 150ms;
+                            easing: ease-in-out;
+                        }
+                        animate colorize { duration: 120ms; easing: ease-in-out; }
+                    }
+                }
+            }
+        }
+    }
+
+    if (root.is-expanded) : ToolDetailBody {
+        width: 100%;
+        horizontal-stretch: 1;
+        tool-args: root.item.tool_args;
+        tool-result: root.item.tool_result;
+        tool-status: root.item.tool_status;
+    }
+}
+
 export component WorkGroup inherits VerticalLayout {
     in property <[WorkGroupItem]> items: [];
     in property <bool> is-active: false;
     in property <int> elapsed-secs: 0;
-    in property <bool> expanded: false;
+    in-out property <bool> expanded: false;
     in property <string> summary-text: "";
     in property <int> orb-style: 0; // 0=composing, 1=solving, 2=breathing
 
@@ -79,6 +147,7 @@ export component WorkGroup inherits VerticalLayout {
         header-touch := TouchArea {
             mouse-cursor: pointer;
             clicked => {
+                root.expanded = !root.expanded;
                 root.toggle-expanded();
             }
 
@@ -270,64 +339,11 @@ export component WorkGroup inherits VerticalLayout {
                     horizontal-stretch: 1;
                 }
 
-                if (item.kind == "tool") : VerticalLayout {
-                    spacing: 6px;
-                    horizontal-stretch: 1;
-
-                    Rectangle {
-                        height: 22px;
-                        horizontal-stretch: 1;
-                        background: transparent;
-
-                        tool-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.item-toggled(idx);
-                            }
-
-                            HorizontalLayout {
-                                spacing: 6px;
-
-                                Text {
-                                    text: item.tool_title != "" ? item.tool_title : ("Running " + item.tool_name);
-                                    font-family: Tokens.font_family;
-                                    font-size: 12.5px;
-                                    color: tool-touch.has-hover ? #ffffff : #a8a8a8;
-                                    font-weight: tool-touch.has-hover ? 500 : 400;
-                                    vertical-alignment: center;
-                                    horizontal-stretch: 1;
-
-                                    animate color { duration: 120ms; easing: ease-in-out; }
-                                }
-
-                                // Vertically center the chevron icon in the sub-tool detail row
-                                VerticalLayout {
-                                    alignment: center;
-                                    Image {
-                                        source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
-                                        width: 10px;
-                                        height: 10px;
-                                        colorize: tool-touch.has-hover ? #ffffff : #777777;
-                                        opacity: 0.5;
-                                        transform-rotation: item.item_expanded ? 0deg : -90deg;
-
-                                        animate transform-rotation {
-                                            duration: 150ms;
-                                            easing: ease-in-out;
-                                        }
-                                        animate colorize { duration: 120ms; easing: ease-in-out; }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (item.item_expanded) : ToolDetailBody {
-                        width: 100%;
-                        horizontal-stretch: 1;
-                        tool-args: item.tool_args;
-                        tool-result: item.tool_result;
-                        tool-status: item.tool_status;
+                if (item.kind == "tool") : WorkGroupToolItem {
+                    item: item;
+                    item-idx: idx;
+                    item-toggled(item_idx) => {
+                        root.item-toggled(item_idx);
                     }
                 }
             }

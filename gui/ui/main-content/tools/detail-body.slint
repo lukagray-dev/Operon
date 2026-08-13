@@ -12,39 +12,15 @@ export component ToolDetailBody inherits Rectangle {
     clip: true;
     width: 100%;
     horizontal-stretch: 1;
-    height: Math.min(270px, detail-content.preferred-height);
+    height: Math.min(270px, Math.max(28px, detail-content.preferred-height));
 
     detail-flickable := Flickable {
         width: 100%;
         horizontal-stretch: 1;
         height: parent.height;
         viewport-width: self.width;
-        viewport-height: detail-content.preferred-height;
+        viewport-height: Math.max(parent.height, detail-content.preferred-height);
         interactive: true;
-
-        property <length> target-scroll-y: 0px;
-        viewport-y: self.target-scroll-y;
-
-        changed viewport-height => {
-            self.target-scroll-y = Math.min(0px, parent.height - self.viewport-height);
-        }
-
-        animate viewport-y {
-            duration: 100ms;
-            easing: ease-out;
-        }
-
-        TouchArea {
-            width: 100%;
-            height: max(detail-flickable.height, detail-flickable.viewport-height);
-            scroll-event(e) => {
-                detail-flickable.target-scroll-y = Math.clamp(
-                    detail-flickable.target-scroll-y + e.delta-y,
-                    Math.min(0px, detail-flickable.height - detail-flickable.viewport-height),
-                    0px);
-                EventResult.accept
-            }
-        }
 
         detail-content := VerticalLayout {
             alignment: start;
@@ -56,7 +32,7 @@ export component ToolDetailBody inherits Rectangle {
             width: 100%;
             horizontal-stretch: 1;
 
-            if (root.tool-args != ""): Text {
+            if (root.tool-args != "") : Text {
                 text: "args: " + root.tool-args;
                 color: #888888;
                 font-size: 11px;
@@ -67,15 +43,25 @@ export component ToolDetailBody inherits Rectangle {
             }
 
             // Subtle horizontal divider between tool input arguments and output result
-            if (root.tool-args != "" && root.tool-result != ""): Rectangle {
-                height: 2px;
+            if (root.tool-args != "" && root.tool-result != "") : Rectangle {
+                height: 1px;
                 width: 100%;
                 background: rgba(255, 255, 255, 0.08);
             }
 
-            if (root.tool-result != ""): Text {
+            if (root.tool-result != "") : Text {
                 text: root.tool-result;
                 color: root.tool-status == "failed" ? #ef9a9a : #c7c7c7;
+                font-size: 11px;
+                font-family: Tokens.mono_font_family;
+                wrap: word-wrap;
+                width: 100%;
+                horizontal-stretch: 1;
+            }
+
+            if (root.tool-args == "" && root.tool-result == "") : Text {
+                text: root.tool-status == "running" ? "Tool is executing..." : "No input or output data available.";
+                color: #888888;
                 font-size: 11px;
                 font-family: Tokens.mono_font_family;
                 wrap: word-wrap;

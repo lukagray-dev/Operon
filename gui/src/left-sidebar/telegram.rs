@@ -229,13 +229,13 @@ pub fn wire_telegram(window: &crate::OperonWindow, state: Rc<RefCell<AppState>>)
                                             );
                                             let slint_messages: Vec<crate::ChatMessage> = raw_messages
                                                 .into_iter()
-                                                .map(|(is_user, text, items)| {
+                                                .map(|(is_user, text, items, time_str)| {
                                                     let elements = crate::main_content::markdown::to_slint_elements(items);
                                                     crate::ChatMessage {
                                                         id: "".into(),
                                                         is_user,
                                                         text: text.into(),
-                                                        time: "".into(),
+                                                        time: time_str.into(),
                                                         markdown_elements: slint::ModelRc::from(Rc::new(
                                                             slint::VecModel::from(elements),
                                                         )),
