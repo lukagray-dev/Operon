@@ -90,7 +90,6 @@ pub fn append_tool_args_ready(
             };
             tool_item.tool_args = pretty_args;
             tool_item.tool_title = get_tool_friendly_title(name, args_json, false);
-            crate::main_content::tools::diff::apply_diff_overlay(tool_item, name, args_json);
         }
     }
 }
@@ -121,9 +120,6 @@ pub fn append_tool_result(
             tool_item.tool_status = if is_error { "failed" } else { "completed" }.to_string();
             tool_item.tool_result = result_text;
             tool_item.tool_title = title;
-
-            let tool_args = tool_item.tool_args.clone();
-            crate::main_content::tools::diff::apply_diff_overlay(tool_item, name, &tool_args);
         }
     } else {
         state.in_thinking = false;
@@ -135,9 +131,6 @@ pub fn append_tool_result(
         tool_item.tool_status = if is_error { "failed" } else { "completed" }.to_string();
         tool_item.tool_result = result_text;
         tool_item.tool_call_id = call_id.to_string();
-
-        let tool_args = tool_item.tool_args.clone();
-        crate::main_content::tools::diff::apply_diff_overlay(&mut tool_item, name, &tool_args);
 
         if let Some(group) = state.current_blocks.get_mut(group_idx) {
             let item_idx = group.work_group_items.len();

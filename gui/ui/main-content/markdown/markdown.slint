@@ -18,7 +18,6 @@ import { MarkdownDisplayMath } from "./math.slint";
 import { MarkdownBlockQuote } from "./blockquote.slint";
 import { MarkdownLink } from "./link.slint";
 import { MarkdownMermaid } from "./mermaid.slint";
-import { DiffLine } from "../tools/diff.slint";
 import { WorkGroup } from "../work-group/work-group.slint";
 import { WorkGroupItem } from "../work-group/types.slint";
 
@@ -68,10 +67,6 @@ export struct MarkdownElement {
     tool_args: string,
     tool_result: string,
     tool_status: string, // "running", "completed", "failed"
-    tool_is_diff: bool,
-    tool_diff_lines: [DiffLine],
-    tool_added_count: int,
-    tool_deleted_count: int,
     tool_call_id: string,
 
     // Collapsed assistant work activity summary fields

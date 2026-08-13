@@ -16,7 +16,7 @@ export component WorkGroup inherits VerticalLayout {
     callback toggle-expanded();
     callback item-toggled(int /* item_idx */);
 
-    spacing: 6px;
+    spacing: 0px;
     padding-top: 2px;
     padding-bottom: 2px;
     width: 100%;
@@ -74,10 +74,7 @@ export component WorkGroup inherits VerticalLayout {
     header-row := Rectangle {
         height: 32px;
         horizontal-stretch: 1;
-        background: header-touch.has-hover ? rgba(255, 255, 255, 0.025) : transparent;
-        border-radius: 6px;
-
-        animate background { duration: 120ms; easing: ease-in-out; }
+        background: transparent;
 
         header-touch := TouchArea {
             mouse-cursor: pointer;
@@ -92,8 +89,8 @@ export component WorkGroup inherits VerticalLayout {
                 // Left-align the work activity pill and text instead of horizontally centering it
                 alignment: start;
 
-                // Vertically center the thinking orb animation container in the header row
-                VerticalLayout {
+                // Vertically center the thinking orb animation container in the header row only while active
+                if (root.is-active) : VerticalLayout {
                     alignment: center;
                     Rectangle {
                         width: 20px;
@@ -119,16 +116,17 @@ export component WorkGroup inherits VerticalLayout {
                     text: root.is-active
                         ? "Working..."
                         : (root.summary-text + " | Worked for " + root.elapsed-secs + "s.");
-                    color: root.has-hover ? #d6d6d6 : #b8b8b8;
-                    opacity: root.is-active ? root.pulse-opacity : 1.0;
+                    color: header-touch.has-hover ? #ffffff : #a0a0a0;
+                    opacity: root.is-active ? root.pulse-opacity : (header-touch.has-hover ? 1.0 : 0.88);
                     font-size: 13px;
                     font-family: Tokens.font_family;
+                    font-weight: header-touch.has-hover ? 500 : 400;
                     wrap: word-wrap;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
 
                     animate color { duration: 120ms; easing: ease-in-out; }
-                    animate opacity { duration: 900ms; easing: ease-in-out; }
+                    animate opacity { duration: 120ms; easing: ease-in-out; }
                 }
 
                 // Vertically center the expand/collapse chevron icon in the header row
@@ -138,8 +136,8 @@ export component WorkGroup inherits VerticalLayout {
                         source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
                         width: 12px;
                         height: 12px;
-                        colorize: root.has-hover ? #a8a8a8 : #777777;
-                        opacity: 0.65;
+                        colorize: header-touch.has-hover ? #ffffff : #777777;
+                        opacity: header-touch.has-hover ? 1.0 : 0.6;
                         transform-rotation: root.expanded ? 0deg : -90deg;
 
                         animate transform-rotation {
@@ -147,6 +145,7 @@ export component WorkGroup inherits VerticalLayout {
                             easing: ease-in-out;
                         }
                         animate colorize { duration: 120ms; easing: ease-in-out; }
+                        animate opacity { duration: 120ms; easing: ease-in-out; }
                     }
                 }
             }
@@ -164,12 +163,32 @@ export component WorkGroup inherits VerticalLayout {
 
             HorizontalLayout {
                 spacing: 8px;
+                padding-top: 2px;
+                padding-bottom: 6px;
                 // Default stretch alignment so tool items and detail cards expand across full available width
 
                 Rectangle {
                     width: 20px;
-                    height: 22px;
                     background: transparent;
+
+                    // Timeline connector line starting at the first checkpoint icon (y: 4px)
+                    Rectangle {
+                        width: 1px;
+                        x: (parent.width - self.width) / 2;
+                        y: idx == 0 ? 4px : 0px;
+                        height: idx == 0 ? (parent.height - 4px) : parent.height;
+                        background: rgba(255, 255, 255, 0.12);
+                    }
+
+                    // Dark background mask behind icon so the 1px line doesn't show through transparent SVGs
+                    Rectangle {
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: 4px;
+                        border-radius: 3px;
+                        background: #141414;
+                    }
 
                     if (item.kind == "thinking") : Image {
                         source: @image-url("../../../assets/icons/main-content/messages/assistant/work-thinking.svg");
@@ -258,8 +277,7 @@ export component WorkGroup inherits VerticalLayout {
                     Rectangle {
                         height: 22px;
                         horizontal-stretch: 1;
-                        background: tool-touch.has-hover ? rgba(255, 255, 255, 0.025) : transparent;
-                        border-radius: 4px;
+                        background: transparent;
 
                         tool-touch := TouchArea {
                             mouse-cursor: pointer;
@@ -274,25 +292,12 @@ export component WorkGroup inherits VerticalLayout {
                                     text: item.tool_title != "" ? item.tool_title : ("Running " + item.tool_name);
                                     font-family: Tokens.font_family;
                                     font-size: 12.5px;
-                                    color: tool-touch.has-hover ? #dfdfdf : #cccccc;
+                                    color: tool-touch.has-hover ? #ffffff : #a8a8a8;
+                                    font-weight: tool-touch.has-hover ? 500 : 400;
                                     vertical-alignment: center;
                                     horizontal-stretch: 1;
-                                }
 
-                                if (item.tool_is_diff && (item.tool_added_count > 0 || item.tool_deleted_count > 0)) : HorizontalLayout {
-                                    spacing: 5px;
-                                    if (item.tool_added_count > 0) : Text {
-                                        text: "+" + item.tool_added_count;
-                                        color: #81c784;
-                                        font-size: 11px;
-                                        font-family: Tokens.mono_font_family;
-                                    }
-                                    if (item.tool_deleted_count > 0) : Text {
-                                        text: "-" + item.tool_deleted_count;
-                                        color: #e57373;
-                                        font-size: 11px;
-                                        font-family: Tokens.mono_font_family;
-                                    }
+                                    animate color { duration: 120ms; easing: ease-in-out; }
                                 }
 
                                 // Vertically center the chevron icon in the sub-tool detail row
@@ -302,7 +307,7 @@ export component WorkGroup inherits VerticalLayout {
                                         source: @image-url("../../../assets/icons/sidebar/chevron-down.svg");
                                         width: 10px;
                                         height: 10px;
-                                        colorize: tool-touch.has-hover ? #999999 : #777777;
+                                        colorize: tool-touch.has-hover ? #ffffff : #777777;
                                         opacity: 0.5;
                                         transform-rotation: item.item_expanded ? 0deg : -90deg;
 
@@ -310,6 +315,7 @@ export component WorkGroup inherits VerticalLayout {
                                             duration: 150ms;
                                             easing: ease-in-out;
                                         }
+                                        animate colorize { duration: 120ms; easing: ease-in-out; }
                                     }
                                 }
                             }
@@ -322,30 +328,7 @@ export component WorkGroup inherits VerticalLayout {
                         tool-args: item.tool_args;
                         tool-result: item.tool_result;
                         tool-status: item.tool_status;
-                        tool-is-diff: item.tool_is_diff;
-                        tool-diff-lines: item.tool_diff_lines;
                     }
-                }
-            }
-
-            if (idx < root.items.length - 1) : HorizontalLayout {
-                spacing: 8px;
-                Rectangle {
-                    width: 20px;
-                    height: 10px;
-                    background: transparent;
-
-                    Rectangle {
-                        width: 1px;
-                        height: parent.height;
-                        x: (parent.width - self.width) / 2;
-                        background: rgba(255, 255, 255, 0.12);
-                    }
-                }
-                Rectangle {
-                    height: 10px;
-                    horizontal-stretch: 1;
-                    background: transparent;
                 }
             }
         }

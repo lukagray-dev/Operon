@@ -1,7 +1,6 @@
 // Slint UI component for standalone tool execution cards.
 
 import { Tokens } from "../../shared/tokens.slint";
-import { DiffLine } from "./diff.slint";
 import { ToolDetailBody } from "./detail-body.slint";
 
 export component ToolCard inherits Rectangle {
@@ -10,10 +9,6 @@ export component ToolCard inherits Rectangle {
     in property <string> tool-args: "";
     in property <string> tool-result: "";
     in property <string> tool-status: "running"; // "running", "completed", "failed"
-    in property <bool> tool-is-diff: false;
-    in property <[DiffLine]> tool-diff-lines: [];
-    in property <int> tool-added-count: 0;
-    in property <int> tool-deleted-count: 0;
 
     in-out property <bool> collapsed: true;
     property <bool> has-hover: touch.has-hover;
@@ -74,28 +69,6 @@ export component ToolCard inherits Rectangle {
                     horizontal-stretch: 1;
 
                     animate color { duration: 120ms; }
-                }
-
-                if (root.tool-is-diff && (root.tool-added-count > 0 || root.tool-deleted-count > 0)) : HorizontalLayout {
-                    spacing: 6px;
-                    alignment: center;
-
-                    if (root.tool-added-count > 0) : Text {
-                        text: "+" + root.tool-added-count;
-                        color: #81c784;
-                        font-size: 11px;
-                        font-family: Tokens.mono_font_family;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
-                    if (root.tool-deleted-count > 0) : Text {
-                        text: "-" + root.tool-deleted-count;
-                        color: #e57373;
-                        font-size: 11px;
-                        font-family: Tokens.mono_font_family;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
                 }
 
                 if (root.tool-status == "running") : Image {
@@ -162,8 +135,6 @@ export component ToolCard inherits Rectangle {
                 tool-args: root.tool-args;
                 tool-result: root.tool-result;
                 tool-status: root.tool-status;
-                tool-is-diff: root.tool-is-diff;
-                tool-diff-lines: root.tool-diff-lines;
             }
         }
     }

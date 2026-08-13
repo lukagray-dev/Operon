@@ -33,8 +33,6 @@ pub mod terminal;
 pub mod tools {
     #[path = "cards.rs"]
     pub mod cards;
-    #[path = "diff.rs"]
-    pub mod diff;
 }
 
 use crate::state::AppState;

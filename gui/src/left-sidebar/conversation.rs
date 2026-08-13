@@ -143,12 +143,6 @@ pub async fn load_session_history(
                                         crate::main_content::tools::cards::get_tool_friendly_title(
                                             &tc.name, &args_str, true,
                                         );
-
-                                    crate::main_content::tools::diff::apply_diff_overlay(
-                                        &mut tool_item,
-                                        &tc.name,
-                                        &args_str,
-                                    );
                                 } else {
                                     tool_item.tool_status = "running".to_string();
                                     tool_item.tool_title =

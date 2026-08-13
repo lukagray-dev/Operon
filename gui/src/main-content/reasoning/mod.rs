@@ -40,33 +40,38 @@ impl ResponseState {
 
     /// Flushes any accumulated text deltas into a text markdown block.
     pub fn flush_text(&mut self) {
-        if self.work_group_open {
-            self.close_work_group();
-        }
-
-        if !self.current_text_accumulator.is_empty() {
+        if !self.current_text_accumulator.trim().is_empty() {
             let text_item = ParsedMarkdownItem::new_default(
                 "text".to_string(),
                 self.current_text_accumulator.clone(),
             );
             self.current_blocks.push(text_item);
-            self.current_text_accumulator.clear();
         }
+        self.current_text_accumulator.clear();
     }
 
     /// Ensures a single collapsed work activity block exists for the active thinking/tool run.
     pub fn ensure_work_group_open(&mut self) -> usize {
-        if !self.work_group_open {
-            self.flush_text();
-
-            let mut work_group =
-                ParsedMarkdownItem::new_default("work_group".to_string(), String::new());
-            work_group.work_group_active = true;
-            self.current_blocks.push(work_group);
+        if let Some(idx) = self
+            .current_blocks
+            .iter()
+            .position(|block| block.kind == "work_group")
+        {
             self.work_group_open = true;
-            self.work_group_start = Some(Instant::now());
+            if self.work_group_start.is_none() {
+                self.work_group_start = Some(Instant::now());
+            }
+            let group = &mut self.current_blocks[idx];
+            group.work_group_active = true;
+            return idx;
         }
 
+        let mut work_group =
+            ParsedMarkdownItem::new_default("work_group".to_string(), String::new());
+        work_group.work_group_active = true;
+        self.current_blocks.push(work_group);
+        self.work_group_open = true;
+        self.work_group_start = Some(Instant::now());
         self.current_blocks.len() - 1
     }
 
@@ -80,8 +85,7 @@ impl ResponseState {
         if let Some(group) = self
             .current_blocks
             .iter_mut()
-            .rev()
-            .find(|block| block.kind == "work_group" && block.work_group_active)
+            .find(|block| block.kind == "work_group")
         {
             group.work_group_active = false;
             group.work_group_elapsed_secs = elapsed_secs;
@@ -122,9 +126,6 @@ impl ResponseState {
 
     /// Handles a standard text delta from the assistant response.
     pub fn append_text(&mut self, text: &str) {
-        if self.work_group_open {
-            self.flush_text();
-        }
         self.in_thinking = false;
         self.current_text_accumulator.push_str(text);
     }
@@ -132,7 +133,19 @@ impl ResponseState {
     /// Assembles current blocks into a Send-safe vector of items.
     pub fn build_parsed_items(&self) -> Vec<ParsedMarkdownItem> {
         let mut temp_blocks = self.current_blocks.clone();
-        if !self.current_text_accumulator.is_empty() {
+        let elapsed = self
+            .work_group_start
+            .map(|s| s.elapsed().as_secs().min(i32::MAX as u64) as i32)
+            .unwrap_or(0);
+
+        for block in temp_blocks.iter_mut() {
+            if block.kind == "work_group" && block.work_group_active {
+                block.work_group_elapsed_secs = elapsed;
+                block.work_group_summary = build_work_summary(&block.work_group_items);
+            }
+        }
+
+        if !self.current_text_accumulator.trim().is_empty() {
             temp_blocks.push(ParsedMarkdownItem::new_default(
                 "text".to_string(),
                 self.current_text_accumulator.clone(),
@@ -144,22 +157,10 @@ impl ResponseState {
     /// Finalizes the stream and returns the block list with active thinking set to false.
     pub fn finalize(&mut self) -> Vec<ParsedMarkdownItem> {
         self.in_thinking = false;
-        self.flush_text();
-        for block in self.current_blocks.iter_mut() {
-            if block.kind == "thinking" {
-                block.is_thinking_active = false;
-            } else if block.kind == "work_group" {
-                block.work_group_active = false;
-                if block.work_group_summary.is_empty() {
-                    block.work_group_summary = build_work_summary(&block.work_group_items);
-                }
-                for item in block.work_group_items.iter_mut() {
-                    if item.kind == "thinking" {
-                        item.is_thinking_active = false;
-                    }
-                }
-            }
+        if self.work_group_open {
+            self.close_work_group();
         }
+        self.flush_text();
         self.current_blocks.clone()
     }
 }
@@ -285,5 +286,32 @@ mod tests {
         let items = vec![tool_item("bash"), tool_item("run_command")];
 
         assert_eq!(build_work_summary(&items), "Ran 2 tools");
+    }
+
+    #[test]
+    fn test_multiple_work_steps_grouped_in_single_pill_without_text_between() {
+        let mut state = ResponseState::new();
+
+        state.append_thinking("Thinking step 1...");
+        state.append_text("\n");
+        crate::main_content::tools::cards::append_tool_start(&mut state, "call-1", "web_search");
+        state.append_text(" ");
+        state.append_thinking("Thinking step 2...");
+        crate::main_content::tools::cards::append_tool_start(&mut state, "call-2", "web_search");
+
+        let items = state.build_parsed_items();
+        let work_groups: Vec<_> = items.iter().filter(|i| i.kind == "work_group").collect();
+
+        assert_eq!(work_groups.len(), 1);
+        assert_eq!(work_groups[0].work_group_items.len(), 4);
+
+        state.append_text("Here is the response text");
+        let items_after_text = state.finalize();
+        let work_groups_after: Vec<_> = items_after_text.iter().filter(|i| i.kind == "work_group").collect();
+        let text_blocks: Vec<_> = items_after_text.iter().filter(|i| i.kind == "text").collect();
+
+        assert_eq!(work_groups_after.len(), 1);
+        assert_eq!(text_blocks.len(), 1);
+        assert_eq!(text_blocks[0].text, "Here is the response text");
     }
 }

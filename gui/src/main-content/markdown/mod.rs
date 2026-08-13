@@ -48,10 +48,6 @@ pub struct ParsedMarkdownItem {
     pub tool_args: String,
     pub tool_result: String,
     pub tool_status: String,
-    pub tool_is_diff: bool,
-    pub tool_diff_lines: Vec<crate::main_content::tools::diff::ParsedDiffLine>,
-    pub tool_added_count: i32,
-    pub tool_deleted_count: i32,
     pub tool_call_id: String,
     pub item_expanded: bool,
 
@@ -91,10 +87,6 @@ impl ParsedMarkdownItem {
             tool_args: String::new(),
             tool_result: String::new(),
             tool_status: String::new(),
-            tool_is_diff: false,
-            tool_diff_lines: Vec::new(),
-            tool_added_count: 0,
-            tool_deleted_count: 0,
             tool_call_id: String::new(),
             item_expanded: false,
             work_group_items: Vec::new(),
@@ -133,10 +125,6 @@ pub fn default_markdown_element(block_type: crate::MarkdownBlockType) -> crate::
         tool_args: Default::default(),
         tool_result: Default::default(),
         tool_status: Default::default(),
-        tool_is_diff: false,
-        tool_diff_lines: Default::default(),
-        tool_added_count: 0,
-        tool_deleted_count: 0,
         tool_call_id: Default::default(),
         work_group_items: Default::default(),
         work_group_active: false,
@@ -152,19 +140,6 @@ pub fn default_markdown_element(block_type: crate::MarkdownBlockType) -> crate::
     }
 }
 
-fn diff_lines_to_model(
-    diff_lines: Vec<crate::main_content::tools::diff::ParsedDiffLine>,
-) -> ModelRc<crate::DiffLine> {
-    let diff_lines: Vec<crate::DiffLine> = diff_lines
-        .into_iter()
-        .map(|dl| crate::DiffLine {
-            kind: dl.kind.into(),
-            text: dl.text.into(),
-        })
-        .collect();
-    ModelRc::new(VecModel::from(diff_lines))
-}
-
 fn parsed_item_to_work_group_item(item: ParsedMarkdownItem) -> crate::WorkGroupItem {
     crate::WorkGroupItem {
         kind: item.kind.into(),
@@ -174,10 +149,6 @@ fn parsed_item_to_work_group_item(item: ParsedMarkdownItem) -> crate::WorkGroupI
         tool_args: item.tool_args.into(),
         tool_result: item.tool_result.into(),
         tool_status: item.tool_status.into(),
-        tool_is_diff: item.tool_is_diff,
-        tool_diff_lines: diff_lines_to_model(item.tool_diff_lines),
-        tool_added_count: item.tool_added_count,
-        tool_deleted_count: item.tool_deleted_count,
         tool_call_id: item.tool_call_id.into(),
         item_expanded: item.item_expanded,
     }
