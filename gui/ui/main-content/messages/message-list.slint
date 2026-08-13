@@ -43,6 +43,7 @@ export component MessageList inherits Rectangle {
     // ===== Callbacks =====
     // Message action callbacks
     callback message-edit-clicked(int /* message-index */);
+    callback user-message-edit-saved(int /* message-index */, string /* new-text */);
     callback message-copy-clicked(int /* message-index */);
     
     // Assistant message action callbacks
@@ -127,6 +128,10 @@ export component MessageList inherits Rectangle {
                                     root.message-edit-clicked(idx);
                                 }
                                 
+                                save-edit-clicked(new_text) => {
+                                    root.user-message-edit-saved(idx, new_text);
+                                }
+
                                 copy-clicked => {
                                     root.message-copy-clicked(idx);
                                 }

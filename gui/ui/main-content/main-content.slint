@@ -26,7 +26,10 @@ import { WarningText } from "./input/warning.slint";
 import { TerminalPanel } from "./terminal/terminal.slint";
 import { FloatingPermissionPanel } from "./permission/permission.slint";
 import { MessageList, ChatMessage } from "./messages/message-list.slint";
-export { ChatMessage, AttachmentChip }
+export {
+    ChatMessage,
+    AttachmentChip,
+}
 
 // Main content area component that contains the chat interface.
 // This is the primary workspace where users interact with the AI agent.
@@ -36,39 +39,39 @@ export component MainContent inherits Rectangle {
     // Recommended range: 700px - 1200px
     // Default: 900px (increased from 800px for a wider panel)
     in property <length> input-panel-max-width: 900px;
-    
+
     // ===== Input Panel Properties =====
     // These properties are exposed to allow parent components to control
     // and monitor the input panel state
     
     // Current text in the input field
     in-out property <string> input-text: "";
-    
+
     // Pending attachments list
     in-out property <[AttachmentChip]> pending-attachments: [];
-    
+
     // Selected model and settings
     in-out property <string> selected-model: "";
     in-out property <string> selected-reasoning: "";
     in-out property <bool> auto-approve-enabled: false;
     in-out property <bool> auto-scroll-stream: true;
-    
+
     // Context window information
     in property <float> context-usage: 0.0;
     in property <int> tokens-used: 0;
     in property <int> tokens-total: 0;
-    
+
     // Voice state (0=idle, 1=loading, 2=listening, 3=transcribing)
     in-out property <int> voice-state: 0;
-    
+
     // Generator / responding state
     in-out property <bool> is-responding: false;
     in property <bool> cursor-blink: true;
     in property <int> thinking-orb-style: 0;
-    
+
     // Session loading state
     in-out property <bool> is-loading-session: false;
-    
+
     // Discovered models list and inline context indicator values
     in property <string> context-text: "";
     in property <[string]> available-models: [];
@@ -97,7 +100,7 @@ export component MainContent inherits Rectangle {
     in property <string> pending-permission-reason: "";
     in property <string> pending-permission-action: "";
     in property <string> pending-permission-target: "";
-    
+
     // Session title property
     in property <string> session-title: "New Session";
 
@@ -105,14 +108,13 @@ export component MainContent inherits Rectangle {
     in property <bool> is-project-session: false;
     in property <int> git-insertions: 0;
     in property <int> git-deletions: 0;
-    
+
     // State of terminal drawer panel
     in-out property <bool> is-terminal-open: false;
 
     // Read-only session posture (WhatsApp channel sessions)
     in property <bool> is-read-only-session: false;
 
-    
     // ===== Callbacks =====
     // Forward all input panel callbacks to parent
     callback message-submitted(string /* message-text */);
@@ -128,11 +130,12 @@ export component MainContent inherits Rectangle {
     callback model-selected(string /* selected-model */);
     callback cancel-clicked();
     callback git-commit-clicked();
-    
+
     // Message action callbacks
     callback message-edit-clicked(int /* message-index */);
+    callback user-message-edit-saved(int /* message-index */, string /* new-text */);
     callback message-copy-clicked(int /* message-index */);
-    
+
     // Assistant message action callbacks
     callback assistant-copy-clicked(int /* message-index */);
     callback assistant-like-clicked(int /* message-index */);
@@ -142,18 +145,18 @@ export component MainContent inherits Rectangle {
     callback code-copied(int /* message-index */, int /* item-index */);
     callback work-group-toggled(int /* message-index */, int /* element-index */);
     callback work-group-item-toggled(int /* message-index */, int /* element-index */, int /* item-index */);
-    
+
     // Callbacks for permission approved/denied actions
     callback permission_approved(string /* permission_id */);
     callback permission_denied(string /* permission_id */);
-    
+
     // ===== Layout =====
     // FocusScope used to clear focus from input fields when clicking outside
-    focus-scope := FocusScope {}
+    focus-scope := FocusScope { }
 
     // Main content background
     background: Tokens.window-background;
-    
+
     // Vertical layout to organize content
     VerticalLayout {
         // ===== TOPBAR =====
@@ -201,6 +204,9 @@ export component MainContent inherits Rectangle {
 
                 message-edit-clicked(idx) => {
                     root.message-edit-clicked(idx);
+                }
+                user-message-edit-saved(idx, new_text) => {
+                    root.user-message-edit-saved(idx, new_text);
                 }
                 message-copy-clicked(idx) => {
                     root.message-copy-clicked(idx);
@@ -259,12 +265,12 @@ export component MainContent inherits Rectangle {
                     spacing: 5px; // Reduced top spacing by 1px (5px vertical spacing above warning text)
 
                     // Centered Floating Permission Panel
-                    if (root.has-pending-permission) : HorizontalLayout {
+                    if (root.has-pending-permission): HorizontalLayout {
                         Rectangle {
                             horizontal-stretch: 1;
                             background: transparent;
                         }
-                        
+
                         FloatingPermissionPanel {
                             width: input-panel.width;
                             permission-id: root.pending-permission-id;
@@ -273,7 +279,7 @@ export component MainContent inherits Rectangle {
                             permission-reason: root.pending-permission-reason;
                             display-action: root.pending-permission-action;
                             display-target: root.pending-permission-target;
-                            
+
                             approved => {
                                 root.permission_approved(root.pending-permission-id);
                             }
@@ -281,7 +287,7 @@ export component MainContent inherits Rectangle {
                                 root.permission_denied(root.pending-permission-id);
                             }
                         }
-                        
+
                         Rectangle {
                             horizontal-stretch: 1;
                             background: transparent;
@@ -294,12 +300,12 @@ export component MainContent inherits Rectangle {
                             horizontal-stretch: 1;
                             background: transparent;
                         }
-                        
+
                         input-panel := InputPanel {
                             min-width: Math.min(400px, parent.width - 32px);
                             max-width: root.input-panel-max-width;
                             horizontal-stretch: 1;
-                            
+
                             // Bind all properties
                             input-text <=> root.input-text;
                             pending-attachments <=> root.pending-attachments;
@@ -313,84 +319,84 @@ export component MainContent inherits Rectangle {
                             context-text: root.context-text;
                             available-models: root.available-models;
                             is-responding <=> root.is-responding;
-                            
+
                             // Forward all callbacks
                             cancel-clicked => {
                                 root.cancel-clicked();
                             }
-                            
+
                             message-submitted(text) => {
                                 root.message-submitted(text);
                             }
-                            
+
                             attach-clicked => {
                                 root.attach-clicked();
                             }
-                            
+
                             attachment-removed(idx) => {
                                 root.attachment-removed(idx);
                             }
-                            
+
                             auto-approve-toggled(enabled) => {
                                 root.auto-approve-toggled(enabled);
                             }
-                            
+
                             context-clicked => {
                                 root.context-clicked();
                             }
-                            
+
                             model-clicked => {
                                 root.model-clicked();
                             }
-                            
+
                             reasoning-clicked => {
                                 root.reasoning-clicked();
                             }
-                            
+
                             voice-clicked => {
                                 root.voice-clicked();
                             }
-                            
+
                             voice-recording-started => {
                                 root.voice-recording-started();
                             }
-                            
+
                             voice-recording-stopped => {
                                 root.voice-recording-stopped();
                             }
-                            
+
                             model-selected(model) => {
                                 root.model-selected(model);
                             }
                         }
-                        
+
                         Rectangle {
                             horizontal-stretch: 1;
                             background: transparent;
                         }
                     }
-                    
+
                     // Center the warning text below the input panel
                     // Symmetrical 5px padding above and below matching official Claude/ChatGPT UI
                     warning-container := Rectangle {
                         height: warning-text.preferred-height;
                         background: transparent;
-                        
+
                         HorizontalLayout {
                             padding-top: 0px;
                             padding-bottom: 0px;
-                            
+
                             Rectangle {
                                 horizontal-stretch: 1;
                                 background: transparent;
                             }
-                            
+
                             warning-text := WarningText {
                                 min-width: 400px;
                                 max-width: root.input-panel-max-width;
                                 horizontal-stretch: 1;
                             }
-                            
+
                             Rectangle {
                                 horizontal-stretch: 1;
                                 background: transparent;
@@ -401,7 +407,7 @@ export component MainContent inherits Rectangle {
             }
 
             // 3. Read-Only Banner for WhatsApp Channel Sessions
-            if (root.is-read-only-session) : Rectangle {
+            if (root.is-read-only-session): Rectangle {
                 y: max(0px, parent.height - self.height - 16px);
                 x: (parent.width - self.width) / 2;
                 width: Math.min(500px, parent.width - 32px);
@@ -432,10 +438,10 @@ export component MainContent inherits Rectangle {
                 }
             }
         }
-        
+
         // ===== TERMINAL PANEL =====
         // Resizable bottom terminal drawer that pushes the chat viewport up when visible
-        if (root.is-terminal-open) : terminal-panel := TerminalPanel {
+        if (root.is-terminal-open): terminal-panel := TerminalPanel {
             vertical-stretch: 0;
             max-height-limit: root.height * 0.75;
             tab-names: root.terminal-tab-names;
@@ -449,5 +455,4 @@ export component MainContent inherits Rectangle {
             key-pressed(idx, key) => { root.terminal-key-pressed(idx, key); }
         }
     }
-
 }

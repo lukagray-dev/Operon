@@ -14,12 +14,20 @@ export component MessageBubble inherits Rectangle {
     
     // Whether the message is currently expanded (showing all content)
     in-out property <bool> is-expanded: false;
+
+    // Inline editing properties
+    in-out property <bool> is-editing: false;
+    in-out property <string> edit-text: "";
     
     // Callback fired when the "Show more" button is clicked
     callback expand-clicked();
 
     // Callback fired when code block copy button is clicked
     callback code-copied(int /* item-index */);
+
+    // Callbacks for inline editing save / cancel
+    callback save-clicked(string /* new-text */);
+    callback cancel-clicked();
     
     // Calculate if the message needs truncation based on its rendered height exceeding 10 lines (200px)
     property <bool> needs-truncation: message-text-area.preferred-height > root.max-collapsed-height;
@@ -27,6 +35,7 @@ export component MessageBubble inherits Rectangle {
     // Dynamic height calculation
     property <length> line-height: 20px;
     property <length> max-collapsed-height: 200px;
+    property <length> max-edit-height: 300px; // Max height for 15 visible lines (15 * 20px)
     
     // Background color matches titlebar for consistency
     background: Tokens.titlebar-background;
@@ -36,91 +45,197 @@ export component MessageBubble inherits Rectangle {
     
     // Subtle border for definition
     border-width: 1px;
-    border-color: #2a2a2a;
+    border-color: root.is-editing ? Tokens.accent-blue : #2a2a2a;
     
     // Main vertical layout for message content
     VerticalLayout {
         padding: 16px;
-        spacing: 8px;
-        
-        // Message text area with optional truncation
-        text-container := Rectangle {
-            background: transparent;
-            vertical-stretch: 1;
-            
-            // Constrain and animate the text container's height instead of the bubble itself
-            height: root.is-expanded 
-                ? message-text-area.preferred-height 
-                : min(message-text-area.preferred-height, root.max-collapsed-height);
-            
-            // Clip content when collapsed to hide overflow
-            clip: true;
-            
-            // Smooth height transition when expanding/collapsing
-            animate height { duration: 250ms; easing: ease-in-out; }
-            
-            // The markdown text element
-            message-text-area := MarkdownView {
-                elements: root.markdown-elements;
-                font-family: Tokens.font_family;
-                width: parent.width;
+        spacing: root.is-editing ? 12px : 8px;
 
-                copy-code(item_idx) => {
-                    root.code-copied(item_idx);
+        // Editing mode container (rendered when editing)
+        if (root.is-editing) : VerticalLayout {
+            spacing: 12px;
+
+            edit-flickable := Flickable {
+                width: 100%;
+                height: min(max(40px, edit-text-input.preferred-height), root.max-edit-height);
+                viewport-height: edit-text-input.preferred-height;
+                interactive: true;
+
+                edit-text-input := TextInput {
+                    width: parent.width;
+                    text <=> root.edit-text;
+                    single-line: false;
+                    wrap: word-wrap;
+                    color: Tokens.text-primary;
+                    font-size: Tokens.body-font-size;
+                    font-family: Tokens.font-family;
+                    selection-background-color: Tokens.accent-blue;
+                    selection-foreground-color: Tokens.text-primary;
+
+                    // Auto-scroll to bottom of editable bubble when typing
+                    edited => {
+                        if (self.preferred-height > edit-flickable.height) {
+                            edit-flickable.viewport-y = edit-flickable.height - self.preferred-height;
+                        }
+                    }
+                }
+            }
+
+            // Save and Cancel buttons row
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+
+                // Cancel button
+                cancel-btn := Rectangle {
+                    width: cancel-txt.preferred-width + 24px;
+                    height: 28px;
+                    background: cancel-touch.has-hover ? Tokens.dropdown-surface-hover : transparent;
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: #3a3a3a;
+
+                    animate background { duration: 150ms; easing: ease-in-out; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        cancel-txt := Text {
+                            text: "Cancel";
+                            color: Tokens.text-secondary;
+                            font-size: Tokens.body-font-size;
+                            font-family: Tokens.font-family;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    cancel-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.is-editing = false;
+                            root.cancel-clicked();
+                        }
+                    }
+                }
+
+                // Save button
+                save-btn := Rectangle {
+                    width: save-txt.preferred-width + 24px;
+                    height: 28px;
+                    background: save-touch.has-hover ? Tokens.accent-blue-hover : Tokens.accent-blue;
+                    border-radius: 4px;
+
+                    animate background { duration: 150ms; easing: ease-in-out; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        save-txt := Text {
+                            text: "Save";
+                            color: Tokens.text-primary;
+                            font-size: Tokens.body-font-size;
+                            font-family: Tokens.font-family;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    save-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.is-editing = false;
+                            root.save-clicked(root.edit-text);
+                        }
+                    }
                 }
             }
         }
         
-        // "Show more" / "Show less" button (only visible when truncation is needed)
-        if (root.needs-truncation) : Rectangle {
-            height: 24px;
-            vertical-stretch: 0;
-            background: transparent;
-            
-            // Horizontal layout to position button at the left
-            HorizontalLayout {
-                alignment: start;
+        // Read-only container (hidden and strictly 0px height when editing so no blank gap remains)
+        read-only-container := VerticalLayout {
+            visible: !root.is-editing;
+            height: !root.is-editing ? self.preferred-height : 0px;
+            spacing: 8px;
+
+            // Message text area with optional truncation
+            text-container := Rectangle {
+                background: transparent;
+                vertical-stretch: !root.is-editing ? 1 : 0;
                 
-                // Clickable text button
-                show-more-button := Rectangle {
-                    width: show-more-text.preferred-width + 16px;
-                    height: 24px;
-                    background: show-more-touch.has-hover 
-                        ? Tokens.dropdown-surface-hover 
-                        : transparent;
-                    border-radius: 4px;
-                    
-                    // Smooth background transition
-                    animate background { duration: 150ms; easing: ease-in-out; }
-                    
-                    // Center the text
-                    HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
-                        alignment: center;
-                        
-                        show-more-text := Text {
-                            text: root.is-expanded ? "Show less" : "Show more";
-                            color: show-more-touch.has-hover 
-                               ? Tokens.text-primary 
-                               : Tokens.text-secondary;
-                            font-size: Tokens.body-font-size;
-                            font-family: Tokens.font-family;
-                            vertical-alignment: center;
-                            
-                            // Smooth color transition
-                            animate color { duration: 150ms; easing: ease-in-out; }
-                        }
+                // Constrain and animate the text container's height instead of the bubble itself
+                height: !root.is-editing
+                    ? (root.is-expanded 
+                        ? message-text-area.preferred-height 
+                        : min(message-text-area.preferred-height, root.max-collapsed-height))
+                    : 0px;
+                
+                // Clip content when collapsed to hide overflow
+                clip: true;
+                
+                // Smooth height transition when expanding/collapsing
+                animate height { duration: 250ms; easing: ease-in-out; }
+                
+                // The markdown text element
+                message-text-area := MarkdownView {
+                    elements: root.markdown-elements;
+                    font-family: Tokens.font_family;
+                    width: parent.width;
+
+                    copy-code(item_idx) => {
+                        root.code-copied(item_idx);
                     }
+                }
+            }
+            
+            // "Show more" / "Show less" button (only visible when truncation is needed and not editing)
+            if (!root.is-editing && root.needs-truncation) : Rectangle {
+                height: 24px;
+                vertical-stretch: 0;
+                background: transparent;
+                
+                // Horizontal layout to position button at the left
+                HorizontalLayout {
+                    alignment: start;
                     
-                    // Touch area for click detection
-                    show-more-touch := TouchArea {
-                        mouse-cursor: pointer;
+                    // Clickable text button
+                    show-more-button := Rectangle {
+                        width: show-more-text.preferred-width + 16px;
+                        height: 24px;
+                        background: show-more-touch.has-hover 
+                            ? Tokens.dropdown-surface-hover 
+                            : transparent;
+                        border-radius: 4px;
                         
-                        clicked => {
-                            // Toggle expansion state
-                            root.is-expanded = !root.is-expanded;
-                            root.expand-clicked();
+                        // Smooth background transition
+                        animate background { duration: 150ms; easing: ease-in-out; }
+                        
+                        // Center the text
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            alignment: center;
+                            
+                            show-more-text := Text {
+                                text: root.is-expanded ? "Show less" : "Show more";
+                                color: show-more-touch.has-hover 
+                                   ? Tokens.text-primary 
+                                   : Tokens.text-secondary;
+                                font-size: Tokens.body-font-size;
+                                font-family: Tokens.font-family;
+                                vertical-alignment: center;
+                                
+                                // Smooth color transition
+                                animate color { duration: 150ms; easing: ease-in-out; }
+                            }
+                        }
+                        
+                        // Touch area for click detection
+                        show-more-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            
+                            clicked => {
+                                // Toggle expansion state
+                                root.is-expanded = !root.is-expanded;
+                                root.expand-clicked();
+                            }
                         }
                     }
                 }

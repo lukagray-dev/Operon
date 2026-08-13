@@ -7,13 +7,25 @@
 import { Tokens } from "./shared/tokens.slint";
 import { Titlebar } from "./window/titlebar.slint";
 import { Sidebar } from "./left-sidebar/sidebar.slint";
-import { SidebarConversation, SidebarProject } from "./left-sidebar/types.slint";
-import { MainContent, ChatMessage, AttachmentChip } from "./main-content/main-content.slint";
-import { RightSidebar, GitFileDiff, GitDiffHunk, GitDiffLine, GitRepositoryInfo, GitGraphCommit } from "./right-sidebar/right-sidebar.slint";
-export { SettingsWindow } from "./settings/settings.slint";
+import {
+    SidebarConversation,
+    SidebarProject,
+} from "./left-sidebar/types.slint";
+import {
+    MainContent,
+    ChatMessage,
+    AttachmentChip,
+} from "./main-content/main-content.slint";
+import {
+    RightSidebar,
+    GitFileDiff,
+    GitDiffHunk,
+    GitDiffLine,
+    GitRepositoryInfo,
+    GitGraphCommit,
+} from "./right-sidebar/right-sidebar.slint";
+export { SettingsWindow }from "./settings/settings.slint";
 export { AttachmentChip }
-
-
 export component OperonWindow inherits Window {
     // The window opens in a centered 16:9-ish landscape shape. The runtime
     // bootstrap still adjusts the final size and position to match the active
@@ -49,7 +61,7 @@ export component OperonWindow inherits Window {
     in-out property <length> sidebar_width: 240px;
     // Default terminal panel height to 30% of window height
     in-out property <length> terminal_height: root.height * 0.3;
-    
+
     // Sidebar data properties - bind these from Rust
     in property <[SidebarProject]> sidebar_projects: [];
     in property <[SidebarConversation]> sidebar_chats: [];
@@ -75,7 +87,7 @@ export component OperonWindow inherits Window {
     callback follow_creator_requested();
     callback see_repo_requested();
     callback open_project_requested();
-    
+
     // Sidebar properties
     in-out property <string> sidebar_search_text: "";
     in-out property <bool> sidebar_is_searching: false;
@@ -95,7 +107,7 @@ export component OperonWindow inherits Window {
     callback sidebar_whatsapp_session_clicked(string /* session-id */, string /* contact-number */);
     callback sidebar_telegram_session_clicked(string /* session-id */, string /* chat-id */);
     callback sidebar_width_changed(length /* new-width */);
-    
+
     // Main content / input panel callbacks - wire these to Rust handlers
     callback message_submitted(string /* message-text */);
     callback attach_clicked();
@@ -107,11 +119,12 @@ export component OperonWindow inherits Window {
     callback voice_clicked();
     callback voice_recording_started();
     callback voice_recording_stopped();
-    
+
     // User message action callbacks
     callback user_message_edit_clicked(int /* message-index */);
+    callback user_message_edit_saved(int /* message-index */, string /* new-text */);
     callback user_message_copy_clicked(int /* message-index */);
-    
+
     // Assistant message action callbacks
     callback assistant_message_copy_clicked(int /* message-index */);
     callback assistant_message_like_clicked(int /* message-index */);
@@ -122,11 +135,11 @@ export component OperonWindow inherits Window {
     callback code_copied(int /* message-index */, int /* item-index */);
     callback work_group_toggled(int /* message-index */, int /* element-index */);
     callback work_group_item_toggled(int /* message-index */, int /* element-index */, int /* item-index */);
-    
+
     // Callbacks for permission dialog resolutions
     callback permission_approved(string /* permission_id */);
     callback permission_denied(string /* permission_id */);
-    
+
     // Main content properties - bind these from Rust
     in-out property <string> input_text: "";
     in-out property <[AttachmentChip]> pending_attachments: [];
@@ -143,7 +156,7 @@ export component OperonWindow inherits Window {
     in property <[ChatMessage]> chat_messages: [];
     in-out property <bool> is_responding: false;
     in-out property <bool> cursor_blink: true;
-    
+
     // Session loading state - when true, shows a shimmer skeleton instead of messages
     in-out property <bool> is_loading_session: false;
 
@@ -173,7 +186,7 @@ export component OperonWindow inherits Window {
     in-out property <string> pending_permission_reason: "";
     in-out property <string> pending_permission_action: "";
     in-out property <string> pending_permission_target: "";
-    
+
     // ===== Right Sidebar / Git Diff Properties & Callbacks =====
     in-out property <bool> right_sidebar_open: false;
     in-out property <length> right_sidebar_width: 340px;
@@ -216,7 +229,7 @@ export component OperonWindow inherits Window {
         spacing: 0px;
         y: titlebar.height;
         height: parent.height - titlebar.height;
-        
+
         // Left sidebar navigation
         sidebar := Sidebar {
             // Bind width dynamically based on sidebar collapse/expand state
@@ -233,11 +246,11 @@ export component OperonWindow inherits Window {
             active-project-index: root.active_project_index;
             active-conversation-index: root.active_conversation_index;
             active-chat-index: root.active_chat_index;
-            
+
             // Bind search properties
             search-text <=> root.sidebar_search_text;
             is-searching <=> root.sidebar_is_searching;
-            
+
             // Wire callbacks to root
             new-chat-clicked => { root.sidebar_new_chat_clicked(); }
             search-query-changed(query) => {
@@ -280,26 +293,25 @@ export component OperonWindow inherits Window {
                 root.sidebar_width_changed(new-width);
             }
         }
-        
+
         // Vertical separator between sidebar and content
         Rectangle {
             width: root.sidebar_open ? 1px : 0px;
             visible: root.sidebar_open;
             background: Tokens.dropdown-border;
         }
-        
+
         // Main content area with chat messages and input panel
         content_area := Rectangle {
             horizontal-stretch: 1;
             background: Tokens.window_background;
             clip: true;
 
-            
             // Main content component with input panel
             main_content := MainContent {
                 width: parent.width;
                 height: parent.height;
-                
+
                 // Bind properties from root
                 input-text <=> root.input_text;
                 pending-attachments <=> root.pending_attachments;
@@ -354,60 +366,60 @@ export component OperonWindow inherits Window {
                 pending-permission-reason: root.pending_permission_reason;
                 pending-permission-action: root.pending_permission_action;
                 pending-permission-target: root.pending_permission_target;
-                
+
                 // Wire callbacks to root
                  cancel-clicked => {
-                     root.cancel_clicked();
-                 }
-                 code-copied(msg_idx, item_idx) => {
-                     root.code_copied(msg_idx, item_idx);
-                 }
-                 work-group-toggled(msg_idx, element_idx) => {
-                     root.work_group_toggled(msg_idx, element_idx);
-                 }
-                 work-group-item-toggled(msg_idx, element_idx, item_idx) => {
-                     root.work_group_item_toggled(msg_idx, element_idx, item_idx);
-                 }
+                    root.cancel_clicked();
+                }
+                code-copied(msg_idx, item_idx) => {
+                    root.code_copied(msg_idx, item_idx);
+                }
+                work-group-toggled(msg_idx, element_idx) => {
+                    root.work_group_toggled(msg_idx, element_idx);
+                }
+                work-group-item-toggled(msg_idx, element_idx, item_idx) => {
+                    root.work_group_item_toggled(msg_idx, element_idx, item_idx);
+                }
                 message-submitted(text) => {
                     root.message_submitted(text);
                 }
-                
+
                 attach-clicked => {
                     root.attach_clicked();
                 }
-                
+
                 attachment-removed(idx) => {
                     root.attachment_removed(idx);
                 }
-                
+
                 auto-approve-toggled(enabled) => {
                     root.auto_approve_toggled(enabled);
                 }
-                
+
                 context-clicked => {
                     root.context_clicked();
                 }
-                
+
                 model-clicked => {
                     root.model_clicked();
                 }
-                
+
                 reasoning-clicked => {
                     root.reasoning_clicked();
                 }
-                
+
                 voice-clicked => {
                     root.voice_clicked();
                 }
-                
+
                 voice-recording-started => {
                     root.voice_recording_started();
                 }
-                
+
                 voice-recording-stopped => {
                     root.voice_recording_stopped();
                 }
-                
+
                 model-selected(model) => {
                     root.model_selected(model);
                 }
@@ -416,7 +428,11 @@ export component OperonWindow inherits Window {
                 message-edit-clicked(msg-idx) => {
                     root.user_message_edit_clicked(msg-idx);
                 }
-                
+
+                user-message-edit-saved(msg-idx, new-text) => {
+                    root.user_message_edit_saved(msg-idx, new-text);
+                }
+
                 message-copy-clicked(msg-idx) => {
                     root.user_message_copy_clicked(msg-idx);
                 }
@@ -425,27 +441,27 @@ export component OperonWindow inherits Window {
                 assistant-copy-clicked(msg-idx) => {
                     root.assistant_message_copy_clicked(msg-idx);
                 }
-                
+
                 assistant-like-clicked(msg-idx) => {
                     root.assistant_message_like_clicked(msg-idx);
                 }
-                
+
                 assistant-dislike-clicked(msg-idx) => {
                     root.assistant_message_dislike_clicked(msg-idx);
                 }
-                
+
                 assistant-regenerate-clicked(msg-idx) => {
                     root.assistant_message_regenerate_clicked(msg-idx);
                 }
-                
+
                 assistant-fork-clicked(msg-idx) => {
                     root.assistant_message_fork_clicked(msg-idx);
                 }
-                
+
                 permission_approved(id) => {
                     root.permission_approved(id);
                 }
-                
+
                 permission_denied(id) => {
                     root.permission_denied(id);
                 }

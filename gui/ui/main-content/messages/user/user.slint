@@ -23,10 +23,20 @@ export component UserMessage inherits Rectangle {
     // Maximum width for the message bubble (75% of input panel width)
     in property <length> max-bubble-width: 675px;
     
+    // Inline editing properties
+    in-out property <bool> is-editing: false;
+    in-out property <string> edit-text: "";
+    
     // ===== Callbacks =====
     // Fired when the user clicks the Edit button
     callback edit-clicked();
     
+    // Fired when the user saves an edited message
+    callback save-edit-clicked(string /* new-text */);
+
+    // Fired when the user cancels message editing
+    callback cancel-edit-clicked();
+
     // Fired when the user clicks the Copy button
     callback copy-clicked();
     
@@ -74,6 +84,8 @@ export component UserMessage inherits Rectangle {
                     message-text: root.message-text;
                     markdown-elements: root.markdown-elements;
                     is-expanded <=> root.is-expanded;
+                    is-editing <=> root.is-editing;
+                    edit-text <=> root.edit-text;
                     
                     // Forward the expand callback
                     expand-clicked => {
@@ -83,10 +95,19 @@ export component UserMessage inherits Rectangle {
                     code-copied(idx) => {
                         root.code-copied(idx);
                     }
+
+                    save-clicked(new_text) => {
+                        root.save-edit-clicked(new_text);
+                    }
+
+                    cancel-clicked => {
+                        root.cancel-edit-clicked();
+                    }
                 }
                 
                 action-buttons-container := Rectangle {
-                    height: 28px;
+                    height: root.is-editing ? 0px : 28px;
+                    visible: !root.is-editing;
                     vertical-stretch: 0;
                     horizontal-stretch: 1;
 
@@ -96,7 +117,7 @@ export component UserMessage inherits Rectangle {
                         background: transparent;
 
                         // Fade effect linked to parent hover state
-                        opacity: hover-touch.has-hover ? 1.0 : 0.0;
+                        opacity: hover-touch.has-hover && !root.is-editing ? 1.0 : 0.0;
                         
                         // Fully disable interactions when completely faded out
                         visible: self.opacity > 0.0;
@@ -112,6 +133,8 @@ export component UserMessage inherits Rectangle {
                             // Edit button
                             EditButton {
                                 clicked => {
+                                    root.is-editing = true;
+                                    root.edit-text = root.message-text;
                                     root.edit-clicked();
                                 }
                             }
