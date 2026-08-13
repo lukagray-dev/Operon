@@ -51,19 +51,30 @@ impl ResponseState {
     }
 
     /// Ensures a single collapsed work activity block exists for the active thinking/tool run.
+    ///
+    /// If non-whitespace response text has accumulated prior to this activity, the current work group
+    /// is closed and text is flushed into `current_blocks` first. Then, if the last block in `current_blocks`
+    /// is an open work group, it is reused; otherwise, a new work group is appended.
     pub fn ensure_work_group_open(&mut self) -> usize {
-        if let Some(idx) = self
-            .current_blocks
-            .iter()
-            .position(|block| block.kind == "work_group")
-        {
-            self.work_group_open = true;
-            if self.work_group_start.is_none() {
-                self.work_group_start = Some(Instant::now());
+        if !self.current_text_accumulator.trim().is_empty() {
+            if self.work_group_open {
+                self.close_work_group();
             }
-            let group = &mut self.current_blocks[idx];
-            group.work_group_active = true;
-            return idx;
+            self.flush_text();
+        }
+
+        if self.work_group_open {
+            if let Some(idx) = self
+                .current_blocks
+                .iter()
+                .rposition(|block| block.kind == "work_group")
+            {
+                if idx == self.current_blocks.len() - 1 {
+                    let group = &mut self.current_blocks[idx];
+                    group.work_group_active = true;
+                    return idx;
+                }
+            }
         }
 
         let mut work_group =
@@ -82,18 +93,26 @@ impl ResponseState {
             .map(|started| started.elapsed().as_secs().min(i32::MAX as u64) as i32)
             .unwrap_or(0);
 
-        if let Some(group) = self
+        let target_idx = self
             .current_blocks
-            .iter_mut()
-            .find(|block| block.kind == "work_group")
-        {
-            group.work_group_active = false;
-            group.work_group_elapsed_secs = elapsed_secs;
-            group.work_group_summary = build_work_summary(&group.work_group_items);
+            .iter()
+            .rposition(|block| block.kind == "work_group" && block.work_group_active)
+            .or_else(|| {
+                self.current_blocks
+                    .iter()
+                    .rposition(|block| block.kind == "work_group")
+            });
 
-            for item in group.work_group_items.iter_mut() {
-                if item.kind == "thinking" {
-                    item.is_thinking_active = false;
+        if let Some(idx) = target_idx {
+            if let Some(group) = self.current_blocks.get_mut(idx) {
+                group.work_group_active = false;
+                group.work_group_elapsed_secs = elapsed_secs;
+                group.work_group_summary = build_work_summary(&group.work_group_items);
+
+                for item in group.work_group_items.iter_mut() {
+                    if item.kind == "thinking" {
+                        item.is_thinking_active = false;
+                    }
                 }
             }
         }
@@ -313,5 +332,31 @@ mod tests {
         assert_eq!(work_groups_after.len(), 1);
         assert_eq!(text_blocks.len(), 1);
         assert_eq!(text_blocks[0].text, "Here is the response text");
+    }
+
+    #[test]
+    fn test_work_groups_split_on_interleaved_response_text() {
+        let mut state = ResponseState::new();
+
+        // Turn segment 1: thinking + tool call before response text
+        state.append_thinking("Thinking turn 1...");
+        crate::main_content::tools::cards::append_tool_start(&mut state, "call-1", "web_search");
+
+        // Model emits response text segment 1
+        state.append_text("Let me try searching with a different query:");
+
+        // Turn segment 2: model continues working after response text
+        state.append_thinking("Thinking turn 2...");
+        crate::main_content::tools::cards::append_tool_start(&mut state, "call-2", "web_search");
+
+        let items = state.build_parsed_items();
+        let work_groups: Vec<_> = items.iter().filter(|i| i.kind == "work_group").collect();
+        let text_blocks: Vec<_> = items.iter().filter(|i| i.kind == "text").collect();
+
+        assert_eq!(work_groups.len(), 2);
+        assert_eq!(work_groups[0].work_group_items.len(), 2);
+        assert_eq!(work_groups[1].work_group_items.len(), 2);
+        assert_eq!(text_blocks.len(), 1);
+        assert_eq!(text_blocks[0].text, "Let me try searching with a different query:");
     }
 }

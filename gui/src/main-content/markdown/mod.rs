@@ -203,13 +203,16 @@ pub fn to_slint_elements(items: Vec<ParsedMarkdownItem>) -> Vec<crate::MarkdownE
                 result.push(convert_work_group(item));
             }
             _ => {
-                if !pending_legacy_work_items.is_empty() {
-                    result.push(convert_legacy_work_items(std::mem::take(
-                        &mut pending_legacy_work_items,
-                    )));
+                let is_whitespace_text = item.kind == "text" && item.text.trim().is_empty();
+                if !is_whitespace_text {
+                    if !pending_legacy_work_items.is_empty() {
+                        result.push(convert_legacy_work_items(std::mem::take(
+                            &mut pending_legacy_work_items,
+                        )));
+                    }
+                    let parsed = parse_markdown(&item.text);
+                    result.extend(parsed);
                 }
-                let parsed = parse_markdown(&item.text);
-                result.extend(parsed);
             }
         }
     }

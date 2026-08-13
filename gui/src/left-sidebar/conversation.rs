@@ -98,11 +98,13 @@ pub async fn load_session_history(
                     for block in &msg.content {
                         match block {
                             operon_rs::context::ContentBlock::Text(s) => {
-                                current_assistant_text_parts.push(s.clone());
-                                current_assistant_items.push(ParsedMarkdownItem::new_default(
-                                    "text".to_string(),
-                                    s.clone(),
-                                ));
+                                if !s.trim().is_empty() {
+                                    current_assistant_text_parts.push(s.clone());
+                                    current_assistant_items.push(ParsedMarkdownItem::new_default(
+                                        "text".to_string(),
+                                        s.clone(),
+                                    ));
+                                }
                             }
                             operon_rs::context::ContentBlock::Reasoning(rb) => {
                                 let mut item = ParsedMarkdownItem::new_default(
