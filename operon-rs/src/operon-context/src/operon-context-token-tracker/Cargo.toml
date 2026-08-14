@@ -16,7 +16,7 @@ serde_json.workspace = true
 
 # Optional: BPE tokenizer for ~99% accuracy pre-call estimation.
 # Only compiled when the `bpe` feature is enabled; pure heuristic is used otherwise.
-tiktoken = { version = "3", optional = true }
+tiktoken = { workspace = true, optional = true }
 
 
 [features]

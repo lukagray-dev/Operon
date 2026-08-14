@@ -16,16 +16,15 @@ serde.workspace       = true
 toml.workspace        = true
 dirs.workspace        = true
 
-# ── TUI-only deps (not shared — terminal/UI specific) ─────────────────────────
-
+# ── Terminal UI deps ──────────────────────────────────────────────────────────
 # Production-grade text input widget — cursor, undo/redo, multi-line editing
 tui-textarea = { path = "src/vendor/tui-textarea" }
 
 # Terminal UI framework
-ratatui = "0.30.0"
+ratatui.workspace = true
 
 # Low-level terminal control — raw mode, alternate screen, keyboard/mouse events
-crossterm = "0.29.0"
+crossterm.workspace = true
 
 # Cross-platform clipboard access
-arboard = "3.6.1"
+arboard.workspace = true

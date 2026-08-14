@@ -123,7 +123,59 @@ pulldown-cmark = "0.11.3"
 spider               = { version = "2.52.0", features = ["chrome"] }
 spider_transformations = "2.39.13"
 
-# Internal crates
+# ── Token Tracking ────────────────────────────────────────────────────────────
+tiktoken = "3"
+
+# ── UI & Frontends (TUI & GUI) ────────────────────────────────────────────────
+ratatui      = "0.30.0"
+crossterm    = "0.29.0"
+arboard      = "3.6.1"
+rfd          = "0.15"
+syntect      = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy", "default-themes", "default-syntaxes"] }
+merman       = { version = "0.7", features = ["render"] }
+regex        = "1.10"
+windows-sys  = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading"] }
+sha2         = "0.10"
+base64       = "0.22"
+slint        = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
+tray-icon    = "0.19"
+auto-launch  = "0.5"
+image        = "0.25"
+slint-build  = "1.16.1"
+resvg        = "0.44"
+tiny-skia    = "0.11"
+png          = "0.17"
+ico          = "0.3"
+
+# ── Channels (WhatsApp & Telegram) ────────────────────────────────────────────
+parking_lot                   = "0.12"
+bytes                         = "1"
+prost                         = "0.14"
+chrono                        = "0.4"
+rusqlite                      = { version = "0.31", features = ["bundled"] }
+whatsapp-rust                 = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false, features = ["tokio-runtime"] }
+whatsapp-rust-tokio-transport = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
+whatsapp-rust-ureq-http-client= { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3" }
+wacore                        = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
+wacore-binary                 = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
+waproto                       = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
+windows-acl                   = "0.3"
+winapi                        = { version = "0.3", features = ["processthreadsapi", "securitybaseapi", "winnt", "handleapi"] }
+
+# ── Audio capture and speech-to-text ──────────────────────────────────────────
+cpal       = "0.18"
+whisper-rs = "0.16"
+
+# ── Third party dependencies ──────────────────────────────────────────────────
+portable-pty     = "0.8"
+qrcode           = "0.14"
+
+# ── SQLite persistence (used by operon-session) ───────────────────────────────
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }
+
+# ── Internal Crates ───────────────────────────────────────────────────────────
+operon-rs = { path = "operon-rs" }
+
 # features = ["bpe"] is Operon's activation of the BPE feature in the token-tracker.
 # The crate defines it; we opt in here. Other devs using the crate standalone get
 # the default heuristic estimator unless they activate it themselves.
@@ -176,17 +228,6 @@ operon-channels  = { path = "operon-rs/src/operon-channels" }
 operon-channels-whatsapp = { path = "operon-rs/src/operon-channels/src/whatsapp" }
 operon-channels-telegram = { path = "operon-rs/src/operon-channels/src/telegram" }
 operon-voice     = { path = "operon-rs/src/operon-voice" }
-
-# Audio capture and speech-to-text
-cpal       = "0.18"
-whisper-rs = "0.16"
-
-# Third party dependencies
-portable-pty     = "0.8"
-qrcode           = "0.14"
-
-# SQLite persistence (used by operon-session)
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }
 
 [workspace.package]
 version    = "0.1.0"

@@ -20,34 +20,33 @@ serde_json.workspace  = true
 notify.workspace      = true
 tracing.workspace     = true
 
-operon-rs = { path = "../operon-rs" }
-operon-channels-whatsapp = { path = "../operon-rs/src/operon-channels/src/whatsapp" }
-operon-channels-telegram = { path = "../operon-rs/src/operon-channels/src/telegram" }
-rfd = "0.15"
-arboard = "3.6.1"
+# ── Internal Crates ───────────────────────────────────────────────────────────
+operon-rs.workspace                = true
+operon-channels-whatsapp.workspace = true
+operon-channels-telegram.workspace = true
+
+# ── GUI deps ──────────────────────────────────────────────────────────────────
+rfd.workspace            = true
+arboard.workspace        = true
 pulldown-cmark.workspace = true
-syntect = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy", "default-themes", "default-syntaxes"] }
-merman = { version = "0.7", features = ["render"] }
-regex = "1.10"
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading"] }
-sha2 = "0.10"
-base64 = "0.22"
-
-slint = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
-tray-icon = "0.19"
-auto-launch = "0.5"
-image = "0.25"
-
-# ── GUI-only deps (not shared — Slint UI specific) ────────────────────────────
+syntect.workspace        = true
+merman.workspace         = true
+regex.workspace          = true
+windows-sys.workspace    = true
+sha2.workspace           = true
+base64.workspace         = true
+slint.workspace          = true
+tray-icon.workspace      = true
+auto-launch.workspace    = true
+image.workspace          = true
 
 [dev-dependencies]
 tempfile.workspace = true
 
 [build-dependencies]
 # Slint build script — compiles .slint files to Rust
-slint-build = "1.16.1"
-resvg = "0.44"
-tiny-skia = "0.11"
-png = "0.17"
-ico = "0.3"
-
+slint-build.workspace = true
+resvg.workspace       = true
+tiny-skia.workspace   = true
+png.workspace         = true
+ico.workspace         = true

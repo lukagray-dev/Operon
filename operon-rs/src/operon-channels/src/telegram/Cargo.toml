@@ -16,7 +16,7 @@ anyhow.workspace = true
 tracing.workspace = true
 dirs.workspace = true
 reqwest = { workspace = true, features = ["json"] }
-parking_lot = "0.12"
+parking_lot.workspace = true
 
 operon-context.workspace = true
 operon-events.workspace = true

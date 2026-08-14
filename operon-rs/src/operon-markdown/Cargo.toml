@@ -8,5 +8,6 @@ license.workspace    = true
 repository.workspace = true
 
 [dependencies]
-pulldown-cmark = "0.11"
-anyhow.workspace         = true
+pulldown-cmark.workspace   = true
+anyhow.workspace           = true
+
