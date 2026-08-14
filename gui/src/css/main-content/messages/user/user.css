@@ -1,0 +1,77 @@
+/* User Message Styling */
+
+.user-message-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.user-message-bubble {
+  max-width: 75%;
+  background-color: #242424;
+  border: 1px solid #333333;
+  border-radius: 12px 12px 3px 12px;
+  padding: 10px 14px;
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.user-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.user-message-row:hover .user-message-actions {
+  opacity: 1;
+}
+
+.user-action-btn {
+  height: 22px;
+  width: 22px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.user-action-btn:hover {
+  background-color: var(--dropdown-surface-hover);
+  color: var(--text-primary);
+}
+
+.user-action-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* User Message Icons */
+.icon-msg-copy {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/user/copy.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/user/copy.svg');
+}
+
+.icon-msg-check {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/user/check.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/user/check.svg');
+}
+
+.icon-msg-edit {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/user/edit.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/user/edit.svg');
+}

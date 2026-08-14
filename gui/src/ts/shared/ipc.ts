@@ -30,3 +30,16 @@ export async function invokeIpc<T = unknown>(cmd: string, args?: Record<string, 
     return null;
   }
 }
+
+export async function listenIpcEvent<T = unknown>(
+  event: string,
+  handler: (payload: T) => void
+): Promise<() => void> {
+  if (window.__TAURI__?.event) {
+    return await window.__TAURI__.event.listen<T>(event, (e) => {
+      handler(e.payload);
+    });
+  }
+  return () => {};
+}
+

@@ -1,5 +1,7 @@
-// Main Content Input Panel Controller & DOM Coordinator
-
+import { sidebarState } from '../../left-sidebar/state.js';
+import { cancelPromptIpc, submitPromptIpc } from '../messages/ipc.js';
+import { messagesState } from '../messages/state.js';
+import type { ChatMessage } from '../messages/types.js';
 import {
   getAvailableModelsIpc,
   getContextUsageIpc,
@@ -66,7 +68,9 @@ function setupTextarea(): void {
   textarea.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      if (!inputState.getIsResponding()) {
+        handleSubmit();
+      }
     }
   });
 }
@@ -209,15 +213,16 @@ function setupOutsideClickListener(): void {
   });
 }
 
-function handleSubmit(): void {
+async function handleSubmit(): Promise<void> {
   const text = inputState.getInputText().trim();
-  const attachments = inputState.getPendingAttachments();
+  const attachments = [...inputState.getPendingAttachments()];
 
   if (text.length === 0 && attachments.length === 0) return;
 
-  console.debug('[Input] Submitting prompt:', text, 'with attachments:', attachments.length);
+  const currentSessionId = sidebarState.getActiveSessionId();
+  const workspacePath = sidebarState.getActiveProjectPath();
 
-  // Clear input
+  // Clear input textarea and reset attachments
   const textarea = document.getElementById('chat-input-textarea') as HTMLTextAreaElement | null;
   if (textarea) {
     textarea.value = '';
@@ -226,11 +231,48 @@ function handleSubmit(): void {
 
   inputState.setInputText('');
   inputState.clearAttachments();
+  inputState.setIsResponding(true);
+
+  // 1. Immediately insert user message into chat view
+  const userTurnIndex = messagesState.getMessages().length;
+  const userMsg: ChatMessage = {
+    id: `user_${Date.now()}`,
+    role: 'user',
+    text,
+    timestamp: 'Just now',
+    created_at: Math.floor(Date.now() / 1000),
+    turn_index: userTurnIndex,
+    is_liked: false,
+    is_disliked: false,
+  };
+  messagesState.addMessage(userMsg);
+
+  // 2. Prepare streaming assistant placeholder
+  messagesState.startAssistantStreaming(userTurnIndex);
+
+  try {
+    const activeId = await submitPromptIpc(
+      currentSessionId,
+      text,
+      attachments,
+      workspacePath
+    );
+
+    if (!currentSessionId && activeId) {
+      sidebarState.setActiveSessionId(activeId);
+    }
+  } catch (err) {
+    console.error('[Input] Failed to submit prompt:', err);
+    inputState.setIsResponding(false);
+    messagesState.finishStreaming();
+  }
 }
 
-function handleCancel(): void {
+async function handleCancel(): Promise<void> {
   console.debug('[Input] Cancel prompt requested');
+  await cancelPromptIpc();
   inputState.setIsResponding(false);
+  messagesState.finishStreaming();
 }
 
 function renderInputState(): void {

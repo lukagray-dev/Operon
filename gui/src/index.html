@@ -1,343 +1,340 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Operon</title>
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="css/shared/global.css" />
-    <link rel="stylesheet" href="css/titlebar/titlebar.css" />
-    <link rel="stylesheet" href="css/titlebar/menu.css" />
-    <link rel="stylesheet" href="css/left-sidebar/sidebar.css" />
-    <link rel="stylesheet" href="css/main-content/input.css" />
-  </head>
-  <body>
-    <div id="app">
-      <!-- Custom Native Titlebar -->
-      <header id="app-titlebar" class="titlebar" data-tauri-drag-region>
-        <!-- Left Chrome Section: Logo + Nav Controls + Menus -->
-        <div class="titlebar-left">
-          <!-- Brand Logo and Sidebar Toggle -->
-          <div id="brand-container" class="brand-container" title="Toggle Sidebar">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operon</title>
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/shared/global.css" />
+  <link rel="stylesheet" href="css/titlebar/titlebar.css" />
+  <link rel="stylesheet" href="css/titlebar/menu.css" />
+  <link rel="stylesheet" href="css/left-sidebar/sidebar.css" />
+  <link rel="stylesheet" href="css/main-content/topbar/topbar.css" />
+  <link rel="stylesheet" href="css/main-content/empty-state/empty-state.css" />
+  <link rel="stylesheet" href="css/main-content/messages/messages.css" />
+  <link rel="stylesheet" href="css/main-content/input/input.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- Custom Native Titlebar -->
+    <header id="app-titlebar" class="titlebar" data-tauri-drag-region>
+      <!-- Left Chrome Section: Logo + Nav Controls + Menus -->
+      <div class="titlebar-left">
+        <!-- Brand Logo and Sidebar Toggle -->
+        <div id="brand-container" class="brand-container" title="Toggle Sidebar">
+          <img id="brand-logo-img" class="brand-logo-img" src="assets/brand/operon.svg" alt="Operon Logo" />
+          <span id="brand-toggle-icon" class="brand-toggle-icon"></span>
+        </div>
+
+        <!-- Navigation Controls -->
+        <nav class="nav-controls">
+          <button id="btn-nav-back" class="titlebar-icon-btn" title="Back">
+            <span class="ui-icon icon-arrow-left"></span>
+          </button>
+          <button id="btn-nav-forward" class="titlebar-icon-btn" title="Forward">
+            <span class="ui-icon icon-arrow-right"></span>
+          </button>
+        </nav>
+
+        <!-- Menus (Files, View, Window, Help) -->
+        <nav class="titlebar-menus">
+          <!-- Files Menu -->
+          <div class="menu-container">
+            <button class="menu-trigger" data-menu="files">Files</button>
+            <div class="dropdown-menu" data-menu="files">
+              <div id="menu-item-new-chat" class="dropdown-item">
+                <span>New Conversation</span>
+                <span class="dropdown-item-shortcut">Ctrl+N</span>
+              </div>
+              <div id="menu-item-open-project" class="dropdown-item">
+                <span>Open Project</span>
+                <span class="dropdown-item-shortcut">Ctrl+O</span>
+              </div>
+              <div class="dropdown-separator"></div>
+              <div id="menu-item-settings" class="dropdown-item">
+                <span>Settings</span>
+                <span class="dropdown-item-shortcut">Ctrl+,</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- View Menu -->
+          <div class="menu-container">
+            <button class="menu-trigger" data-menu="view">View</button>
+            <div class="dropdown-menu" data-menu="view">
+              <div id="menu-item-toggle-sidebar" class="dropdown-item">
+                <span>Toggle left-sidebar</span>
+                <span class="dropdown-item-shortcut">Ctrl+B</span>
+              </div>
+              <div id="menu-item-toggle-terminal" class="dropdown-item">
+                <span>Toggle terminal</span>
+                <span class="dropdown-item-shortcut">Ctrl+`</span>
+              </div>
+              <div id="menu-item-toggle-git-diff" class="dropdown-item">
+                <span>Toggle git-diff panel</span>
+                <span class="dropdown-item-shortcut">Ctrl+G</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Window Menu -->
+          <div class="menu-container">
+            <button class="menu-trigger" data-menu="window">Window</button>
+            <div class="dropdown-menu" data-menu="window">
+              <div id="menu-item-close-window" class="dropdown-item">
+                <span>Close window</span>
+                <span class="dropdown-item-shortcut">Ctrl+W</span>
+              </div>
+              <div id="menu-item-exit" class="dropdown-item">
+                <span>Exit</span>
+                <span class="dropdown-item-shortcut">Ctrl+Q</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Help Menu -->
+          <div class="menu-container">
+            <button class="menu-trigger" data-menu="help">Help</button>
+            <div class="dropdown-menu" data-menu="help">
+              <div id="menu-item-documentation" class="dropdown-item">
+                <span>Documentation</span>
+              </div>
+              <div id="menu-item-check-update" class="dropdown-item">
+                <span>Check for update</span>
+              </div>
+              <div id="menu-item-report-bug" class="dropdown-item">
+                <span>Report bug</span>
+              </div>
+              <div id="menu-item-about" class="dropdown-item">
+                <span>About</span>
+              </div>
+              <div class="dropdown-separator"></div>
+              <div id="menu-item-follow-creator" class="dropdown-item">
+                <span>Follow creator</span>
+              </div>
+              <div id="menu-item-see-repo" class="dropdown-item">
+                <span>See repo</span>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Draggable Center Spacer Region -->
+      <div class="titlebar-drag-spacer" data-tauri-drag-region></div>
+
+      <!-- Right Window Actions: Minimize / Maximize / Close -->
+      <div class="titlebar-actions">
+        <button id="btn-minimize" class="action-btn" title="Minimize">
+          <span class="ui-icon icon-minimize"></span>
+        </button>
+        <button id="btn-maximize" class="action-btn" title="Maximize">
+          <span id="icon-max-restore" class="ui-icon icon-maximize"></span>
+        </button>
+        <button id="btn-close" class="action-btn close-btn" title="Close">
+          <span class="ui-icon icon-close"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Viewport: Left Sidebar + Central Content Pane -->
+    <main id="main-viewport">
+      <!-- Left Sidebar -->
+      <aside id="left-sidebar" class="left-sidebar">
+        <!-- Top Actions -->
+        <div class="sidebar-top">
+          <button id="btn-new-chat" class="btn-new-chat">
+            <div class="btn-new-chat-left">
+              <span class="ui-icon icon-sidebar-new-chat"></span>
+              <span>New conversation</span>
+            </div>
+            <span class="key-badge">Ctrl+N</span>
+          </button>
+          <div class="sidebar-search-container">
+            <span class="ui-icon icon-sidebar-search"></span>
+            <input id="sidebar-search-input" class="sidebar-search-input" type="text"
+              placeholder="Search conversation..." />
+            <button id="btn-search-clear" class="btn-search-clear" title="Clear search">✕</button>
+          </div>
+          <button id="btn-plugins" class="btn-sidebar-plugins">
+            <span class="ui-icon icon-sidebar-plugins"></span>
+            <span>Plugins</span>
+          </button>
+        </div>
+
+        <!-- Scrollable Middle Section -->
+        <div class="sidebar-scroll-content">
+          <!-- Projects Section -->
+          <section id="section-projects" class="sidebar-section">
+            <div class="section-header" id="header-projects">
+              <div class="section-header-left">
+                <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
+                <span>Projects</span>
+                <span id="projects-count-badge" class="count-pill">0</span>
+              </div>
+              <button id="btn-add-project" class="section-action-btn" title="Add Project Folder">
+                <span class="ui-icon icon-sidebar-folder-input"></span>
+              </button>
+            </div>
+            <div id="projects-items-container" class="section-items"></div>
+          </section>
+
+          <!-- Standalone Chats Section -->
+          <section id="section-chats" class="sidebar-section">
+            <div class="section-header" id="header-chats">
+              <div class="section-header-left">
+                <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
+                <span>Chats</span>
+                <span id="chats-count-badge" class="count-pill">0</span>
+              </div>
+            </div>
+            <div id="chats-items-container" class="section-items"></div>
+          </section>
+
+          <!-- WhatsApp Channel Section -->
+          <section id="section-whatsapp" class="sidebar-section" style="display: none;">
+            <div class="section-header" id="header-whatsapp">
+              <div class="section-header-left">
+                <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
+                <span>WhatsApp</span>
+                <span id="whatsapp-count-badge" class="count-pill">0</span>
+              </div>
+            </div>
+            <div id="whatsapp-items-container" class="section-items"></div>
+          </section>
+
+          <!-- Telegram Channel Section -->
+          <section id="section-telegram" class="sidebar-section" style="display: none;">
+            <div class="section-header" id="header-telegram">
+              <div class="section-header-left">
+                <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
+                <span>Telegram</span>
+                <span id="telegram-count-badge" class="count-pill">0</span>
+              </div>
+            </div>
+            <div id="telegram-items-container" class="section-items"></div>
+          </section>
+        </div>
+
+        <!-- Bottom Section -->
+        <div class="sidebar-bottom">
+          <button id="btn-sidebar-settings" class="btn-sidebar-settings">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="ui-icon icon-sidebar-settings"></span>
+              <span>Settings</span>
+            </div>
+            <span class="key-badge">Ctrl+,</span>
+          </button>
+        </div>
+
+        <!-- Right Resize Handle -->
+        <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+      </aside>
+
+      <!-- Main Content Area: Topbar + Chat Viewport + Input Box + Warning Disclaimer -->
+      <section id="content-pane" class="main-content-layout">
+        <!-- Main Content Topbar -->
+        <header id="main-content-topbar" class="main-topbar">
+          <!-- Left: Conversation Title & Optional Project Badge -->
+          <div class="topbar-left-section">
+            <span id="topbar-session-title" class="topbar-session-title">New Session</span>
+            <span id="topbar-project-badge" class="topbar-project-badge"></span>
+          </div>
+
+          <!-- Right: Terminal & Git Commit Buttons -->
+          <div class="topbar-right-section">
+            <button id="btn-topbar-terminal" class="topbar-btn" title="Toggle Terminal (Ctrl+`)">
+              <span class="ui-icon icon-topbar-terminal"></span>
+            </button>
+            <button id="btn-topbar-git-commit" class="topbar-btn" title="Toggle Git Diff (Ctrl+G)">
+              <span class="ui-icon icon-topbar-git-commit"></span>
+              <div id="topbar-git-stats" class="git-diff-stats-wrapper">
+                <span id="git-stat-insertions" class="git-insertions-badge"></span>
+                <span id="git-stat-deletions" class="git-deletions-badge"></span>
+              </div>
+            </button>
+          </div>
+        </header>
+
+        <!-- Chat Message Stream Viewport -->
+        <div id="chat-messages-viewport" class="main-chat-viewport">
+          <!-- Empty State (Shown when no conversation is active/loaded) -->
+          <div id="chat-empty-state" class="empty-state-container">
             <img
-              id="brand-logo-img"
-              class="brand-logo-img"
+              class="empty-state-logo"
               src="assets/brand/operon.svg"
               alt="Operon Logo"
             />
-            <span id="brand-toggle-icon" class="brand-toggle-icon"></span>
+            <div class="empty-state-tagline">
+              <span>Agent that is built for everyone,</span>
+              <span>— not just for developers.</span>
+            </div>
           </div>
-
-          <!-- Navigation Controls -->
-          <nav class="nav-controls">
-            <button id="btn-nav-back" class="titlebar-icon-btn" title="Back">
-              <span class="ui-icon icon-arrow-left"></span>
-            </button>
-            <button id="btn-nav-forward" class="titlebar-icon-btn" title="Forward">
-              <span class="ui-icon icon-arrow-right"></span>
-            </button>
-          </nav>
-
-          <!-- Menus (Files, View, Window, Help) -->
-          <nav class="titlebar-menus">
-            <!-- Files Menu -->
-            <div class="menu-container">
-              <button class="menu-trigger" data-menu="files">Files</button>
-              <div class="dropdown-menu" data-menu="files">
-                <div id="menu-item-new-chat" class="dropdown-item">
-                  <span>New Conversation</span>
-                  <span class="dropdown-item-shortcut">Ctrl+N</span>
-                </div>
-                <div id="menu-item-open-project" class="dropdown-item">
-                  <span>Open Project</span>
-                  <span class="dropdown-item-shortcut">Ctrl+O</span>
-                </div>
-                <div class="dropdown-separator"></div>
-                <div id="menu-item-settings" class="dropdown-item">
-                  <span>Settings</span>
-                  <span class="dropdown-item-shortcut">Ctrl+,</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- View Menu -->
-            <div class="menu-container">
-              <button class="menu-trigger" data-menu="view">View</button>
-              <div class="dropdown-menu" data-menu="view">
-                <div id="menu-item-toggle-sidebar" class="dropdown-item">
-                  <span>Toggle left-sidebar</span>
-                  <span class="dropdown-item-shortcut">Ctrl+B</span>
-                </div>
-                <div id="menu-item-toggle-terminal" class="dropdown-item">
-                  <span>Toggle terminal</span>
-                  <span class="dropdown-item-shortcut">Ctrl+`</span>
-                </div>
-                <div id="menu-item-toggle-git-diff" class="dropdown-item">
-                  <span>Toggle git-diff panel</span>
-                  <span class="dropdown-item-shortcut">Ctrl+G</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Window Menu -->
-            <div class="menu-container">
-              <button class="menu-trigger" data-menu="window">Window</button>
-              <div class="dropdown-menu" data-menu="window">
-                <div id="menu-item-close-window" class="dropdown-item">
-                  <span>Close window</span>
-                  <span class="dropdown-item-shortcut">Ctrl+W</span>
-                </div>
-                <div id="menu-item-exit" class="dropdown-item">
-                  <span>Exit</span>
-                  <span class="dropdown-item-shortcut">Ctrl+Q</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Help Menu -->
-            <div class="menu-container">
-              <button class="menu-trigger" data-menu="help">Help</button>
-              <div class="dropdown-menu" data-menu="help">
-                <div id="menu-item-documentation" class="dropdown-item">
-                  <span>Documentation</span>
-                </div>
-                <div id="menu-item-check-update" class="dropdown-item">
-                  <span>Check for update</span>
-                </div>
-                <div id="menu-item-report-bug" class="dropdown-item">
-                  <span>Report bug</span>
-                </div>
-                <div id="menu-item-about" class="dropdown-item">
-                  <span>About</span>
-                </div>
-                <div class="dropdown-separator"></div>
-                <div id="menu-item-follow-creator" class="dropdown-item">
-                  <span>Follow creator</span>
-                </div>
-                <div id="menu-item-see-repo" class="dropdown-item">
-                  <span>See repo</span>
-                </div>
-              </div>
-            </div>
-          </nav>
         </div>
 
-        <!-- Draggable Center Spacer Region -->
-        <div class="titlebar-drag-spacer" data-tauri-drag-region></div>
+        <!-- Pinned Bottom Input Area -->
+        <div class="input-panel-container">
+          <!-- Input Card -->
+          <div class="input-card">
+            <!-- Pending Attachments Bar -->
+            <div id="input-attachments-bar" class="attachments-bar"></div>
 
-        <!-- Right Window Actions: Minimize / Maximize / Close -->
-        <div class="titlebar-actions">
-          <button id="btn-minimize" class="action-btn" title="Minimize">
-            <span class="ui-icon icon-minimize"></span>
-          </button>
-          <button id="btn-maximize" class="action-btn" title="Maximize">
-            <span id="icon-max-restore" class="ui-icon icon-maximize"></span>
-          </button>
-          <button id="btn-close" class="action-btn close-btn" title="Close">
-            <span class="ui-icon icon-close"></span>
-          </button>
-        </div>
-      </header>
+            <!-- Multiline Prompt Input -->
+            <textarea id="chat-input-textarea" class="input-textarea" placeholder="Message Operon..."
+              rows="1"></textarea>
 
-      <!-- Main Viewport: Left Sidebar + Central Content Pane -->
-      <main id="main-viewport">
-        <!-- Left Sidebar -->
-        <aside id="left-sidebar" class="left-sidebar">
-          <!-- Top Actions -->
-          <div class="sidebar-top">
-            <button id="btn-new-chat" class="btn-new-chat">
-              <div class="btn-new-chat-left">
-                <span class="ui-icon icon-sidebar-new-chat"></span>
-                <span>New conversation</span>
-              </div>
-              <span class="key-badge">Ctrl+N</span>
-            </button>
-            <div class="sidebar-search-container">
-              <span class="ui-icon icon-sidebar-search"></span>
-              <input
-                id="sidebar-search-input"
-                class="sidebar-search-input"
-                type="text"
-                placeholder="Search conversation..."
-              />
-              <button id="btn-search-clear" class="btn-search-clear" title="Clear search">✕</button>
-            </div>
-            <button id="btn-plugins" class="btn-sidebar-plugins">
-              <span class="ui-icon icon-sidebar-plugins"></span>
-              <span>Plugins</span>
-            </button>
-          </div>
-
-          <!-- Scrollable Middle Section -->
-          <div class="sidebar-scroll-content">
-            <!-- Projects Section -->
-            <section id="section-projects" class="sidebar-section">
-              <div class="section-header" id="header-projects">
-                <div class="section-header-left">
-                  <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
-                  <span>Projects</span>
-                  <span id="projects-count-badge" class="count-pill">0</span>
-                </div>
-                <button id="btn-add-project" class="section-action-btn" title="Add Project Folder">
-                  <span class="ui-icon icon-sidebar-folder-input"></span>
+            <!-- Bottom Input Toolbar -->
+            <div class="input-toolbar">
+              <!-- Left Section: Attach & Auto-Approve -->
+              <div class="toolbar-group-left">
+                <button id="btn-attach-files" class="toolbar-btn btn-attach" title="Attach file or image">
+                  <span class="ui-icon icon-input-attach"></span>
+                </button>
+                <button id="btn-auto-approve" class="toolbar-btn btn-auto-approve"
+                  title="Toggle Auto-Approve tool execution">
+                  <span class="ui-icon icon-input-auto-approve-disable"></span>
+                  <span>Auto</span>
                 </button>
               </div>
-              <div id="projects-items-container" class="section-items"></div>
-            </section>
 
-            <!-- Standalone Chats Section -->
-            <section id="section-chats" class="sidebar-section">
-              <div class="section-header" id="header-chats">
-                <div class="section-header-left">
-                  <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
-                  <span>Chats</span>
-                  <span id="chats-count-badge" class="count-pill">0</span>
-                </div>
-              </div>
-              <div id="chats-items-container" class="section-items"></div>
-            </section>
-
-            <!-- WhatsApp Channel Section -->
-            <section id="section-whatsapp" class="sidebar-section" style="display: none;">
-              <div class="section-header" id="header-whatsapp">
-                <div class="section-header-left">
-                  <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
-                  <span>WhatsApp</span>
-                  <span id="whatsapp-count-badge" class="count-pill">0</span>
-                </div>
-              </div>
-              <div id="whatsapp-items-container" class="section-items"></div>
-            </section>
-
-            <!-- Telegram Channel Section -->
-            <section id="section-telegram" class="sidebar-section" style="display: none;">
-              <div class="section-header" id="header-telegram">
-                <div class="section-header-left">
-                  <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
-                  <span>Telegram</span>
-                  <span id="telegram-count-badge" class="count-pill">0</span>
-                </div>
-              </div>
-              <div id="telegram-items-container" class="section-items"></div>
-            </section>
-          </div>
-
-          <!-- Bottom Section -->
-          <div class="sidebar-bottom">
-            <button id="btn-sidebar-settings" class="btn-sidebar-settings">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="ui-icon icon-sidebar-settings"></span>
-                <span>Settings</span>
-              </div>
-              <span class="key-badge">Ctrl+,</span>
-            </button>
-          </div>
-
-          <!-- Right Resize Handle -->
-          <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
-        </aside>
-
-        <!-- Main Content Area: Chat Viewport + Input Box + Warning Disclaimer -->
-        <section id="content-pane" class="main-content-layout">
-          <!-- Chat Message Stream Viewport -->
-          <div id="chat-messages-viewport" class="main-chat-viewport"></div>
-
-          <!-- Pinned Bottom Input Area -->
-          <div class="input-panel-container">
-            <!-- Input Card -->
-            <div class="input-card">
-              <!-- Pending Attachments Bar -->
-              <div id="input-attachments-bar" class="attachments-bar"></div>
-
-              <!-- Multiline Prompt Input -->
-              <textarea
-                id="chat-input-textarea"
-                class="input-textarea"
-                placeholder="Message Operon..."
-                rows="1"
-              ></textarea>
-
-              <!-- Bottom Input Toolbar -->
-              <div class="input-toolbar">
-                <!-- Left Section: Attach & Auto-Approve -->
-                <div class="toolbar-group-left">
-                  <button
-                    id="btn-attach-files"
-                    class="toolbar-btn btn-attach"
-                    title="Attach file or image"
-                  >
-                    <span class="ui-icon icon-input-attach"></span>
-                  </button>
-                  <button
-                    id="btn-auto-approve"
-                    class="toolbar-btn btn-auto-approve"
-                    title="Toggle Auto-Approve tool execution"
-                  >
-                    <span class="ui-icon icon-input-auto-approve-disable"></span>
-                    <span>Auto</span>
-                  </button>
-                </div>
-
-                <!-- Right Section: Context, Model, Reasoning, Voice, Send -->
-                <div class="toolbar-group-right">
-                  <button
-                    id="btn-context-usage"
-                    class="toolbar-btn btn-context-indicator"
-                    title="Context token window usage"
-                  >
-                    <span class="ui-icon icon-input-context"></span>
-                    <span id="context-usage-text"></span>
-                  </button>
-                  <button
-                    id="btn-select-model"
-                    class="toolbar-btn btn-selector-pill"
-                    title="Select AI Model"
-                  >
-                    <span class="ui-icon icon-input-model"></span>
-                    <span id="selected-model-text"></span>
-                    <span
-                      class="ui-icon icon-input-chevron-down"
-                      style="width: 10px; height: 10px;"
-                    ></span>
-                  </button>
-                  <button
-                    id="btn-select-reasoning"
-                    class="toolbar-btn btn-selector-pill"
-                    title="Reasoning Strength"
-                  >
-                    <span class="ui-icon icon-input-reasoning"></span>
-                    <span id="selected-reasoning-text">Medium</span>
-                    <span
-                      class="ui-icon icon-input-chevron-down"
-                      style="width: 10px; height: 10px;"
-                    ></span>
-                  </button>
-                  <button
-                    id="btn-voice-input"
-                    class="toolbar-btn btn-voice"
-                    title="Voice input"
-                  >
-                    <span class="ui-icon icon-input-voice"></span>
-                  </button>
-                  <button
-                    id="btn-send-message"
-                    class="btn-send-action disabled"
-                    title="Send message"
-                  >
-                    <span class="ui-icon icon-input-send"></span>
-                  </button>
-                </div>
+              <!-- Right Section: Context, Model, Reasoning, Voice, Send -->
+              <div class="toolbar-group-right">
+                <button id="btn-context-usage" class="toolbar-btn btn-context-indicator"
+                  title="Context token window usage">
+                  <span class="ui-icon icon-input-context"></span>
+                  <span id="context-usage-text"></span>
+                </button>
+                <button id="btn-select-model" class="toolbar-btn btn-selector-pill" title="Select AI Model">
+                  <span class="ui-icon icon-input-model"></span>
+                  <span id="selected-model-text"></span>
+                  <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
+                </button>
+                <button id="btn-select-reasoning" class="toolbar-btn btn-selector-pill" title="Reasoning Strength">
+                  <span class="ui-icon icon-input-reasoning"></span>
+                  <span id="selected-reasoning-text">Medium</span>
+                  <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
+                </button>
+                <button id="btn-voice-input" class="toolbar-btn btn-voice" title="Voice input">
+                  <span class="ui-icon icon-input-voice"></span>
+                </button>
+                <button id="btn-send-message" class="btn-send-action disabled" title="Send message">
+                  <span class="ui-icon icon-input-send"></span>
+                </button>
               </div>
             </div>
-
-            <!-- Warning Disclaimer Text Below Input -->
-            <div class="input-warning-text">Operon uses AI models. AI can make mistakes.</div>
           </div>
-        </section>
-      </main>
-    </div>
 
-    <!-- Application Script Entrypoint -->
-    <script type="module" src="js/main.js"></script>
-  </body>
+          <!-- Warning Disclaimer Text Below Input -->
+          <div class="input-warning-text">Operon uses AI models. AI can make mistakes.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Application Script Entrypoint -->
+  <script type="module" src="js/main.js"></script>
+</body>
+
 </html>

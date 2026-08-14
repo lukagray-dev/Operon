@@ -1,0 +1,133 @@
+/* Main Content Topbar Styling */
+@import '../../shared/tokens.css';
+
+/* Topbar Fixed Container */
+.main-topbar {
+  height: 40px;
+  min-height: 40px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background-color: var(--window-background);
+  border-bottom: 1px solid var(--dropdown-border);
+  position: relative;
+  z-index: 15;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+
+/* Left Title Area */
+.topbar-left-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar-session-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+
+.topbar-project-badge {
+  display: none;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.topbar-project-badge.visible {
+  display: inline-block;
+}
+
+/* Right Actions Area */
+.topbar-right-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Topbar Action Buttons */
+.topbar-btn {
+  height: 28px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0 6px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.topbar-btn:hover {
+  background-color: var(--dropdown-surface-hover);
+  color: var(--text-primary);
+}
+
+.topbar-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.topbar-btn.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.topbar-btn.active .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Git Diff Stats Badges */
+.git-diff-stats-wrapper {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--mono-font-family);
+}
+
+.git-diff-stats-wrapper.visible {
+  display: flex;
+}
+
+.git-insertions-badge {
+  color: #23d18b;
+}
+
+.git-deletions-badge {
+  color: #f14c4c;
+}
+
+/* Mask Icon Definitions for Topbar */
+.icon-topbar-terminal {
+  -webkit-mask-image: url('../../../assets/icons/main-content/topbar/terminal.svg');
+  mask-image: url('../../../assets/icons/main-content/topbar/terminal.svg');
+}
+
+.icon-topbar-git-commit {
+  -webkit-mask-image: url('../../../assets/icons/main-content/topbar/git-commit.svg');
+  mask-image: url('../../../assets/icons/main-content/topbar/git-commit.svg');
+}

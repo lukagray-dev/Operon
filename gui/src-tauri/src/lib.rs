@@ -89,6 +89,13 @@ pub fn run() {
             main_content::input::toggle_auto_approve,
             main_content::input::pick_attachments_dialog,
             main_content::input::get_context_window_info,
+            // Main Content Topbar actions
+            main_content::topbar::get_git_diff_stats,
+            main_content::topbar::get_topbar_info,
+            // Main Content Messages actions
+            main_content::messages::load_session_messages,
+            main_content::messages::submit_prompt,
+            main_content::messages::cancel_prompt,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

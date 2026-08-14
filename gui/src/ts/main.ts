@@ -1,7 +1,10 @@
 // Application root coordinator
 
 import { initSidebar } from './left-sidebar/sidebar.js';
+import { initEmptyState } from './main-content/empty-state/empty-state.js';
 import { initInputPanel } from './main-content/input/input.js';
+import { initMessages } from './main-content/messages/messages.js';
+import { initTopbar } from './main-content/topbar/topbar.js';
 import { initTitlebar } from './titlebar/titlebar.js';
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -10,6 +13,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Left Sidebar
   initSidebar();
+
+  // Initialize Main Content Topbar
+  initTopbar();
+
+  // Initialize Empty State
+  initEmptyState();
+
+  // Initialize Chat Messages Stream
+  initMessages();
 
   // Initialize Main Content Input Panel
   initInputPanel();

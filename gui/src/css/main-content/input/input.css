@@ -1,5 +1,5 @@
 /* Main Content Input Panel & Warning Disclaimer Styling */
-@import '../shared/tokens.css';
+@import '../../shared/tokens.css';
 
 /* Main Content Area Outer Layout */
 .main-content-layout {
@@ -330,51 +330,51 @@
 
 /* Mask Icon Definitions for Input Panel */
 .icon-input-attach {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/attach.svg');
-  mask-image: url('../../assets/icons/main-content/input/attach.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/attach.svg');
+  mask-image: url('../../../assets/icons/main-content/input/attach.svg');
 }
 
 .icon-input-auto-approve-disable {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/auto-approve-disable.svg');
-  mask-image: url('../../assets/icons/main-content/input/auto-approve-disable.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/auto-approve-disable.svg');
+  mask-image: url('../../../assets/icons/main-content/input/auto-approve-disable.svg');
 }
 
 .icon-input-auto-approve-enable {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/auto-approve-enable.svg');
-  mask-image: url('../../assets/icons/main-content/input/auto-approve-enable.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/auto-approve-enable.svg');
+  mask-image: url('../../../assets/icons/main-content/input/auto-approve-enable.svg');
 }
 
 .icon-input-context {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/context.svg');
-  mask-image: url('../../assets/icons/main-content/input/context.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/context.svg');
+  mask-image: url('../../../assets/icons/main-content/input/context.svg');
 }
 
 .icon-input-model {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/model.svg');
-  mask-image: url('../../assets/icons/main-content/input/model.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/model.svg');
+  mask-image: url('../../../assets/icons/main-content/input/model.svg');
 }
 
 .icon-input-reasoning {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/reasoning.svg');
-  mask-image: url('../../assets/icons/main-content/input/reasoning.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/reasoning.svg');
+  mask-image: url('../../../assets/icons/main-content/input/reasoning.svg');
 }
 
 .icon-input-voice {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/voice.svg');
-  mask-image: url('../../assets/icons/main-content/input/voice.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/voice.svg');
+  mask-image: url('../../../assets/icons/main-content/input/voice.svg');
 }
 
 .icon-input-send {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/send.svg');
-  mask-image: url('../../assets/icons/main-content/input/send.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/send.svg');
+  mask-image: url('../../../assets/icons/main-content/input/send.svg');
 }
 
 .icon-input-stop {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/stop.svg');
-  mask-image: url('../../assets/icons/main-content/input/stop.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/stop.svg');
+  mask-image: url('../../../assets/icons/main-content/input/stop.svg');
 }
 
 .icon-input-chevron-down {
-  -webkit-mask-image: url('../../assets/icons/main-content/input/chevron-down.svg');
-  mask-image: url('../../assets/icons/main-content/input/chevron-down.svg');
+  -webkit-mask-image: url('../../../assets/icons/main-content/input/chevron-down.svg');
+  mask-image: url('../../../assets/icons/main-content/input/chevron-down.svg');
 }

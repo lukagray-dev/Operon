@@ -1,0 +1,16 @@
+/* Chat Messages Main List Styling */
+@import '../../../shared/tokens.css';
+@import './user/user.css';
+@import './assistant/assistant.css';
+
+/* Stream Viewport Message Container */
+.messages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 24px 24px 24px;
+  max-width: 840px;
+  width: 100%;
+  margin: 0 auto;
+  min-height: 100%;
+}

@@ -1,0 +1,130 @@
+/* Assistant Message Styling */
+
+.assistant-message-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 8px;
+}
+
+.assistant-message-body {
+  font-family: var(--assistant-font-family, Literata, serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Bottom Action Bar */
+.assistant-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  gap: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.assistant-action-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.assistant-brand-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.assistant-time-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+}
+
+.assistant-action-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.assistant-action-btn {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-family);
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.assistant-action-btn:hover {
+  background-color: var(--dropdown-surface-hover);
+  color: var(--text-primary);
+}
+
+.assistant-action-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.assistant-action-btn.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.assistant-action-btn.active .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Turn Separator */
+.turn-separator {
+  width: 100%;
+  height: 1px;
+  background-color: #222222;
+  margin: 12px 0 4px 0;
+}
+
+/* Assistant Message Icons */
+.icon-asst-copy {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+}
+
+.icon-asst-check {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+}
+
+.icon-asst-like {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/like.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/like.svg');
+}
+
+.icon-asst-dislike {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/dislike.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/dislike.svg');
+}
+
+.icon-asst-fork {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/fork.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/fork.svg');
+}
+
+.icon-asst-redo {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/redo.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/redo.svg');
+}

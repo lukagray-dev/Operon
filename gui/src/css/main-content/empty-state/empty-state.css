@@ -1,0 +1,48 @@
+/* Empty State Component Styling */
+@import '../../../shared/tokens.css';
+
+/* Full-viewport Centered Empty State Container */
+.empty-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  min-height: 280px;
+  padding: 32px 16px;
+  text-align: center;
+  gap: 20px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.empty-state-container.hidden {
+  display: none !important;
+}
+
+/* 64px Operon Brand Logo */
+.empty-state-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+/* Two-Line Tagline Container */
+.empty-state-tagline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 420px;
+}
+
+.empty-state-tagline span {
+  font-family: var(--font-family);
+  font-size: 16px;
+  font-weight: 400;
+  color: #6e6e6e;
+  line-height: 1.4;
+  text-align: center;
+}
