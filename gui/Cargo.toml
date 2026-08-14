@@ -21,9 +21,7 @@ notify.workspace      = true
 tracing.workspace     = true
 
 # ── Internal Crates ───────────────────────────────────────────────────────────
-operon-rs.workspace                = true
-operon-channels-whatsapp.workspace = true
-operon-channels-telegram.workspace = true
+operon-rs.workspace = true
 
 # ── GUI deps ──────────────────────────────────────────────────────────────────
 rfd.workspace            = true

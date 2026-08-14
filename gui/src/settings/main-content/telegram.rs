@@ -12,10 +12,11 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex as StdMutex};
 
 use crate::state::AppState;
-use operon_channels_telegram::client::TelegramClient;
-use operon_channels_telegram::config::TelegramConfig;
-use operon_channels_telegram::service::TelegramService;
-use operon_channels_telegram::types::ChatId;
+use operon_rs::channels::telegram::client::TelegramClient;
+use operon_rs::channels::telegram::config::TelegramConfig;
+use operon_rs::channels::telegram::service::TelegramService;
+use operon_rs::channels::telegram::types::ChatId;
+use operon_rs::channels::telegram::ConnectionStatus;
 
 /// Type alias for the shared client handle used across Slint callbacks.
 type ClientHandle = Arc<StdMutex<Option<Arc<TelegramClient>>>>;
@@ -246,7 +247,7 @@ fn spawn_status_poller(weak: slint::Weak<crate::SettingsWindow>, client: Arc<Tel
 
             let status = client.status().await;
             match status {
-                operon_channels_telegram::ConnectionStatus::Connected => {
+                ConnectionStatus::Connected => {
                     let weak2 = weak.clone();
                     slint::invoke_from_event_loop(move || {
                         if let Some(win) = weak2.upgrade() {
@@ -256,7 +257,7 @@ fn spawn_status_poller(weak: slint::Weak<crate::SettingsWindow>, client: Arc<Tel
                     .ok();
                     break;
                 }
-                operon_channels_telegram::ConnectionStatus::Error(ref err) => {
+                ConnectionStatus::Error(ref err) => {
                     let err_msg = format!("Error: {}", err);
                     let weak2 = weak.clone();
                     slint::invoke_from_event_loop(move || {

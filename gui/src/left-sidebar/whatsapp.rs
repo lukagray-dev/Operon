@@ -10,12 +10,13 @@ use std::sync::Arc;
 use crate::state::AppState;
 use crate::{SidebarConversation, SidebarProject};
 
-use operon_channels_whatsapp::auth::WhatsAppAuth;
-use operon_channels_whatsapp::client::WhatsAppClient;
-use operon_channels_whatsapp::config::WhatsAppConfig;
-use operon_channels_whatsapp::service::WhatsAppService;
-use operon_channels_whatsapp::types::ContactId;
-use operon_channels_whatsapp::{DeviceStore, RusqliteStore};
+use operon_rs::channels::whatsapp::auth::WhatsAppAuth;
+use operon_rs::channels::whatsapp::client::WhatsAppClient;
+use operon_rs::channels::whatsapp::config::WhatsAppConfig;
+use operon_rs::channels::whatsapp::service::WhatsAppService;
+use operon_rs::channels::whatsapp::types::ContactId;
+use operon_rs::channels::whatsapp::{DeviceStore, RusqliteStore};
+
 
 /// Static storage handle for the filesystem watcher to ensure it remains alive.
 static WHATSAPP_WATCHER: std::sync::Mutex<Option<RecommendedWatcher>> = std::sync::Mutex::new(None);

@@ -21,11 +21,12 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex as StdMutex};
 
 use crate::state::AppState;
-use operon_channels_whatsapp::auth::WhatsAppAuth;
-use operon_channels_whatsapp::client::WhatsAppClient;
-use operon_channels_whatsapp::config::WhatsAppConfig;
-use operon_channels_whatsapp::service::WhatsAppService;
-use operon_channels_whatsapp::types::ContactId;
+use operon_rs::channels::whatsapp::auth::WhatsAppAuth;
+use operon_rs::channels::whatsapp::client::WhatsAppClient;
+use operon_rs::channels::whatsapp::config::WhatsAppConfig;
+use operon_rs::channels::whatsapp::service::WhatsAppService;
+use operon_rs::channels::whatsapp::types::ContactId;
+use operon_rs::channels::whatsapp::ConnectionStatus;
 
 /// Type alias for the shared client handle used across Slint callbacks.
 /// - `Arc` for cross-thread sharing (Slint callbacks → tokio tasks).
@@ -493,7 +494,7 @@ fn spawn_status_poller(weak: slint::Weak<crate::SettingsWindow>, client: Arc<Wha
 
             let status = client.status().await;
             match status {
-                operon_channels_whatsapp::ConnectionStatus::Connected => {
+                ConnectionStatus::Connected => {
                     // Pairing succeeded — update UI and close all popups.
                     let weak2 = weak.clone();
                     slint::invoke_from_event_loop(move || {
@@ -507,7 +508,7 @@ fn spawn_status_poller(weak: slint::Weak<crate::SettingsWindow>, client: Arc<Wha
                     // Terminal state — stop polling.
                     break;
                 }
-                operon_channels_whatsapp::ConnectionStatus::Error(ref err) => {
+                ConnectionStatus::Error(ref err) => {
                     // Connection failed — show the error and close popups.
                     let err_msg = format!("Error: {}", err);
                     let weak2 = weak.clone();

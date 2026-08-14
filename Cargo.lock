@@ -6392,8 +6392,6 @@ dependencies = [
  "image",
  "merman",
  "notify",
- "operon-channels-telegram",
- "operon-channels-whatsapp",
  "operon-rs",
  "png 0.17.16",
  "pulldown-cmark 0.11.3",

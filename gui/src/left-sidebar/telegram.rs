@@ -10,9 +10,10 @@ use std::sync::Arc;
 use crate::state::AppState;
 use crate::{SidebarConversation, SidebarProject};
 
-use operon_channels_telegram::client::TelegramClient;
-use operon_channels_telegram::config::TelegramConfig;
-use operon_channels_telegram::service::TelegramService;
+use operon_rs::channels::telegram::client::TelegramClient;
+use operon_rs::channels::telegram::config::TelegramConfig;
+use operon_rs::channels::telegram::service::TelegramService;
+
 
 /// Static storage handle for the filesystem watcher to ensure it remains alive.
 static TELEGRAM_WATCHER: std::sync::Mutex<Option<RecommendedWatcher>> = std::sync::Mutex::new(None);
