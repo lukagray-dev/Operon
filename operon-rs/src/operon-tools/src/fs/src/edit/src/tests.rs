@@ -769,3 +769,43 @@ async fn test_field_aliases_comprehensive() {
     let content2 = fs::read_to_string(&path).unwrap();
     assert_eq!(content2, "FOO BAR baz\n");
 }
+
+#[tokio::test]
+async fn test_edits_array_takes_precedence_over_root_fields() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "one two three\n").unwrap();
+
+    // Model emits both `edits` and flat root fields `old_string`/`new_string`.
+    // The structured `edits` array must take precedence and execute authoritatively.
+    let result = execute(
+        ToolCallId("test_precedence".to_string()),
+        json!({
+            "path": path,
+            "edits": [
+                {
+                    "old_string": "one",
+                    "new_string": "ONE"
+                },
+                {
+                    "old_string": "three",
+                    "new_string": "THREE"
+                }
+            ],
+            // Dual-emitted flat fields that should be ignored when edits is non-empty
+            "old_string": "two",
+            "new_string": "IGNORED_TWO"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let output = get_output(&result);
+    assert_eq!(output.hunks_applied, 2);
+    assert_eq!(output.hunks_failed, 0);
+
+    let content = fs::read_to_string(&path).unwrap();
+    // Verify `edits` applied and root field was not applied
+    assert_eq!(content, "ONE two THREE\n");
+}

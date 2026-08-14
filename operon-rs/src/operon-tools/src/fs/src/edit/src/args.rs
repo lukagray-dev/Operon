@@ -163,7 +163,17 @@ impl<'de> Deserialize<'de> for EditArgs {
 
         let mut edits = raw.edits;
 
-        // Fallback: If `edits` is empty but flat `old_string` & `new_string` were provided at root level
+        // PRECEDENCE RULE — Structured `edits` vs. Flat Root Fields:
+        //
+        // 1. If `edits` is non-empty, `edits` is treated as the authoritative multi-hunk payload.
+        //    Any flat root-level `old_string`/`new_string` fields are intentionally ignored.
+        //    Why? When models dual-emit both `edits: [...]` and root `old_string`, the root
+        //    fields are almost always an echo or duplicate of `edits[0]`. Blindly appending or
+        //    prepending the root fields would alter the execution order or cause duplicate
+        //    hunk failures in sequential application.
+        //
+        // 2. If `edits` is empty (or omitted entirely) and flat root fields `old_string` & `new_string`
+        //    are provided, we promote them into a single-item `edits` vector (`vec![EditHunk { ... }]`).
         if edits.is_empty() {
             if let (Some(old_str), Some(new_str)) = (raw.old_string, raw.new_string) {
                 edits.push(EditHunk {
