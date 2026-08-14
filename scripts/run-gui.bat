@@ -42,13 +42,17 @@ if errorlevel 1 (
 echo [OK] Rust toolchain detected
 echo.
 
+REM Compile TypeScript UI
+echo [*] Compiling TypeScript frontend...
+call npx tsc -p gui\tsconfig.json
+
 REM Build and run the GUI
 echo ============================================================================
 echo   Building and launching Operon GUI...
 echo ============================================================================
 echo.
 
-cargo run --bin operon-gui
+cargo run -p operon-gui
 
 REM Capture exit code
 set EXIT_CODE=%errorlevel%

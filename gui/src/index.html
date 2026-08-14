@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Operon</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <div class="logo-area">
+          <span class="logo-badge">OPERON</span>
+          <span class="logo-title">Agent Workspace</span>
+        </div>
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span id="system-status">Ready</span>
+        </div>
+      </header>
+      <main class="main-layout">
+        <div id="chat-container" class="chat-container">
+          <div id="messages" class="messages-list"></div>
+          <div class="input-container">
+            <textarea id="prompt-input" placeholder="Type a message or instruction..." rows="3"></textarea>
+            <button id="send-btn" class="primary-btn">Send</button>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
