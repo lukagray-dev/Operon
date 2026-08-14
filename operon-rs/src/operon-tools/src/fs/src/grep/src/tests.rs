@@ -215,5 +215,27 @@ mod tests {
         assert!(!text.contains("file.py"));
         assert!(text.contains("Showing 1 match(es) across 1 file(s)."));
     }
+
+    #[tokio::test]
+    async fn test_grep_defensive_aliases_and_stringified_paths() {
+        let temp = TempDir::new().expect("failed to create temp dir");
+        let _file_rs = create_test_file(&temp, "file.rs", "let magic_token = 42;");
+
+        // Test with query alias, stringified JSON paths array, context string
+        let args = json!({
+            "query": "magic_token",
+            "path": format!("[\"{}\"]", temp.path().display().to_string().replace('\\', "\\\\")),
+            "context": "3"
+        });
+
+        let result = execute(ToolCallId("test".to_string()), args)
+            .await
+            .expect("execute failed");
+
+        assert!(!result.is_error);
+        let text = extract_text(result);
+        assert!(text.contains("magic_token"));
+        assert!(text.contains("1 match(es)"));
+    }
 }
 

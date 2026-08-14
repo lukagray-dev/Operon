@@ -316,3 +316,23 @@ async fn test_ids_increment_sequentially() {
     let output3 = get_create_output(&result3);
     assert_eq!(output3.item.id, "3", "third id should be '3'");
 }
+
+#[tokio::test]
+async fn test_create_defensive_aliases() {
+    let mut store = TodoStore::new();
+    let result = execute(
+        call_id("test_alias"),
+        json!({
+            "title": "Build defensive parser",
+            "importance": "high"
+        }),
+        &mut store,
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let output = get_create_output(&result);
+    assert_eq!(output.item.content, "Build defensive parser");
+    assert_eq!(output.item.priority, operon_tools_core::TodoPriority::High);
+}

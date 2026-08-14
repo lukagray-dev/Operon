@@ -298,4 +298,17 @@ mod tests {
             _ => panic!("expected Text response"),
         }
     }
+
+    #[test]
+    fn test_web_fetch_defensive_aliases() {
+        use crate::WebFetchArgs;
+        let args: WebFetchArgs = serde_json::from_value(json!({
+            "link": "https://example.com",
+            "timeout": "5000"
+        }))
+        .unwrap();
+
+        assert_eq!(args.url, "https://example.com");
+        assert_eq!(args.timeout_ms, Some(5000));
+    }
 }

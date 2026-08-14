@@ -1,8 +1,9 @@
 //! Argument types for the `ask` tool.
 //!
-//! Defines the deserialization schema for the model's input to the `ask` tool.
-//! The tool accepts a question string and 3 answer options.
+//! Hey friend! Defines the defensive deserialization schema for the model's input to the `ask` tool.
+//! The tool accepts a question string and 3 answer options, supporting common parameter aliases and stringified arrays.
 
+use operon_tools_core::de::deserialize_flexible_string_list;
 use serde::Deserialize;
 
 use crate::error::AskToolError;
@@ -14,10 +15,22 @@ use crate::error::AskToolError;
 #[derive(Debug, Deserialize)]
 pub struct AskArgs {
     /// The question to present to the user.
+    #[serde(
+        alias = "prompt",
+        alias = "message",
+        alias = "query",
+        alias = "text"
+    )]
     pub question: String,
 
     /// 3 pre-defined answer options.
     /// The UI adds a 4th free-text field for custom user input.
+    #[serde(
+        deserialize_with = "deserialize_flexible_string_list",
+        alias = "choices",
+        alias = "answers",
+        alias = "items"
+    )]
     pub options: Vec<String>,
 }
 

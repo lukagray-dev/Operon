@@ -522,3 +522,25 @@ async fn test_permanent_flag_true_vs_false() {
     assert!(!std::path::Path::new(&path1).exists());
     assert!(!std::path::Path::new(&path2).exists());
 }
+
+#[tokio::test]
+async fn test_delete_field_aliases() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "delete me").unwrap();
+
+    let result = execute(
+        ToolCallId("alias_call".to_string()),
+        json!({
+            "target_file": path.clone(),
+            "force": true
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let output = get_output(&result);
+    assert!(output.permanent);
+    assert!(!std::path::Path::new(&path).exists());
+}

@@ -104,3 +104,19 @@ async fn test_nonexistent_path() {
     assert!(text.contains("Error:"));
 }
 
+#[tokio::test]
+async fn test_ls_empty_path_and_aliases() {
+    let args = json!({
+        "dir": "",
+        "patterns": ["*.nonexistent"]
+    });
+
+    let result = execute(ToolCallId("test".to_string()), args)
+        .await
+        .expect("execute failed");
+
+    assert!(!result.is_error);
+    let text = extract_text(result);
+    assert!(text.contains("=== . ==="));
+}
+

@@ -568,3 +568,25 @@ async fn test_sequential_writes_to_same_file() {
     let file_content = fs::read_to_string(&file_path).unwrap();
     assert_eq!(file_content, "third content");
 }
+
+#[tokio::test]
+async fn test_write_field_aliases() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let file_path = temp_dir.path().join("alias_test.txt");
+    let path = file_path.to_string_lossy().to_string();
+
+    // Use filePath and text aliases
+    let result = execute(
+        ToolCallId("alias_call".to_string()),
+        json!({
+            "filePath": path,
+            "text": "alias content"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let file_content = fs::read_to_string(&file_path).unwrap();
+    assert_eq!(file_content, "alias content");
+}

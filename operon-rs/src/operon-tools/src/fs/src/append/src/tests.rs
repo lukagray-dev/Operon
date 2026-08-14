@@ -585,3 +585,24 @@ async fn test_append_whitespace_only() {
     let file_content = fs::read_to_string(&path).unwrap();
     assert_eq!(file_content, "content   \t\t\n");
 }
+
+#[tokio::test]
+async fn test_append_field_aliases() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "hello").unwrap();
+
+    let result = execute(
+        ToolCallId("alias_call".to_string()),
+        json!({
+            "targetFile": path,
+            "text": " world"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let file_content = fs::read_to_string(&path).unwrap();
+    assert_eq!(file_content, "hello world");
+}

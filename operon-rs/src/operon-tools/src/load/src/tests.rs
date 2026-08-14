@@ -70,4 +70,25 @@ mod tests {
         };
         assert!(output.available_groups.is_empty());
     }
+
+    #[test]
+    fn test_load_tools_args_defensive_parsing() {
+        use crate::LoadToolsArgs;
+
+        // Single string
+        let a1: LoadToolsArgs = serde_json::from_value(json!({ "group": "fs" })).unwrap();
+        assert_eq!(a1.group, Some("fs".to_string()));
+
+        // Alias tool_group
+        let a2: LoadToolsArgs = serde_json::from_value(json!({ "tool_group": "shell" })).unwrap();
+        assert_eq!(a2.group, Some("shell".to_string()));
+
+        // Array of groups
+        let a3: LoadToolsArgs = serde_json::from_value(json!({ "groups": ["fs", "shell"] })).unwrap();
+        assert_eq!(a3.group, Some("fs".to_string()));
+
+        // Omitted
+        let a4: LoadToolsArgs = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(a4.group, None);
+    }
 }

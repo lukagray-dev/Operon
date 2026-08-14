@@ -5,6 +5,7 @@
 //! including stringified JSON arrays, markdown-fenced arguments, field name aliases,
 //! single-object hunk inputs, and flat top-level parameters.
 
+use operon_tools_core::de::strip_markdown_fences;
 use serde::{Deserialize, Deserializer, Serialize};
 
 /// A single search-and-replace operation.
@@ -55,21 +56,6 @@ where
 {
     let value = serde_json::Value::deserialize(deserializer)?;
     parse_edits_from_value(&value).map_err(serde::de::Error::custom)
-}
-
-/// Strips markdown code block fences if present.
-fn strip_markdown_fences(s: &str) -> &str {
-    let trimmed = s.trim();
-    if let Some(rest) = trimmed.strip_prefix("```json") {
-        if let Some(inner) = rest.strip_suffix("```") {
-            return inner.trim();
-        }
-    } else if let Some(rest) = trimmed.strip_prefix("```") {
-        if let Some(inner) = rest.strip_suffix("```") {
-            return inner.trim();
-        }
-    }
-    trimmed
 }
 
 /// Parses a `serde_json::Value` into `Vec<EditHunk>`.

@@ -206,4 +206,17 @@ mod tests {
             _ => panic!("expected Text response"),
         }
     }
+
+    #[test]
+    fn test_web_search_defensive_aliases() {
+        use crate::WebSearchArgs;
+        let args: WebSearchArgs = serde_json::from_value(json!({
+            "q": "rust async",
+            "limit": "3"
+        }))
+        .unwrap();
+
+        assert_eq!(args.query, "rust async");
+        assert_eq!(args.max_results, Some(3));
+    }
 }

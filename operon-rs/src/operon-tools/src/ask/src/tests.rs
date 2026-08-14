@@ -105,4 +105,17 @@ mod tests {
             "empty question string is structurally valid"
         );
     }
+
+    #[test]
+    fn test_ask_defensive_aliases_and_stringified_options() {
+        let args = json!({
+            "prompt": "Pick your language",
+            "choices": "[\"Rust\", \"Python\", \"TypeScript\"]"
+        });
+        let result = AskArgs::from_json(&args);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert_eq!(parsed.question, "Pick your language");
+        assert_eq!(parsed.options, vec!["Rust", "Python", "TypeScript"]);
+    }
 }

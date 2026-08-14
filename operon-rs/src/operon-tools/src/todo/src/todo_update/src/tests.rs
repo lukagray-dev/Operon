@@ -430,3 +430,27 @@ async fn test_update_only_content_leaves_others_unchanged() {
         "priority should be unchanged"
     );
 }
+
+#[tokio::test]
+async fn test_update_defensive_aliases_and_numeric_id() {
+    let mut store = TodoStore::new();
+    let item = store.create("Task".to_string(), None);
+    let numeric_id: u64 = item.id.parse().unwrap();
+
+    let result = execute(
+        call_id("test_alias"),
+        json!({
+            "todo_id": numeric_id,
+            "title": "Renamed task",
+            "state": "completed"
+        }),
+        &mut store,
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let output = get_update_output(&result);
+    assert_eq!(output.item.content, "Renamed task");
+    assert_eq!(output.item.status, TodoStatus::Completed);
+}

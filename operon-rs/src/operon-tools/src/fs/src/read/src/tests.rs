@@ -157,3 +157,29 @@ async fn test_binary_file_detection() {
     let text = extract_text(result);
     assert!(text.contains("Error: Binary file detected"));
 }
+
+#[tokio::test]
+async fn test_read_defensive_aliases_and_stringified_paths() {
+    let dir = setup_test_dir();
+    let path = dir.path().join("small.txt");
+    let path_str = path.to_str().unwrap().to_string();
+
+    // 1. Test single file via filePath alias
+    let args1 = json!({
+        "filePath": format!("{}:1-2", path_str)
+    });
+    let res1 = execute(ToolCallId("t1".to_string()), args1).await.unwrap();
+    assert!(!res1.is_error);
+    let text1 = extract_text(res1);
+    assert!(text1.contains("line 1"));
+    assert!(text1.contains("line 2"));
+
+    // 2. Test batch files via files alias as stringified JSON array
+    let args2 = json!({
+        "files": format!("[\"{}\"]", path_str.replace('\\', "\\\\"))
+    });
+    let res2 = execute(ToolCallId("t2".to_string()), args2).await.unwrap();
+    assert!(!res2.is_error);
+    let text2 = extract_text(res2);
+    assert!(text2.contains("line 1"));
+}

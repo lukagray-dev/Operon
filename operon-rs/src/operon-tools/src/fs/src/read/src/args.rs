@@ -1,8 +1,9 @@
 /// Argument types for the read tool.
 ///
-/// This module defines the deserialization schema for the read tool's input.
+/// Hey friend! This module defines the defensive deserialization schema for the read tool's input.
 /// The tool accepts string paths with optional `:start-end` line ranges
 /// (e.g., `"src/main.rs:10-40"`, `"src/main.rs:5-EOF"`, `"src/main.rs:15"`, `"src/main.rs"`).
+/// It seamlessly handles parameter aliases, stringified arrays, and batch files.
 use serde::Deserialize;
 
 /// A single read target — a path with an optional line range.
@@ -78,17 +79,45 @@ pub fn parse_string_target(s: &str) -> ReadTarget {
     }
 }
 
+fn deserialize_flexible_targets_opt<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<ReadTarget>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt_list = operon_tools_core::de::deserialize_flexible_string_list_opt(deserializer)?;
+    Ok(opt_list.map(|list| list.into_iter().map(|s| parse_string_target(&s)).collect()))
+}
+
 /// Top-level args the model sends when calling the `read` tool.
 ///
 /// Accepts:
 /// - `{ "path": "D:\\path\\file.rs:10-40" }` — single file with inline range
 /// - `{ "paths": ["D:\\path\\a.rs:10-40", "D:\\path\\b.rs:5-EOF", "D:\\path\\c.rs"] }` — batch files
+/// - `{ "filePath": "..." }` or `{ "files": "[\"...\", \"...\"]" }` — defensive aliases
 #[derive(Debug, Deserialize)]
 pub struct ReadArgs {
     /// Optional single file path (with optional inline range like `"file.rs:10-40"`).
+    #[serde(
+        default,
+        alias = "file_path",
+        alias = "filePath",
+        alias = "filepath",
+        alias = "target_file",
+        alias = "file",
+        alias = "filename"
+    )]
     pub path: Option<String>,
 
     /// List of file paths to read (with optional inline ranges like `"file.rs:10-40"`).
+    #[serde(
+        default,
+        deserialize_with = "deserialize_flexible_targets_opt",
+        alias = "files",
+        alias = "file_paths",
+        alias = "filePaths",
+        alias = "targets"
+    )]
     pub paths: Option<Vec<ReadTarget>>,
 }
 
@@ -115,5 +144,3 @@ impl ReadArgs {
         targets
     }
 }
-
-

@@ -626,3 +626,25 @@ async fn test_stateless_cd_does_not_persist() {
     );
 }
 
+#[tokio::test]
+async fn test_bash_defensive_aliases_and_timeout_string() {
+    let tmp = TempDir::new().unwrap();
+    let cwd = tmp.path().to_str().unwrap().to_string();
+
+    let result = execute(
+        ToolCallId("alias_call".to_string()),
+        json!({
+            "cmd": "echo defensive_success",
+            "dir": &cwd,
+            "timeout": "5000"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let text = get_text_content(&result);
+    assert!(text.contains("defensive_success"));
+    assert!(text.contains("Exit code: 0"));
+}
+
