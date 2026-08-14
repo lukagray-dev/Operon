@@ -1,5 +1,0 @@
-[target.x86_64-pc-windows-msvc]
-rustflags = [
-    "-C", "link-arg=/MANIFEST:EMBED",
-    "-C", "link-arg=/MANIFESTUAC:level='asInvoker' uiAccess='false'",
-]
