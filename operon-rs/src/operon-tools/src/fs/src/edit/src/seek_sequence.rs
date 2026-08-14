@@ -1,18 +1,20 @@
-// seek_sequence — fuzzy line-sequence matcher for the edit tool.
-//
-// Locates a sequence of pattern lines within a file's line buffer using four
-// passes of decreasing strictness. Ported from the Codex apply-patch crate.
-//
-// Matching passes (applied in order, first success wins):
-//   1. Exact match
-//   2. Trailing-whitespace-ignored match (rstrip)
-//   3. Both-sides-trimmed match
-//   4. Unicode-normalised match — normalises fancy dashes, quotes, and
-//      non-breaking spaces to their ASCII equivalents before comparing.
+//! seek_sequence — fuzzy line-sequence matcher for the edit tool.
+//!
+//! Hey friend! This module locates sequences of pattern lines within a file's line buffer using six
+//! passes of decreasing strictness.
+//!
+//! Matching passes (applied in order, first success wins):
+//!   1. Exact match
+//!   2. Trailing-whitespace-ignored match (rstrip)
+//!   3. Both-sides-trimmed match
+//!   4. Unicode-normalised match — normalises fancy dashes, quotes, and
+//!      non-breaking spaces to their ASCII equivalents before comparing.
+//!   5. Case-insensitive both-sides-trimmed match
+//!   6. Case-insensitive Unicode-normalised match
+
 /// Normalise a line: trim both ends then map fancy Unicode punctuation to
-/// ASCII equivalents so a plain-ASCII diff can still locate the region.
-/// Defined at the module level to be usable across seek operations.
-fn normalise(s: &str) -> String {
+/// ASCII equivalents so a plain-ASCII pattern can still locate the region.
+pub(crate) fn normalise(s: &str) -> String {
     s.trim()
         .chars()
         .map(|c| match c {
@@ -61,47 +63,194 @@ fn normalise(s: &str) -> String {
         .collect::<String>()
 }
 
+/// Result of searching for a pattern sequence across fuzzy matching passes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SequenceMatch {
+    /// No match found across any pass.
+    NotFound,
+    /// Exactly one match found at the returned starting line index.
+    Unique(usize),
+    /// Ambiguous match found multiple times (contains match count >= 2).
+    Ambiguous(usize),
+}
+
+/// Searches `lines` for `pattern` across the 6 fuzzy matching passes in order of strictness.
+///
+/// For the first pass that produces at least one match:
+/// - If exactly 1 match is found, returns `SequenceMatch::Unique(start_line_idx)`.
+/// - If 2 or more non-overlapping matches are found, returns `SequenceMatch::Ambiguous(count)`.
+/// If no pass finds any match, returns `SequenceMatch::NotFound`.
+pub(crate) fn find_sequence_match(lines: &[String], pattern: &[String]) -> SequenceMatch {
+    // Edge cases: empty pattern or pattern longer than the file
+    if pattern.is_empty() || pattern.len() > lines.len() {
+        return SequenceMatch::NotFound;
+    }
+
+    let pattern_len = pattern.len();
+    let max_start = lines.len().saturating_sub(pattern_len);
+
+    // ── Pass 1: Exact match ────────────────────────────────────────────────
+    let mut matches = Vec::new();
+    let mut i = 0;
+    while i <= max_start {
+        if lines[i..i + pattern_len] == *pattern {
+            matches.push(i);
+            i += pattern_len.max(1);
+        } else {
+            i += 1;
+        }
+    }
+    if !matches.is_empty() {
+        return if matches.len() == 1 {
+            SequenceMatch::Unique(matches[0])
+        } else {
+            SequenceMatch::Ambiguous(matches.len())
+        };
+    }
+
+    // ── Pass 2: Trailing-whitespace-ignored (rstrip) match ─────────────────
+    matches.clear();
+    i = 0;
+    while i <= max_start {
+        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            lines[i + p_idx].trim_end() == pat.trim_end()
+        });
+        if all_match {
+            matches.push(i);
+            i += pattern_len.max(1);
+        } else {
+            i += 1;
+        }
+    }
+    if !matches.is_empty() {
+        return if matches.len() == 1 {
+            SequenceMatch::Unique(matches[0])
+        } else {
+            SequenceMatch::Ambiguous(matches.len())
+        };
+    }
+
+    // ── Pass 3: Both-sides-trimmed match ──────────────────────────────────
+    matches.clear();
+    i = 0;
+    while i <= max_start {
+        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            lines[i + p_idx].trim() == pat.trim()
+        });
+        if all_match {
+            matches.push(i);
+            i += pattern_len.max(1);
+        } else {
+            i += 1;
+        }
+    }
+    if !matches.is_empty() {
+        return if matches.len() == 1 {
+            SequenceMatch::Unique(matches[0])
+        } else {
+            SequenceMatch::Ambiguous(matches.len())
+        };
+    }
+
+    // ── Pass 4: Unicode-normalisation pass ────────────────────────────────
+    matches.clear();
+    i = 0;
+    while i <= max_start {
+        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            normalise(&lines[i + p_idx]) == normalise(pat)
+        });
+        if all_match {
+            matches.push(i);
+            i += pattern_len.max(1);
+        } else {
+            i += 1;
+        }
+    }
+    if !matches.is_empty() {
+        return if matches.len() == 1 {
+            SequenceMatch::Unique(matches[0])
+        } else {
+            SequenceMatch::Ambiguous(matches.len())
+        };
+    }
+
+    // ── Pass 5: Case-insensitive both-sides-trimmed match ──────────────────
+    matches.clear();
+    i = 0;
+    while i <= max_start {
+        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            lines[i + p_idx].trim().eq_ignore_ascii_case(pat.trim())
+        });
+        if all_match {
+            matches.push(i);
+            i += pattern_len.max(1);
+        } else {
+            i += 1;
+        }
+    }
+    if !matches.is_empty() {
+        return if matches.len() == 1 {
+            SequenceMatch::Unique(matches[0])
+        } else {
+            SequenceMatch::Ambiguous(matches.len())
+        };
+    }
+
+    // ── Pass 6: Case-insensitive Unicode-normalisation pass ────────────────
+    matches.clear();
+    i = 0;
+    while i <= max_start {
+        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
+            normalise(&lines[i + p_idx]).to_lowercase() == normalise(pat).to_lowercase()
+        });
+        if all_match {
+            matches.push(i);
+            i += pattern_len.max(1);
+        } else {
+            i += 1;
+        }
+    }
+    if !matches.is_empty() {
+        return if matches.len() == 1 {
+            SequenceMatch::Unique(matches[0])
+        } else {
+            SequenceMatch::Ambiguous(matches.len())
+        };
+    }
+
+    SequenceMatch::NotFound
+}
+
 /// Find the first occurrence of `pattern` lines in `lines` starting at or
 /// after `start`. When `eof` is true, first attempt to match at the end of
 /// `lines` before falling back to a forward search from `start`.
 ///
 /// Returns the 0-based index into `lines` where the match starts, or None.
 /// Empty pattern always returns Some(start). Pattern longer than lines returns None.
-///
-/// # Arguments
-/// - `lines`:   The file split into individual lines (no trailing newline on each element).
-/// - `pattern`: The sequence of lines to locate within `lines`.
-/// - `start`:   The earliest index in `lines` from which to begin searching.
-/// - `eof`:     When true, attempt to match at the very end of `lines` first.
+#[allow(dead_code)]
 pub(crate) fn seek_sequence(
     lines: &[String],
     pattern: &[String],
     start: usize,
     eof: bool,
 ) -> Option<usize> {
-    // Empty pattern is a no-op — it matches at the current position.
     if pattern.is_empty() {
         return Some(start);
     }
 
-    // If the pattern is longer than the available lines there is no possible
-    // match. Guard against out-of-bounds slicing that would otherwise panic.
     if pattern.len() > lines.len() {
         return None;
     }
 
-    // When `eof` is true, first attempt to match at the very end of `lines`
-    // across all four passes. If that succeeds, return it immediately.
-    // If not, fall back to a forward search starting from `start`.
     if eof && lines.len() >= pattern.len() {
         let end_idx = lines.len() - pattern.len();
 
-        // ── Pass 1: Exact match at the end ──────────────────────────────────
+        // Pass 1: Exact match at the end
         if lines[end_idx..end_idx + pattern.len()] == *pattern {
             return Some(end_idx);
         }
 
-        // ── Pass 2: Trailing-whitespace-ignored match at the end ────────────
+        // Pass 2: Trailing-whitespace-ignored match at the end
         let pass2 = pattern.iter().enumerate().all(|(p_idx, pat)| {
             lines[end_idx + p_idx].trim_end() == pat.trim_end()
         });
@@ -109,7 +258,7 @@ pub(crate) fn seek_sequence(
             return Some(end_idx);
         }
 
-        // ── Pass 3: Both-sides-trimmed match at the end ─────────────────────
+        // Pass 3: Both-sides-trimmed match at the end
         let pass3 = pattern.iter().enumerate().all(|(p_idx, pat)| {
             lines[end_idx + p_idx].trim() == pat.trim()
         });
@@ -117,7 +266,7 @@ pub(crate) fn seek_sequence(
             return Some(end_idx);
         }
 
-        // ── Pass 4: Unicode-normalised match at the end ─────────────────────
+        // Pass 4: Unicode-normalised match at the end
         let pass4 = pattern.iter().enumerate().all(|(p_idx, pat)| {
             normalise(&lines[end_idx + p_idx]) == normalise(pat)
         });
@@ -125,9 +274,7 @@ pub(crate) fn seek_sequence(
             return Some(end_idx);
         }
 
-        // ── Pass 5: Case-insensitive both-sides-trimmed match at the end ─────
-        // Hey friend! If the exact structure matches but capitalization is different,
-        // we ignore casing at the end of the file to be more forgiving.
+        // Pass 5: Case-insensitive both-sides-trimmed match at the end
         let pass5 = pattern.iter().enumerate().all(|(p_idx, pat)| {
             lines[end_idx + p_idx].trim().eq_ignore_ascii_case(pat.trim())
         });
@@ -135,8 +282,7 @@ pub(crate) fn seek_sequence(
             return Some(end_idx);
         }
 
-        // ── Pass 6: Case-insensitive Unicode-normalised match at the end ─────
-        // Hey friend! We combine normalization and casing checks at the end of the file.
+        // Pass 6: Case-insensitive Unicode-normalised match at the end
         let pass6 = pattern.iter().enumerate().all(|(p_idx, pat)| {
             normalise(&lines[end_idx + p_idx]).to_lowercase() == normalise(pat).to_lowercase()
         });
@@ -145,21 +291,16 @@ pub(crate) fn seek_sequence(
         }
     }
 
-    // Fall back to a forward search starting from `start`.
     let search_start = start;
 
-    // ── Pass 1: Exact match ────────────────────────────────────────────────
-    // Compare line slices byte-for-byte. Cheapest pass — if it succeeds we
-    // know the diff matches the file exactly.
+    // Pass 1: Exact match
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         if lines[i..i + pattern.len()] == *pattern {
             return Some(i);
         }
     }
 
-    // ── Pass 2: Trailing-whitespace-ignored (rstrip) match ─────────────────
-    // Many editors silently strip trailing spaces/tabs on save. This pass
-    // allows mismatched trailing whitespace without failing.
+    // Pass 2: Trailing-whitespace-ignored match
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
             lines[i + p_idx].trim_end() == pat.trim_end()
@@ -169,9 +310,7 @@ pub(crate) fn seek_sequence(
         }
     }
 
-    // ── Pass 3: Both-sides-trimmed match ──────────────────────────────────
-    // More lenient: strip leading AND trailing whitespace from both sides.
-    // Handles indentation drift (e.g. a tab was replaced by spaces).
+    // Pass 3: Both-sides-trimmed match
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
             lines[i + p_idx].trim() == pat.trim()
@@ -181,18 +320,7 @@ pub(crate) fn seek_sequence(
         }
     }
 
-    // ── Pass 4: Unicode-normalisation pass ────────────────────────────────
-    // Diffs authored with plain ASCII may fail to match source files that
-    // contain typographic characters (em-dashes, curly quotes, non-breaking
-    // spaces). This pass normalises a curated set of Unicode codepoints to
-    // their ASCII equivalents before comparing.
-    //
-    // Normalised character groups:
-    //   Various dash/hyphen codepoints → '-'
-    //   Fancy single quotes            → '\''
-    //   Fancy double quotes            → '"'
-    //   Non-breaking and odd spaces    → ' '
-
+    // Pass 4: Unicode normalisation
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
             normalise(&lines[i + p_idx]) == normalise(pat)
@@ -202,9 +330,7 @@ pub(crate) fn seek_sequence(
         }
     }
 
-    // ── Pass 5: Case-insensitive both-sides-trimmed match ──────────────────
-    // Hey friend! Here we look for matches ignoring both leading/trailing
-    // whitespace AND differences in character casing.
+    // Pass 5: Case-insensitive trimmed match
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
             lines[i + p_idx].trim().eq_ignore_ascii_case(pat.trim())
@@ -214,9 +340,7 @@ pub(crate) fn seek_sequence(
         }
     }
 
-    // ── Pass 6: Case-insensitive Unicode-normalisation pass ────────────────
-    // Hey friend! Combining Unicode punctuation normalization and case insensitivity
-    // for maximum flexibility.
+    // Pass 6: Case-insensitive Unicode normalisation
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
         let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
             normalise(&lines[i + p_idx]).to_lowercase() == normalise(pat).to_lowercase()
@@ -226,29 +350,23 @@ pub(crate) fn seek_sequence(
         }
     }
 
-    // No pass found a match.
     None
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
-    use super::seek_sequence;
+    use super::*;
 
-    /// Helper: convert a slice of &str literals into Vec<String>.
     fn v(strings: &[&str]) -> Vec<String> {
         strings.iter().map(|s| s.to_string()).collect()
     }
-
-    // ── Pass 1: Exact match ────────────────────────────────────────────────
 
     #[test]
     fn exact_match_finds_sequence() {
         let lines = v(&["foo", "bar", "baz"]);
         let pattern = v(&["bar", "baz"]);
         assert_eq!(
-            seek_sequence(&lines, &pattern, /*start*/ 0, /*eof*/ false),
+            seek_sequence(&lines, &pattern, 0, false),
             Some(1)
         );
     }
@@ -267,28 +385,22 @@ mod tests {
 
     #[test]
     fn exact_match_honours_start_offset() {
-        // Pattern "a" exists at index 0 but start=1, so it should not be found there;
-        // the second occurrence at index 2 must be returned.
         let lines = v(&["a", "b", "a"]);
         assert_eq!(seek_sequence(&lines, &v(&["a"]), 1, false), Some(2));
     }
 
-    // ── Pass 2: Rstrip (trailing-whitespace-ignored) match ────────────────
-
     #[test]
     fn rstrip_match_ignores_trailing_whitespace() {
         let lines = v(&["foo   ", "bar\t\t"]);
-        // Pattern omits trailing whitespace — rstrip pass must find it.
         let pattern = v(&["foo", "bar"]);
         assert_eq!(
-            seek_sequence(&lines, &pattern, /*start*/ 0, /*eof*/ false),
+            seek_sequence(&lines, &pattern, 0, false),
             Some(0)
         );
     }
 
     #[test]
     fn rstrip_match_trailing_spaces_on_pattern() {
-        // File line has no trailing space but pattern does.
         let lines = v(&["hello", "world"]);
         assert_eq!(
             seek_sequence(&lines, &v(&["hello  ", "world  "]), 0, false),
@@ -296,55 +408,43 @@ mod tests {
         );
     }
 
-    // ── Pass 3: Both-sides-trimmed match ──────────────────────────────────
-
     #[test]
     fn trim_match_ignores_leading_and_trailing_whitespace() {
         let lines = v(&["    foo   ", "   bar\t"]);
-        // Pattern omits any additional whitespace.
         let pattern = v(&["foo", "bar"]);
         assert_eq!(
-            seek_sequence(&lines, &pattern, /*start*/ 0, /*eof*/ false),
+            seek_sequence(&lines, &pattern, 0, false),
             Some(0)
         );
     }
 
-    // ── Pass 4: Unicode normalisation ─────────────────────────────────────
-
     #[test]
     fn unicode_dash_normalised() {
-        // File contains an em-dash; pattern uses an ASCII hyphen.
         let lines = v(&["some\u{2014}thing"]);
         assert_eq!(seek_sequence(&lines, &v(&["some-thing"]), 0, false), Some(0));
     }
 
     #[test]
     fn unicode_curly_quotes_normalised() {
-        // File contains fancy double quotes; pattern uses straight quotes.
         let lines = v(&["\u{201C}hello\u{201D}"]);
         assert_eq!(seek_sequence(&lines, &v(&["\"hello\""]), 0, false), Some(0));
     }
 
     #[test]
     fn unicode_single_quotes_normalised() {
-        // File contains a curly apostrophe; pattern uses ASCII apostrophe.
         let lines = v(&["it\u{2019}s fine"]);
         assert_eq!(seek_sequence(&lines, &v(&["it's fine"]), 0, false), Some(0));
     }
 
     #[test]
     fn unicode_nbsp_normalised() {
-        // File contains a non-breaking space; pattern has a regular space.
         let lines = v(&["hello\u{00A0}world"]);
         assert_eq!(seek_sequence(&lines, &v(&["hello world"]), 0, false), Some(0));
     }
 
-    // ── Edge cases ─────────────────────────────────────────────────────────
-
     #[test]
     fn empty_pattern_returns_start() {
         let lines = v(&["a", "b", "c"]);
-        // Empty pattern is always a match at `start`, regardless of content.
         assert_eq!(seek_sequence(&lines, &[], 2, false), Some(2));
     }
 
@@ -352,9 +452,8 @@ mod tests {
     fn pattern_longer_than_input_returns_none() {
         let lines = v(&["just one line"]);
         let pattern = v(&["too", "many", "lines"]);
-        // Must NOT panic — returns None when pattern cannot possibly fit.
         assert_eq!(
-            seek_sequence(&lines, &pattern, /*start*/ 0, /*eof*/ false),
+            seek_sequence(&lines, &pattern, 0, false),
             None
         );
     }
@@ -367,19 +466,52 @@ mod tests {
 
     #[test]
     fn eof_true_prefers_end_match() {
-        // "end" appears at index 1 AND index 4. With eof=true the search must
-        // prefer the later occurrence (index 4).
         let lines = v(&["start", "end", "middle", "other", "end"]);
         assert_eq!(seek_sequence(&lines, &v(&["end"]), 0, true), Some(4));
     }
 
     #[test]
     fn eof_true_falls_back_when_end_has_no_match() {
-        // Pattern only occurs at the beginning; eof=true must fall back and find it.
         let lines = v(&["unique", "alpha", "beta"]);
         assert_eq!(
             seek_sequence(&lines, &v(&["unique"]), 0, true),
             Some(0)
+        );
+    }
+
+    #[test]
+    fn find_sequence_match_unique_and_ambiguous() {
+        let lines = v(&["alpha", "beta", "gamma", "beta"]);
+        assert_eq!(
+            find_sequence_match(&lines, &v(&["alpha"])),
+            SequenceMatch::Unique(0)
+        );
+        assert_eq!(
+            find_sequence_match(&lines, &v(&["beta"])),
+            SequenceMatch::Ambiguous(2)
+        );
+        assert_eq!(
+            find_sequence_match(&lines, &v(&["delta"])),
+            SequenceMatch::NotFound
+        );
+    }
+
+    #[test]
+    fn find_sequence_match_fuzzy_passes() {
+        // Unicode dash + quote
+        let lines = v(&["fn foo() {", "    let x = \"some\u{2014}thing\";", "}"]);
+        let pattern = v(&["    let x = \"some-thing\";"]);
+        assert_eq!(
+            find_sequence_match(&lines, &pattern),
+            SequenceMatch::Unique(1)
+        );
+
+        // Case insensitivity
+        let lines = v(&["MAX_LIMIT = 500"]);
+        let pattern = v(&["max_limit = 500"]);
+        assert_eq!(
+            find_sequence_match(&lines, &pattern),
+            SequenceMatch::Unique(0)
         );
     }
 }

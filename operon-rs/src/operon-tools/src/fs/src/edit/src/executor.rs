@@ -1,41 +1,60 @@
-//! Executor for the edit tool — handles all patch parsing, hunk matching, and atomic writes.
+//! Executor for the edit tool — handles hunk matching, sequential in-memory edits, and atomic writes.
 //!
 //! Hey friend! This module contains the core execution engine for the edit tool.
-//! It parses unified-diff patch strings into chunks, uses fuzzy sequence seeking
-//! to locate matching context/lines within the file, applies replacements in-memory,
-//! and atomically writes the modified content to disk using a temp file + rename.
+//! It processes an array of `old_string` -> `new_string` hunks sequentially against an in-memory
+//! working buffer.
+//!
+//! Key capabilities:
+//! 1. Exact-substring matching (fast, byte-precise).
+//! 2. 6-pass fuzzy line matching via `seek_sequence` when exact matching fails (tolerates
+//!    indentation changes, trailing whitespace, Unicode quotes/dashes, and casing differences).
+//! 3. Ambiguity detection: zero matches = not found; multiple matches = ambiguous error.
+//! 4. Partial-success execution: valid matching hunks are applied and committed to disk,
+//!    while failed hunks are skipped and reported in structured diagnostics.
+//! 5. Atomic disk writes using a temporary file in the target directory followed by an atomic rename.
 
 use crate::args::EditArgs;
-use crate::chunk_parser::{parse_patch_chunks, UpdateFileChunk};
-use crate::output::EditOutput;
-use crate::seek_sequence::seek_sequence;
+use crate::output::{EditOutput, HunkFailure};
+use crate::seek_sequence::{find_sequence_match, SequenceMatch};
 use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 
-/// Executes the edit tool with the given arguments.
+/// Executes the edit tool with the provided arguments.
 ///
-/// Parses `args.patch` into hunks, reads `args.path`, matches and computes line
-/// replacements in-memory, and atomically writes the result to disk.
-/// If any hunk or parse step fails, the file is NOT modified.
+/// Pre-validates the edits array, reads the file, processes each hunk sequentially
+/// against in-memory working content, and atomically writes the modified content
+/// to disk if at least one hunk succeeded.
 ///
 /// # Arguments
-/// - `call_id`: The unique identifier for this tool call.
-/// - `args`: The deserialized edit arguments containing path and patch string.
+/// - `call_id`: Unique identifier for this tool call.
+/// - `args`: Deserialized edit arguments containing `path` and `edits`.
 ///
 /// # Returns
-/// A `ToolResult` with either success (JSON EditOutput) or failure (Text error message).
+/// A `ToolResult` containing structured `EditOutput` JSON.
 pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
-    // Step 1: Parse the patch string into UpdateFileChunks.
-    let chunks = match parse_patch_chunks(&args.patch) {
-        Ok(c) => c,
-        Err(e) => {
+    // Step 1: Pre-validate input structure (fast-fail before touching disk).
+    // An empty edits array is an invalid tool call.
+    if args.edits.is_empty() {
+        return ToolResult {
+            call_id,
+            name: "edit".to_string(),
+            content: ToolContent::Text("edits array must contain at least one hunk".to_string()),
+            is_error: true,
+        };
+    }
+
+    // Pre-validate that no hunk has old_string identical to new_string.
+    for (i, hunk) in args.edits.iter().enumerate() {
+        if hunk.old_string == hunk.new_string {
             return ToolResult {
                 call_id,
                 name: "edit".to_string(),
-                content: ToolContent::Text(format!("failed to parse patch: {e}")),
+                content: ToolContent::Text(format!(
+                    "hunk {i}: old_string and new_string are identical — no change would be made"
+                )),
                 is_error: true,
             };
         }
-    };
+    }
 
     // Step 2: Read the target file.
     let content = match tokio::fs::read_to_string(&args.path).await {
@@ -50,211 +69,214 @@ pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
         }
     };
 
-    // Step 3: Split content into line vector, stripping trailing carriage returns (\r).
-    let is_crlf = content.contains("\r\n");
-    let mut original_lines: Vec<String> = content.split('\n').map(String::from).collect();
-    for line in &mut original_lines {
-        if line.ends_with('\r') {
-            line.pop();
+    // Step 3: Sequentially apply hunks to an in-memory working buffer.
+    let total_hunks = args.edits.len();
+    let mut working = content;
+    let mut hunks_applied = 0;
+    let mut hunks_failed = 0;
+    let mut failures = Vec::new();
+
+    for (i, hunk) in args.edits.into_iter().enumerate() {
+        // Match Strategy A: Exact substring check (byte-precise, handles partial-line edits).
+        let exact_count = count_occurrences(&working, &hunk.old_string);
+
+        if exact_count == 1 {
+            // Unique exact match found: apply replacement directly.
+            working = working.replacen(&hunk.old_string, &hunk.new_string, 1);
+            hunks_applied += 1;
+            continue;
+        } else if exact_count > 1 {
+            // Ambiguous exact matches: record error and skip this hunk.
+            hunks_failed += 1;
+            failures.push(HunkFailure {
+                hunk_index: i,
+                old_string: hunk.old_string,
+                reason: format!(
+                    "old_string matched {exact_count} times — ambiguous. \
+                     Include more surrounding context lines in old_string to make it unique."
+                ),
+            });
+            continue;
+        }
+
+        // Match Strategy B: 6-pass fuzzy sequence matching via seek_sequence.
+        // Used when exact substring match count is 0 (handles indentation, whitespace, Unicode, casing drift).
+        let is_crlf = working.contains("\r\n");
+        let line_separator = if is_crlf { "\r\n" } else { "\n" };
+
+        let mut working_lines: Vec<String> = working
+            .split('\n')
+            .map(|s| s.trim_end_matches('\r').to_string())
+            .collect();
+        let has_trailing_empty = working_lines.last().is_some_and(String::is_empty);
+        if has_trailing_empty {
+            working_lines.pop();
+        }
+
+        let mut pattern_lines: Vec<String> = hunk
+            .old_string
+            .split('\n')
+            .map(|s| s.trim_end_matches('\r').to_string())
+            .collect();
+        if pattern_lines.last().is_some_and(String::is_empty) && pattern_lines.len() > 1 {
+            pattern_lines.pop();
+        }
+
+        match find_sequence_match(&working_lines, &pattern_lines) {
+            SequenceMatch::Unique(start_line) => {
+                // Unique fuzzy match located: replace lines in working buffer.
+                let mut new_lines: Vec<String> = hunk
+                    .new_string
+                    .split('\n')
+                    .map(|s| s.trim_end_matches('\r').to_string())
+                    .collect();
+                if new_lines.last().is_some_and(String::is_empty) && new_lines.len() > 1 {
+                    new_lines.pop();
+                }
+
+                // Remove the matched old lines.
+                for _ in 0..pattern_lines.len() {
+                    if start_line < working_lines.len() {
+                        working_lines.remove(start_line);
+                    }
+                }
+
+                // Insert the replacement lines.
+                for (offset, new_line) in new_lines.into_iter().enumerate() {
+                    working_lines.insert(start_line + offset, new_line);
+                }
+
+                if has_trailing_empty && !working_lines.last().is_some_and(String::is_empty) {
+                    working_lines.push(String::new());
+                }
+
+                working = working_lines.join(line_separator);
+                hunks_applied += 1;
+            }
+            SequenceMatch::Ambiguous(count) => {
+                hunks_failed += 1;
+                failures.push(HunkFailure {
+                    hunk_index: i,
+                    old_string: hunk.old_string,
+                    reason: format!(
+                        "old_string matched {count} times — ambiguous. \
+                         Include more surrounding context lines in old_string to make it unique."
+                    ),
+                });
+            }
+            SequenceMatch::NotFound => {
+                hunks_failed += 1;
+                failures.push(HunkFailure {
+                    hunk_index: i,
+                    old_string: hunk.old_string,
+                    reason: "old_string not found in file. \
+                             The file may have changed since it was last read. \
+                             Re-read the file and retry."
+                        .to_string(),
+                });
+            }
         }
     }
-    if original_lines.last().is_some_and(String::is_empty) {
-        original_lines.pop();
-    }
 
-    // Step 4: Compute line replacements using seek_sequence matcher.
-    let replacements = match compute_replacements(&original_lines, &args.path, &chunks) {
-        Ok(r) => r,
-        Err(err_msg) => {
+    // Step 4: Atomic write to disk — only if at least one hunk succeeded.
+    if hunks_applied > 0 {
+        let parent = std::path::Path::new(&args.path)
+            .parent()
+            .unwrap_or(std::path::Path::new("."));
+
+        let tmp_path = parent.join(format!(
+            ".operon_edit_tmp_{}.tmp",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+
+        // Write modified content to temporary file.
+        if let Err(e) = tokio::fs::write(&tmp_path, working.as_bytes()).await {
+            let _ = tokio::fs::remove_file(&tmp_path).await;
             return ToolResult {
                 call_id,
                 name: "edit".to_string(),
-                content: ToolContent::Text(err_msg),
+                content: ToolContent::Text(format!(
+                    "failed to write temp file: {e}. File was not modified."
+                )),
                 is_error: true,
             };
         }
+
+        // Atomically rename temporary file to target path.
+        if let Err(e) = tokio::fs::rename(&tmp_path, &args.path).await {
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+            return ToolResult {
+                call_id,
+                name: "edit".to_string(),
+                content: ToolContent::Text(format!(
+                    "failed to rename temp file to target: {e}. File was not modified."
+                )),
+                is_error: true,
+            };
+        }
+    }
+
+    // Step 5: Construct structured outcome.
+    let (is_error, message) = if hunks_failed == 0 {
+        // Complete success: all hunks applied cleanly.
+        (
+            false,
+            format!("Applied {} edit(s) to {}", hunks_applied, args.path),
+        )
+    } else if hunks_applied > 0 {
+        // Partial success: some hunks succeeded and were written; some failed.
+        (
+            true,
+            format!(
+                "Partially applied: {} of {} edit(s) written to {}; {} edit(s) failed.",
+                hunks_applied, total_hunks, args.path, hunks_failed
+            ),
+        )
+    } else {
+        // Complete failure: no hunks applied, disk untouched.
+        (
+            true,
+            format!(
+                "Failed to apply any edits to {}. File was not modified.",
+                args.path
+            ),
+        )
     };
 
-    // Step 5: Apply replacements to line vector.
-    let mut new_lines = apply_replacements(original_lines, &replacements);
-    if !new_lines.last().is_some_and(String::is_empty) {
-        new_lines.push(String::new());
-    }
-
-    let line_separator = if is_crlf { "\r\n" } else { "\n" };
-    let new_contents = new_lines.join(line_separator);
-
-    // Step 6: Atomic write — only reached if ALL hunks matched and applied cleanly.
-    let parent = std::path::Path::new(&args.path)
-        .parent()
-        .unwrap_or(std::path::Path::new("."));
-
-    let tmp_path = parent.join(format!(
-        ".operon_edit_tmp_{}.tmp",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .subsec_nanos()
-    ));
-
-    if let Err(e) = tokio::fs::write(&tmp_path, new_contents.as_bytes()).await {
-        let _ = tokio::fs::remove_file(&tmp_path).await;
-        return ToolResult {
-            call_id,
-            name: "edit".to_string(),
-            content: ToolContent::Text(format!(
-                "failed to write temp file: {e}. File was not modified."
-            )),
-            is_error: true,
-        };
-    }
-
-    if let Err(e) = tokio::fs::rename(&tmp_path, &args.path).await {
-        let _ = tokio::fs::remove_file(&tmp_path).await;
-        return ToolResult {
-            call_id,
-            name: "edit".to_string(),
-            content: ToolContent::Text(format!(
-                "failed to rename temp file to target: {e}. File was not modified."
-            )),
-            is_error: true,
-        };
-    }
-
-    // Step 7: Return success.
-    let hunks_applied = chunks.len();
     let output = EditOutput {
-        path: args.path.clone(),
+        path: args.path,
+        total_hunks,
         hunks_applied,
-        message: format!("Applied {} edit(s) to {}", hunks_applied, args.path),
+        hunks_failed,
+        failures,
+        message,
     };
 
     ToolResult {
         call_id,
         name: "edit".to_string(),
-        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(
-            |e| serde_json::json!({ "error": format!("serialization bug: {e}") }),
-        )),
-        is_error: false,
+        content: ToolContent::Json(serde_json::to_value(&output).unwrap_or_else(|e| {
+            serde_json::json!({ "error": format!("serialization bug: {e}") })
+        })),
+        is_error,
     }
 }
 
-/// Compute a list of line replacements needed to transform `original_lines` into new lines.
+/// Counts non-overlapping occurrences of `needle` in `haystack`.
 ///
-/// Ported from Codex's `lib.rs::compute_replacements` with enhanced context seeking.
-/// Returns `(start_index, old_len, new_lines)` tuples for each chunk.
-pub fn compute_replacements(
-    original_lines: &[String],
-    path: &str,
-    chunks: &[UpdateFileChunk],
-) -> Result<Vec<(usize, usize, Vec<String>)>, String> {
-    let mut replacements: Vec<(usize, usize, Vec<String>)> = Vec::new();
-    let mut line_index: usize = 0;
-
-    for (hunk_idx, chunk) in chunks.iter().enumerate() {
-        // If a chunk has a `change_context`, locate it using seek_sequence or substring matching.
-        if let Some(ctx_line) = &chunk.change_context {
-            let found_ctx = seek_sequence(
-                original_lines,
-                std::slice::from_ref(ctx_line),
-                line_index,
-                /*eof*/ false,
-            )
-            .or_else(|| {
-                // Substring fallback for partial context headers (e.g. `@@ fn old_name()` matching `fn old_name() {`)
-                let trimmed_ctx = ctx_line.trim();
-                if trimmed_ctx.is_empty() {
-                    return None;
-                }
-                (line_index..original_lines.len())
-                    .find(|&i| original_lines[i].trim().contains(trimmed_ctx))
-            });
-
-            if let Some(idx) = found_ctx {
-                line_index = idx;
-            }
-            // If ctx_line is an informal comment/header not in the source file,
-            // we proceed with line_index as-is and rely on old_lines matching.
-        }
-
-        if chunk.old_lines.is_empty() {
-            // Pure addition (no old lines). Insert at end or before final trailing empty line.
-            let insertion_idx = if original_lines.last().is_some_and(String::is_empty) {
-                original_lines.len() - 1
-            } else {
-                original_lines.len()
-            };
-            replacements.push((insertion_idx, 0, chunk.new_lines.clone()));
-            continue;
-        }
-
-        // Attempt to locate old_lines sequence starting from line_index.
-        let mut pattern: &[String] = &chunk.old_lines;
-        let mut found = seek_sequence(
-            original_lines,
-            pattern,
-            line_index,
-            chunk.is_end_of_file,
-        );
-
-        let mut new_slice: &[String] = &chunk.new_lines;
-
-        // Sentinel retry: if pattern ends with an empty line (representing EOF newline), retry without it.
-        if found.is_none() && pattern.last().is_some_and(String::is_empty) {
-            pattern = &pattern[..pattern.len() - 1];
-            if new_slice.last().is_some_and(String::is_empty) {
-                new_slice = &new_slice[..new_slice.len() - 1];
-            }
-
-            found = seek_sequence(
-                original_lines,
-                pattern,
-                line_index,
-                chunk.is_end_of_file,
-            );
-        }
-
-        if let Some(start_idx) = found {
-            replacements.push((start_idx, pattern.len(), new_slice.to_vec()));
-            line_index = start_idx + pattern.len();
-        } else {
-            return Err(format!(
-                "hunk {hunk_idx}: old_string not found in file: {path}.\n\
-                 The file may have changed since it was last read. Re-read the file and retry.\n\
-                 Expected lines were:\n{}",
-                chunk.old_lines.join("\n")
-            ));
-        }
+/// Returns 0 for an empty needle. Used for exact-string detection.
+fn count_occurrences(haystack: &str, needle: &str) -> usize {
+    if needle.is_empty() {
+        return 0;
     }
-
-    replacements.sort_by_key(|(index, _, _)| *index);
-    Ok(replacements)
-}
-
-/// Apply `(start_index, old_len, new_lines)` replacements to `original_lines`.
-///
-/// Ported from Codex's `lib.rs::apply_replacements`.
-/// Applies replacements in descending index order to avoid line index shift.
-pub fn apply_replacements(
-    mut lines: Vec<String>,
-    replacements: &[(usize, usize, Vec<String>)],
-) -> Vec<String> {
-    for (start_idx, old_len, new_segment) in replacements.iter().rev() {
-        let start_idx = *start_idx;
-        let old_len = *old_len;
-
-        // Remove old lines.
-        for _ in 0..old_len {
-            if start_idx < lines.len() {
-                lines.remove(start_idx);
-            }
-        }
-
-        // Insert replacement lines.
-        for (offset, new_line) in new_segment.iter().enumerate() {
-            lines.insert(start_idx + offset, new_line.clone());
-        }
+    let mut count = 0;
+    let mut start = 0;
+    while let Some(pos) = haystack[start..].find(needle) {
+        count += 1;
+        start += pos + needle.len();
     }
-
-    lines
+    count
 }

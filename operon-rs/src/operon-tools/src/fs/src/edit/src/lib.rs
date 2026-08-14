@@ -2,11 +2,12 @@
 //!
 //! Hey friend! Implements the `edit` tool for the Operon agent's filesystem group.
 //!
-//! Edits an existing file by applying unified-diff style patch hunks. Supports:
-//! - Multi-hunk edits (one or more `@@` hunks per patch string)
-//! - Fuzzy sequence seeking (exact → rstrip → trim → Unicode punctuation normalization → case insensitivity)
-//! - Atomic writes (all hunks apply or none)
-//! - In-order hunk application
+//! Edits an existing file by applying an array of `old_string` -> `new_string` replacement hunks.
+//! Supports:
+//! - Multi-hunk edits (one or more hunks per call, applied sequentially in-memory)
+//! - 6-pass fuzzy sequence seeking (exact -> rstrip -> trim -> Unicode normalization -> case insensitivity -> case + Unicode)
+//! - Partial-success execution (successful hunks are written to disk; failed hunks reported in structured diagnostics)
+//! - Atomic writes (committed in a single atomic temp-file rename when at least one hunk succeeds)
 //!
 //! ## Usage
 //!
@@ -22,7 +23,12 @@
 //! // 2. When the model calls the tool, execute it
 //! let args = json!({
 //!     "path": "/path/to/file.rs",
-//!     "patch": "@@ fn old_name()\n-fn old_name() {\n+fn new_name() {"
+//!     "edits": [
+//!         {
+//!             "old_string": "fn old_name() {",
+//!             "new_string": "fn new_name() {"
+//!         }
+//!     ]
 //! });
 //! let result = execute(
 //!     ToolCallId("call_123".to_string()),
@@ -32,7 +38,6 @@
 //! ```
 
 mod args;
-mod chunk_parser;
 mod error;
 mod executor;
 mod output;
@@ -41,10 +46,9 @@ mod seek_sequence;
 #[cfg(test)]
 mod tests;
 
-pub use args::EditArgs;
-pub use chunk_parser::{parse_patch_chunks, ChunkParseError, UpdateFileChunk};
+pub use args::{EditArgs, EditHunk};
 pub use error::EditToolError;
-pub use output::EditOutput;
+pub use output::{EditOutput, HunkFailure};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
 use operon_tools_core::{
@@ -55,9 +59,9 @@ use serde_json::json;
 /// Returns the tiered tool definition for the `edit` tool.
 ///
 /// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the unified diff schema.
+///   the tool does and the `old_string`/`new_string` array schema.
 /// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and line prefix syntax.
+///   worked examples, fuzzy matching behavior, and partial-success semantics.
 pub fn definition() -> TieredToolDefinition {
     let parameters = json!({
         "type": "object",
@@ -66,47 +70,65 @@ pub fn definition() -> TieredToolDefinition {
                 "type": "string",
                 "description": "Absolute path to the file to edit. Also accepted as file_path."
             },
-            "patch": {
-                "type": "string",
-                "description": "Unified-diff style patch body containing one or more @@ hunks."
+            "edits": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "old_string": {
+                            "type": "string",
+                            "description": "Exact or fuzzy-matchable text to replace. Must appear uniquely in the file."
+                        },
+                        "new_string": {
+                            "type": "string",
+                            "description": "Replacement text. Must differ from old_string."
+                        }
+                    },
+                    "required": ["old_string", "new_string"]
+                },
+                "description": "One or more edits to apply in order. All successful edits are committed atomically."
             }
         },
-        "required": ["path", "patch"]
+        "required": ["path", "edits"]
     });
 
     TieredToolDefinition {
         short: ToolDefinition {
             name: "edit".to_string(),
-            description: "Edits an existing file by applying a unified-diff style patch body. \
-                          Pass `path` (absolute file path) and `patch` (string containing @@ hunks with ' ' context, '-' removed, and '+' added lines). \
-                          Hunks are located using fuzzy sequence matching (exact -> space trim -> Unicode punctuation -> case insensitivity). \
-                          All edits apply atomically."
+            description: "Edits an existing file by replacing text hunks. \
+                          Pass `path` (absolute file path) and `edits` (array of {old_string, new_string} pairs). \
+                          Each old_string is located using exact & fuzzy sequence matching (exact -> space trim -> Unicode punctuation -> case insensitivity). \
+                          If some hunks match and others fail, successful hunks are written to disk and failed hunks are reported back for retry."
                 .to_string(),
             parameters: parameters.clone(),
         },
         detailed: ToolDefinition {
             name: "edit".to_string(),
             description: "\
-Edits an existing file by applying unified-diff style patch hunks. All edits are applied atomically — if any hunk fails, the file is NOT modified.
+Edits an existing file by replacing text hunks.
 
 ## Input shapes
 
 `path` (required, string): Absolute path to the file to edit. Also accepted as \"file_path\" for compatibility.
 
-`patch` (required, string): Unified-diff style patch text containing one or more hunks starting with `@@`.
-
-Each hunk starts with `@@` or `@@ <context_text>` followed by lines prefixed with:
-  - `' '` (space): Context line present in both original and modified file.
-  - `'-'`: Line present in original file to be removed.
-  - `'+'`: Line to be inserted into modified file.
+`edits` (required, array, min 1 item): One or more edits to apply in order.
+Each edit is an object with:
+  - `old_string` (required, string): Exact or unique text to find. Must match uniquely.
+  - `new_string` (required, string): Replacement text. Must differ from old_string.
 
 ## Worked examples
 
-### Single edit hunk
+### Single edit
 ```json
 {
   \"path\": \"/path/to/file.rs\",
-  \"patch\": \"@@ fn old_name()\\n-fn old_name() {\\n+fn new_name() {\"
+  \"edits\": [
+    {
+      \"old_string\": \"fn old_name() {\",
+      \"new_string\": \"fn new_name() {\"
+    }
+  ]
 }
 ```
 
@@ -114,29 +136,45 @@ Each hunk starts with `@@` or `@@ <context_text>` followed by lines prefixed wit
 ```json
 {
   \"path\": \"/path/to/file.rs\",
-  \"patch\": \"@@ import header\\n-import { oldFunc } from './lib';\\n+import { newFunc } from './lib';\\n@@ fn process()\\n-oldFunc(x, y)\\n+newFunc(x, y)\"
+  \"edits\": [
+    {
+      \"old_string\": \"import { oldFunc } from './lib';\",
+      \"new_string\": \"import { newFunc } from './lib';\"
+    },
+    {
+      \"old_string\": \"oldFunc(x, y)\",
+      \"new_string\": \"newFunc(x, y)\"
+    },
+    {
+      \"old_string\": \"// TODO: refactor oldFunc\",
+      \"new_string\": \"// TODO: refactor newFunc\"
+    }
+  ]
 }
 ```
 
-## Matching Lenience
+## Matching Lenience & Fuzzy Fallback
 
-Hunk matching uses fuzzy line sequence seeking (`seek_sequence`):
+The tool first attempts exact substring matching. If exact matching fails (0 matches), it uses a 6-pass fuzzy sequence seeker:
 1. Exact byte-for-byte line match
 2. Trailing whitespace ignored (rstrip)
 3. Leading & trailing whitespace ignored (trim)
 4. Unicode punctuation normalized (dashes, quotes, non-breaking spaces converted to ASCII)
 5. Case-insensitive matching fallback
+6. Case-insensitive Unicode normalisation
 
-## Atomic Writes
+## Hunk Ordering & Partial Success Semantics
 
-All-or-nothing: if any hunk fails, the target file is NOT modified at all.
+Edits are evaluated sequentially in array order against the running in-memory working buffer:
+- Later hunks see changes made by earlier successful hunks.
+- If some hunks match and others fail, all successfully matched hunks are written to disk!
+- Failed hunks are reported back in `failures` with their index, `old_string`, and error reason so you only need to retry the specific hunks that failed.
+- If zero hunks match, the file is NOT modified.
 
-## Error Messages
+## Common Mistakes
 
-- \"failed to parse patch: ...\" → Syntax error in patch format (missing @@ marker or unexpected line prefix).
-- \"hunk N: old_string not found in file: ...\" → Context or target lines were not found. Re-read the file with the read tool and retry.
-- \"failed to read file: ...\" → File does not exist or permission denied.
-- \"failed to write temp file: ...\" → Permission denied or disk full."
+1. **Ambiguous old_string**: searching for just `}` or `return;` matches multiple places. Include more surrounding lines to make it unique.
+2. **Display prefix in old_string**: the line number prefix in read output (e.g., \"  123 | \") is display-only and must NOT be included in old_string."
                 .to_string(),
             parameters,
         },
@@ -145,7 +183,7 @@ All-or-nothing: if any hunk fails, the target file is NOT modified at all.
 
 /// Deserializes `args_json` and executes the edit tool.
 ///
-/// Returns a `ToolResult` with either success (JSON EditOutput) or failure (Text error message).
+/// Returns a `ToolResult` containing structured `EditOutput` JSON.
 /// Returns `Err(EditToolError::ArgsParse)` only if top-level JSON deserialization fails.
 pub async fn execute(
     call_id: ToolCallId,
@@ -168,7 +206,7 @@ pub async fn execute_with_progress(
             call_id.clone(),
             "edit",
             Some(args.path.clone()),
-            format!("Editing {}", args.path),
+            format!("Editing {} ({} edit(s))", args.path, args.edits.len()),
         ),
     );
 
