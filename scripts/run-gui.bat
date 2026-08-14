@@ -44,7 +44,7 @@ echo.
 
 REM Compile TypeScript UI
 echo [*] Compiling TypeScript frontend...
-call npx tsc -p gui\tsconfig.json
+call npx --prefix gui tsc -p gui\tsconfig.json
 
 REM Build and run the GUI
 echo ============================================================================
