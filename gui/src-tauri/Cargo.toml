@@ -23,3 +23,8 @@ tracing.workspace    = true
 anyhow.workspace     = true
 tauri                = { version = "2", features = [] }
 tauri-plugin-opener  = "2"
+windows-sys.workspace= true
+rfd.workspace        = true
+dirs.workspace       = true
+
+

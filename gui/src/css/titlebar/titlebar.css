@@ -1,0 +1,207 @@
+/* Titlebar Layout & Control Styling */
+@import '../shared/tokens.css';
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--titlebar-height);
+  background-color: var(--titlebar-background);
+  padding: 0 var(--titlebar-padding-x);
+  position: relative;
+  z-index: 1000;
+  border-bottom: 1px solid #222222;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* Draggable Center Spacer */
+.titlebar-drag-spacer {
+  flex: 1;
+  height: 100%;
+  cursor: default;
+}
+
+/* Left Chrome Section */
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Brand Logo & Sidebar Toggle Container */
+.brand-container {
+  width: var(--titlebar-logo-size);
+  height: var(--titlebar-logo-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+  position: relative;
+}
+
+.brand-container:hover {
+  background-color: var(--surface-hover);
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.brand-toggle-icon {
+  display: none;
+  width: var(--titlebar-icon-size);
+  height: var(--titlebar-icon-size);
+  background-color: var(--text-primary);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+}
+
+.brand-container.hovered .brand-logo-img {
+  display: none;
+}
+
+.brand-container.hovered .brand-toggle-icon {
+  display: inline-block;
+}
+
+/* Navigation Controls (Back / Forward) */
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.titlebar-icon-btn {
+  width: var(--titlebar-icon-hit-width);
+  height: var(--titlebar-icon-hit-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.titlebar-icon-btn:hover {
+  background-color: var(--surface-hover);
+}
+
+.titlebar-icon-btn:active {
+  background-color: var(--surface-pressed);
+}
+
+/* Right Window Actions (Minimize / Maximize / Close) */
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.action-btn {
+  width: var(--titlebar-icon-hit-width);
+  height: var(--titlebar-icon-hit-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.action-btn:hover {
+  background-color: var(--surface-hover);
+}
+
+.action-btn:active {
+  background-color: var(--surface-pressed);
+}
+
+/* Close button specialized danger styling matching Slint */
+.action-btn.close-btn:hover {
+  background-color: var(--danger-red-surface-hover);
+}
+
+.action-btn.close-btn:active {
+  background-color: var(--danger-red-surface-pressed);
+}
+
+/* Universal CSS Mask-Image Icon Colorizer */
+.ui-icon {
+  display: inline-block;
+  width: var(--titlebar-icon-size);
+  height: var(--titlebar-icon-size);
+  background-color: var(--text-secondary);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+  transition: background-color 0.15s ease;
+}
+
+.titlebar-icon-btn:hover .ui-icon,
+.action-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Close icon color states */
+.action-btn.close-btn .ui-icon {
+  background-color: var(--danger-red);
+}
+
+.action-btn.close-btn:hover .ui-icon {
+  background-color: var(--danger-red-hover);
+}
+
+/* Specific Mask URL definitions */
+.icon-arrow-left {
+  -webkit-mask-image: url('../../assets/icons/titlebar/arrow-left.svg');
+  mask-image: url('../../assets/icons/titlebar/arrow-left.svg');
+}
+
+.icon-arrow-right {
+  -webkit-mask-image: url('../../assets/icons/titlebar/arrow-right.svg');
+  mask-image: url('../../assets/icons/titlebar/arrow-right.svg');
+}
+
+.icon-minimize {
+  -webkit-mask-image: url('../../assets/icons/titlebar/minimize.svg');
+  mask-image: url('../../assets/icons/titlebar/minimize.svg');
+}
+
+.icon-maximize {
+  -webkit-mask-image: url('../../assets/icons/titlebar/maximize.svg');
+  mask-image: url('../../assets/icons/titlebar/maximize.svg');
+}
+
+.icon-unmaxmize {
+  -webkit-mask-image: url('../../assets/icons/titlebar/unmaxmize.svg');
+  mask-image: url('../../assets/icons/titlebar/unmaxmize.svg');
+}
+
+.icon-close {
+  -webkit-mask-image: url('../../assets/icons/titlebar/close.svg');
+  mask-image: url('../../assets/icons/titlebar/close.svg');
+}

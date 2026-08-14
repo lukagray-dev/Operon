@@ -14,8 +14,13 @@
     "windows": [
       {
         "title": "Operon",
-        "width": 800,
-        "height": 600
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "decorations": false,
+        "transparent": false,
+        "shadow": false
       }
     ],
     "security": {
@@ -42,7 +47,7 @@
       "icons/Square150x150Logo.png",
       "icons/Square284x284Logo.png",
       "icons/Square310x310Logo.png",
-      "StoreLogo.png"
+      "icons/StoreLogo.png"
     ]
   }
 }

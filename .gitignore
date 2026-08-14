@@ -50,6 +50,7 @@ yarn.lock
 dist/
 build/
 out/
+gui/src/js/
 
 # Test coverage
 coverage/

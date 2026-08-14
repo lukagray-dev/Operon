@@ -1,0 +1,552 @@
+// Left Sidebar Controller & DOM Renderer
+
+import { appState } from '../shared/state.js';
+import {
+  createNewSessionIpc,
+  deleteProjectIpc,
+  deleteSessionIpc,
+  forkSessionIpc,
+  moveSessionIpc,
+  openProjectPickerIpc,
+  querySidebarData,
+  queryTelegramContactsIpc,
+  queryWhatsAppContactsIpc,
+  renameSessionIpc,
+} from './ipc.js';
+import { sidebarState } from './state.js';
+import type { SidebarConversation } from './types.js';
+
+let activeContextMenu: HTMLElement | null = null;
+
+export function initSidebar(): void {
+  setupSidebarCollapseSync();
+  setupTopActions();
+  setupSearch();
+  setupSectionToggles();
+  setupResizeHandle();
+  setupBottomActions();
+
+  // Close context menu on outside click or window resize
+  window.addEventListener('click', () => {
+    dismissContextMenu();
+  });
+
+  window.addEventListener('resize', () => {
+    dismissContextMenu();
+  });
+
+  // Initial load
+  refreshSidebarContent();
+
+  // Re-render when sidebar state changes
+  sidebarState.subscribe(() => {
+    renderSidebarContent();
+  });
+}
+
+export function dismissContextMenu(): void {
+  if (activeContextMenu) {
+    activeContextMenu.remove();
+    activeContextMenu = null;
+  }
+}
+
+function setupSectionToggles(): void {
+  document.getElementById('header-projects')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('.section-action-btn')) return;
+    sidebarState.toggleProjectsCollapsed();
+  });
+
+  document.getElementById('header-chats')?.addEventListener('click', () => {
+    sidebarState.toggleChatsCollapsed();
+  });
+
+  document.getElementById('header-whatsapp')?.addEventListener('click', () => {
+    sidebarState.toggleWhatsAppCollapsed();
+  });
+
+  document.getElementById('header-telegram')?.addEventListener('click', () => {
+    sidebarState.toggleTelegramCollapsed();
+  });
+}
+
+export async function refreshSidebarContent(): Promise<void> {
+  const query = sidebarState.getSearchQuery();
+  const [data, whatsapp, telegram] = await Promise.all([
+    querySidebarData(query),
+    queryWhatsAppContactsIpc(),
+    queryTelegramContactsIpc(),
+  ]);
+
+  sidebarState.setSidebarData(data);
+  sidebarState.setChannelContacts(whatsapp, telegram);
+}
+
+function setupSidebarCollapseSync(): void {
+  const sidebar = document.getElementById('left-sidebar');
+  if (!sidebar) return;
+
+  appState.subscribe(() => {
+    const isOpen = appState.getSidebarOpen();
+    sidebar.classList.toggle('collapsed', !isOpen);
+  });
+}
+
+function setupTopActions(): void {
+  // New Chat
+  document.getElementById('btn-new-chat')?.addEventListener('click', async () => {
+    const activeProject = sidebarState.getActiveProjectPath() || undefined;
+    const newId = await createNewSessionIpc(undefined, activeProject);
+    sidebarState.setActiveSessionId(newId);
+    await refreshSidebarContent();
+    console.debug('[Sidebar] New chat created:', newId);
+  });
+
+  // Plugins
+  document.getElementById('btn-plugins')?.addEventListener('click', () => {
+    console.debug('[Sidebar] Plugins clicked');
+  });
+
+  // Add Project
+  document.getElementById('btn-add-project')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const picked = await openProjectPickerIpc();
+    if (picked) {
+      sidebarState.setActiveProjectPath(picked);
+      await refreshSidebarContent();
+    }
+  });
+}
+
+function setupSearch(): void {
+  const input = document.getElementById('sidebar-search-input') as HTMLInputElement | null;
+  const clearBtn = document.getElementById('btn-search-clear');
+
+  let debounceTimer: number | undefined;
+
+  input?.addEventListener('input', () => {
+    const val = input.value;
+    clearBtn?.classList.toggle('visible', val.length > 0);
+
+    clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(async () => {
+      sidebarState.setSearchQuery(val);
+      await refreshSidebarContent();
+    }, 200);
+  });
+
+  clearBtn?.addEventListener('click', async () => {
+    if (input) {
+      input.value = '';
+      clearBtn.classList.remove('visible');
+      sidebarState.setSearchQuery('');
+      await refreshSidebarContent();
+    }
+  });
+}
+
+function setupBottomActions(): void {
+  document.getElementById('btn-sidebar-settings')?.addEventListener('click', () => {
+    console.debug('[Sidebar] Settings clicked');
+  });
+}
+
+function setupResizeHandle(): void {
+  const handle = document.getElementById('sidebar-resize-handle');
+  const sidebar = document.getElementById('left-sidebar');
+  if (!handle || !sidebar) return;
+
+  let isResizing = false;
+  let startX = 0;
+  let startWidth = 260;
+
+  handle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = sidebar.getBoundingClientRect().width;
+    handle.classList.add('resizing');
+    document.body.style.cursor = 'ew-resize';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const delta = e.clientX - startX;
+    const newWidth = Math.max(200, Math.min(450, startWidth + delta));
+    sidebar.style.setProperty('--sidebar-width', `${newWidth}px`);
+    sidebar.style.width = `${newWidth}px`;
+    sidebar.style.minWidth = `${newWidth}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      handle.classList.remove('resizing');
+      document.body.style.cursor = '';
+    }
+  });
+}
+
+function renderSidebarContent(): void {
+  renderProjectsSection();
+  renderChatsSection();
+  renderWhatsAppSection();
+  renderTelegramSection();
+}
+
+function renderProjectsSection(): void {
+  const container = document.getElementById('projects-items-container');
+  const countBadge = document.getElementById('projects-count-badge');
+  const section = document.getElementById('section-projects');
+  if (!container) return;
+
+  const projects = sidebarState.getProjects();
+  if (countBadge) countBadge.textContent = String(projects.length);
+
+  section?.classList.toggle('collapsed', sidebarState.isProjectsCollapsed());
+
+  container.innerHTML = '';
+  if (projects.length === 0) {
+    container.innerHTML =
+      '<div style="padding: 6px 8px; font-size: 12px; color: var(--text-muted);">No projects yet</div>';
+    return;
+  }
+
+  projects.forEach((proj) => {
+    const card = document.createElement('div');
+    card.className = 'project-card';
+
+    const isProjectActive = sidebarState.getActiveProjectPath() === proj.workspace;
+
+    const header = document.createElement('div');
+    header.className = `project-header ${isProjectActive ? 'active' : ''}`;
+    header.innerHTML = `
+      <div class="session-item-left">
+        <span class="ui-icon icon-sidebar-folder"></span>
+        <span class="session-title-text" title="${proj.workspace}">${proj.name}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="section-action-btn btn-proj-new-chat" title="New Chat in Project">
+          <span class="ui-icon icon-sidebar-pencil"></span>
+        </button>
+        <button class="section-action-btn btn-proj-delete" title="Delete Project">
+          <span class="ui-icon icon-sidebar-trash"></span>
+        </button>
+      </div>
+    `;
+
+    header.addEventListener('click', () => {
+      sidebarState.setActiveProjectPath(proj.workspace);
+      renderSidebarContent();
+    });
+
+    header.querySelector('.btn-proj-new-chat')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const newId = await createNewSessionIpc(undefined, proj.workspace);
+      sidebarState.setActiveProjectPath(proj.workspace);
+      sidebarState.setActiveSessionId(newId);
+      await refreshSidebarContent();
+    });
+
+    header.querySelector('.btn-proj-delete')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (confirm(`Are you sure you want to delete project "${proj.name}"?`)) {
+        await deleteProjectIpc(proj.workspace);
+        if (sidebarState.getActiveProjectPath() === proj.workspace) {
+          sidebarState.setActiveProjectPath(null);
+          sidebarState.setActiveSessionId(null);
+        }
+        await refreshSidebarContent();
+      }
+    });
+
+    card.appendChild(header);
+
+    if (proj.conversations.length > 0) {
+      const convList = document.createElement('div');
+      convList.className = 'project-conversations';
+
+      proj.conversations.forEach((conv) => {
+        const item = document.createElement('div');
+        const isActive = sidebarState.getActiveSessionId() === conv.id;
+        item.className = `session-item ${isActive ? 'active' : ''}`;
+        item.innerHTML = `
+          <div class="session-item-left">
+            <span class="session-title-text" title="${conv.title}">${conv.title}</span>
+          </div>
+          <button class="item-more-btn" title="Options">
+            <span class="ui-icon icon-sidebar-more-vertical"></span>
+          </button>
+        `;
+
+        item.addEventListener('click', () => {
+          sidebarState.setActiveProjectPath(proj.workspace);
+          sidebarState.setActiveSessionId(conv.id);
+          renderSidebarContent();
+        });
+
+        const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
+        moreBtn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showConversationContextMenu(e, conv, proj.workspace);
+        });
+
+        convList.appendChild(item);
+      });
+
+      card.appendChild(convList);
+    }
+
+    container.appendChild(card);
+  });
+}
+
+function renderChatsSection(): void {
+  const container = document.getElementById('chats-items-container');
+  const countBadge = document.getElementById('chats-count-badge');
+  const section = document.getElementById('section-chats');
+  if (!container) return;
+
+  const chats = sidebarState.getChats();
+  if (countBadge) countBadge.textContent = String(chats.length);
+
+  section?.classList.toggle('collapsed', sidebarState.isChatsCollapsed());
+
+  container.innerHTML = '';
+  if (chats.length === 0) {
+    container.innerHTML =
+      '<div style="padding: 6px 8px; font-size: 12px; color: var(--text-muted);">No standalone chats</div>';
+    return;
+  }
+
+  chats.forEach((chat) => {
+    const item = document.createElement('div');
+    const isActive = sidebarState.getActiveSessionId() === chat.id;
+    item.className = `session-item ${isActive ? 'active' : ''}`;
+    item.innerHTML = `
+      <div class="session-item-left">
+        <span class="ui-icon icon-sidebar-chats"></span>
+        <span class="session-title-text" title="${chat.title}">${chat.title}</span>
+      </div>
+      <button class="item-more-btn" title="Options">
+        <span class="ui-icon icon-sidebar-more-vertical"></span>
+      </button>
+    `;
+
+    item.addEventListener('click', () => {
+      sidebarState.setActiveProjectPath(null);
+      sidebarState.setActiveSessionId(chat.id);
+      renderSidebarContent();
+    });
+
+    const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
+    moreBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showConversationContextMenu(e, chat, undefined);
+    });
+
+    container.appendChild(item);
+  });
+}
+
+function renderWhatsAppSection(): void {
+  const section = document.getElementById('section-whatsapp');
+  const container = document.getElementById('whatsapp-items-container');
+  const countBadge = document.getElementById('whatsapp-count-badge');
+  if (!section || !container) return;
+
+  const contacts = sidebarState.getWhatsAppContacts();
+  if (contacts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'flex';
+  if (countBadge) countBadge.textContent = String(contacts.length);
+  section.classList.toggle('collapsed', sidebarState.isWhatsAppCollapsed());
+
+  container.innerHTML = '';
+  contacts.forEach((contact) => {
+    const row = document.createElement('div');
+    row.className = 'channel-contact-row';
+    row.innerHTML = `
+      <span class="ui-icon icon-sidebar-whatsapp"></span>
+      <div class="channel-contact-info">
+        <span class="channel-contact-name">${contact.name}</span>
+        <span class="channel-contact-preview">${contact.last_message || 'No messages yet'}</span>
+      </div>
+    `;
+
+    row.addEventListener('click', () => {
+      sidebarState.setActiveSessionId(contact.id);
+      renderSidebarContent();
+    });
+
+    container.appendChild(row);
+  });
+}
+
+function renderTelegramSection(): void {
+  const section = document.getElementById('section-telegram');
+  const container = document.getElementById('telegram-items-container');
+  const countBadge = document.getElementById('telegram-count-badge');
+  if (!section || !container) return;
+
+  const contacts = sidebarState.getTelegramContacts();
+  if (contacts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'flex';
+  if (countBadge) countBadge.textContent = String(contacts.length);
+  section.classList.toggle('collapsed', sidebarState.isTelegramCollapsed());
+
+  container.innerHTML = '';
+  contacts.forEach((contact) => {
+    const row = document.createElement('div');
+    row.className = 'channel-contact-row';
+    row.innerHTML = `
+      <span class="ui-icon icon-sidebar-telegram"></span>
+      <div class="channel-contact-info">
+        <span class="channel-contact-name">${contact.name}</span>
+        <span class="channel-contact-preview">${contact.last_message || 'No messages yet'}</span>
+      </div>
+    `;
+
+    row.addEventListener('click', () => {
+      sidebarState.setActiveSessionId(contact.id);
+      renderSidebarContent();
+    });
+
+    container.appendChild(row);
+  });
+}
+
+/**
+ * Renders and positions the floating context menu for a conversation item.
+ */
+function showConversationContextMenu(
+  e: MouseEvent,
+  conv: SidebarConversation,
+  projectWorkspace?: string
+): void {
+  dismissContextMenu();
+
+  const target = e.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+
+  const menu = document.createElement('div');
+  menu.className = 'session-context-menu';
+
+  // Position adjacent to the trigger button
+  const top = Math.min(window.innerHeight - 220, rect.bottom + 2);
+  const left = Math.min(window.innerWidth - 160, rect.left);
+  menu.style.top = `${top}px`;
+  menu.style.left = `${left}px`;
+
+  menu.innerHTML = `
+    <button class="context-menu-item" id="ctx-share">
+      <span class="ui-icon icon-sidebar-share"></span>
+      <span>Share</span>
+    </button>
+    <button class="context-menu-item" id="ctx-rename">
+      <span class="ui-icon icon-sidebar-pencil"></span>
+      <span>Rename</span>
+    </button>
+    <button class="context-menu-item" id="ctx-move">
+      <span class="ui-icon icon-sidebar-folder-input"></span>
+      <span>Move to...</span>
+    </button>
+    <button class="context-menu-item" id="ctx-fork">
+      <span class="ui-icon icon-sidebar-fork"></span>
+      <span>Fork</span>
+    </button>
+    <div class="context-menu-separator"></div>
+    <button class="context-menu-item danger" id="ctx-delete">
+      <span class="ui-icon icon-sidebar-trash"></span>
+      <span>Delete</span>
+    </button>
+  `;
+
+  // 1. Share action
+  menu.querySelector('#ctx-share')?.addEventListener('click', async (evt) => {
+    evt.stopPropagation();
+    dismissContextMenu();
+    try {
+      await navigator.clipboard.writeText(conv.id);
+      console.debug('[Sidebar] Copied session ID to clipboard:', conv.id);
+    } catch {
+      // Fallback
+    }
+  });
+
+  // 2. Rename action
+  menu.querySelector('#ctx-rename')?.addEventListener('click', async (evt) => {
+    evt.stopPropagation();
+    dismissContextMenu();
+    const newTitle = prompt('Rename conversation:', conv.title);
+    if (newTitle && newTitle.trim().length > 0) {
+      await renameSessionIpc(conv.id, newTitle.trim());
+      await refreshSidebarContent();
+    }
+  });
+
+  // 3. Move to... action
+  menu.querySelector('#ctx-move')?.addEventListener('click', async (evt) => {
+    evt.stopPropagation();
+    dismissContextMenu();
+
+    const projects = sidebarState.getProjects();
+    const options = ['[Standalone Chat]', ...projects.map((p) => p.name)];
+    const choice = prompt(
+      `Move conversation to:\n${options.map((opt, idx) => `${idx + 1}. ${opt}`).join('\n')}`,
+      '1'
+    );
+
+    if (choice) {
+      const idx = parseInt(choice.trim(), 10) - 1;
+      if (idx === 0) {
+        // Move to standalone
+        await moveSessionIpc(conv.id, '');
+        if (sidebarState.getActiveSessionId() === conv.id) {
+          sidebarState.setActiveProjectPath(null);
+        }
+        await refreshSidebarContent();
+      } else if (idx > 0 && idx < options.length) {
+        const targetProj = projects[idx - 1];
+        await moveSessionIpc(conv.id, targetProj.workspace);
+        if (sidebarState.getActiveSessionId() === conv.id) {
+          sidebarState.setActiveProjectPath(targetProj.workspace);
+        }
+        await refreshSidebarContent();
+      }
+    }
+  });
+
+  // 4. Fork action
+  menu.querySelector('#ctx-fork')?.addEventListener('click', async (evt) => {
+    evt.stopPropagation();
+    dismissContextMenu();
+    const newId = await forkSessionIpc(conv.id);
+    sidebarState.setActiveProjectPath(projectWorkspace || null);
+    sidebarState.setActiveSessionId(newId);
+    await refreshSidebarContent();
+    console.debug('[Sidebar] Forked conversation:', newId);
+  });
+
+  // 5. Delete action
+  menu.querySelector('#ctx-delete')?.addEventListener('click', async (evt) => {
+    evt.stopPropagation();
+    dismissContextMenu();
+    if (confirm(`Delete conversation "${conv.title}"?`)) {
+      await deleteSessionIpc(conv.id);
+      if (sidebarState.getActiveSessionId() === conv.id) {
+        sidebarState.setActiveSessionId(null);
+      }
+      await refreshSidebarContent();
+    }
+  });
+
+  document.body.appendChild(menu);
+  activeContextMenu = menu;
+}

@@ -1,0 +1,97 @@
+/* Titlebar Menus (Files, View, Window, Help) & Dropdown Panels */
+@import '../shared/tokens.css';
+
+.titlebar-menus {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+.menu-container {
+  position: relative;
+}
+
+.menu-trigger {
+  height: 22px;
+  padding: 0 6px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: var(--dropdown-font-size);
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.menu-trigger:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.menu-trigger.active {
+  background-color: var(--dropdown-surface-hover);
+  color: var(--text-primary);
+}
+
+/* Dropdown Popover Surface */
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(var(--titlebar-height) - 4px);
+  left: 0;
+  min-width: var(--dropdown-width);
+  background-color: var(--dropdown-surface);
+  border: 1px solid var(--dropdown-border);
+  border-radius: var(--dropdown-radius);
+  box-shadow: var(--dropdown-shadow);
+  padding: 4px;
+  z-index: 2000;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-menu.open {
+  display: flex;
+}
+
+.dropdown-item {
+  height: 28px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: var(--dropdown-font-size);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.dropdown-item:hover {
+  background-color: var(--dropdown-surface-hover);
+  color: var(--text-primary);
+}
+
+.dropdown-item:active {
+  background-color: var(--dropdown-surface-pressed);
+}
+
+.dropdown-item-shortcut {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--mono-font-family);
+  margin-left: 12px;
+}
+
+.dropdown-separator {
+  height: 1px;
+  background-color: var(--dropdown-separator);
+  margin: 3px 0;
+}

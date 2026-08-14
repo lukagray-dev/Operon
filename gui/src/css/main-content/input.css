@@ -1,0 +1,380 @@
+/* Main Content Input Panel & Warning Disclaimer Styling */
+@import '../shared/tokens.css';
+
+/* Main Content Area Outer Layout */
+.main-content-layout {
+  flex: 1;
+  height: 100%;
+  background-color: var(--window-background);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Chat Messages Scroll Viewport */
+.main-chat-viewport {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Input Panel Container pinned at the bottom */
+.input-panel-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20px 8px 20px;
+  position: relative;
+  z-index: 20;
+}
+
+/* Central Input Box Card */
+.input-card {
+  width: 100%;
+  max-width: 820px;
+  background-color: #171717;
+  border: 1px solid #282828;
+  border-radius: 10px;
+  padding: 10px 12px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  position: relative;
+  transition: border-color 0.12s ease;
+}
+
+.input-card:focus-within {
+  border-color: #383838;
+}
+
+/* Attachments Chips Bar */
+.attachments-bar {
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.attachments-bar.has-items {
+  display: flex;
+}
+
+.attachment-chip {
+  background-color: #242424;
+  border: 1px solid #333333;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.attachment-chip-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+  transition: color 0.12s ease;
+}
+
+.attachment-chip-remove:hover {
+  color: var(--danger-red-hover);
+}
+
+/* Auto-expanding Multiline Textarea */
+.input-textarea {
+  width: 100%;
+  min-height: 42px;
+  max-height: 200px;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+
+.input-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Bottom Actions Toolbar */
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  gap: 8px;
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.toolbar-group-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-group-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Generic Toolbar Button */
+.toolbar-btn {
+  height: 26px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0 6px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.toolbar-btn:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Attach Button */
+.btn-attach {
+  width: 28px;
+  padding: 0;
+}
+
+/* Auto-Approve Toggle Pill */
+.btn-auto-approve {
+  border: 1px solid transparent;
+  color: var(--text-muted);
+}
+
+.btn-auto-approve.enabled {
+  border-color: rgba(96, 197, 255, 0.3);
+  background-color: rgba(96, 197, 255, 0.08);
+  color: #60c5ff;
+}
+
+.btn-auto-approve.enabled .ui-icon {
+  background-color: #60c5ff;
+}
+
+/* Context Indicator Pill */
+.btn-context-indicator {
+  padding: 0 8px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  font-family: var(--mono-font-family);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-context-indicator:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+/* Model & Reasoning Selector Pills */
+.btn-selector-pill {
+  padding: 0 8px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.btn-selector-pill:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+/* Voice Input Button */
+.btn-voice {
+  width: 28px;
+  padding: 0;
+}
+
+.btn-voice.recording {
+  background-color: var(--danger-red-surface-hover);
+}
+
+.btn-voice.recording .ui-icon {
+  background-color: var(--danger-red);
+}
+
+/* Send / Stop Action Button */
+.btn-send-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.btn-send-action .ui-icon {
+  background-color: #000000;
+  width: 13px;
+  height: 13px;
+}
+
+.btn-send-action.disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.btn-send-action.responding {
+  background-color: #e54d2e;
+}
+
+.btn-send-action.responding .ui-icon {
+  background-color: #ffffff;
+}
+
+/* Floating Popovers for Model & Reasoning Selection */
+.input-popover-dropdown {
+  position: absolute;
+  bottom: 40px;
+  right: 0;
+  background: var(--dropdown-surface);
+  border: 1px solid var(--dropdown-border);
+  border-radius: var(--dropdown-radius);
+  box-shadow: var(--dropdown-shadow);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 240px;
+  max-width: 400px;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.popover-item {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-family);
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.popover-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover-item:hover {
+  background-color: var(--dropdown-surface-hover);
+  color: var(--text-primary);
+}
+
+.popover-item.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Centered Warning Disclaimer Text */
+.input-warning-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  text-align: center;
+  margin-top: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Mask Icon Definitions for Input Panel */
+.icon-input-attach {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/attach.svg');
+  mask-image: url('../../assets/icons/main-content/input/attach.svg');
+}
+
+.icon-input-auto-approve-disable {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/auto-approve-disable.svg');
+  mask-image: url('../../assets/icons/main-content/input/auto-approve-disable.svg');
+}
+
+.icon-input-auto-approve-enable {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/auto-approve-enable.svg');
+  mask-image: url('../../assets/icons/main-content/input/auto-approve-enable.svg');
+}
+
+.icon-input-context {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/context.svg');
+  mask-image: url('../../assets/icons/main-content/input/context.svg');
+}
+
+.icon-input-model {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/model.svg');
+  mask-image: url('../../assets/icons/main-content/input/model.svg');
+}
+
+.icon-input-reasoning {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/reasoning.svg');
+  mask-image: url('../../assets/icons/main-content/input/reasoning.svg');
+}
+
+.icon-input-voice {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/voice.svg');
+  mask-image: url('../../assets/icons/main-content/input/voice.svg');
+}
+
+.icon-input-send {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/send.svg');
+  mask-image: url('../../assets/icons/main-content/input/send.svg');
+}
+
+.icon-input-stop {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/stop.svg');
+  mask-image: url('../../assets/icons/main-content/input/stop.svg');
+}
+
+.icon-input-chevron-down {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/chevron-down.svg');
+  mask-image: url('../../assets/icons/main-content/input/chevron-down.svg');
+}

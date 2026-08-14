@@ -134,7 +134,7 @@ rfd          = "0.15"
 syntect      = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy", "default-themes", "default-syntaxes"] }
 merman       = { version = "0.7", features = ["render"] }
 regex        = "1.10"
-windows-sys  = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading"] }
+windows-sys  = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading", "Win32_Graphics_Dwm"] }
 sha2         = "0.10"
 base64       = "0.22"
 slint        = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
