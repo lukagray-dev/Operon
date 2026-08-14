@@ -623,3 +623,149 @@ async fn test_partial_success_order_dependent() {
     let content = fs::read_to_string(&path).unwrap();
     assert_eq!(content, "final result\n");
 }
+
+// ============================================================================
+// DEFENSIVE DESERIALIZATION & MODEL QUIRK RECOVERY TESTS
+// ============================================================================
+
+#[tokio::test]
+async fn test_stringified_json_array_edits() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "const LIMIT: u32 = 10;\nfn run() {}\n").unwrap();
+
+    // Model (e.g. Nemotron/vLLM) sends edits as a JSON-stringified string
+    let stringified_edits = "[{\"old_string\": \"const LIMIT: u32 = 10;\", \"new_string\": \"const LIMIT: u32 = 20;\"}, {\"old_string\": \"fn run() {}\", \"new_string\": \"fn run() { println!(\\\"ok\\\"); }\"}]";
+
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": path,
+            "edits": stringified_edits
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error, "stringified JSON array should be deserialized: {:?}", result.content);
+    let output = get_output(&result);
+    assert_eq!(output.hunks_applied, 2);
+
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("const LIMIT: u32 = 20;"));
+    assert!(content.contains("println!(\"ok\");"));
+}
+
+#[tokio::test]
+async fn test_markdown_fenced_stringified_edits() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "let x = 1;\n").unwrap();
+
+    let fenced_edits = "```json\n[\n  {\n    \"old_string\": \"let x = 1;\",\n    \"new_string\": \"let x = 2;\"\n  }\n]\n```";
+
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": path,
+            "edits": fenced_edits
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let content = fs::read_to_string(&path).unwrap();
+    assert_eq!(content, "let x = 2;\n");
+}
+
+#[tokio::test]
+async fn test_single_object_edits() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "hello old world\n").unwrap();
+
+    // Model sends single EditHunk object instead of array
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": path,
+            "edits": {
+                "old_string": "old",
+                "new_string": "new"
+            }
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let content = fs::read_to_string(&path).unwrap();
+    assert_eq!(content, "hello new world\n");
+}
+
+#[tokio::test]
+async fn test_flat_root_level_parameters() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "alpha beta gamma\n").unwrap();
+
+    // Model sends flat top-level parameters without `edits` array
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "path": path,
+            "old_string": "beta",
+            "new_string": "BETA"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let content = fs::read_to_string(&path).unwrap();
+    assert_eq!(content, "alpha BETA gamma\n");
+}
+
+#[tokio::test]
+async fn test_field_aliases_comprehensive() {
+    let file = NamedTempFile::new().unwrap();
+    let path = file.path().to_string_lossy().to_string();
+    fs::write(&path, "foo bar baz\n").unwrap();
+
+    // Test filePath, hunks, search, replace
+    let result = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "filePath": path,
+            "hunks": [
+                {
+                    "search": "foo",
+                    "replace": "FOO"
+                }
+            ]
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(content.contains("FOO bar baz"));
+
+    // Test target_file, old_str, new_str flat
+    let result2 = execute(
+        ToolCallId("test_call".to_string()),
+        json!({
+            "target_file": path,
+            "old_str": "bar",
+            "new_str": "BAR"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result2.is_error);
+    let content2 = fs::read_to_string(&path).unwrap();
+    assert_eq!(content2, "FOO BAR baz\n");
+}
