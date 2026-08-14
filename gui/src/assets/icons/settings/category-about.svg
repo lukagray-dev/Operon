@@ -1,0 +1,66 @@
+<svg width="512" height="512" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Operon Brand Logo (improved)
+    Symmetric around x=60, glossy gradients, limbs attached, antennae inside frame.
+  -->
+  <defs>
+    <radialGradient id="bodyGrad" cx="38%" cy="32%" r="72%">
+      <stop offset="0%"  stop-color="#93c5fd"/>
+      <stop offset="55%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1e40af"/>
+    </radialGradient>
+    <radialGradient id="armGrad" cx="38%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </radialGradient>
+    <linearGradient id="limbGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <radialGradient id="gloss" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="eyeGrad" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Antennae — symmetric, attached to body crown, fully inside frame -->
+  <path d="M 52 23 C 48 13 42 9 39 7" stroke="#93c5fd" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M 68 23 C 72 13 78 9 81 7" stroke="#93c5fd" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <circle cx="39" cy="7" r="4" fill="#bfdbfe"/>
+  <circle cx="81" cy="7" r="4" fill="#bfdbfe"/>
+
+  <!-- Legs — rounded pillars tucked under the body so they read as attached -->
+  <rect x="49" y="86" width="8" height="22" rx="4" fill="url(#limbGrad)"/>
+  <rect x="63" y="86" width="8" height="22" rx="4" fill="url(#limbGrad)"/>
+
+  <!-- Arms — blobs overlapping the body sides -->
+  <ellipse cx="22" cy="60" rx="12" ry="15" fill="url(#armGrad)"/>
+  <ellipse cx="98" cy="60" rx="12" ry="15" fill="url(#armGrad)"/>
+
+  <!-- Body — large circular blob, centred on x=60 -->
+  <circle cx="60" cy="55" r="40" fill="url(#bodyGrad)"/>
+
+  <!-- Glossy highlight on upper-left of body -->
+  <ellipse cx="46" cy="38" rx="22" ry="16" fill="url(#gloss)"/>
+
+  <!-- Left eye -->
+  <circle cx="46" cy="50" r="11" fill="url(#eyeGrad)"/>
+  <circle cx="46" cy="50" r="4" fill="#00f5d4"/>
+  <circle cx="43.5" cy="46.5" r="1.8" fill="white" opacity="0.5"/>
+
+  <!-- Right eye -->
+  <circle cx="74" cy="50" r="11" fill="url(#eyeGrad)"/>
+  <circle cx="74" cy="50" r="4" fill="#00f5d4"/>
+  <circle cx="71.5" cy="46.5" r="1.8" fill="white" opacity="0.5"/>
+
+  <!-- Mouth — gentle smile, centred -->
+  <path d="M 50 70 Q 60 78 70 70" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Cheeks — subtle symmetric blush -->
+  <circle cx="34" cy="62" r="5" fill="#bfdbfe" opacity="0.35"/>
+  <circle cx="86" cy="62" r="5" fill="#bfdbfe" opacity="0.35"/>
+</svg>
