@@ -105,6 +105,12 @@ pub fn run() {
             // Main Content Markdown actions
             main_content::markdown::render_markdown,
             main_content::markdown::render_markdown_batch,
+            // Main Content Terminal actions
+            main_content::terminal::create_terminal,
+            main_content::terminal::write_terminal,
+            main_content::terminal::resize_terminal,
+            main_content::terminal::close_terminal,
+            main_content::terminal::get_terminal_default_workdir,
             // Right Sidebar (Source Control & Git Diff) actions
             right_sidebar::get_git_diff_details,
             right_sidebar::get_git_commit_graph,

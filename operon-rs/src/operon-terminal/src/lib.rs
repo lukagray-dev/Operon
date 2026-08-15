@@ -54,7 +54,6 @@ impl TerminalSession {
             pixel_height: 0,
         })?;
         
-        // 3. Determine native shell command (PowerShell on Windows, bash on Unix/macOS)
         let shell = if cfg!(target_os = "windows") {
             "powershell.exe"
         } else {
@@ -62,6 +61,9 @@ impl TerminalSession {
         };
         
         let mut cmd = CommandBuilder::new(shell);
+        if cfg!(target_os = "windows") {
+            cmd.arg("-NoLogo");
+        }
         
         // If a workspace/project directory is specified, set the start directory
         if let Some(dir) = workdir {

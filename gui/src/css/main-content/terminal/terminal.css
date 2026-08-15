@@ -1,0 +1,262 @@
+/* Terminal Panel Component Styles
+ *
+ * Bottom-docked resizable PowerShell terminal panel matching left-sidebar color and design tokens.
+ * Features flat text tabs, drag-to-resize handle, and seamless xterm.js viewport with Kode Mono font.
+ */
+
+:root {
+  --terminal-height: 0px;
+  --terminal-default-open-height: 280px;
+  --terminal-min-height: 120px;
+  --terminal-bg: #121212;
+}
+
+/* ============================================================================
+   TERMINAL PANEL CONTAINER
+   ============================================================================ */
+
+.terminal-panel {
+  position: relative;
+  width: 100%;
+  height: var(--terminal-height);
+  background-color: var(--terminal-bg);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  z-index: 90;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: none !important;
+  opacity: 1;
+}
+
+/* Collapsed State - Instantaneous toggle without animations */
+.terminal-panel.collapsed {
+  display: none !important;
+  height: 0 !important;
+  border-top: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   DRAG-TO-RESIZE HANDLE
+   ============================================================================ */
+
+.terminal-panel__resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background-color: transparent;
+  cursor: ns-resize;
+  z-index: 100;
+  transition: background-color 150ms ease;
+}
+
+.terminal-panel__resize-handle:hover,
+.terminal-panel.resizing .terminal-panel__resize-handle {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ============================================================================
+   TERMINAL HEADER (NO SEPARATOR, MATCHES SIDEBAR)
+   ============================================================================ */
+
+.terminal-panel__header {
+  height: 32px;
+  background-color: var(--terminal-bg);
+  border-bottom: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 12px;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+
+.terminal-panel__header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+/* Tabs list - completely flat, without boxed container styling */
+.terminal-panel__tabs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  overflow-x: auto;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 12px;
+  font-weight: 400;
+  color: #888888;
+  transition: color 120ms ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.terminal-tab:hover {
+  background-color: transparent;
+  color: #d3d3d3;
+}
+
+.terminal-tab.active {
+  background-color: transparent;
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+}
+
+.terminal-tab__name {
+  white-space: nowrap;
+}
+
+.terminal-tab__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.terminal-tab:hover .terminal-tab__close,
+.terminal-tab.active .terminal-tab__close {
+  opacity: 0.6;
+}
+
+.terminal-tab__close:hover {
+  opacity: 1 !important;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.terminal-tab__close-icon {
+  width: 8px;
+  height: 8px;
+  background-color: currentColor;
+  display: inline-block;
+  -webkit-mask-image: url('../../../../assets/icons/main-content/terminal/x.svg');
+  mask-image: url('../../../../assets/icons/main-content/terminal/x.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* Add Tab Button right after tabs */
+.terminal-panel__add-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #888888;
+  transition: background-color 120ms ease, color 120ms ease;
+  margin-left: 2px;
+}
+
+.terminal-panel__add-tab-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.icon-terminal-add {
+  width: 12px;
+  height: 12px;
+  background-color: currentColor;
+  display: inline-block;
+  -webkit-mask-image: url('../../../../assets/icons/main-content/terminal/plus.svg');
+  mask-image: url('../../../../assets/icons/main-content/terminal/plus.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* ============================================================================
+   TERMINAL VIEWPORT BODY (XTERM CANVAS)
+   ============================================================================ */
+
+.terminal-panel__body {
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 32px);
+  background-color: var(--terminal-bg);
+  padding: 4px 12px 6px 12px;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: flex;
+}
+
+.terminal-tab-wrapper {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  position: relative;
+}
+
+.terminal-tab-wrapper .xterm {
+  height: 100%;
+  padding: 0;
+}
+
+.terminal-tab-wrapper .xterm-viewport {
+  background-color: transparent !important;
+}
+
+.terminal-tab-wrapper .xterm-screen {
+  width: 100% !important;
+}
+
+/* Strict Typography for xterm grid */
+.terminal-panel__body .xterm,
+.terminal-panel__body .xterm-screen,
+.terminal-panel__body .xterm-rows {
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+}
+
+.terminal-panel__body .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-panel__body .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-panel__body .xterm-viewport::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+.terminal-panel__body .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Resizing Lock */
+body.terminal-resizing .terminal-panel,
+body.terminal-resizing .main-content-layout {
+  transition: none !important;
+}

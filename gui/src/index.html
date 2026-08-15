@@ -19,6 +19,8 @@
   <link rel="stylesheet" href="css/main-content/work-group/work-group.css" />
   <link rel="stylesheet" href="css/main-content/permission/permission.css" />
   <link rel="stylesheet" href="css/main-content/input/input.css" />
+  <link rel="stylesheet" href="assets/xterm/xterm.css" />
+  <link rel="stylesheet" href="css/main-content/terminal/terminal.css" />
   <link rel="stylesheet" href="css/right-sidebar/right-sidebar.css" />
 </head>
 
@@ -341,6 +343,20 @@
           <!-- Warning Disclaimer Text Below Input -->
           <div class="input-warning-text">Operon uses AI models. AI can make mistakes.</div>
         </div>
+
+        <!-- Bottom-Docked PowerShell Terminal Panel -->
+        <div id="terminal-panel" class="terminal-panel collapsed">
+          <div id="terminal-resize-handle" class="terminal-panel__resize-handle"></div>
+          <div class="terminal-panel__header">
+            <div class="terminal-panel__header-left">
+              <div class="terminal-panel__tabs" id="terminal-tabs-container"></div>
+              <button id="terminal-add-tab-btn" class="terminal-panel__add-tab-btn" title="New Terminal Tab">
+                <span class="ui-icon icon-terminal-add"></span>
+              </button>
+            </div>
+          </div>
+          <div class="terminal-panel__body" id="terminal-container"></div>
+        </div>
       </section>
 
       <!-- Right Sidebar (Source Control, Git Diff & Commit Graph) -->
@@ -353,6 +369,10 @@
 
   <!-- KaTeX Math Engine -->
   <script src="assets/katex/katex.min.js"></script>
+
+  <!-- xterm.js Terminal Engine & Fit Addon -->
+  <script src="assets/xterm/xterm.js"></script>
+  <script src="assets/xterm/addon-fit.js"></script>
 
   <!-- Application Script Entrypoint -->
   <script type="module" src="js/main.js"></script>
