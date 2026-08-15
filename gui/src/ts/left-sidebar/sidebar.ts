@@ -1,5 +1,4 @@
-// Left Sidebar Controller & DOM Renderer
-
+import { openSettingsWindowIpc } from '../settings/ipc.js';
 import { appState } from '../shared/state.js';
 import {
   createNewSessionIpc,
@@ -146,8 +145,8 @@ function setupSearch(): void {
 }
 
 function setupBottomActions(): void {
-  document.getElementById('btn-sidebar-settings')?.addEventListener('click', () => {
-    console.debug('[Sidebar] Settings clicked');
+  document.getElementById('btn-sidebar-settings')?.addEventListener('click', async () => {
+    await openSettingsWindowIpc();
   });
 }
 

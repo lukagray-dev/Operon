@@ -1,0 +1,191 @@
+/* Settings Left Navigation Sidebar Styling (1:1 with Slint specification) */
+@import '../../shared/tokens.css';
+
+/* Sidebar Container */
+.settings-sidebar {
+  width: 210px;
+  min-width: 210px;
+  background-color: #141414;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 8px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+/* Search Box Container */
+.settings-search-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.settings-search-input {
+  width: 100%;
+  height: 28px;
+  background-color: #1f1f1f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0 24px 0 28px;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-search-input:focus {
+  background-color: #242424;
+  border-color: var(--accent-blue, #007acc);
+}
+
+.settings-search-input::placeholder {
+  color: var(--text-muted, #737373);
+}
+
+.settings-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 7px;
+  width: 13px;
+  height: 13px;
+  -webkit-mask-image: url('../../../assets/icons/settings/search.svg');
+  mask-image: url('../../../assets/icons/settings/search.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  background-color: var(--text-muted, #737373);
+  pointer-events: none;
+}
+
+.settings-search-clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #737373);
+  cursor: pointer;
+  display: none;
+  font-size: 10px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+
+.settings-search-clear-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.settings-search-clear-btn.visible {
+  display: flex;
+}
+
+/* Category Items Container */
+.settings-categories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 2px;
+}
+
+/* Category Tab Item Button */
+.settings-tab-item {
+  position: relative;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 5px;
+  padding: 0 10px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: #a6a6a6;
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.settings-tab-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #e0e0e0;
+}
+
+.settings-tab-item.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Active Left Indicator Bar */
+.settings-tab-active-indicator {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background-color: transparent;
+  transition: background-color 0.12s ease;
+}
+
+.settings-tab-item.active .settings-tab-active-indicator {
+  background-color: var(--accent-blue, #007acc);
+}
+
+/* Tab Icon */
+.settings-tab-icon {
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  flex-shrink: 0;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+/* Tab Label */
+.settings-tab-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tab Badge */
+.settings-tab-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #cccccc;
+}
+
+/* Empty Search Results */
+.settings-empty-category-row {
+  padding: 16px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  font-family: var(--font-family);
+}

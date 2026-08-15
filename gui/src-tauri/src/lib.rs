@@ -6,6 +6,7 @@ pub mod left_sidebar;
 pub mod main_content;
 #[path = "right-sidebar/mod.rs"]
 pub mod right_sidebar;
+pub mod settings;
 pub mod shared;
 pub mod titlebar;
 
@@ -13,7 +14,7 @@ use shared::AppState;
 use tauri::Manager;
 
 /// Applies Windows-specific DWM attributes for sharp corners and no light border outline.
-fn apply_window_dwm_styling(window: &tauri::WebviewWindow) {
+pub fn apply_window_dwm_styling(window: &tauri::WebviewWindow) {
     #[cfg(target_os = "windows")]
     {
         use windows_sys::Win32::Graphics::Dwm::{
@@ -116,6 +117,36 @@ pub fn run() {
             right_sidebar::git_create_branch,
             right_sidebar::git_switch_branch,
             right_sidebar::git_delete_branch,
+            // Settings Window actions
+            settings::open_settings_window,
+            settings::close_settings_window,
+            settings::general::get_general_settings,
+            settings::general::save_general_settings,
+            settings::appearance::get_appearance_settings,
+            settings::appearance::save_appearance_settings,
+            settings::models::get_providers_list,
+            settings::models::get_provider_setup_details,
+            settings::models::discover_provider_models,
+            settings::models::save_provider_config,
+            settings::permissions::get_allowed_directories,
+            settings::permissions::add_allowed_directory,
+            settings::permissions::remove_allowed_directory,
+            settings::permissions::pick_allowed_directory_dialog,
+            settings::permissions::get_permission_items,
+            settings::permissions::update_permission_mode,
+            settings::channels::get_channels_list,
+            settings::channels::whatsapp::get_whatsapp_state,
+            settings::channels::whatsapp::check_whatsapp_policy_coverage,
+            settings::channels::whatsapp::pick_whatsapp_workspace_dialog,
+            settings::channels::whatsapp::save_whatsapp_channel_config,
+            settings::channels::whatsapp::start_whatsapp_qr_pairing,
+            settings::channels::whatsapp::start_whatsapp_code_pairing,
+            settings::channels::telegram::get_telegram_state,
+            settings::channels::telegram::check_telegram_policy_coverage,
+            settings::channels::telegram::pick_telegram_workspace_dialog,
+            settings::channels::telegram::test_telegram_channel_connection,
+            settings::channels::telegram::save_telegram_channel_config,
+            settings::about::get_about_system_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,456 @@
+/* Permissions Settings Panel Stylesheet (1:1 with Slint permissions.slint) */
+@import '../../shared/tokens.css';
+
+.settings-panel-view[data-tab="permissions"] {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 740px;
+}
+
+.settings-panel-view[data-tab="permissions"].active {
+  display: flex;
+}
+
+.perm-view-section.hidden {
+  display: none !important;
+}
+
+/* Top Tab Bar (Allowed Directories vs Global Permissions) */
+.perm-tab-bar {
+  display: flex;
+  height: 32px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  width: 320px;
+}
+
+.perm-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #888888;
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.perm-tab-btn:hover {
+  color: #cccccc;
+}
+
+.perm-tab-btn.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e8e8e8;
+}
+
+/* Scope Selector Bar (Owner vs External) */
+.perm-scope-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.perm-scope-bar {
+  display: flex;
+  height: 28px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  width: 180px;
+}
+
+.perm-scope-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #888888;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.perm-scope-btn:hover {
+  color: #cccccc;
+}
+
+.perm-scope-btn.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e8e8e8;
+}
+
+.perm-scope-info-label {
+  font-size: 11px;
+  color: var(--text-muted, #737373);
+}
+
+/* Allowed Directories Section */
+.perm-directories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.perm-dir-row {
+  height: 44px;
+  min-height: 44px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.perm-dir-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.icon-perm-directory {
+  width: 14px;
+  height: 14px;
+  background-color: #888888;
+  -webkit-mask-image: url('../../../assets/icons/settings/permission-directory.svg');
+  mask-image: url('../../../assets/icons/settings/permission-directory.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  flex-shrink: 0;
+}
+
+.perm-dir-path {
+  font-size: 12px;
+  color: #e8e8e8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono-font-family);
+}
+
+.perm-dir-workspace-badge {
+  padding: 2px 6px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #888888;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.perm-dir-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.perm-dir-action-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #888888;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.perm-dir-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.perm-dir-action-btn .ui-icon {
+  width: 13px;
+  height: 13px;
+  background-color: currentColor;
+  pointer-events: none;
+}
+
+.icon-perm-configure {
+  -webkit-mask-image: url('../../../assets/icons/settings/configure-directory-permissions.svg');
+  mask-image: url('../../../assets/icons/settings/configure-directory-permissions.svg');
+}
+
+.icon-perm-delete {
+  -webkit-mask-image: url('../../../assets/icons/settings/delete.svg');
+  mask-image: url('../../../assets/icons/settings/delete.svg');
+}
+
+/* Add Directory Input Row */
+.perm-add-dir-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.perm-add-dir-input {
+  flex: 1;
+  height: 32px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.perm-add-dir-input:focus {
+  border-color: var(--accent-blue, #007acc);
+}
+
+.btn-perm-browse {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #888888;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-perm-browse:hover {
+  background-color: #242424;
+  color: #e0e0e0;
+}
+
+.btn-perm-add {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #888888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-perm-add:hover {
+  background-color: #242424;
+  color: #ffffff;
+}
+
+.btn-perm-add .ui-icon {
+  width: 14px;
+  height: 14px;
+  background-color: currentColor;
+  -webkit-mask-image: url('../../../assets/icons/settings/plus.svg');
+  mask-image: url('../../../assets/icons/settings/plus.svg');
+}
+
+/* Permission Items (Groups and Tools) */
+.perm-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.perm-item-row {
+  height: 44px;
+  min-height: 44px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: background-color 0.12s ease;
+}
+
+.perm-tool-row {
+  background-color: #080808;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.perm-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.perm-group-expand-btn {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666666;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.perm-group-expand-btn:hover {
+  color: #e0e0e0;
+}
+
+.perm-group-expand-btn .ui-icon {
+  width: 10px;
+  height: 10px;
+  background-color: currentColor;
+  pointer-events: none;
+}
+
+.perm-group-expand-spacer {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+}
+
+.perm-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.perm-item-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e8e8e8;
+}
+
+.perm-item-subtitle {
+  font-size: 10px;
+  color: var(--text-muted, #737373);
+}
+
+/* Allow / Ask / Deny Segmented Selector */
+.perm-segmented-mode {
+  display: flex;
+  height: 28px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  width: 170px;
+}
+
+.perm-mode-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #555555;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.perm-mode-btn:hover {
+  color: #aaaaaa;
+}
+
+.perm-mode-btn.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e8e8e8;
+}
+
+.perm-mode-btn.active.allow {
+  color: #4ade80;
+  background-color: rgba(74, 222, 128, 0.12);
+}
+
+.perm-mode-btn.active.ask {
+  color: #38bdf8;
+  background-color: rgba(56, 189, 248, 0.12);
+}
+
+.perm-mode-btn.active.deny {
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.12);
+}
+
+/* Directory Config View Navigation Bar */
+.perm-dir-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.btn-perm-dir-back {
+  width: 60px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #888888;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-perm-dir-back:hover {
+  background-color: #242424;
+  color: #e0e0e0;
+}
+
+.btn-perm-dir-back .ui-icon {
+  width: 10px;
+  height: 10px;
+  background-color: currentColor;
+  pointer-events: none;
+}
+
+.perm-dir-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e8e8e8;
+  font-family: var(--mono-font-family);
+}

@@ -1,0 +1,140 @@
+/* About Settings Panel Stylesheet (1:1 with Slint about.slint) */
+@import '../../shared/tokens.css';
+
+.settings-panel-view[data-tab="about"] {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 740px;
+}
+
+.settings-panel-view[data-tab="about"].active {
+  display: flex;
+}
+
+/* Hero Branding Card */
+.about-hero-card {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  background-color: #0d0d0d;
+  padding: 32px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.about-hero-logo {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+
+.about-hero-title {
+  color: #e8e8e8;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.about-hero-version {
+  color: #666666;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+/* Technical Specifications Grid */
+.about-specs-card {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.about-spec-row {
+  height: 36px;
+  min-height: 36px;
+  background-color: #0d0d0d;
+  display: flex;
+  align-items: center;
+}
+
+.about-spec-key {
+  width: 160px;
+  min-width: 160px;
+  padding-left: 14px;
+  color: #888888;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.about-spec-divider {
+  width: 1px;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.about-spec-value {
+  flex: 1;
+  padding-left: 14px;
+  color: #c0c0c0;
+  font-size: 11.5px;
+  font-family: var(--mono-font-family);
+}
+
+/* External Links Button Row */
+.about-links-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.about-link-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background-color: #1a1a1a;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #aaaaaa;
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.about-link-btn:hover {
+  background-color: #242424;
+  color: #e0e0e0;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.about-link-btn .ui-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-color: currentColor;
+  pointer-events: none;
+}
+
+.icon-about-github {
+  -webkit-mask-image: url('../../../assets/icons/settings/github.svg');
+  mask-image: url('../../../assets/icons/settings/github.svg');
+}
+
+.icon-about-documentation {
+  -webkit-mask-image: url('../../../assets/icons/settings/about-documentation.svg');
+  mask-image: url('../../../assets/icons/settings/about-documentation.svg');
+}
+
+.icon-about-report-issue {
+  -webkit-mask-image: url('../../../assets/icons/settings/about-report-issue.svg');
+  mask-image: url('../../../assets/icons/settings/about-report-issue.svg');
+}

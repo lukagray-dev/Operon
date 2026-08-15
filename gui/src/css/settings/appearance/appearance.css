@@ -1,0 +1,174 @@
+/* Appearance Settings Panel Stylesheet (1:1 visual match with Slint appearance.slint) */
+@import '../../shared/tokens.css';
+
+.settings-panel-view[data-tab="appearance"] {
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 740px;
+}
+
+.settings-panel-view[data-tab="appearance"].active {
+  display: flex;
+}
+
+/* Theme Cards Grid */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.theme-preview-card {
+  background-color: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  position: relative;
+}
+
+.theme-preview-card:hover {
+  background-color: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.theme-preview-card.selected {
+  border-color: var(--accent-blue, #007acc);
+  background-color: #191919;
+}
+
+.theme-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.theme-card-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.theme-card-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: transparent;
+}
+
+.theme-preview-card.selected .theme-card-badge {
+  background-color: var(--accent-blue, #007acc);
+}
+
+/* Mini Syntax Code Preview inside Theme Card */
+.theme-code-preview {
+  background-color: #0b0b0b;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: var(--mono-font-family);
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: #a0a0a0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.theme-code-preview .kw { color: #569cd6; }
+.theme-code-preview .fn { color: #dcdcaa; }
+.theme-code-preview .str { color: #ce9178; }
+
+/* UI Scale Selector */
+.scale-selector-bar {
+  display: flex;
+  height: 28px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  width: 280px;
+}
+
+.scale-option-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #666666;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scale-option-btn:hover {
+  color: #cccccc;
+}
+
+.scale-option-btn.active {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Thinking & Reasoning Orbs Cards Grid */
+.orb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.orb-selection-card {
+  background-color: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 14px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  position: relative;
+}
+
+.orb-selection-card:hover {
+  background-color: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.orb-selection-card.selected {
+  border-color: var(--accent-blue, #007acc);
+  background-color: #161a20;
+}
+
+.orb-preview-canvas {
+  width: 48px;
+  height: 48px;
+}
+
+.orb-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.orb-card-subtitle {
+  font-size: 10.5px;
+  color: var(--text-muted, #737373);
+}
+
+/* Typography Font Preview Row */
+.font-selector-row {
+  width: 270px;
+}

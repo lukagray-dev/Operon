@@ -1,0 +1,39 @@
+//! General Settings Backend Commands.
+
+use super::types::GeneralSettingsDto;
+use crate::settings::prefs::{CloseButtonAction, GuiPrefs};
+
+/// Retrieves current General settings from disk (`~/.operon/gui_settings.toml`).
+#[tauri::command]
+pub async fn get_general_settings() -> Result<GeneralSettingsDto, String> {
+    let prefs = GuiPrefs::load();
+    Ok(GeneralSettingsDto {
+        autostart_enabled: prefs.autostart_enabled,
+        minimize_to_tray_enabled: prefs.minimize_to_tray_enabled,
+        start_minimized: prefs.start_minimized,
+        close_button_action: prefs.close_button_action.to_index(),
+        global_auto_approve_default: false,
+        auto_scroll_stream: prefs.auto_scroll_stream,
+        notify_on_permission_request: prefs.notify_on_permission_request,
+        notify_on_response_complete: prefs.notify_on_response_complete,
+        auto_collapse_reasoning_tools: prefs.auto_collapse_reasoning_tools,
+        auto_update_checks: true,
+        telemetry_enabled: false,
+    })
+}
+
+/// Saves General settings to disk (`~/.operon/gui_settings.toml`).
+#[tauri::command]
+pub async fn save_general_settings(settings: GeneralSettingsDto) -> Result<(), String> {
+    let mut prefs = GuiPrefs::load();
+    prefs.autostart_enabled = settings.autostart_enabled;
+    prefs.minimize_to_tray_enabled = settings.minimize_to_tray_enabled;
+    prefs.start_minimized = settings.start_minimized;
+    prefs.close_button_action = CloseButtonAction::from_index(settings.close_button_action);
+    prefs.auto_scroll_stream = settings.auto_scroll_stream;
+    prefs.notify_on_permission_request = settings.notify_on_permission_request;
+    prefs.notify_on_response_complete = settings.notify_on_response_complete;
+    prefs.auto_collapse_reasoning_tools = settings.auto_collapse_reasoning_tools;
+
+    prefs.save()
+}

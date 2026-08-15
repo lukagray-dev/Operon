@@ -2,6 +2,7 @@ import { createNewSessionIpc, openProjectPickerIpc } from '../left-sidebar/ipc.j
 import { refreshSidebarContent } from '../left-sidebar/sidebar.js';
 import { sidebarState } from '../left-sidebar/state.js';
 import { rightSidebarState } from '../right-sidebar/state.js';
+import { openSettingsWindowIpc } from '../settings/ipc.js';
 import { invokeIpc } from '../shared/ipc.js';
 import { appState } from '../shared/state.js';
 
@@ -72,9 +73,9 @@ function setupFilesMenuActions(): void {
     }
   });
 
-  document.getElementById('menu-item-settings')?.addEventListener('click', () => {
+  document.getElementById('menu-item-settings')?.addEventListener('click', async () => {
     appState.setActiveMenu(null);
-    console.debug('[Menu:Files] Settings requested');
+    await openSettingsWindowIpc();
   });
 }
 
