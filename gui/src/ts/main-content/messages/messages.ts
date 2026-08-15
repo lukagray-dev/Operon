@@ -390,8 +390,19 @@ function createUserMessageElement(msg: ChatMessage): HTMLElement {
   row.setAttribute('data-message-id', msg.id);
 
   const bubble = document.createElement('div');
-  bubble.className = 'user-message-bubble';
+  bubble.className = 'user-message-bubble markdown-body';
   bubble.textContent = msg.text;
+
+  // Compile Markdown asynchronously and enhance with KaTeX, highlight.js, and code cards
+  renderMarkdownToHtml(msg.text)
+    .then((html) => {
+      bubble.innerHTML = html;
+      postProcessMarkdownElement(bubble);
+    })
+    .catch((err) => {
+      console.error('[User Message] Markdown compilation error:', err);
+      bubble.textContent = msg.text;
+    });
 
   const actions = document.createElement('div');
   actions.className = 'user-message-actions';

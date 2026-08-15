@@ -186,21 +186,27 @@ export function postProcessMarkdownElement(
   container: HTMLElement,
   options: RenderMarkdownOptions = {}
 ): void {
-  const interceptLinks = options.interceptLinks ?? true;
-  const renderMath = options.renderMath ?? true;
+  const enhanceCode = options.enhanceCodeBlocks ?? true;
   const highlightSyntax = options.highlightSyntax ?? true;
+  const renderMath = options.renderMath ?? true;
+  const interceptLinks = options.interceptLinks ?? true;
 
   // 1. Highlight Syntax with highlight.js
   if (highlightSyntax) {
     highlightCodeBlocks(container);
   }
 
-  // 2. Render LaTeX Math with KaTeX
+  // 2. Enhance Code Blocks with Language Header & Copy Button
+  if (enhanceCode) {
+    enhanceCodeBlocks(container);
+  }
+
+  // 3. Render LaTeX Math with KaTeX
   if (renderMath) {
     renderMathFormulas(container);
   }
 
-  // 3. Intercept External Links to open in default browser
+  // 4. Intercept External Links to open in default browser
   if (interceptLinks) {
     interceptExternalLinks(container);
   }
@@ -218,6 +224,92 @@ function highlightCodeBlocks(container: HTMLElement): void {
       window.hljs?.highlightElement(block);
     } catch (err) {
       console.debug('[hljs] Syntax highlight error:', err);
+    }
+  });
+}
+
+/**
+ * Wraps `<pre>` elements with a clean header containing the language badge
+ * and an interactive SVG copy button.
+ */
+function enhanceCodeBlocks(container: HTMLElement): void {
+  const preElements = container.querySelectorAll<HTMLPreElement>('pre');
+
+  preElements.forEach((pre) => {
+    // Avoid double-wrapping
+    if (pre.parentElement?.classList.contains('code-block-wrapper')) {
+      return;
+    }
+
+    const codeEl = pre.querySelector('code');
+    const rawCode = codeEl ? codeEl.textContent || '' : pre.textContent || '';
+
+    // Extract language identifier from class (e.g. language-rust, language-typescript)
+    let lang = 'code';
+    if (codeEl) {
+      const classList = Array.from(codeEl.classList);
+      for (const cls of classList) {
+        if (cls.startsWith('language-')) {
+          lang = cls.replace('language-', '').toLowerCase();
+          break;
+        }
+      }
+    }
+
+    // Build the outer wrapper card
+    const wrapper = document.createElement('div');
+    wrapper.className = 'code-block-wrapper';
+
+    // Build the header bar
+    const header = document.createElement('div');
+    header.className = 'code-block-header';
+
+    // Language label
+    const langLabel = document.createElement('span');
+    langLabel.className = 'code-block-lang';
+    langLabel.textContent = lang;
+
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'code-block-copy-btn';
+    copyBtn.type = 'button';
+    copyBtn.title = 'Copy code';
+
+    const copyIcon = document.createElement('span');
+    copyIcon.className = 'code-block-copy-icon';
+
+    const copyLabel = document.createElement('span');
+    copyLabel.className = 'code-block-copy-label';
+    copyLabel.textContent = 'Copy';
+
+    copyBtn.appendChild(copyIcon);
+    copyBtn.appendChild(copyLabel);
+
+    // Copy to clipboard handler with feedback animation
+    copyBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(rawCode);
+        copyBtn.classList.add('copied');
+        copyLabel.textContent = 'Copied!';
+
+        setTimeout(() => {
+          copyBtn.classList.remove('copied');
+          copyLabel.textContent = 'Copy';
+        }, 2000);
+      } catch (err) {
+        console.error('[Markdown] Failed to copy code:', err);
+      }
+    });
+
+    header.appendChild(langLabel);
+    header.appendChild(copyBtn);
+
+    // Structure DOM: Insert wrapper where pre was, place header + pre inside wrapper
+    if (pre.parentNode) {
+      pre.parentNode.insertBefore(wrapper, pre);
+      wrapper.appendChild(header);
+      wrapper.appendChild(pre);
     }
   });
 }

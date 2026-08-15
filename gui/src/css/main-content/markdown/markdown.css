@@ -4,14 +4,18 @@
  * with font definitions bound to Operon's typography system:
  * - Prose: Literata (--assistant-font-family)
  * - Monospace: Kode Mono (--mono-font-family)
+ * - UI & Header: Open Sans (--font-family)
  */
 
 @import './github-markdown-dark.css';
 
-/* Strict Typography Enforcement according to docs/Typography-and-Fonts.md */
-.markdown-body,
+/* 1. Strict Typography Enforcement according to docs/Typography-and-Fonts.md */
 .assistant-message-body.markdown-body {
   font-family: var(--assistant-font-family, 'Literata', Georgia, serif);
+}
+
+.user-message-bubble.markdown-body {
+  font-family: var(--font-family, 'Open Sans', sans-serif) !important;
 }
 
 .markdown-body code,
@@ -23,6 +27,109 @@
 .markdown-body samp,
 .markdown-body pre code.hljs {
   font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+}
+
+/* 2. Enhanced Code Block Card with Header & Copy Button */
+.code-block-wrapper {
+  position: relative;
+  margin: 14px 0;
+  border-radius: 6px;
+  border: 1px solid #3e3e3e;
+  background-color: #1d1d1d;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Code Header Bar */
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 12px;
+  background-color: #1e1e1e;
+  border-bottom: 1px solid #3c3c3c;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Language Title */
+.code-block-lang {
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  color: #8b8b8b;
+}
+
+/* Copy Button */
+.code-block-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #9d9d9d;
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.code-block-copy-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.code-block-copy-btn.copied {
+  color: #00ff37;
+  background-color: rgba(63, 185, 80, 0.1);
+  border-color: rgba(63, 185, 80, 0.25);
+}
+
+/* Copy & Check SVG Icons via CSS mask-image */
+.code-block-copy-icon {
+  width: 12px;
+  height: 12px;
+  background-color: currentColor;
+  display: inline-block;
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  transition: -webkit-mask-image 150ms ease, mask-image 150ms ease;
+}
+
+.code-block-copy-btn.copied .code-block-copy-icon {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+}
+
+/* Code Pre and Content Inside Wrapper */
+.code-block-wrapper pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  padding: 12px 14px !important;
+  overflow-x: auto;
+}
+
+.code-block-wrapper pre code {
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #f0f6fc;
   background-color: transparent !important;
   padding: 0 !important;
+  border: none !important;
+  white-space: pre;
 }

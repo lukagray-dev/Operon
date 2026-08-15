@@ -13,15 +13,58 @@
   border: 1px solid #333333;
   border-radius: 12px 12px 3px 12px;
   padding: 10px 14px;
-  font-family: var(--font-family);
+  font-family: var(--font-family, 'Open Sans', sans-serif);
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-primary);
-  white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
   -webkit-user-select: text;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* User Message Markdown Overrides - Strict Default UI Font for Prose, Kode Mono for Code */
+.user-message-bubble.markdown-body {
+  font-family: var(--font-family, 'Open Sans', sans-serif) !important;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: #242424;
+}
+
+.user-message-bubble.markdown-body p,
+.user-message-bubble.markdown-body li,
+.user-message-bubble.markdown-body h1,
+.user-message-bubble.markdown-body h2,
+.user-message-bubble.markdown-body h3,
+.user-message-bubble.markdown-body h4,
+.user-message-bubble.markdown-body h5,
+.user-message-bubble.markdown-body h6,
+.user-message-bubble.markdown-body table,
+.user-message-bubble.markdown-body blockquote {
+  font-family: var(--font-family, 'Open Sans', sans-serif) !important;
+}
+
+.user-message-bubble.markdown-body code,
+.user-message-bubble.markdown-body tt,
+.user-message-bubble.markdown-body kbd,
+.user-message-bubble.markdown-body pre,
+.user-message-bubble.markdown-body pre code,
+.user-message-bubble.markdown-body pre tt,
+.user-message-bubble.markdown-body samp,
+.user-message-bubble.markdown-body pre code.hljs {
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+}
+
+.user-message-bubble.markdown-body .code-block-wrapper {
+  margin: 10px 0;
+  background-color: #1a1a1a;
+  border-color: #383838;
+}
+
+.user-message-bubble.markdown-body .code-block-header {
+  background-color: #161616;
+  border-color: #383838;
 }
 
 .user-message-actions {
