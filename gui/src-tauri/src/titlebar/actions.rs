@@ -28,9 +28,17 @@ pub async fn is_window_maximized(window: WebviewWindow) -> Result<bool, String> 
     Ok(window.is_maximized().unwrap_or(false))
 }
 
-/// Closes the application window.
+/// Closes the application window or hides to tray based on user preferences.
 #[tauri::command]
 pub async fn close_window(window: WebviewWindow) -> Result<(), String> {
+    if window.label() == "main" {
+        let prefs = crate::settings::prefs::GuiPrefs::load();
+        if prefs.minimize_to_tray_enabled
+            && prefs.close_button_action == crate::settings::prefs::CloseButtonAction::MinimizeToTray
+        {
+            return window.hide().map_err(|e| e.to_string());
+        }
+    }
     window.close().map_err(|e| e.to_string())
 }
 

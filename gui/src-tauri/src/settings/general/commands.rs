@@ -2,6 +2,9 @@
 
 use super::types::GeneralSettingsDto;
 use crate::settings::prefs::{CloseButtonAction, GuiPrefs};
+use crate::shared::autostart;
+use crate::shared::tray;
+use tauri::AppHandle;
 
 /// Retrieves current General settings from disk (`~/.operon/gui_settings.toml`).
 #[tauri::command]
@@ -22,9 +25,12 @@ pub async fn get_general_settings() -> Result<GeneralSettingsDto, String> {
     })
 }
 
-/// Saves General settings to disk (`~/.operon/gui_settings.toml`).
+/// Saves General settings to disk (`~/.operon/gui_settings.toml`) and applies system effects.
 #[tauri::command]
-pub async fn save_general_settings(settings: GeneralSettingsDto) -> Result<(), String> {
+pub async fn save_general_settings(
+    settings: GeneralSettingsDto,
+    app: AppHandle,
+) -> Result<(), String> {
     let mut prefs = GuiPrefs::load();
     prefs.autostart_enabled = settings.autostart_enabled;
     prefs.minimize_to_tray_enabled = settings.minimize_to_tray_enabled;
@@ -35,5 +41,14 @@ pub async fn save_general_settings(settings: GeneralSettingsDto) -> Result<(), S
     prefs.notify_on_response_complete = settings.notify_on_response_complete;
     prefs.auto_collapse_reasoning_tools = settings.auto_collapse_reasoning_tools;
 
-    prefs.save()
+    // 1. Save to disk
+    prefs.save()?;
+
+    // 2. Synchronize Windows startup registry
+    let _ = autostart::set_autostart(settings.autostart_enabled, settings.start_minimized);
+
+    // 3. Synchronize System Tray presence
+    let _ = tray::update_system_tray(&app, settings.minimize_to_tray_enabled);
+
+    Ok(())
 }

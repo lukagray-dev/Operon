@@ -169,3 +169,12 @@
   background-color: rgba(255, 255, 255, 0.12);
   color: #ffffff;
 }
+
+/* Disabled States */
+.toggle-switch.disabled,
+.segmented-choice-btn.disabled,
+.segmented-choice-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}

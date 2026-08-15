@@ -21,7 +21,7 @@ serde.workspace      = true
 serde_json.workspace = true
 tracing.workspace    = true
 anyhow.workspace     = true
-tauri                = { version = "2", features = [] }
+tauri                = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener  = "2"
 windows-sys.workspace= true
 rfd.workspace        = true

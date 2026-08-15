@@ -47,9 +47,14 @@ function setupToggleSwitches(): void {
     await persist();
   });
 
-  // 2. Minimize to Tray
+  // 2. Minimize to Tray (Core prerequisite for Start Minimized & Close to Tray)
   bindSwitch('toggle-gen-tray', currentSettings.minimize_to_tray_enabled, async (val) => {
     currentSettings.minimize_to_tray_enabled = val;
+    if (!val) {
+      currentSettings.start_minimized = false;
+      currentSettings.close_button_action = 0; // Force Exit App
+    }
+    syncGeneralUI();
     await persist();
   });
 
@@ -109,6 +114,7 @@ function setupSegmentedChoices(): void {
   const closeActionButtons = document.querySelectorAll<HTMLButtonElement>('.seg-choice-close-action');
   closeActionButtons.forEach((btn) => {
     btn.addEventListener('click', async () => {
+      if (btn.disabled || btn.classList.contains('disabled')) return;
       const idx = parseInt(btn.dataset.index || '0', 10);
       currentSettings.close_button_action = idx;
       updateSegmentedChoiceUI('.seg-choice-close-action', idx);
@@ -128,6 +134,7 @@ function bindSwitch(id: string, initial: boolean, onToggle: (checked: boolean) =
   switchEl.setAttribute('aria-checked', String(initial));
 
   switchEl.addEventListener('click', async () => {
+    if (switchEl.classList.contains('disabled')) return;
     const isChecked = switchEl.classList.toggle('checked');
     switchEl.setAttribute('aria-checked', String(isChecked));
     await onToggle(isChecked);
@@ -146,12 +153,16 @@ function updateSegmentedChoiceUI(selector: string, selectedIndex: number): void 
 }
 
 /**
- * Synchronizes DOM state with currentSettings.
+ * Synchronizes DOM state with currentSettings and applies dependent state locking.
  */
 function syncGeneralUI(): void {
+  const trayEnabled = currentSettings.minimize_to_tray_enabled;
+
   setSwitchChecked('toggle-gen-autostart', currentSettings.autostart_enabled);
-  setSwitchChecked('toggle-gen-tray', currentSettings.minimize_to_tray_enabled);
+  setSwitchChecked('toggle-gen-tray', trayEnabled);
   setSwitchChecked('toggle-gen-start-min', currentSettings.start_minimized);
+  setElementDisabled('toggle-gen-start-min', !trayEnabled);
+
   setSwitchChecked('toggle-gen-auto-approve', currentSettings.global_auto_approve_default);
   setSwitchChecked('toggle-gen-auto-scroll', currentSettings.auto_scroll_stream);
   setSwitchChecked('toggle-gen-notify-perm', currentSettings.notify_on_permission_request);
@@ -161,6 +172,13 @@ function syncGeneralUI(): void {
   setSwitchChecked('toggle-gen-telemetry', currentSettings.telemetry_enabled);
 
   updateSegmentedChoiceUI('.seg-choice-close-action', currentSettings.close_button_action);
+
+  // Lock "Minimize to Tray" choice button if tray is disabled
+  const closeToTrayBtn = document.querySelector<HTMLButtonElement>('.seg-choice-close-action[data-index="1"]');
+  if (closeToTrayBtn) {
+    closeToTrayBtn.disabled = !trayEnabled;
+    closeToTrayBtn.classList.toggle('disabled', !trayEnabled);
+  }
 }
 
 function setSwitchChecked(id: string, checked: boolean): void {
@@ -168,6 +186,14 @@ function setSwitchChecked(id: string, checked: boolean): void {
   if (el) {
     el.classList.toggle('checked', checked);
     el.setAttribute('aria-checked', String(checked));
+  }
+}
+
+function setElementDisabled(id: string, disabled: boolean): void {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.toggle('disabled', disabled);
+    el.setAttribute('aria-disabled', String(disabled));
   }
 }
 

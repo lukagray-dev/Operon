@@ -54,10 +54,41 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
         .setup(|app| {
+            let prefs = settings::prefs::GuiPrefs::load();
+
+            // 1. Initialize system tray if enabled in preferences
+            if prefs.minimize_to_tray_enabled {
+                let _ = shared::tray::setup_system_tray(app.handle());
+            }
+
+            // 2. Check startup launch mode (Start Minimized)
+            let args: Vec<String> = std::env::args().collect();
+            let is_minimized_arg = args.iter().any(|arg| arg == "--minimized");
+            let should_start_hidden = prefs.minimize_to_tray_enabled && (prefs.start_minimized || is_minimized_arg);
+
             if let Some(main_window) = app.get_webview_window("main") {
                 apply_window_dwm_styling(&main_window);
+                if should_start_hidden {
+                    let _ = main_window.hide();
+                } else {
+                    let _ = main_window.show();
+                    let _ = main_window.set_focus();
+                }
             }
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    let prefs = settings::prefs::GuiPrefs::load();
+                    if prefs.minimize_to_tray_enabled
+                        && prefs.close_button_action == settings::prefs::CloseButtonAction::MinimizeToTray
+                    {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             // Window actions
