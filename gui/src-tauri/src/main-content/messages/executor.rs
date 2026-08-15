@@ -23,14 +23,15 @@ pub async fn submit_prompt(
         return Err("Prompt content cannot be empty".to_string());
     }
 
-    let is_new_session = session_id.as_ref().map_or(true, |s| s.trim().is_empty());
-    let active_id = session_id.unwrap_or_else(|| {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis();
-        format!("session-{}", ts)
-    });
+    let active_id = session_id
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+            format!("session-{}", ts)
+        });
 
     let app_config = operon_rs::load().map_err(|e| e.to_string())?;
 
@@ -40,6 +41,7 @@ pub async fn submit_prompt(
     };
 
     let store_path = app_config.paths.session_db(&active_id);
+    let is_new_session = !store_path.exists();
     let store = operon_rs::session::store::SessionStore::open(&store_path)
         .await
         .map_err(|e| e.to_string())?;

@@ -58,8 +58,8 @@ export function setupMenus(): void {
 function setupFilesMenuActions(): void {
   document.getElementById('menu-item-new-chat')?.addEventListener('click', async () => {
     appState.setActiveMenu(null);
-    const activeProject = sidebarState.getActiveProjectPath() || undefined;
-    const newId = await createNewSessionIpc(undefined, activeProject);
+    const newId = await createNewSessionIpc(undefined, undefined);
+    sidebarState.setActiveProjectPath(null);
     sidebarState.setActiveSessionId(newId);
     await refreshSidebarContent();
   });

@@ -56,8 +56,17 @@ function setupSectionToggles(): void {
     sidebarState.toggleProjectsCollapsed();
   });
 
-  document.getElementById('header-chats')?.addEventListener('click', () => {
+  document.getElementById('header-chats')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('.section-action-btn')) return;
     sidebarState.toggleChatsCollapsed();
+  });
+
+  document.getElementById('btn-add-general-chat')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const newId = await createNewSessionIpc(undefined, undefined);
+    sidebarState.setActiveProjectPath(null);
+    sidebarState.setActiveSessionId(newId);
+    await refreshSidebarContent();
   });
 
   document.getElementById('header-whatsapp')?.addEventListener('click', () => {
@@ -92,13 +101,13 @@ function setupSidebarCollapseSync(): void {
 }
 
 function setupTopActions(): void {
-  // New Chat
+  // New Chat (Always creates a new general chat session)
   document.getElementById('btn-new-chat')?.addEventListener('click', async () => {
-    const activeProject = sidebarState.getActiveProjectPath() || undefined;
-    const newId = await createNewSessionIpc(undefined, activeProject);
+    const newId = await createNewSessionIpc(undefined, undefined);
+    sidebarState.setActiveProjectPath(null);
     sidebarState.setActiveSessionId(newId);
     await refreshSidebarContent();
-    console.debug('[Sidebar] New chat created:', newId);
+    console.debug('[Sidebar] New general chat created:', newId);
   });
 
   // Plugins
@@ -212,7 +221,8 @@ function renderProjectsSection(): void {
 
   projects.forEach((proj) => {
     const card = document.createElement('div');
-    card.className = 'project-card';
+    const isCollapsed = sidebarState.isProjectCollapsed(proj.workspace);
+    card.className = `project-card ${isCollapsed ? 'collapsed' : ''}`;
 
     const isProjectActive = sidebarState.getActiveProjectPath() === proj.workspace;
 
@@ -220,12 +230,13 @@ function renderProjectsSection(): void {
     header.className = `project-header ${isProjectActive ? 'active' : ''}`;
     header.innerHTML = `
       <div class="session-item-left">
+        <span class="ui-icon icon-sidebar-chevron-down chevron-icon proj-chevron"></span>
         <span class="ui-icon icon-sidebar-folder"></span>
         <span class="session-title-text" title="${proj.workspace}">${proj.name}</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 4px;">
+      <div class="project-header-actions">
         <button class="section-action-btn btn-proj-new-chat" title="New Chat in Project">
-          <span class="ui-icon icon-sidebar-pencil"></span>
+          <span class="ui-icon icon-sidebar-new-chat"></span>
         </button>
         <button class="section-action-btn btn-proj-delete" title="Delete Project">
           <span class="ui-icon icon-sidebar-trash"></span>
@@ -233,9 +244,9 @@ function renderProjectsSection(): void {
       </div>
     `;
 
-    header.addEventListener('click', () => {
-      sidebarState.setActiveProjectPath(proj.workspace);
-      renderSidebarContent();
+    header.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.section-action-btn')) return;
+      sidebarState.toggleProjectCollapsed(proj.workspace);
     });
 
     header.querySelector('.btn-proj-new-chat')?.addEventListener('click', async (e) => {

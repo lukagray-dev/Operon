@@ -52,8 +52,9 @@
 
   /* Surfaces & Backgrounds */
   --window-background: #000000;
-  --titlebar-background: #191919;
-  --titlebar-background-soft: #202020;
+  --titlebar-background: #121212;
+  --titlebar-background-soft: #121212;
+  --sidebar-background: #121212;
   --surface-hover: rgba(255, 255, 255, 0.08);
   --surface-pressed: rgba(255, 255, 255, 0.12);
 

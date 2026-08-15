@@ -189,7 +189,7 @@ pub async fn query_sidebar_data(
 
     let active_session_id = {
         let lock = state.state_lock.lock().ok();
-        lock.and_then(|s| s.active_project.clone())
+        lock.and_then(|s| s.active_session_id.clone())
     };
 
     Ok(SidebarDataDto {
@@ -280,6 +280,7 @@ pub async fn create_new_session(
     });
 
     if let Ok(mut lock) = state.state_lock.lock() {
+        lock.active_session_id = Some(id.clone());
         lock.active_project = project_path;
     }
     Ok(id)

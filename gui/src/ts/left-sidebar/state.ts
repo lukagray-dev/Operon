@@ -16,7 +16,21 @@ class SidebarStateManager {
   private chatsCollapsed = false;
   private whatsappCollapsed = false;
   private telegramCollapsed = false;
+  private collapsedProjects: Set<string> = new Set();
   private listeners: Set<SidebarChangeListener> = new Set();
+
+  public isProjectCollapsed(workspace: string): boolean {
+    return this.collapsedProjects.has(workspace);
+  }
+
+  public toggleProjectCollapsed(workspace: string): void {
+    if (this.collapsedProjects.has(workspace)) {
+      this.collapsedProjects.delete(workspace);
+    } else {
+      this.collapsedProjects.add(workspace);
+    }
+    this.notify();
+  }
 
   public getChats(): SidebarConversation[] {
     return this.chats;
@@ -106,7 +120,7 @@ class SidebarStateManager {
   public setSidebarData(data: SidebarData): void {
     this.chats = data.chats;
     this.projects = data.projects;
-    if (data.active_session_id) {
+    if (!this.activeSessionId && data.active_session_id) {
       this.activeSessionId = data.active_session_id;
     }
     this.notify();

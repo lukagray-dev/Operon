@@ -10,7 +10,7 @@
   padding: 0 var(--titlebar-padding-x);
   position: relative;
   z-index: 1000;
-  border-bottom: 1px solid #222222;
+  border-bottom: none;
   user-select: none;
   -webkit-user-select: none;
   cursor: default;

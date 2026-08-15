@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct AppStateDto {
     pub sidebar_open: bool,
     pub ui_scale: f32,
+    pub active_session_id: Option<String>,
     pub active_project: Option<String>,
     pub auto_approve: bool,
 }
@@ -18,6 +19,7 @@ impl Default for AppStateDto {
         Self {
             sidebar_open: true,
             ui_scale: 1.0,
+            active_session_id: None,
             active_project: None,
             auto_approve: false,
         }
