@@ -2,6 +2,10 @@
 
 import type { WorkGroupData } from '../work-group/types.js';
 
+export type MessageBlock =
+  | { kind: 'work_group'; data: WorkGroupData }
+  | { kind: 'text'; text: string };
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -12,4 +16,5 @@ export interface ChatMessage {
   is_liked: boolean;
   is_disliked: boolean;
   work_group?: WorkGroupData;
+  blocks?: MessageBlock[];
 }

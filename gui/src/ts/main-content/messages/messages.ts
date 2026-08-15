@@ -1,13 +1,10 @@
 // Chat Messages Controller & Ultra-Smooth 60FPS DOM Stream Renderer
 //
-// Architectural Improvements:
-// 1. In-place DOM updates: Incoming text tokens and tool activities mutate only
-//    the active message element instead of destroying and recreating the whole conversation DOM.
-// 2. Batched RAF updates: Stream text mutations are batched using requestAnimationFrame.
-// 3. Single ThinkingOrbRenderer instance: Orb animation loop is cleanly started and destroyed
-//    without creating hundreds of leaked canvas animation loops.
-// 4. Smart Auto-Scroll: Auto-scrolls only when the user is already near the bottom, allowing
-//    smooth, un-interrupted scroll exploration without scroll fighting or jank.
+// Features:
+// 1. Chronological multi-block rendering (interleaved WorkGroups and Text bodies).
+// 2. Chronological thinking checkpoints inside WorkGroup timelines.
+// 3. In-place RAF-batched DOM stream updates.
+// 4. Stable ThinkingOrbRenderer lifecycle and smart non-intrusive auto-scroll.
 
 import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
@@ -27,7 +24,34 @@ import type { ChatMessage } from './types.js';
 
 let activeOrbRenderer: ThinkingOrbRenderer | null = null;
 let streamRafId: number | null = null;
-let pendingTextUpdate: { element: HTMLElement; text: string } | null = null;
+let pendingTextUpdates = new Map<HTMLElement, string>();
+
+function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number): void {
+  newEl.setAttribute('data-block-index', String(blockIdx));
+
+  const children = Array.from(row.children) as HTMLElement[];
+  let insertBeforeEl: HTMLElement | null = null;
+
+  for (const child of children) {
+    const idxAttr = child.getAttribute('data-block-index');
+    if (idxAttr !== null) {
+      const idx = parseInt(idxAttr, 10);
+      if (idx > blockIdx) {
+        insertBeforeEl = child;
+        break;
+      }
+    } else if (child.classList.contains('assistant-action-bar') || child.classList.contains('turn-separator')) {
+      insertBeforeEl = child;
+      break;
+    }
+  }
+
+  if (insertBeforeEl) {
+    row.insertBefore(newEl, insertBeforeEl);
+  } else {
+    row.appendChild(newEl);
+  }
+}
 
 export function initMessages(): void {
   // 1. Listen for session selection changes in the sidebar
@@ -54,78 +78,81 @@ export function initMessages(): void {
     syncMessageList();
   });
 
-  // 3. Stream text handler: ultra-fast in-place RAF update without destroying DOM
-  messagesState.onStreamText((msgId, fullText) => {
+  // 4. Stream text handler: ultra-fast in-place RAF update without destroying DOM
+  messagesState.onStreamText((msgId, blockIdx, fullBlockText) => {
     const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
     if (!row) {
       syncMessageList();
       return;
     }
 
-    let body = row.querySelector<HTMLElement>('.assistant-message-body');
+    let body = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].assistant-message-body`);
     if (!body) {
       body = document.createElement('div');
       body.className = 'assistant-message-body';
-      const actions = row.querySelector('.assistant-action-bar');
-      if (actions) {
-        row.insertBefore(body, actions);
-      } else {
-        row.appendChild(body);
-      }
+      insertBlockInRow(row, body, blockIdx);
     }
 
-    pendingTextUpdate = { element: body, text: fullText };
+    pendingTextUpdates.set(body, fullBlockText);
 
     if (streamRafId === null) {
       streamRafId = requestAnimationFrame(() => {
         streamRafId = null;
-        if (pendingTextUpdate) {
-          pendingTextUpdate.element.textContent = pendingTextUpdate.text;
-          pendingTextUpdate = null;
-        }
+        pendingTextUpdates.forEach((text, el) => {
+          el.textContent = text;
+        });
+        pendingTextUpdates.clear();
         smartAutoScroll();
       });
     }
   });
 
-  // 4. Stream WorkGroup handler: updates timeline in-place
-  messagesState.onStreamWorkGroup((msgId) => {
+  // 5. Stream WorkGroup handler: updates timeline block in-place
+  messagesState.onStreamWorkGroup((msgId, blockIdx) => {
     const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
     if (!row) return;
 
     const msg = messagesState.getMessageById(msgId);
-    if (!msg || !msg.work_group) return;
+    if (!msg) return;
 
-    let workGroupContainer = row.querySelector<HTMLElement>('.work-group-container');
+    let targetWorkGroup = msg.work_group;
+    if (msg.blocks && msg.blocks[blockIdx] && msg.blocks[blockIdx].kind === 'work_group') {
+      targetWorkGroup = msg.blocks[blockIdx].data;
+    }
+
+    if (!targetWorkGroup) return;
+
+    const existingWgEl = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].work-group-container`);
+
     const { element: newEl, orbRenderer } = renderWorkGroupElement(
-      msg.work_group,
-      () => messagesState.toggleWorkGroupExpanded(msg.id),
-      (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, itemIdx),
-      activeOrbRenderer
+      targetWorkGroup,
+      () => messagesState.toggleWorkGroupExpanded(msg.id, blockIdx),
+      (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, blockIdx, itemIdx),
+      targetWorkGroup.is_active ? activeOrbRenderer : null
     );
+    newEl.setAttribute('data-block-index', String(blockIdx));
 
     if (orbRenderer && orbRenderer !== activeOrbRenderer) {
       cleanupActiveOrb();
       activeOrbRenderer = orbRenderer;
     }
 
-    if (workGroupContainer) {
-      workGroupContainer.replaceWith(newEl);
+    if (existingWgEl) {
+      existingWgEl.replaceWith(newEl);
     } else {
-      row.prepend(newEl);
+      insertBlockInRow(row, newEl, blockIdx);
     }
 
     smartAutoScroll();
   });
 
-  // 5. Stream finished handler: finalizes workgroup and displays action bar
+  // 6. Stream finished handler: finalizes workgroups and displays action bar
   messagesState.onStreamFinished((msgId) => {
     cleanupActiveOrb();
     const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
     if (row) {
       const msg = messagesState.getMessageById(msgId);
       if (msg) {
-        // Re-render single row to finalized state
         const updated = createAssistantMessageElement(msg, false);
         row.replaceWith(updated);
       }
@@ -133,18 +160,17 @@ export function initMessages(): void {
     smartAutoScroll();
   });
 
-  // 6. Listen to streaming agent events from Tauri backend
+  // 7. Listen to streaming agent events from Tauri backend
   listenAgentEvent((event) => {
     handleAgentEvent(event);
   });
 
-  // 7. Listen to agent finish turn notification
+  // 8. Listen to agent finish turn notification
   listenAgentFinished(async (finishedSessionId) => {
     cleanupActiveOrb();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
 
-    // Refresh history, sidebar conversation list, and topbar stats
     if (sidebarState.getActiveSessionId() === finishedSessionId) {
       await refreshMessages(finishedSessionId);
     }
@@ -152,7 +178,7 @@ export function initMessages(): void {
     await refreshTopbar();
   });
 
-  // 8. Listen to agent error notification
+  // 9. Listen to agent error notification
   listenAgentError((errMsg) => {
     console.error('[Messages] Agent error received:', errMsg);
     cleanupActiveOrb();
@@ -240,7 +266,7 @@ function handleAgentEvent(event: Record<string, unknown>): void {
 }
 
 /**
- * Syncs DOM elements with state without destroying the whole message list if not needed.
+ * Syncs DOM elements incrementally when items are appended.
  */
 function syncMessageList(): void {
   const container = document.getElementById('chat-messages-viewport');
@@ -262,7 +288,6 @@ function syncMessageList(): void {
     return;
   }
 
-  // Incrementally append new message rows if elements already match
   const existingRows = listContainer.querySelectorAll<HTMLElement>('[data-message-id]');
   if (existingRows.length < messages.length) {
     for (let i = existingRows.length; i < messages.length; i++) {
@@ -359,7 +384,7 @@ function createUserMessageElement(msg: ChatMessage): HTMLElement {
     }
   });
 
-  // Edit button (loads message back into the input box)
+  // Edit button
   const editBtn = document.createElement('button');
   editBtn.className = 'user-action-btn';
   editBtn.title = 'Edit prompt';
@@ -391,28 +416,67 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
   row.className = 'assistant-message-row';
   row.setAttribute('data-message-id', msg.id);
 
-  // 1. Render WorkGroup / Tool Activity if present
-  if (msg.work_group && msg.work_group.items.length > 0) {
-    const { element: workGroupEl, orbRenderer } = renderWorkGroupElement(
-      msg.work_group,
-      () => messagesState.toggleWorkGroupExpanded(msg.id),
-      (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, itemIdx),
-      activeOrbRenderer
-    );
-    if (orbRenderer && orbRenderer !== activeOrbRenderer) {
-      cleanupActiveOrb();
-      activeOrbRenderer = orbRenderer;
+  // Render chronological multi-block list if present
+  if (msg.blocks && msg.blocks.length > 0) {
+    msg.blocks.forEach((block, blockIdx) => {
+      if (block.kind === 'work_group') {
+        if (block.data.items.length > 0 || block.data.is_active) {
+          const { element: workGroupEl, orbRenderer } = renderWorkGroupElement(
+            block.data,
+            () => messagesState.toggleWorkGroupExpanded(msg.id, blockIdx),
+            (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, blockIdx, itemIdx),
+            block.data.is_active ? activeOrbRenderer : null
+          );
+          workGroupEl.setAttribute('data-block-index', String(blockIdx));
+          if (orbRenderer && orbRenderer !== activeOrbRenderer) {
+            cleanupActiveOrb();
+            activeOrbRenderer = orbRenderer;
+          }
+          row.appendChild(workGroupEl);
+        }
+      } else if (block.kind === 'text') {
+        if (block.text.length > 0) {
+          const body = document.createElement('div');
+          body.className = 'assistant-message-body';
+          body.setAttribute('data-block-index', String(blockIdx));
+          body.textContent = block.text;
+          row.appendChild(body);
+        }
+      }
+    });
+  } else {
+    // Fallback single WorkGroup and single text body
+    if (msg.work_group && (msg.work_group.items.length > 0 || msg.work_group.is_active)) {
+      const { element: workGroupEl, orbRenderer } = renderWorkGroupElement(
+        msg.work_group,
+        () => messagesState.toggleWorkGroupExpanded(msg.id, 0),
+        (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, 0, itemIdx),
+        activeOrbRenderer
+      );
+      if (orbRenderer && orbRenderer !== activeOrbRenderer) {
+        cleanupActiveOrb();
+        activeOrbRenderer = orbRenderer;
+      }
+      row.appendChild(workGroupEl);
     }
-    row.appendChild(workGroupEl);
+
+    if (msg.text) {
+      const body = document.createElement('div');
+      body.className = 'assistant-message-body';
+      body.textContent = msg.text;
+      row.appendChild(body);
+    }
   }
 
-  // 2. Raw text body
-  const body = document.createElement('div');
-  body.className = 'assistant-message-body';
-  body.textContent = msg.text || (msg.work_group?.is_active ? '' : '...');
-  row.appendChild(body);
+  // If nothing rendered yet, add placeholder
+  if (!row.querySelector('.assistant-message-body') && !row.querySelector('.work-group-container')) {
+    const body = document.createElement('div');
+    body.className = 'assistant-message-body';
+    body.textContent = '...';
+    row.appendChild(body);
+  }
 
-  // 3. Bottom action bar (shown once response has completed or not currently streaming)
+  // Bottom action bar (shown once turn is finalized)
   const isStreaming = messagesState.getStreamingMessageId() === msg.id;
   if (!isStreaming) {
     const bar = document.createElement('div');

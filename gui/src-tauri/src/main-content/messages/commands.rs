@@ -1,7 +1,5 @@
-//! Messages loading and history management Tauri commands.
-
 use crate::main_content::work_group::{WorkGroupDto, WorkGroupItemDto};
-use super::types::ChatMessageDto;
+use super::types::{ChatMessageDto, MessageBlockDto};
 
 /// Formats a Unix timestamp into a relative human-friendly string.
 pub fn format_timestamp(created_at: i64) -> String {
@@ -119,8 +117,8 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
         let timestamp_str = format_timestamp(created_at);
 
         let mut user_text_parts = Vec::new();
-        let mut assistant_text_parts = Vec::new();
-        let mut work_items: Vec<WorkGroupItemDto> = Vec::new();
+        let mut blocks: Vec<MessageBlockDto> = Vec::new();
+        let mut all_assistant_text_parts = Vec::new();
 
         for msg in messages {
             match msg.role {
@@ -136,17 +134,30 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                 operon_rs::context::MessageRole::Assistant => {
                     for block in msg.content {
                         match block {
-                            operon_rs::context::ContentBlock::Text(text) => {
-                                if !text.trim().is_empty() {
-                                    assistant_text_parts.push(text);
-                                }
-                            }
                             operon_rs::context::ContentBlock::Reasoning(r) => {
                                 if !r.thinking.trim().is_empty() {
-                                    work_items.push(WorkGroupItemDto::Thinking {
-                                        thinking_text: r.thinking,
-                                        is_expanded: false,
-                                    });
+                                    let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
+                                    if !is_last_wg {
+                                        blocks.push(MessageBlockDto::WorkGroup {
+                                            data: WorkGroupDto {
+                                                items: Vec::new(),
+                                                is_active: false,
+                                                is_expanded: false,
+                                                elapsed_secs: 0,
+                                            },
+                                        });
+                                    }
+
+                                    if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
+                                        if let Some(WorkGroupItemDto::Thinking { thinking_text, .. }) = data.items.last_mut() {
+                                            thinking_text.push_str(&r.thinking);
+                                        } else {
+                                            data.items.push(WorkGroupItemDto::Thinking {
+                                                thinking_text: r.thinking,
+                                                is_expanded: false,
+                                            });
+                                        }
+                                    }
                                 }
                             }
                             operon_rs::context::ContentBlock::ToolCall(tc) => {
@@ -155,15 +166,41 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                     other => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
                                 };
                                 let title = get_tool_friendly_title(&tc.name, &args_str);
-                                work_items.push(WorkGroupItemDto::Tool {
-                                    call_id: tc.id.0.clone(),
-                                    tool_name: tc.name,
-                                    tool_title: title,
-                                    tool_args: args_str,
-                                    tool_result: String::new(),
-                                    tool_status: "completed".to_string(),
-                                    is_expanded: false,
-                                });
+
+                                let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
+                                if !is_last_wg {
+                                    blocks.push(MessageBlockDto::WorkGroup {
+                                        data: WorkGroupDto {
+                                            items: Vec::new(),
+                                            is_active: false,
+                                            is_expanded: false,
+                                            elapsed_secs: 0,
+                                        },
+                                    });
+                                }
+
+                                if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
+                                    data.items.push(WorkGroupItemDto::Tool {
+                                        call_id: tc.id.0.clone(),
+                                        tool_name: tc.name,
+                                        tool_title: title,
+                                        tool_args: args_str,
+                                        tool_result: String::new(),
+                                        tool_status: "completed".to_string(),
+                                        is_expanded: false,
+                                    });
+                                }
+                            }
+                            operon_rs::context::ContentBlock::Text(text) => {
+                                if !text.trim().is_empty() {
+                                    all_assistant_text_parts.push(text.clone());
+                                    if let Some(MessageBlockDto::Text { text: existing }) = blocks.last_mut() {
+                                        existing.push_str("\n\n");
+                                        existing.push_str(&text);
+                                    } else {
+                                        blocks.push(MessageBlockDto::Text { text });
+                                    }
+                                }
                             }
                             _ => {}
                         }
@@ -180,22 +217,29 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                             };
 
                             let mut paired = false;
-                            for item in &mut work_items {
-                                if let WorkGroupItemDto::Tool {
-                                    call_id,
-                                    tool_result,
-                                    tool_status,
-                                    ..
-                                } = item
-                                {
-                                    if *call_id == tr.call_id.0 {
-                                        *tool_result = result_text.clone();
-                                        *tool_status = if tr.is_error {
-                                            "failed".to_string()
-                                        } else {
-                                            "completed".to_string()
-                                        };
-                                        paired = true;
+                            for b in blocks.iter_mut().rev() {
+                                if let MessageBlockDto::WorkGroup { data } = b {
+                                    for item in data.items.iter_mut().rev() {
+                                        if let WorkGroupItemDto::Tool {
+                                            call_id,
+                                            tool_result,
+                                            tool_status,
+                                            ..
+                                        } = item
+                                        {
+                                            if *call_id == tr.call_id.0 {
+                                                *tool_result = result_text.clone();
+                                                *tool_status = if tr.is_error {
+                                                    "failed".to_string()
+                                                } else {
+                                                    "completed".to_string()
+                                                };
+                                                paired = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if paired {
                                         break;
                                     }
                                 }
@@ -203,19 +247,32 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
 
                             if !paired {
                                 let title = format!("Result: {}", tr.name);
-                                work_items.push(WorkGroupItemDto::Tool {
-                                    call_id: tr.call_id.0,
-                                    tool_name: tr.name,
-                                    tool_title: title,
-                                    tool_args: String::new(),
-                                    tool_result: result_text,
-                                    tool_status: if tr.is_error {
-                                        "failed".to_string()
-                                    } else {
-                                        "completed".to_string()
-                                    },
-                                    is_expanded: false,
-                                });
+                                let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
+                                if !is_last_wg {
+                                    blocks.push(MessageBlockDto::WorkGroup {
+                                        data: WorkGroupDto {
+                                            items: Vec::new(),
+                                            is_active: false,
+                                            is_expanded: false,
+                                            elapsed_secs: 0,
+                                        },
+                                    });
+                                }
+                                if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
+                                    data.items.push(WorkGroupItemDto::Tool {
+                                        call_id: tr.call_id.0,
+                                        tool_name: tr.name,
+                                        tool_title: title,
+                                        tool_args: String::new(),
+                                        tool_result: result_text,
+                                        tool_status: if tr.is_error {
+                                            "failed".to_string()
+                                        } else {
+                                            "completed".to_string()
+                                        },
+                                        is_expanded: false,
+                                    });
+                                }
                             }
                         }
                     }
@@ -237,23 +294,25 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                 is_liked: false,
                 is_disliked: false,
                 work_group: None,
+                blocks: None,
             });
         }
 
         // 2. Emit Consolidated Assistant Message for this turn if present
-        let assistant_text = assistant_text_parts.join("\n\n");
-        let work_group = if !work_items.is_empty() {
-            Some(WorkGroupDto {
-                items: work_items,
-                is_active: false,
-                is_expanded: false,
-                elapsed_secs: 0,
-            })
-        } else {
-            None
-        };
+        let assistant_text = all_assistant_text_parts.join("\n\n");
+        let first_work_group = blocks.iter().find_map(|b| {
+            if let MessageBlockDto::WorkGroup { data } = b {
+                if !data.items.is_empty() {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
 
-        if !assistant_text.trim().is_empty() || work_group.is_some() {
+        if !blocks.is_empty() || !assistant_text.trim().is_empty() {
             result.push(ChatMessageDto {
                 id: format!("turn_{turn_idx}_assistant"),
                 role: "assistant".to_string(),
@@ -263,7 +322,8 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                 turn_index: turn_idx,
                 is_liked: false,
                 is_disliked: false,
-                work_group,
+                work_group: first_work_group,
+                blocks: if !blocks.is_empty() { Some(blocks) } else { None },
             });
         }
     }
