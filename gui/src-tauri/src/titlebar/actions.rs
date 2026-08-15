@@ -37,7 +37,8 @@ pub async fn close_window(window: WebviewWindow) -> Result<(), String> {
 /// Begins dragging the window.
 #[tauri::command]
 pub async fn start_dragging(window: WebviewWindow) -> Result<(), String> {
-    window.start_dragging().map_err(|e| e.to_string())
+    let _ = window.start_dragging();
+    Ok(())
 }
 
 /// Toggles the left sidebar state.

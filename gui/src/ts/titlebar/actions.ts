@@ -70,7 +70,11 @@ export function setupWindowDragging(): void {
         target?.classList.contains('titlebar-left') ||
         target?.hasAttribute('data-tauri-drag-region')
       ) {
-        await invokeIpc('start_dragging');
+        try {
+          await invokeIpc('start_dragging');
+        } catch {
+          // Native data-tauri-drag-region or window drag handled
+        }
       }
     }
   };
