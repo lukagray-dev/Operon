@@ -1,10 +1,20 @@
-// Chat Messages Controller & DOM Stream Renderer
+// Chat Messages Controller & Ultra-Smooth 60FPS DOM Stream Renderer
+//
+// Architectural Improvements:
+// 1. In-place DOM updates: Incoming text tokens and tool activities mutate only
+//    the active message element instead of destroying and recreating the whole conversation DOM.
+// 2. Batched RAF updates: Stream text mutations are batched using requestAnimationFrame.
+// 3. Single ThinkingOrbRenderer instance: Orb animation loop is cleanly started and destroyed
+//    without creating hundreds of leaked canvas animation loops.
+// 4. Smart Auto-Scroll: Auto-scrolls only when the user is already near the bottom, allowing
+//    smooth, un-interrupted scroll exploration without scroll fighting or jank.
 
 import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
 import { inputState } from '../input/state.js';
 import { refreshTopbar } from '../topbar/topbar.js';
+import type { ThinkingOrbRenderer } from '../work-group/orb.js';
 import { renderWorkGroupElement } from '../work-group/work-group.js';
 import {
   listenAgentError,
@@ -15,6 +25,10 @@ import {
 import { messagesState } from './state.js';
 import type { ChatMessage } from './types.js';
 
+let activeOrbRenderer: ThinkingOrbRenderer | null = null;
+let streamRafId: number | null = null;
+let pendingTextUpdate: { element: HTMLElement; text: string } | null = null;
+
 export function initMessages(): void {
   // 1. Listen for session selection changes in the sidebar
   sidebarState.subscribe(async () => {
@@ -22,24 +36,105 @@ export function initMessages(): void {
     if (activeSessionId) {
       await refreshMessages(activeSessionId);
     } else {
+      cleanupActiveOrb();
       messagesState.clear();
       setEmptyStateVisible(true);
       renderMessageList();
     }
   });
 
-  // 2. Re-render when message list state updates
+  // 2. Re-render entire message list when full list changes (e.g. session load, clear, message add)
   messagesState.subscribe(() => {
-    renderMessageList();
+    syncMessageList();
   });
 
-  // 3. Listen to streaming agent events from Tauri backend
+  // 3. Stream text handler: ultra-fast in-place RAF update without destroying DOM
+  messagesState.onStreamText((msgId, fullText) => {
+    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    if (!row) {
+      syncMessageList();
+      return;
+    }
+
+    let body = row.querySelector<HTMLElement>('.assistant-message-body');
+    if (!body) {
+      body = document.createElement('div');
+      body.className = 'assistant-message-body';
+      const actions = row.querySelector('.assistant-action-bar');
+      if (actions) {
+        row.insertBefore(body, actions);
+      } else {
+        row.appendChild(body);
+      }
+    }
+
+    pendingTextUpdate = { element: body, text: fullText };
+
+    if (streamRafId === null) {
+      streamRafId = requestAnimationFrame(() => {
+        streamRafId = null;
+        if (pendingTextUpdate) {
+          pendingTextUpdate.element.textContent = pendingTextUpdate.text;
+          pendingTextUpdate = null;
+        }
+        smartAutoScroll();
+      });
+    }
+  });
+
+  // 4. Stream WorkGroup handler: updates timeline in-place
+  messagesState.onStreamWorkGroup((msgId) => {
+    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    if (!row) return;
+
+    const msg = messagesState.getMessageById(msgId);
+    if (!msg || !msg.work_group) return;
+
+    let workGroupContainer = row.querySelector<HTMLElement>('.work-group-container');
+    const { element: newEl, orbRenderer } = renderWorkGroupElement(
+      msg.work_group,
+      () => messagesState.toggleWorkGroupExpanded(msg.id),
+      (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, itemIdx),
+      activeOrbRenderer
+    );
+
+    if (orbRenderer && orbRenderer !== activeOrbRenderer) {
+      cleanupActiveOrb();
+      activeOrbRenderer = orbRenderer;
+    }
+
+    if (workGroupContainer) {
+      workGroupContainer.replaceWith(newEl);
+    } else {
+      row.prepend(newEl);
+    }
+
+    smartAutoScroll();
+  });
+
+  // 5. Stream finished handler: finalizes workgroup and displays action bar
+  messagesState.onStreamFinished((msgId) => {
+    cleanupActiveOrb();
+    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    if (row) {
+      const msg = messagesState.getMessageById(msgId);
+      if (msg) {
+        // Re-render single row to finalized state
+        const updated = createAssistantMessageElement(msg, false);
+        row.replaceWith(updated);
+      }
+    }
+    smartAutoScroll();
+  });
+
+  // 6. Listen to streaming agent events from Tauri backend
   listenAgentEvent((event) => {
     handleAgentEvent(event);
   });
 
-  // 4. Listen to agent finish turn notification
+  // 7. Listen to agent finish turn notification
   listenAgentFinished(async (finishedSessionId) => {
+    cleanupActiveOrb();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
 
@@ -51,9 +146,10 @@ export function initMessages(): void {
     await refreshTopbar();
   });
 
-  // 5. Listen to agent error notification
+  // 8. Listen to agent error notification
   listenAgentError((errMsg) => {
     console.error('[Messages] Agent error received:', errMsg);
+    cleanupActiveOrb();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   });
@@ -67,8 +163,16 @@ export function initMessages(): void {
   }
 }
 
+function cleanupActiveOrb(): void {
+  if (activeOrbRenderer) {
+    activeOrbRenderer.destroy();
+    activeOrbRenderer = null;
+  }
+}
+
 export async function refreshMessages(sessionId: string): Promise<void> {
   messagesState.setIsLoading(true);
+  cleanupActiveOrb();
   try {
     const list = await loadSessionMessagesIpc(sessionId);
     messagesState.setMessages(list);
@@ -105,9 +209,11 @@ function handleAgentEvent(event: Record<string, unknown>): void {
       messagesState.setToolCallResult(res.call_id, res.content_json, res.is_error);
     }
   } else if ('Done' in event) {
+    cleanupActiveOrb();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   } else if ('Error' in event) {
+    cleanupActiveOrb();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   } else if ('ContextUsageUpdated' in event) {
@@ -124,6 +230,44 @@ function handleAgentEvent(event: Record<string, unknown>): void {
         formatted,
       });
     }
+  }
+}
+
+/**
+ * Syncs DOM elements with state without destroying the whole message list if not needed.
+ */
+function syncMessageList(): void {
+  const container = document.getElementById('chat-messages-viewport');
+  if (!container) return;
+
+  const messages = messagesState.getMessages();
+  if (messages.length === 0) {
+    setEmptyStateVisible(true);
+    const oldList = document.getElementById('chat-messages-list');
+    if (oldList) oldList.remove();
+    return;
+  }
+
+  setEmptyStateVisible(false);
+
+  let listContainer = document.getElementById('chat-messages-list');
+  if (!listContainer) {
+    renderMessageList();
+    return;
+  }
+
+  // Incrementally append new message rows if elements already match
+  const existingRows = listContainer.querySelectorAll<HTMLElement>('[data-message-id]');
+  if (existingRows.length < messages.length) {
+    for (let i = existingRows.length; i < messages.length; i++) {
+      const msg = messages[i];
+      const isLast = i === messages.length - 1;
+      const el = msg.role === 'user' ? createUserMessageElement(msg) : createAssistantMessageElement(msg, !isLast);
+      listContainer.appendChild(el);
+    }
+    smartAutoScroll();
+  } else if (existingRows.length > messages.length) {
+    renderMessageList();
   }
 }
 
@@ -166,13 +310,23 @@ function renderMessageList(): void {
     container.appendChild(listContainer);
   }
 
-  // Scroll to bottom
-  container.scrollTop = container.scrollHeight;
+  smartAutoScroll(true);
+}
+
+function smartAutoScroll(force = false): void {
+  const container = document.getElementById('chat-messages-viewport');
+  if (!container) return;
+
+  const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 120;
+  if (force || isNearBottom) {
+    container.scrollTop = container.scrollHeight;
+  }
 }
 
 function createUserMessageElement(msg: ChatMessage): HTMLElement {
   const row = document.createElement('div');
   row.className = 'user-message-row';
+  row.setAttribute('data-message-id', msg.id);
 
   const bubble = document.createElement('div');
   bubble.className = 'user-message-bubble';
@@ -229,110 +383,112 @@ function createUserMessageElement(msg: ChatMessage): HTMLElement {
 function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean): HTMLElement {
   const row = document.createElement('div');
   row.className = 'assistant-message-row';
+  row.setAttribute('data-message-id', msg.id);
 
   // 1. Render WorkGroup / Tool Activity if present
   if (msg.work_group && msg.work_group.items.length > 0) {
-    const workGroupEl = renderWorkGroupElement(
+    const { element: workGroupEl, orbRenderer } = renderWorkGroupElement(
       msg.work_group,
       () => messagesState.toggleWorkGroupExpanded(msg.id),
-      (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, itemIdx)
+      (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, itemIdx),
+      activeOrbRenderer
     );
+    if (orbRenderer && orbRenderer !== activeOrbRenderer) {
+      cleanupActiveOrb();
+      activeOrbRenderer = orbRenderer;
+    }
     row.appendChild(workGroupEl);
   }
 
   // 2. Raw text body
-  if (msg.text) {
-    const body = document.createElement('div');
-    body.className = 'assistant-message-body';
-    body.textContent = msg.text;
-    row.appendChild(body);
-  } else if (!msg.work_group || msg.work_group.items.length === 0) {
-    const body = document.createElement('div');
-    body.className = 'assistant-message-body';
-    body.textContent = '...';
-    row.appendChild(body);
+  const body = document.createElement('div');
+  body.className = 'assistant-message-body';
+  body.textContent = msg.text || (msg.work_group?.is_active ? '' : '...');
+  row.appendChild(body);
+
+  // 3. Bottom action bar (shown once response has completed or not currently streaming)
+  const isStreaming = messagesState.getStreamingMessageId() === msg.id;
+  if (!isStreaming) {
+    const bar = document.createElement('div');
+    bar.className = 'assistant-action-bar';
+
+    // Left action items
+    const barLeft = document.createElement('div');
+    barLeft.className = 'assistant-action-bar-left';
+    barLeft.innerHTML = `
+      <span class="assistant-brand-dot"></span>
+      <span class="assistant-time-text">${msg.timestamp}</span>
+    `;
+
+    // Right action items
+    const barRight = document.createElement('div');
+    barRight.className = 'assistant-action-bar-right';
+
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'assistant-action-btn';
+    copyBtn.title = 'Copy response';
+    copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(msg.text);
+        copyBtn.innerHTML = '<span class="ui-icon icon-asst-check"></span>';
+        setTimeout(() => {
+          copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
+        }, 1500);
+      } catch {
+        // Fallback
+      }
+    });
+
+    // Like button
+    const likeBtn = document.createElement('button');
+    likeBtn.className = `assistant-action-btn ${msg.is_liked ? 'active' : ''}`;
+    likeBtn.title = 'Good response';
+    likeBtn.innerHTML = '<span class="ui-icon icon-asst-like"></span>';
+    likeBtn.addEventListener('click', () => {
+      messagesState.toggleLike(msg.id);
+    });
+
+    // Dislike button
+    const dislikeBtn = document.createElement('button');
+    dislikeBtn.className = `assistant-action-btn ${msg.is_disliked ? 'active' : ''}`;
+    dislikeBtn.title = 'Bad response';
+    dislikeBtn.innerHTML = '<span class="ui-icon icon-asst-dislike"></span>';
+    dislikeBtn.addEventListener('click', () => {
+      messagesState.toggleDislike(msg.id);
+    });
+
+    // Fork button
+    const forkBtn = document.createElement('button');
+    forkBtn.className = 'assistant-action-btn';
+    forkBtn.title = 'Fork from this turn';
+    forkBtn.innerHTML = '<span class="ui-icon icon-asst-fork"></span>';
+    forkBtn.addEventListener('click', () => {
+      console.debug('[Messages] Fork from turn:', msg.turn_index);
+    });
+
+    // Redo button
+    const redoBtn = document.createElement('button');
+    redoBtn.className = 'assistant-action-btn';
+    redoBtn.title = 'Regenerate response';
+    redoBtn.innerHTML = '<span class="ui-icon icon-asst-redo"></span>';
+    redoBtn.addEventListener('click', () => {
+      console.debug('[Messages] Regenerate from turn:', msg.turn_index);
+    });
+
+    barRight.appendChild(copyBtn);
+    barRight.appendChild(likeBtn);
+    barRight.appendChild(dislikeBtn);
+    barRight.appendChild(forkBtn);
+    barRight.appendChild(redoBtn);
+
+    bar.appendChild(barLeft);
+    bar.appendChild(barRight);
+
+    row.appendChild(bar);
   }
-
-  // 3. Bottom action bar
-  const bar = document.createElement('div');
-  bar.className = 'assistant-action-bar';
-
-  // Left action items
-  const barLeft = document.createElement('div');
-  barLeft.className = 'assistant-action-bar-left';
-  barLeft.innerHTML = `
-    <span class="assistant-brand-dot"></span>
-    <span class="assistant-time-text">${msg.timestamp}</span>
-  `;
-
-  // Right action items
-  const barRight = document.createElement('div');
-  barRight.className = 'assistant-action-bar-right';
-
-  // Copy button
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'assistant-action-btn';
-  copyBtn.title = 'Copy response';
-  copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
-
-  copyBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(msg.text);
-      copyBtn.innerHTML = '<span class="ui-icon icon-asst-check"></span>';
-      setTimeout(() => {
-        copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
-      }, 1500);
-    } catch {
-      // Fallback
-    }
-  });
-
-  // Like button
-  const likeBtn = document.createElement('button');
-  likeBtn.className = `assistant-action-btn ${msg.is_liked ? 'active' : ''}`;
-  likeBtn.title = 'Good response';
-  likeBtn.innerHTML = '<span class="ui-icon icon-asst-like"></span>';
-  likeBtn.addEventListener('click', () => {
-    messagesState.toggleLike(msg.id);
-  });
-
-  // Dislike button
-  const dislikeBtn = document.createElement('button');
-  dislikeBtn.className = `assistant-action-btn ${msg.is_disliked ? 'active' : ''}`;
-  dislikeBtn.title = 'Bad response';
-  dislikeBtn.innerHTML = '<span class="ui-icon icon-asst-dislike"></span>';
-  dislikeBtn.addEventListener('click', () => {
-    messagesState.toggleDislike(msg.id);
-  });
-
-  // Fork button
-  const forkBtn = document.createElement('button');
-  forkBtn.className = 'assistant-action-btn';
-  forkBtn.title = 'Fork from this turn';
-  forkBtn.innerHTML = '<span class="ui-icon icon-asst-fork"></span>';
-  forkBtn.addEventListener('click', () => {
-    console.debug('[Messages] Fork from turn:', msg.turn_index);
-  });
-
-  // Redo button
-  const redoBtn = document.createElement('button');
-  redoBtn.className = 'assistant-action-btn';
-  redoBtn.title = 'Regenerate response';
-  redoBtn.innerHTML = '<span class="ui-icon icon-asst-redo"></span>';
-  redoBtn.addEventListener('click', () => {
-    console.debug('[Messages] Regenerate from turn:', msg.turn_index);
-  });
-
-  barRight.appendChild(copyBtn);
-  barRight.appendChild(likeBtn);
-  barRight.appendChild(dislikeBtn);
-  barRight.appendChild(forkBtn);
-  barRight.appendChild(redoBtn);
-
-  bar.appendChild(barLeft);
-  bar.appendChild(barRight);
-
-  row.appendChild(bar);
 
   if (showSeparator) {
     const sep = document.createElement('div');

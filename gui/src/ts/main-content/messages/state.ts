@@ -1,9 +1,15 @@
 // Messages Local State Manager
+//
+// Optimized for 60fps streaming with fine-grained callbacks to avoid
+// rebuilding the entire DOM tree on every token or work-group delta.
 
 import { getToolFriendlyTitle } from '../work-group/work-group.js';
 import type { ChatMessage } from './types.js';
 
 type MessagesChangeListener = () => void;
+type StreamTextListener = (messageId: string, fullText: string, chunk: string) => void;
+type StreamWorkGroupListener = (messageId: string) => void;
+type StreamFinishedListener = (messageId: string) => void;
 
 class MessagesStateManager {
   private messages: ChatMessage[] = [];
@@ -12,9 +18,20 @@ class MessagesStateManager {
   private streamingStartTime: number | null = null;
   private streamingTimerInterval: number | null = null;
   private listeners: Set<MessagesChangeListener> = new Set();
+  private streamTextListeners: Set<StreamTextListener> = new Set();
+  private streamWorkGroupListeners: Set<StreamWorkGroupListener> = new Set();
+  private streamFinishedListeners: Set<StreamFinishedListener> = new Set();
 
   public getMessages(): ChatMessage[] {
     return this.messages;
+  }
+
+  public getStreamingMessageId(): string | null {
+    return this.streamingMessageId;
+  }
+
+  public getMessageById(id: string): ChatMessage | undefined {
+    return this.messages.find((m) => m.id === id);
   }
 
   public setMessages(messages: ChatMessage[]): void {
@@ -63,7 +80,9 @@ class MessagesStateManager {
             1,
             Math.floor((Date.now() - this.streamingStartTime) / 1000)
           );
-          this.notify();
+          for (const l of this.streamWorkGroupListeners) {
+            l(this.streamingMessageId);
+          }
         }
       }
     }, 1000);
@@ -77,7 +96,9 @@ class MessagesStateManager {
     const msg = this.messages.find((m) => m.id === this.streamingMessageId);
     if (msg) {
       msg.text += text;
-      this.notify();
+      for (const l of this.streamTextListeners) {
+        l(this.streamingMessageId, msg.text, text);
+      }
     }
   }
 
@@ -98,7 +119,9 @@ class MessagesStateManager {
       } else if (thinkingItem.kind === 'thinking') {
         thinkingItem.thinking_text += text;
       }
-      this.notify();
+      for (const l of this.streamWorkGroupListeners) {
+        l(this.streamingMessageId);
+      }
     }
   }
 
@@ -121,7 +144,9 @@ class MessagesStateManager {
           tool_status: 'running',
           is_expanded: false,
         });
-        this.notify();
+        for (const l of this.streamWorkGroupListeners) {
+          l(this.streamingMessageId);
+        }
       }
     }
   }
@@ -134,7 +159,9 @@ class MessagesStateManager {
       if (tool && tool.kind === 'tool') {
         tool.tool_args = argsJson;
         tool.tool_title = getToolFriendlyTitle(tool.tool_name, argsJson);
-        this.notify();
+        for (const l of this.streamWorkGroupListeners) {
+          l(this.streamingMessageId);
+        }
       }
     }
   }
@@ -147,7 +174,9 @@ class MessagesStateManager {
       if (tool && tool.kind === 'tool') {
         tool.tool_result = result;
         tool.tool_status = isError ? 'failed' : 'completed';
-        this.notify();
+        for (const l of this.streamWorkGroupListeners) {
+          l(this.streamingMessageId);
+        }
       }
     }
   }
@@ -156,7 +185,9 @@ class MessagesStateManager {
     const msg = this.messages.find((m) => m.id === messageId);
     if (msg && msg.work_group) {
       msg.work_group.is_expanded = !msg.work_group.is_expanded;
-      this.notify();
+      for (const l of this.streamWorkGroupListeners) {
+        l(messageId);
+      }
     }
   }
 
@@ -164,13 +195,16 @@ class MessagesStateManager {
     const msg = this.messages.find((m) => m.id === messageId);
     if (msg && msg.work_group && msg.work_group.items[itemIdx]) {
       msg.work_group.items[itemIdx].is_expanded = !msg.work_group.items[itemIdx].is_expanded;
-      this.notify();
+      for (const l of this.streamWorkGroupListeners) {
+        l(messageId);
+      }
     }
   }
 
   public finishStreaming(): void {
     if (this.streamingMessageId) {
-      const msg = this.messages.find((m) => m.id === this.streamingMessageId);
+      const id = this.streamingMessageId;
+      const msg = this.messages.find((m) => m.id === id);
       if (msg && msg.work_group) {
         msg.work_group.is_active = false;
         if (this.streamingStartTime) {
@@ -182,6 +216,9 @@ class MessagesStateManager {
       }
       this.stopStreamingTimer();
       this.streamingMessageId = null;
+      for (const l of this.streamFinishedListeners) {
+        l(id);
+      }
       this.notify();
     }
   }
@@ -233,6 +270,21 @@ class MessagesStateManager {
   public subscribe(listener: MessagesChangeListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  public onStreamText(listener: StreamTextListener): () => void {
+    this.streamTextListeners.add(listener);
+    return () => this.streamTextListeners.delete(listener);
+  }
+
+  public onStreamWorkGroup(listener: StreamWorkGroupListener): () => void {
+    this.streamWorkGroupListeners.add(listener);
+    return () => this.streamWorkGroupListeners.delete(listener);
+  }
+
+  public onStreamFinished(listener: StreamFinishedListener): () => void {
+    this.streamFinishedListeners.add(listener);
+    return () => this.streamFinishedListeners.delete(listener);
   }
 
   private notify(): void {

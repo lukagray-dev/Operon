@@ -153,10 +153,13 @@ export function getWorkGroupSummaryText(items: WorkGroupItem[]): string {
 export function renderWorkGroupElement(
   data: WorkGroupData,
   onToggleExpand: () => void,
-  onToggleItem: (itemIdx: number) => void
-): HTMLElement {
+  onToggleItem: (itemIdx: number) => void,
+  existingOrbRenderer?: ThinkingOrbRenderer | null
+): { element: HTMLElement; orbRenderer: ThinkingOrbRenderer | null } {
   const container = document.createElement('div');
   container.className = `work-group-container ${data.is_expanded ? 'expanded' : ''}`;
+
+  let orbRenderer = existingOrbRenderer || null;
 
   // ===== 1. HEADER ROW =====
   const header = document.createElement('div');
@@ -172,12 +175,13 @@ export function renderWorkGroupElement(
     orbContainer.appendChild(canvas);
     header.appendChild(orbContainer);
 
-    // Instantiate and start 60fps ribbon particle loop
-    try {
-      const renderer = new ThinkingOrbRenderer(canvas);
-      renderer.start();
-    } catch (e) {
-      console.warn('[WorkGroup] Failed to initialize ThinkingOrbRenderer:', e);
+    if (!orbRenderer) {
+      try {
+        orbRenderer = new ThinkingOrbRenderer(canvas);
+        orbRenderer.start();
+      } catch (e) {
+        console.warn('[WorkGroup] Failed to initialize ThinkingOrbRenderer:', e);
+      }
     }
   }
 
@@ -333,5 +337,5 @@ export function renderWorkGroupElement(
 
   container.appendChild(timeline);
 
-  return container;
+  return { element: container, orbRenderer };
 }
