@@ -172,3 +172,41 @@ pub async fn cancel_prompt() -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Approves a pending tool permission request.
+#[tauri::command]
+pub async fn approve_permission(permission_id: String) -> Result<(), String> {
+    let cmd_tx_opt = if let Ok(lock) = ACTIVE_CMD_TX.lock() {
+        lock.clone()
+    } else {
+        None
+    };
+
+    if let Some(cmd_tx) = cmd_tx_opt {
+        let _ = cmd_tx
+            .send(operon_rs::SessionCommand::Approve {
+                id: permission_id,
+            })
+            .await;
+    }
+    Ok(())
+}
+
+/// Denies a pending tool permission request.
+#[tauri::command]
+pub async fn deny_permission(permission_id: String) -> Result<(), String> {
+    let cmd_tx_opt = if let Ok(lock) = ACTIVE_CMD_TX.lock() {
+        lock.clone()
+    } else {
+        None
+    };
+
+    if let Some(cmd_tx) = cmd_tx_opt {
+        let _ = cmd_tx
+            .send(operon_rs::SessionCommand::Deny {
+                id: permission_id,
+            })
+            .await;
+    }
+    Ok(())
+}

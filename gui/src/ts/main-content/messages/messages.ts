@@ -10,6 +10,7 @@ import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
 import { inputState } from '../input/state.js';
+import { hidePermissionDialog, showPermissionDialog } from '../permission/permission.js';
 import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
 import { renderWorkGroupElement } from '../work-group/work-group.js';
@@ -168,6 +169,7 @@ export function initMessages(): void {
   // 8. Listen to agent finish turn notification
   listenAgentFinished(async (finishedSessionId) => {
     cleanupActiveOrb();
+    hidePermissionDialog();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
 
@@ -182,6 +184,7 @@ export function initMessages(): void {
   listenAgentError((errMsg) => {
     console.error('[Messages] Agent error received:', errMsg);
     cleanupActiveOrb();
+    hidePermissionDialog();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   });
@@ -205,6 +208,7 @@ function cleanupActiveOrb(): void {
 export async function refreshMessages(sessionId: string): Promise<void> {
   messagesState.setIsLoading(true);
   cleanupActiveOrb();
+  hidePermissionDialog();
   try {
     const list = await loadSessionMessagesIpc(sessionId);
     messagesState.setMessages(list);
@@ -240,12 +244,32 @@ function handleAgentEvent(event: Record<string, unknown>): void {
     if (res) {
       messagesState.setToolCallResult(res.call_id, res.content_json, res.is_error);
     }
+  } else if ('ApprovalRequired' in event) {
+    const req = (event as {
+      ApprovalRequired: {
+        id: string;
+        tool: string;
+        path?: string | null;
+        reason: string;
+        args_json: string;
+      };
+    }).ApprovalRequired;
+    if (req) {
+      showPermissionDialog(req.id, req.tool, req.path || null, req.reason, req.args_json);
+      smartAutoScroll();
+    }
+  } else if ('ApprovalGranted' in event) {
+    hidePermissionDialog();
+  } else if ('PermissionDenied' in event) {
+    hidePermissionDialog();
   } else if ('Done' in event) {
     cleanupActiveOrb();
+    hidePermissionDialog();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   } else if ('Error' in event) {
     cleanupActiveOrb();
+    hidePermissionDialog();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   } else if ('ContextUsageUpdated' in event) {

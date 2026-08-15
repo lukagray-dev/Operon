@@ -100,6 +100,8 @@ pub fn run() {
             main_content::messages::load_session_messages,
             main_content::messages::submit_prompt,
             main_content::messages::cancel_prompt,
+            main_content::messages::approve_permission,
+            main_content::messages::deny_permission,
             // Right Sidebar (Source Control & Git Diff) actions
             right_sidebar::get_git_diff_details,
             right_sidebar::get_git_commit_graph,

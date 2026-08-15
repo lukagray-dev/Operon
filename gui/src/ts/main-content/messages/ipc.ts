@@ -29,6 +29,14 @@ export async function cancelPromptIpc(): Promise<void> {
   await invokeIpc('cancel_prompt');
 }
 
+export async function approvePermissionIpc(permissionId: string): Promise<void> {
+  await invokeIpc('approve_permission', { permissionId });
+}
+
+export async function denyPermissionIpc(permissionId: string): Promise<void> {
+  await invokeIpc('deny_permission', { permissionId });
+}
+
 export async function listenAgentEvent(
   handler: (event: Record<string, unknown>) => void
 ): Promise<() => void> {

@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/main-content/empty-state/empty-state.css" />
   <link rel="stylesheet" href="css/main-content/messages/messages.css" />
   <link rel="stylesheet" href="css/main-content/work-group/work-group.css" />
+  <link rel="stylesheet" href="css/main-content/permission/permission.css" />
   <link rel="stylesheet" href="css/main-content/input/input.css" />
   <link rel="stylesheet" href="css/right-sidebar/right-sidebar.css" />
 </head>
@@ -281,6 +282,9 @@
 
         <!-- Pinned Bottom Input Area -->
         <div class="input-panel-container">
+          <!-- Floating Permission Panel (Shown when model requests approval) -->
+          <div id="floating-permission-panel" class="floating-permission-panel" style="display: none;"></div>
+
           <!-- Input Card -->
           <div class="input-card">
             <!-- Pending Attachments Bar -->

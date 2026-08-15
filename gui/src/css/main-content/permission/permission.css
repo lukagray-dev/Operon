@@ -1,0 +1,160 @@
+/* Floating Permission Panel Styling - Slint Parity */
+@import '../../shared/tokens.css';
+
+.floating-permission-panel {
+  width: 100%;
+  max-width: 820px;
+  background-color: #171717;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 179, 0, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 25;
+  box-sizing: border-box;
+  animation: slideUpFade 0.15s ease-out;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.permission-left-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  position: relative;
+}
+
+.permission-lock-icon {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  color: #ffae00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.permission-lock-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.permission-desc-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perm-target-chip {
+  color: #00ff0d;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 100ms ease;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 255, 13, 0.3);
+  text-underline-offset: 2px;
+}
+
+.perm-target-chip:hover {
+  color: #ffb300;
+  text-decoration-color: rgba(255, 179, 0, 0.5);
+}
+
+/* Tooltip on hovering target */
+.perm-hover-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 24px;
+  background: #000000;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 50;
+  pointer-events: none;
+  max-width: 480px;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.perm-tooltip-path {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #a5d6a7;
+}
+
+.perm-tooltip-reason {
+  font-size: 11px;
+  color: #888888;
+}
+
+.permission-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-perm-deny {
+  background: rgba(244, 67, 54, 0.08);
+  border: 1px solid rgba(244, 67, 54, 0.25);
+  border-radius: 4px;
+  padding: 5px 12px;
+  color: #ef9a9a;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  outline: none;
+  user-select: none;
+}
+
+.btn-perm-deny:hover {
+  background: rgba(244, 67, 54, 0.18);
+  border-color: rgba(244, 67, 54, 0.45);
+  color: #ffcdd2;
+}
+
+.btn-perm-allow {
+  background: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.25);
+  border-radius: 4px;
+  padding: 5px 12px;
+  color: #a5d6a7;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  outline: none;
+  user-select: none;
+}
+
+.btn-perm-allow:hover {
+  background: rgba(76, 175, 80, 0.18);
+  border-color: rgba(76, 175, 80, 0.45);
+  color: #c8e6c9;
+}
