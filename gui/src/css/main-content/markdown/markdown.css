@@ -1,0 +1,27 @@
+/* Operon Markdown Stylesheet
+ *
+ * Exclusively uses the official github-markdown-css (dark theme)
+ * with font definitions bound to Operon's typography system:
+ * - Prose: Literata (--assistant-font-family)
+ * - Monospace: Kode Mono (--mono-font-family)
+ */
+
+@import './github-markdown-dark.css';
+
+/* Strict Typography Enforcement according to docs/Typography-and-Fonts.md */
+.markdown-body,
+.assistant-message-body.markdown-body {
+  font-family: var(--assistant-font-family, 'Literata', Georgia, serif);
+}
+
+.markdown-body code,
+.markdown-body tt,
+.markdown-body kbd,
+.markdown-body pre,
+.markdown-body pre code,
+.markdown-body pre tt,
+.markdown-body samp,
+.assistant-message-body.markdown-body code,
+.assistant-message-body.markdown-body pre {
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+}

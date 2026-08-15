@@ -10,6 +10,11 @@ import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
 import { inputState } from '../input/state.js';
+import {
+  liveMarkdownRenderer,
+  postProcessMarkdownElement,
+  renderMarkdownToHtml,
+} from '../markdown/markdown.js';
 import { hidePermissionDialog, showPermissionDialog } from '../permission/permission.js';
 import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
@@ -24,8 +29,6 @@ import { messagesState } from './state.js';
 import type { ChatMessage } from './types.js';
 
 let activeOrbRenderer: ThinkingOrbRenderer | null = null;
-let streamRafId: number | null = null;
-let pendingTextUpdates = new Map<HTMLElement, string>();
 
 function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number): void {
   newEl.setAttribute('data-block-index', String(blockIdx));
@@ -57,6 +60,7 @@ function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number
 export function initMessages(): void {
   // 1. Listen for session selection changes in the sidebar
   sidebarState.subscribe(async () => {
+    liveMarkdownRenderer.clearAll();
     const activeSessionId = sidebarState.getActiveSessionId();
     if (activeSessionId) {
       await refreshMessages(activeSessionId);
@@ -71,6 +75,7 @@ export function initMessages(): void {
   // 2. Full reset handler (when session loads or resets)
   messagesState.onFullReset(() => {
     cleanupActiveOrb();
+    liveMarkdownRenderer.clearAll();
     renderMessageList();
   });
 
@@ -79,7 +84,7 @@ export function initMessages(): void {
     syncMessageList();
   });
 
-  // 4. Stream text handler: ultra-fast in-place RAF update without destroying DOM
+  // 4. Stream text handler: ultra-fast live Markdown stream update with RAF batching
   messagesState.onStreamText((msgId, blockIdx, fullBlockText) => {
     const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
     if (!row) {
@@ -90,22 +95,13 @@ export function initMessages(): void {
     let body = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].assistant-message-body`);
     if (!body) {
       body = document.createElement('div');
-      body.className = 'assistant-message-body';
+      body.className = 'assistant-message-body markdown-body';
       insertBlockInRow(row, body, blockIdx);
     }
 
-    pendingTextUpdates.set(body, fullBlockText);
-
-    if (streamRafId === null) {
-      streamRafId = requestAnimationFrame(() => {
-        streamRafId = null;
-        pendingTextUpdates.forEach((text, el) => {
-          el.textContent = text;
-        });
-        pendingTextUpdates.clear();
-        smartAutoScroll();
-      });
-    }
+    liveMarkdownRenderer.queueStreamUpdate(body, fullBlockText, () => {
+      smartAutoScroll();
+    });
   });
 
   // 5. Stream WorkGroup handler: updates timeline block in-place
@@ -445,6 +441,24 @@ function createUserMessageElement(msg: ChatMessage): HTMLElement {
   return row;
 }
 
+function renderMarkdownBody(element: HTMLElement, markdownText: string): void {
+  element.className = 'assistant-message-body markdown-body';
+  if (!markdownText || markdownText.trim().length === 0) {
+    element.textContent = '...';
+    return;
+  }
+
+  renderMarkdownToHtml(markdownText)
+    .then((html) => {
+      element.innerHTML = html;
+      postProcessMarkdownElement(element);
+    })
+    .catch((err) => {
+      console.error('[Messages] Markdown render error:', err);
+      element.textContent = markdownText;
+    });
+}
+
 function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): HTMLElement {
   const row = document.createElement('div');
   row.className = 'assistant-message-row';
@@ -471,9 +485,9 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): 
       } else if (block.kind === 'text') {
         if (block.text.length > 0) {
           const body = document.createElement('div');
-          body.className = 'assistant-message-body';
+          body.className = 'assistant-message-body markdown-body';
           body.setAttribute('data-block-index', String(blockIdx));
-          body.textContent = block.text;
+          renderMarkdownBody(body, block.text);
           row.appendChild(body);
         }
       }
@@ -496,8 +510,8 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): 
 
     if (msg.text) {
       const body = document.createElement('div');
-      body.className = 'assistant-message-body';
-      body.textContent = msg.text;
+      body.className = 'assistant-message-body markdown-body';
+      renderMarkdownBody(body, msg.text);
       row.appendChild(body);
     }
   }
@@ -505,7 +519,7 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): 
   // If nothing rendered yet, add placeholder
   if (!row.querySelector('.assistant-message-body') && !row.querySelector('.work-group-container')) {
     const body = document.createElement('div');
-    body.className = 'assistant-message-body';
+    body.className = 'assistant-message-body markdown-body';
     body.textContent = '...';
     row.appendChild(body);
   }

@@ -27,5 +27,6 @@ windows-sys.workspace= true
 rfd.workspace        = true
 dirs.workspace       = true
 toml.workspace       = true
+pulldown-cmark.workspace = true
 
 

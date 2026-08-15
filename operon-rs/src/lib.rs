@@ -9,7 +9,7 @@
 pub use operon_config as config;
 pub use operon_context as context;
 pub use operon_events as events;
-pub use operon_markdown as markdown;
+// pub use operon_markdown as markdown;
 pub use operon_policy as policy;
 pub use operon_providers as providers;
 pub use operon_session as session;

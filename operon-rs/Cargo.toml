@@ -11,7 +11,7 @@ repository.workspace = true
 operon-config     = { workspace = true }
 operon-context    = { workspace = true }
 operon-events     = { workspace = true }
-operon-markdown   = { workspace = true }
+# operon-markdown   = { workspace = true }
 operon-policy     = { workspace = true }
 operon-providers  = { workspace = true }
 operon-session    = { workspace = true }

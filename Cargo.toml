@@ -62,7 +62,7 @@ members = [
     "operon-rs/src/operon-events",
 
     # Markdown rendering crate
-    "operon-rs/src/operon-markdown",
+   # "operon-rs/src/operon-markdown",
 
     # Providers — Provider enum, ApiCredentials, ModelConfig, ProviderConfig (root crate, zero operon-* deps)
     "operon-rs/src/operon-providers",
@@ -221,7 +221,7 @@ operon-providers = { path = "operon-rs/src/operon-providers" }
 operon-config    = { path = "operon-rs/src/operon-config" }
 operon-policy    = { path = "operon-rs/src/operon-policy" }
 operon-session   = { path = "operon-rs/src/operon-session" }
-operon-markdown  = { path = "operon-rs/src/operon-markdown" }
+# operon-markdown  = { path = "operon-rs/src/operon-markdown" }
 operon-terminal  = { path = "operon-rs/src/operon-terminal" }
 operon-diff      = { path = "operon-rs/src/operon-diff" }
 operon-channels  = { path = "operon-rs/src/operon-channels" }
