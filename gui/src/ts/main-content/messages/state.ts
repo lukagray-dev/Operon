@@ -144,6 +144,11 @@ class MessagesStateManager {
 
     // Append to current text block
     if (lastBlock.kind === 'text') {
+      if (lastBlock.text.length === 0) {
+        text = text.replace(/^[\r\n]+/, '');
+      }
+      if (text.length === 0) return;
+
       lastBlock.text += text;
       const blockIdx = msg.blocks.length - 1;
 
@@ -170,8 +175,15 @@ class MessagesStateManager {
 
     let lastBlock = msg.blocks[msg.blocks.length - 1];
 
-    // If last block is a text block, start a new WorkGroup block chronologically after it
+    // If last block is a text block, trim its trailing whitespace, update its DOM text, then start a new WorkGroup block chronologically after it
     if (!lastBlock || lastBlock.kind === 'text') {
+      if (lastBlock && lastBlock.kind === 'text') {
+        lastBlock.text = lastBlock.text.trimEnd();
+        const prevTextIdx = msg.blocks.length - 1;
+        for (const l of this.streamTextListeners) {
+          l(this.streamingMessageId, prevTextIdx, lastBlock.text, '');
+        }
+      }
       const newWgBlock: MessageBlock = {
         kind: 'work_group',
         data: {
@@ -216,8 +228,15 @@ class MessagesStateManager {
 
     let lastBlock = msg.blocks[msg.blocks.length - 1];
 
-    // If last block is a text block, start a new WorkGroup block chronologically after it
+    // If last block is a text block, trim its trailing whitespace, update its DOM text, then start a new WorkGroup block chronologically after it
     if (!lastBlock || lastBlock.kind === 'text') {
+      if (lastBlock && lastBlock.kind === 'text') {
+        lastBlock.text = lastBlock.text.trimEnd();
+        const prevTextIdx = msg.blocks.length - 1;
+        for (const l of this.streamTextListeners) {
+          l(this.streamingMessageId, prevTextIdx, lastBlock.text, '');
+        }
+      }
       const newWgBlock: MessageBlock = {
         kind: 'work_group',
         data: {

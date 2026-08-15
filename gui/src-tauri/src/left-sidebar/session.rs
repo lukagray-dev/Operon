@@ -286,6 +286,20 @@ pub async fn create_new_session(
     Ok(id)
 }
 
+/// Sets the active session ID and project path in AppState.
+#[tauri::command]
+pub async fn set_active_session(
+    session_id: Option<String>,
+    project_path: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if let Ok(mut lock) = state.state_lock.lock() {
+        lock.active_session_id = session_id;
+        lock.active_project = project_path;
+    }
+    Ok(())
+}
+
 /// Renames a session by updating custom title metadata in the session store.
 #[tauri::command]
 pub async fn rename_session(session_id: String, new_title: String) -> Result<(), String> {

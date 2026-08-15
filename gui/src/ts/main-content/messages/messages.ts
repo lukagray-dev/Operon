@@ -40,7 +40,7 @@ function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number
         insertBeforeEl = child;
         break;
       }
-    } else if (child.classList.contains('assistant-action-bar') || child.classList.contains('turn-separator')) {
+    } else if (child.classList.contains('assistant-controls-container') || child.classList.contains('assistant-action-bar') || child.classList.contains('turn-separator')) {
       insertBeforeEl = child;
       break;
     }
@@ -153,7 +153,7 @@ export function initMessages(): void {
     if (row) {
       const msg = messagesState.getMessageById(msgId);
       if (msg) {
-        const updated = createAssistantMessageElement(msg, false);
+        const updated = createAssistantMessageElement(msg, true);
         row.replaceWith(updated);
       }
     }
@@ -290,12 +290,19 @@ function syncMessageList(): void {
 
   const existingRows = listContainer.querySelectorAll<HTMLElement>('[data-message-id]');
   if (existingRows.length < messages.length) {
+    const oldSpacer = listContainer.querySelector('.chat-bottom-spacer');
+    if (oldSpacer) oldSpacer.remove();
+
     for (let i = existingRows.length; i < messages.length; i++) {
       const msg = messages[i];
-      const isLast = i === messages.length - 1;
-      const el = msg.role === 'user' ? createUserMessageElement(msg) : createAssistantMessageElement(msg, !isLast);
+      const el = msg.role === 'user' ? createUserMessageElement(msg) : createAssistantMessageElement(msg, true);
       listContainer.appendChild(el);
     }
+
+    const spacer = document.createElement('div');
+    spacer.className = 'chat-bottom-spacer';
+    listContainer.appendChild(spacer);
+
     smartAutoScroll();
   } else if (existingRows.length > messages.length) {
     renderMessageList();
@@ -326,14 +333,17 @@ function renderMessageList(): void {
   listContainer.id = 'chat-messages-list';
   listContainer.className = 'messages-container';
 
-  messages.forEach((msg, idx) => {
+  messages.forEach((msg) => {
     if (msg.role === 'user') {
       listContainer.appendChild(createUserMessageElement(msg));
     } else if (msg.role === 'assistant') {
-      const isLast = idx === messages.length - 1;
-      listContainer.appendChild(createAssistantMessageElement(msg, !isLast));
+      listContainer.appendChild(createAssistantMessageElement(msg, true));
     }
   });
+
+  const spacer = document.createElement('div');
+  spacer.className = 'chat-bottom-spacer';
+  listContainer.appendChild(spacer);
 
   if (emptyStateEl) {
     container.insertBefore(listContainer, emptyStateEl);
@@ -411,7 +421,7 @@ function createUserMessageElement(msg: ChatMessage): HTMLElement {
   return row;
 }
 
-function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean): HTMLElement {
+function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): HTMLElement {
   const row = document.createElement('div');
   row.className = 'assistant-message-row';
   row.setAttribute('data-message-id', msg.id);
@@ -476,25 +486,31 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
     row.appendChild(body);
   }
 
-  // Bottom action bar (shown once turn is finalized)
+  // Bottom controls container with separator line and action bar (shown once turn is finalized)
   const isStreaming = messagesState.getStreamingMessageId() === msg.id;
   if (!isStreaming) {
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = `assistant-controls-container ${msg.is_liked || msg.is_disliked ? 'has-active' : ''}`;
+
+    // 1. Separator Line
+    if (showSeparator) {
+      const separatorLine = document.createElement('div');
+      separatorLine.className = 'assistant-separator-line';
+      controlsContainer.appendChild(separatorLine);
+    }
+
+    // 2. Action Bar matching Slint (Operon Logo -> Copy -> Like -> Dislike -> Fork -> Time)
     const bar = document.createElement('div');
     bar.className = 'assistant-action-bar';
 
-    // Left action items
-    const barLeft = document.createElement('div');
-    barLeft.className = 'assistant-action-bar-left';
-    barLeft.innerHTML = `
-      <span class="assistant-brand-dot"></span>
-      <span class="assistant-time-text">${msg.timestamp}</span>
-    `;
+    // 2.1 Operon Brand Logo (20px)
+    const logoImg = document.createElement('img');
+    logoImg.className = 'assistant-brand-logo';
+    logoImg.src = 'assets/brand/operon.svg';
+    logoImg.alt = 'Operon';
+    bar.appendChild(logoImg);
 
-    // Right action items
-    const barRight = document.createElement('div');
-    barRight.className = 'assistant-action-bar-right';
-
-    // Copy button
+    // 2.2 Copy button
     const copyBtn = document.createElement('button');
     copyBtn.className = 'assistant-action-btn';
     copyBtn.title = 'Copy response';
@@ -506,13 +522,14 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
         copyBtn.innerHTML = '<span class="ui-icon icon-asst-check"></span>';
         setTimeout(() => {
           copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
-        }, 1500);
+        }, 3000);
       } catch {
         // Fallback
       }
     });
+    bar.appendChild(copyBtn);
 
-    // Like button
+    // 2.3 Like button
     const likeBtn = document.createElement('button');
     likeBtn.className = `assistant-action-btn ${msg.is_liked ? 'active' : ''}`;
     likeBtn.title = 'Good response';
@@ -520,8 +537,9 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
     likeBtn.addEventListener('click', () => {
       messagesState.toggleLike(msg.id);
     });
+    bar.appendChild(likeBtn);
 
-    // Dislike button
+    // 2.4 Dislike button
     const dislikeBtn = document.createElement('button');
     dislikeBtn.className = `assistant-action-btn ${msg.is_disliked ? 'active' : ''}`;
     dislikeBtn.title = 'Bad response';
@@ -529,8 +547,9 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
     dislikeBtn.addEventListener('click', () => {
       messagesState.toggleDislike(msg.id);
     });
+    bar.appendChild(dislikeBtn);
 
-    // Fork button
+    // 2.5 Fork button
     const forkBtn = document.createElement('button');
     forkBtn.className = 'assistant-action-btn';
     forkBtn.title = 'Fork from this turn';
@@ -538,32 +557,16 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
     forkBtn.addEventListener('click', () => {
       console.debug('[Messages] Fork from turn:', msg.turn_index);
     });
+    bar.appendChild(forkBtn);
 
-    // Redo button
-    const redoBtn = document.createElement('button');
-    redoBtn.className = 'assistant-action-btn';
-    redoBtn.title = 'Regenerate response';
-    redoBtn.innerHTML = '<span class="ui-icon icon-asst-redo"></span>';
-    redoBtn.addEventListener('click', () => {
-      console.debug('[Messages] Regenerate from turn:', msg.turn_index);
-    });
+    // 2.6 Time display
+    const timeEl = document.createElement('span');
+    timeEl.className = 'assistant-time-text';
+    timeEl.textContent = msg.timestamp;
+    bar.appendChild(timeEl);
 
-    barRight.appendChild(copyBtn);
-    barRight.appendChild(likeBtn);
-    barRight.appendChild(dislikeBtn);
-    barRight.appendChild(forkBtn);
-    barRight.appendChild(redoBtn);
-
-    bar.appendChild(barLeft);
-    bar.appendChild(barRight);
-
-    row.appendChild(bar);
-  }
-
-  if (showSeparator) {
-    const sep = document.createElement('div');
-    sep.className = 'turn-separator';
-    row.appendChild(sep);
+    controlsContainer.appendChild(bar);
+    row.appendChild(controlsContainer);
   }
 
   return row;

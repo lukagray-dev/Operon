@@ -156,19 +156,6 @@
   gap: 12px;
 }
 
-/* Custom Sleek Dark Scrollbar */
-.sidebar-scroll-content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.sidebar-scroll-content::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
-  border-radius: 2px;
-}
-
-.sidebar-scroll-content::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
-}
 
 /* Section Container */
 .sidebar-section {

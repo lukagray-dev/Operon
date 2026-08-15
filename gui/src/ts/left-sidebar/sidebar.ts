@@ -64,8 +64,7 @@ function setupSectionToggles(): void {
   document.getElementById('btn-add-general-chat')?.addEventListener('click', async (e) => {
     e.stopPropagation();
     const newId = await createNewSessionIpc(undefined, undefined);
-    sidebarState.setActiveProjectPath(null);
-    sidebarState.setActiveSessionId(newId);
+    sidebarState.selectSession(newId, null);
     await refreshSidebarContent();
   });
 
@@ -104,8 +103,7 @@ function setupTopActions(): void {
   // New Chat (Always creates a new general chat session)
   document.getElementById('btn-new-chat')?.addEventListener('click', async () => {
     const newId = await createNewSessionIpc(undefined, undefined);
-    sidebarState.setActiveProjectPath(null);
-    sidebarState.setActiveSessionId(newId);
+    sidebarState.selectSession(newId, null);
     await refreshSidebarContent();
     console.debug('[Sidebar] New general chat created:', newId);
   });
@@ -252,8 +250,7 @@ function renderProjectsSection(): void {
     header.querySelector('.btn-proj-new-chat')?.addEventListener('click', async (e) => {
       e.stopPropagation();
       const newId = await createNewSessionIpc(undefined, proj.workspace);
-      sidebarState.setActiveProjectPath(proj.workspace);
-      sidebarState.setActiveSessionId(newId);
+      sidebarState.selectSession(newId, proj.workspace);
       await refreshSidebarContent();
     });
 
@@ -262,8 +259,7 @@ function renderProjectsSection(): void {
       if (confirm(`Are you sure you want to delete project "${proj.name}"?`)) {
         await deleteProjectIpc(proj.workspace);
         if (sidebarState.getActiveProjectPath() === proj.workspace) {
-          sidebarState.setActiveProjectPath(null);
-          sidebarState.setActiveSessionId(null);
+          sidebarState.selectSession(null, null);
         }
         await refreshSidebarContent();
       }
@@ -289,9 +285,7 @@ function renderProjectsSection(): void {
         `;
 
         item.addEventListener('click', () => {
-          sidebarState.setActiveProjectPath(proj.workspace);
-          sidebarState.setActiveSessionId(conv.id);
-          renderSidebarContent();
+          sidebarState.selectSession(conv.id, proj.workspace);
         });
 
         const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
@@ -343,9 +337,7 @@ function renderChatsSection(): void {
     `;
 
     item.addEventListener('click', () => {
-      sidebarState.setActiveProjectPath(null);
-      sidebarState.setActiveSessionId(chat.id);
-      renderSidebarContent();
+      sidebarState.selectSession(chat.id, null);
     });
 
     const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
@@ -387,8 +379,7 @@ function renderWhatsAppSection(): void {
     `;
 
     row.addEventListener('click', () => {
-      sidebarState.setActiveSessionId(contact.id);
-      renderSidebarContent();
+      sidebarState.selectSession(contact.id, null);
     });
 
     container.appendChild(row);
@@ -424,8 +415,7 @@ function renderTelegramSection(): void {
     `;
 
     row.addEventListener('click', () => {
-      sidebarState.setActiveSessionId(contact.id);
-      renderSidebarContent();
+      sidebarState.selectSession(contact.id, null);
     });
 
     container.appendChild(row);
@@ -538,8 +528,7 @@ function showConversationContextMenu(
     evt.stopPropagation();
     dismissContextMenu();
     const newId = await forkSessionIpc(conv.id);
-    sidebarState.setActiveProjectPath(projectWorkspace || null);
-    sidebarState.setActiveSessionId(newId);
+    sidebarState.selectSession(newId, projectWorkspace || null);
     await refreshSidebarContent();
     console.debug('[Sidebar] Forked conversation:', newId);
   });
@@ -551,7 +540,7 @@ function showConversationContextMenu(
     if (confirm(`Delete conversation "${conv.title}"?`)) {
       await deleteSessionIpc(conv.id);
       if (sidebarState.getActiveSessionId() === conv.id) {
-        sidebarState.setActiveSessionId(null);
+        sidebarState.selectSession(null, null);
       }
       await refreshSidebarContent();
     }

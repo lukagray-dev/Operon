@@ -138,6 +138,9 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                 if !r.thinking.trim().is_empty() {
                                     let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
                                     if !is_last_wg {
+                                        if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
+                                            *prev_text = prev_text.trim_end().to_string();
+                                        }
                                         blocks.push(MessageBlockDto::WorkGroup {
                                             data: WorkGroupDto {
                                                 items: Vec::new(),
@@ -169,6 +172,9 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
 
                                 let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
                                 if !is_last_wg {
+                                    if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
+                                        *prev_text = prev_text.trim_end().to_string();
+                                    }
                                     blocks.push(MessageBlockDto::WorkGroup {
                                         data: WorkGroupDto {
                                             items: Vec::new(),
@@ -192,13 +198,14 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                 }
                             }
                             operon_rs::context::ContentBlock::Text(text) => {
-                                if !text.trim().is_empty() {
-                                    all_assistant_text_parts.push(text.clone());
+                                let trimmed_start = text.trim_start_matches(|c| c == '\r' || c == '\n');
+                                if !trimmed_start.trim().is_empty() {
+                                    all_assistant_text_parts.push(trimmed_start.to_string());
                                     if let Some(MessageBlockDto::Text { text: existing }) = blocks.last_mut() {
                                         existing.push_str("\n\n");
-                                        existing.push_str(&text);
+                                        existing.push_str(trimmed_start);
                                     } else {
-                                        blocks.push(MessageBlockDto::Text { text });
+                                        blocks.push(MessageBlockDto::Text { text: trimmed_start.to_string() });
                                     }
                                 }
                             }
@@ -249,6 +256,9 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                 let title = format!("Result: {}", tr.name);
                                 let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
                                 if !is_last_wg {
+                                    if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
+                                        *prev_text = prev_text.trim_end().to_string();
+                                    }
                                     blocks.push(MessageBlockDto::WorkGroup {
                                         data: WorkGroupDto {
                                             items: Vec::new(),

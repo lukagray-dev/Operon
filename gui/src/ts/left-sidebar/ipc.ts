@@ -25,6 +25,10 @@ export async function createNewSessionIpc(sessionId?: string, projectPath?: stri
   return res || `session-${Date.now()}`;
 }
 
+export async function setActiveSessionIpc(sessionId: string | null, projectPath: string | null): Promise<void> {
+  await invokeIpc('set_active_session', { sessionId, projectPath });
+}
+
 export async function renameSessionIpc(sessionId: string, newTitle: string): Promise<void> {
   await invokeIpc('rename_session', { sessionId, newTitle });
 }

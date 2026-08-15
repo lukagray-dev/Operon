@@ -81,6 +81,7 @@ pub fn run() {
             left_sidebar::delete_project,
             left_sidebar::open_project_picker,
             left_sidebar::create_new_session,
+            left_sidebar::set_active_session,
             left_sidebar::rename_session,
             left_sidebar::fork_session,
             left_sidebar::move_session,

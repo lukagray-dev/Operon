@@ -1,5 +1,6 @@
 /* Global Application Reset & Canvas Layout */
 @import './tokens.css';
+@import './scrollbar.css';
 
 * {
   box-sizing: border-box;
@@ -7,12 +8,14 @@
   padding: 0;
   user-select: none;
   -webkit-user-select: none;
+  overscroll-behavior: none;
 }
 
 html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background-color: var(--window-background);
   color: var(--text-primary);
   font-family: var(--font-family);

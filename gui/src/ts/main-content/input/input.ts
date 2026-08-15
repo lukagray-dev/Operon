@@ -259,7 +259,7 @@ async function handleSubmit(): Promise<void> {
     );
 
     if (!currentSessionId && activeId) {
-      sidebarState.setActiveSessionId(activeId);
+      sidebarState.selectSession(activeId, workspacePath);
     }
   } catch (err) {
     console.error('[Input] Failed to submit prompt:', err);

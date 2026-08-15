@@ -1,5 +1,4 @@
-// Left Sidebar local reactive state
-
+import { setActiveSessionIpc } from './ipc.js';
 import type { ChannelContact, SidebarConversation, SidebarData, SidebarProject } from './types.js';
 
 type SidebarChangeListener = () => void;
@@ -48,15 +47,30 @@ class SidebarStateManager {
     return this.telegramContacts;
   }
 
+  public selectSession(sessionId: string | null, projectPath: string | null): void {
+    let changed = false;
+    if (this.activeSessionId !== sessionId) {
+      this.activeSessionId = sessionId;
+      changed = true;
+    }
+    if (this.activeProjectPath !== projectPath) {
+      this.activeProjectPath = projectPath;
+      changed = true;
+    }
+    setActiveSessionIpc(sessionId, projectPath).catch((err: unknown) => {
+      console.warn('[SidebarState] Failed to sync active session to backend:', err);
+    });
+    if (changed) {
+      this.notify();
+    }
+  }
+
   public getActiveSessionId(): string | null {
     return this.activeSessionId;
   }
 
   public setActiveSessionId(id: string | null): void {
-    if (this.activeSessionId !== id) {
-      this.activeSessionId = id;
-      this.notify();
-    }
+    this.selectSession(id, this.activeProjectPath);
   }
 
   public getActiveProjectPath(): string | null {
@@ -64,10 +78,7 @@ class SidebarStateManager {
   }
 
   public setActiveProjectPath(path: string | null): void {
-    if (this.activeProjectPath !== path) {
-      this.activeProjectPath = path;
-      this.notify();
-    }
+    this.selectSession(this.activeSessionId, path);
   }
 
   public getSearchQuery(): string {
@@ -120,9 +131,6 @@ class SidebarStateManager {
   public setSidebarData(data: SidebarData): void {
     this.chats = data.chats;
     this.projects = data.projects;
-    if (!this.activeSessionId && data.active_session_id) {
-      this.activeSessionId = data.active_session_id;
-    }
     this.notify();
   }
 

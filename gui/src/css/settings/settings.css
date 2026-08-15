@@ -1,5 +1,6 @@
 /* Settings Standalone Window Styling */
 @import '../shared/tokens.css';
+@import '../shared/scrollbar.css';
 @import './sidebar/sidebar.css';
 @import './general/general.css';
 @import './appearance/appearance.css';
@@ -18,6 +19,7 @@
   color: var(--text-primary);
   font-family: var(--font-family);
   overflow: hidden;
+  overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
 }
