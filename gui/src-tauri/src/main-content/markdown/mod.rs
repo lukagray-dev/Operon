@@ -30,6 +30,8 @@ pub fn gfm_options() -> Options {
     options.insert(Options::ENABLE_HEADING_ATTRIBUTES);
     // Enable Smart Punctuation (converts straight quotes to curly quotes, --- to em-dash, ... to ellipsis)
     options.insert(Options::ENABLE_SMART_PUNCTUATION);
+    // Enable LaTeX Math ($inline$ and $$display$$)
+    options.insert(Options::ENABLE_MATH);
     options
 }
 
@@ -193,6 +195,17 @@ mod tests {
         let html2 = parse_markdown_to_html(chunk2);
         // Even unclosed formatting should parse deterministically without crashing
         assert!(!html2.is_empty());
+    }
+
+    #[test]
+    fn test_latex_math_parsing() {
+        let md = "Here is inline math $E = mc^2$ and display math: $$\\int_0^\\infty e^{-x} dx = 1$$";
+        let html = parse_markdown_to_html(md);
+
+        assert!(html.contains("math-inline"));
+        assert!(html.contains("E = mc^2"));
+        assert!(html.contains("math-display"));
+        assert!(html.contains("\\int_0^\\infty e^{-x} dx = 1"));
     }
 
     #[tokio::test]

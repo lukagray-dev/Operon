@@ -10,6 +10,8 @@ export interface RenderMarkdownOptions {
   interceptLinks?: boolean;
   /** If true, wraps GFM tables inside a scrollable container. Defaults to true. */
   wrapTables?: boolean;
+  /** If true, compiles LaTeX math using KaTeX. Defaults to true. */
+  renderMath?: boolean;
 }
 
 export interface StreamRenderTask {

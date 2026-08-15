@@ -151,13 +151,27 @@ export async function renderMarkdownToHtml(markdown: string): Promise<string> {
   return await renderMarkdownIpc(markdown);
 }
 
+declare global {
+  interface Window {
+    katex?: {
+      render(
+        tex: string,
+        element: HTMLElement,
+        options?: { displayMode?: boolean; throwOnError?: boolean; errorColor?: string }
+      ): void;
+      renderToString(
+        tex: string,
+        options?: { displayMode?: boolean; throwOnError?: boolean; errorColor?: string }
+      ): string;
+    };
+  }
+}
+
 /**
  * Post-processes rendered Markdown HTML inside a container element:
  *
- * 1. Enhances `<pre><code>` blocks into GitHub-style `.markdown-code-card` elements
- *    with a language banner and a functional SVG Copy button.
- * 2. Wraps `<table>` elements in `.markdown-table-wrapper` for smooth horizontal scroll.
- * 3. Intercepts all `<a>` tags to open external URLs securely via Tauri IPC.
+ * 1. Compiles LaTeX math formulas via KaTeX ($inline$ and $$display$$).
+ * 2. Intercepts all `<a>` tags to open external URLs securely via Tauri IPC.
  *
  * @param container - The DOM element containing rendered Markdown.
  * @param options - Customization flags.
@@ -167,11 +181,53 @@ export function postProcessMarkdownElement(
   options: RenderMarkdownOptions = {}
 ): void {
   const interceptLinks = options.interceptLinks ?? true;
+  const renderMath = options.renderMath ?? true;
 
-  // Intercept External Links to open in default browser
+  // 1. Render LaTeX Math with KaTeX
+  if (renderMath) {
+    renderMathFormulas(container);
+  }
+
+  // 2. Intercept External Links to open in default browser
   if (interceptLinks) {
     interceptExternalLinks(container);
   }
+}
+
+/**
+ * Renders mathematical expressions wrapped in `.math.math-inline` and `.math.math-display`
+ * using the locally bundled KaTeX engine.
+ */
+function renderMathFormulas(container: HTMLElement): void {
+  if (!window.katex) return;
+
+  // 1. Inline Math: $...$
+  const inlineSpans = container.querySelectorAll<HTMLElement>('span.math.math-inline:not(.katex-rendered)');
+  inlineSpans.forEach((el) => {
+    el.classList.add('katex-rendered');
+    const tex = el.textContent || '';
+    if (tex.trim().length > 0) {
+      try {
+        window.katex?.render(tex, el, { displayMode: false, throwOnError: false });
+      } catch (err) {
+        console.debug('[KaTeX] Inline math render error:', err);
+      }
+    }
+  });
+
+  // 2. Display Math: $$...$$
+  const displaySpans = container.querySelectorAll<HTMLElement>('.math.math-display:not(.katex-rendered)');
+  displaySpans.forEach((el) => {
+    el.classList.add('katex-rendered');
+    const tex = el.textContent || '';
+    if (tex.trim().length > 0) {
+      try {
+        window.katex?.render(tex, el, { displayMode: true, throwOnError: false });
+      } catch (err) {
+        console.debug('[KaTeX] Display math render error:', err);
+      }
+    }
+  });
 }
 
 /**
