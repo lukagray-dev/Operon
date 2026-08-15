@@ -12,6 +12,16 @@
   display: flex;
 }
 
+.settings-panel-view[data-tab="about"] .settings-header-icon {
+  background-color: transparent !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  background-image: url('../../../assets/brand/operon.svg') !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
+
 /* Hero Branding Card */
 .about-hero-card {
   border: 1px solid rgba(255, 255, 255, 0.06);

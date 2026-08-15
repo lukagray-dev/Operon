@@ -251,9 +251,15 @@ function renderPermissionItems(): void {
       </div>
       <div class="perm-item-mode-control">
         <div class="perm-segmented-mode" data-key="${g.key}" data-kind="group">
-          <button class="perm-mode-btn ${g.mode === 'allow' ? 'active allow' : ''}" data-mode="allow">Allow</button>
-          <button class="perm-mode-btn ${g.mode === 'ask' ? 'active ask' : ''}" data-mode="ask">Ask</button>
-          <button class="perm-mode-btn ${g.mode === 'deny' ? 'active deny' : ''}" data-mode="deny">Deny</button>
+          <button class="perm-mode-btn ${g.mode === 'allow' ? 'active allow' : ''}" data-mode="allow" title="Allow">
+            <span class="ui-icon icon-perm-allow"></span>
+          </button>
+          <button class="perm-mode-btn ${g.mode === 'ask' ? 'active ask' : ''}" data-mode="ask" title="Ask">
+            <span class="ui-icon icon-perm-ask"></span>
+          </button>
+          <button class="perm-mode-btn ${g.mode === 'deny' ? 'active deny' : ''}" data-mode="deny" title="Deny">
+            <span class="ui-icon icon-perm-deny"></span>
+          </button>
         </div>
       </div>
     `;
@@ -290,9 +296,15 @@ function renderPermissionItems(): void {
             </div>
             <div class="perm-item-mode-control">
               <div class="perm-segmented-mode" data-key="${t.key}" data-kind="tool">
-                <button class="perm-mode-btn ${t.mode === 'allow' ? 'active allow' : ''}" data-mode="allow">Allow</button>
-                <button class="perm-mode-btn ${t.mode === 'ask' ? 'active ask' : ''}" data-mode="ask">Ask</button>
-                <button class="perm-mode-btn ${t.mode === 'deny' ? 'active deny' : ''}" data-mode="deny">Deny</button>
+                <button class="perm-mode-btn ${t.mode === 'allow' ? 'active allow' : ''}" data-mode="allow" title="Allow">
+                  <span class="ui-icon icon-perm-allow"></span>
+                </button>
+                <button class="perm-mode-btn ${t.mode === 'ask' ? 'active ask' : ''}" data-mode="ask" title="Ask">
+                  <span class="ui-icon icon-perm-ask"></span>
+                </button>
+                <button class="perm-mode-btn ${t.mode === 'deny' ? 'active deny' : ''}" data-mode="deny" title="Deny">
+                  <span class="ui-icon icon-perm-deny"></span>
+                </button>
               </div>
             </div>
           `;

@@ -57,15 +57,11 @@
 
 .provider-icon {
   display: inline-block;
-  width: 18px;
-  height: 18px;
-  background-color: var(--text-primary);
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
   pointer-events: none;
 }
 
@@ -211,7 +207,7 @@
 
 .models-input:focus {
   background-color: #141414;
-  border-color: var(--accent-blue, #007acc);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* Discovered Models Tag Box */
@@ -331,19 +327,20 @@
   color: #ffffff;
 }
 
-/* Provider Mask Icons */
-.icon-provider-openai { -webkit-mask-image: url('../../../assets/icons/settings/provider-openai.svg'); mask-image: url('../../../assets/icons/settings/provider-openai.svg'); }
-.icon-provider-anthropic { -webkit-mask-image: url('../../../assets/icons/settings/provider-anthropic.svg'); mask-image: url('../../../assets/icons/settings/provider-anthropic.svg'); }
-.icon-provider-google { -webkit-mask-image: url('../../../assets/icons/settings/provider-google.svg'); mask-image: url('../../../assets/icons/settings/provider-google.svg'); }
-.icon-provider-groq { -webkit-mask-image: url('../../../assets/icons/settings/provider-groq.svg'); mask-image: url('../../../assets/icons/settings/provider-groq.svg'); }
-.icon-provider-openrouter { -webkit-mask-image: url('../../../assets/icons/settings/provider-openrouter.svg'); mask-image: url('../../../assets/icons/settings/provider-openrouter.svg'); }
-.icon-provider-deepseek { -webkit-mask-image: url('../../../assets/icons/settings/provider-deepseek.svg'); mask-image: url('../../../assets/icons/settings/provider-deepseek.svg'); }
-.icon-provider-moonshot { -webkit-mask-image: url('../../../assets/icons/settings/provider-moonshot.svg'); mask-image: url('../../../assets/icons/settings/provider-moonshot.svg'); }
-.icon-provider-mistral { -webkit-mask-image: url('../../../assets/icons/settings/provider-mistral.svg'); mask-image: url('../../../assets/icons/settings/provider-mistral.svg'); }
-.icon-provider-huggingface { -webkit-mask-image: url('../../../assets/icons/settings/provider-huggingface.svg'); mask-image: url('../../../assets/icons/settings/provider-huggingface.svg'); }
-.icon-provider-ollama { -webkit-mask-image: url('../../../assets/icons/settings/provider-ollama.svg'); mask-image: url('../../../assets/icons/settings/provider-ollama.svg'); }
-.icon-provider-qwen { -webkit-mask-image: url('../../../assets/icons/settings/provider-qwen.svg'); mask-image: url('../../../assets/icons/settings/provider-qwen.svg'); }
-.icon-provider-nvidia { -webkit-mask-image: url('../../../assets/icons/settings/provider-nvidia.svg'); mask-image: url('../../../assets/icons/settings/provider-nvidia.svg'); }
-.icon-provider-custom { -webkit-mask-image: url('../../../assets/icons/settings/provider-custom.svg'); mask-image: url('../../../assets/icons/settings/provider-custom.svg'); }
+/* Provider Full Color Icons */
+.icon-provider-openai { background-image: url('../../../assets/icons/settings/provider-openai.svg'); }
+.icon-provider-anthropic { background-image: url('../../../assets/icons/settings/provider-anthropic.svg'); }
+.icon-provider-google { background-image: url('../../../assets/icons/settings/provider-google.svg'); }
+.icon-provider-groq { background-image: url('../../../assets/icons/settings/provider-groq.svg'); }
+.icon-provider-openrouter { background-image: url('../../../assets/icons/settings/provider-openrouter.svg'); }
+.icon-provider-deepseek { background-image: url('../../../assets/icons/settings/provider-deepseek.svg'); }
+.icon-provider-moonshot { background-image: url('../../../assets/icons/settings/provider-moonshot.svg'); }
+.icon-provider-mistral { background-image: url('../../../assets/icons/settings/provider-mistral.svg'); }
+.icon-provider-huggingface { background-image: url('../../../assets/icons/settings/provider-huggingface.svg'); }
+.icon-provider-ollama { background-image: url('../../../assets/icons/settings/provider-ollama.svg'); }
+.icon-provider-qwen { background-image: url('../../../assets/icons/settings/provider-qwen.svg'); }
+.icon-provider-nvidia { background-image: url('../../../assets/icons/settings/provider-nvidia.svg'); }
+.icon-provider-custom { background-image: url('../../../assets/icons/settings/provider-custom.svg'); }
 .icon-chevron-right { -webkit-mask-image: url('../../../assets/icons/settings/chevron-right.svg'); mask-image: url('../../../assets/icons/settings/chevron-right.svg'); }
 .icon-chevron-left { -webkit-mask-image: url('../../../assets/icons/settings/chevron-left.svg'); mask-image: url('../../../assets/icons/settings/chevron-left.svg'); }
+.icon-chevron-down { -webkit-mask-image: url('../../../assets/icons/settings/chevron-down.svg'); mask-image: url('../../../assets/icons/settings/chevron-down.svg'); }

@@ -1,4 +1,4 @@
-// Settings Categories Metadata matching Slint Specification
+// Settings Categories Metadata matching Slint Specification (1:1 with sidebar.slint)
 
 import type { SettingsCategory } from './types.js';
 
@@ -10,22 +10,28 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     description: 'System configuration, default parameters, and execution modes.',
   },
   {
-    id: 'models',
-    label: 'Models',
-    iconClass: 'icon-settings-models',
-    description: 'LLM providers, API keys, active model discovery, and base URLs.',
-  },
-  {
     id: 'appearance',
     label: 'Appearance',
     iconClass: 'icon-settings-appearance',
     description: 'User interface scaling, visual theme, and typography preferences.',
   },
   {
+    id: 'models',
+    label: 'Models',
+    iconClass: 'icon-settings-models',
+    description: 'LLM providers, API keys, active model discovery, and base URLs.',
+  },
+  {
     id: 'channels',
     label: 'Channels',
     iconClass: 'icon-settings-channels',
     description: 'WhatsApp and Telegram companion bridge pairing and listener setup.',
+  },
+  {
+    id: 'permissions',
+    label: 'Permissions',
+    iconClass: 'icon-settings-permissions',
+    description: 'Sandbox policies, filesystem directory boundaries, and tool execution policies.',
   },
   {
     id: 'skills',
@@ -38,18 +44,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     label: 'Extensions',
     iconClass: 'icon-settings-extensions',
     description: 'Model Context Protocol (MCP) servers and runtime plugin integrations.',
-  },
-  {
-    id: 'memory',
-    label: 'Memory',
-    iconClass: 'icon-settings-memory',
-    description: 'Vector store databases, embeddings index, and session context windows.',
-  },
-  {
-    id: 'permissions',
-    label: 'Permissions',
-    iconClass: 'icon-settings-permissions',
-    description: 'Sandbox policies, filesystem directory boundaries, and terminal auto-approval.',
   },
   {
     id: 'about',

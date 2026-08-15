@@ -5,8 +5,8 @@
 .settings-sidebar {
   width: 210px;
   min-width: 210px;
-  background-color: #141414;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #000000;
+  border-right: none;
   padding: 10px 8px 12px 8px;
   display: flex;
   flex-direction: column;
@@ -27,7 +27,7 @@
 .settings-search-input {
   width: 100%;
   height: 28px;
-  background-color: #1f1f1f;
+  background-color: #121212;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 4px;
   padding: 0 24px 0 28px;
@@ -39,8 +39,8 @@
 }
 
 .settings-search-input:focus {
-  background-color: #242424;
-  border-color: var(--accent-blue, #007acc);
+  background-color: #121212;
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .settings-search-input::placeholder {
@@ -161,6 +161,16 @@
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
+}
+
+.settings-tab-icon.icon-settings-about {
+  background-color: transparent !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  background-image: url('../../../assets/brand/operon.svg') !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
 }
 
 /* Tab Label */

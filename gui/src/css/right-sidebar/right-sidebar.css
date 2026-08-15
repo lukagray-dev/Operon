@@ -131,7 +131,7 @@
 }
 
 .sc-commit-input-container:focus-within {
-  border-color: var(--accent-blue, #007acc);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .sc-commit-textarea {

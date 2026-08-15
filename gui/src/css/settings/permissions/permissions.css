@@ -228,19 +228,20 @@
 }
 
 .perm-add-dir-input:focus {
-  border-color: var(--accent-blue, #007acc);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .btn-perm-browse {
+  width: 32px;
   height: 32px;
-  padding: 0 12px;
+  min-width: 32px;
   border-radius: 6px;
   background-color: #1a1a1a;
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #888888;
-  font-family: var(--font-family);
-  font-size: 11px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -248,6 +249,13 @@
 .btn-perm-browse:hover {
   background-color: #242424;
   color: #e0e0e0;
+}
+
+.btn-perm-browse .ui-icon {
+  width: 14px;
+  height: 14px;
+  background-color: currentColor;
+  pointer-events: none;
 }
 
 .btn-perm-add {
@@ -367,7 +375,7 @@
   border-radius: 6px;
   padding: 2px;
   gap: 2px;
-  width: 170px;
+  width: 104px;
 }
 
 .perm-mode-btn {
@@ -376,9 +384,6 @@
   border: none;
   border-radius: 4px;
   color: #555555;
-  font-family: var(--font-family);
-  font-size: 11px;
-  font-weight: 600;
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
   display: flex;
@@ -397,17 +402,39 @@
 
 .perm-mode-btn.active.allow {
   color: #4ade80;
-  background-color: rgba(74, 222, 128, 0.12);
+  background-color: rgba(74, 222, 128, 0.14);
 }
 
 .perm-mode-btn.active.ask {
   color: #38bdf8;
-  background-color: rgba(56, 189, 248, 0.12);
+  background-color: rgba(56, 189, 248, 0.14);
 }
 
 .perm-mode-btn.active.deny {
   color: #f87171;
-  background-color: rgba(248, 113, 113, 0.12);
+  background-color: rgba(248, 113, 113, 0.14);
+}
+
+.perm-mode-btn .ui-icon {
+  width: 13px;
+  height: 13px;
+  background-color: currentColor;
+  pointer-events: none;
+}
+
+.icon-perm-allow {
+  -webkit-mask-image: url('../../../assets/icons/settings/permission-allow.svg');
+  mask-image: url('../../../assets/icons/settings/permission-allow.svg');
+}
+
+.icon-perm-ask {
+  -webkit-mask-image: url('../../../assets/icons/settings/permission-ask.svg');
+  mask-image: url('../../../assets/icons/settings/permission-ask.svg');
+}
+
+.icon-perm-deny {
+  -webkit-mask-image: url('../../../assets/icons/settings/permission-deny.svg');
+  mask-image: url('../../../assets/icons/settings/permission-deny.svg');
 }
 
 /* Directory Config View Navigation Bar */
@@ -454,3 +481,7 @@
   color: #e8e8e8;
   font-family: var(--mono-font-family);
 }
+
+.icon-chevron-right { -webkit-mask-image: url('../../../assets/icons/settings/chevron-right.svg'); mask-image: url('../../../assets/icons/settings/chevron-right.svg'); }
+.icon-chevron-left { -webkit-mask-image: url('../../../assets/icons/settings/chevron-left.svg'); mask-image: url('../../../assets/icons/settings/chevron-left.svg'); }
+.icon-chevron-down { -webkit-mask-image: url('../../../assets/icons/settings/chevron-down.svg'); mask-image: url('../../../assets/icons/settings/chevron-down.svg'); }

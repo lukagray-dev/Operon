@@ -17,7 +17,7 @@
 }
 
 .channel-input:focus {
-  border-color: var(--accent-blue, #007acc);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .channel-workspace-row {

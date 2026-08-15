@@ -14,12 +14,18 @@
   flex-direction: column;
   width: 100vw;
   height: 100vh;
-  background-color: var(--window-background);
+  background-color: #121212;
   color: var(--text-primary);
   font-family: var(--font-family);
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* Settings Custom Titlebar matching main content area with no separator */
+#settings-titlebar {
+  background-color: #121212;
+  border-bottom: none;
 }
 
 /* Main View: Left Tab Nav + Right Content Area */
@@ -31,10 +37,10 @@
   overflow: hidden;
 }
 
-/* Right Content Viewport */
+/* Right Content Viewport matching Main App Sidebar (#121212) */
 .settings-content-viewport {
   flex: 1;
-  background-color: #181818;
+  background-color: #121212;
   padding: 24px 36px;
   overflow-y: auto;
   display: flex;
@@ -125,6 +131,11 @@
 }
 
 .icon-settings-about {
-  -webkit-mask-image: url('../../assets/icons/settings/category-about.svg');
-  mask-image: url('../../assets/icons/settings/category-about.svg');
+  background-color: transparent !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  background-image: url('../../assets/brand/operon.svg') !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
 }
