@@ -1,0 +1,856 @@
+/* Source Control & Git Diff Right Sidebar Styling */
+@import '../shared/tokens.css';
+
+/* Right Sidebar Base Aside Container */
+.right-sidebar {
+  position: relative;
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  background-color: #181818;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.right-sidebar.open {
+  display: flex;
+}
+
+/* Left Drag Resize Handle */
+.right-sidebar-resize-handle {
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+  z-index: 100;
+}
+
+.right-sidebar-resize-handle:hover {
+  background-color: var(--accent-blue, #007acc);
+}
+
+/* Internal Layout Container */
+.right-sidebar-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 1. Header */
+.sc-header {
+  height: 35px;
+  min-height: 35px;
+  background-color: #181818;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sc-header-title {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-family);
+  color: #cccccc;
+  letter-spacing: 0.5px;
+}
+
+.sc-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Shared Icon Button */
+.sc-icon-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.sc-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.sc-icon-btn .ui-icon {
+  width: 12px;
+  height: 12px;
+  background-color: currentColor;
+}
+
+/* 2. Scrollable Middle Content */
+.right-sidebar-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 3. Commit Input Section */
+.sc-commit-section {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #181818;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sc-commit-input-container {
+  position: relative;
+  background-color: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-height: 64px;
+  max-height: 256px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease;
+}
+
+.sc-commit-input-container:focus-within {
+  border-color: var(--accent-blue, #007acc);
+}
+
+.sc-commit-textarea {
+  width: calc(100% - 80px);
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 11px;
+  line-height: 1.45;
+  resize: none;
+  overflow-y: auto;
+}
+
+.sc-commit-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* AI Generate Button Overlay */
+.sc-btn-generate {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  height: 22px;
+  width: 78px;
+  background-color: #0e639c;
+  color: #ffffff;
+  border: none;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.sc-btn-generate:hover {
+  background-color: #007acc;
+}
+
+.sc-btn-generate .ui-icon {
+  width: 12px;
+  height: 12px;
+  background-color: #ffffff;
+}
+
+.sc-btn-generate.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* Primary Commit Split Button */
+.sc-commit-split-btn {
+  height: 28px;
+  border-radius: 3px;
+  background-color: #0078d4;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  transition: background-color 0.12s ease;
+}
+
+.sc-commit-main-action {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.sc-commit-main-action:hover {
+  background-color: #0062a3;
+}
+
+.sc-commit-main-action .ui-icon {
+  width: 14px;
+  height: 14px;
+  background-color: #ffffff;
+}
+
+.sc-split-btn-divider {
+  width: 1px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.sc-commit-dropdown-action {
+  width: 26px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.sc-commit-dropdown-action:hover {
+  background-color: #005a96;
+}
+
+.sc-commit-dropdown-action .ui-icon {
+  width: 12px;
+  height: 12px;
+  background-color: #ffffff;
+}
+
+/* 4. Accordion Base */
+.sc-accordion-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.sc-accordion-header {
+  height: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 10px;
+  cursor: pointer;
+  background-color: #1c1c1c;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.1s ease;
+}
+
+.sc-accordion-header:hover {
+  background-color: #222222;
+}
+
+.sc-accordion-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-accordion-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sc-chevron {
+  width: 10px;
+  height: 10px;
+  background-color: #777777;
+  transition: transform 0.15s ease-in-out;
+}
+
+.sc-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.sc-accordion-title {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-family);
+  color: #cccccc;
+  letter-spacing: 0.4px;
+}
+
+.sc-count-pill {
+  font-size: 10px;
+  font-weight: 600;
+  color: #888888;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+
+.sc-accordion-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Empty row */
+.sc-empty-row {
+  height: 28px;
+  padding-left: 20px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+}
+
+/* 5. Repositories List */
+.sc-repo-row {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 16px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.sc-repo-row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sc-repo-row.active {
+  background-color: rgba(0, 122, 204, 0.15);
+}
+
+.sc-repo-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-repo-icon {
+  width: 12px;
+  height: 12px;
+  background-color: #cccccc;
+}
+
+.sc-repo-name {
+  font-size: 11.5px;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-repo-branch-pill {
+  font-size: 10px;
+  font-weight: 600;
+  color: #38bdf8;
+  background-color: rgba(56, 189, 248, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+/* 6. Changes & Subgroups */
+.sc-subgroup-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.sc-subgroup-header {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 12px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.sc-subgroup-header:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.sc-subgroup-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.sc-sub-chevron {
+  width: 9px;
+  height: 9px;
+  background-color: #777777;
+  transition: transform 0.15s ease;
+}
+
+.sc-sub-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.sc-subgroup-title {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  color: #bbbbbb;
+}
+
+.sc-files-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.sc-file-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.sc-file-row {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 16px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.sc-file-row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sc-file-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sc-file-icon {
+  width: 12px;
+  height: 12px;
+  background-color: var(--text-muted);
+}
+
+.sc-file-name {
+  font-size: 11.5px;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-file-dir {
+  font-size: 10.5px;
+  font-family: var(--font-family);
+  color: #666666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 4px;
+}
+
+.sc-file-row-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sc-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--mono-font-family);
+  width: 14px;
+  text-align: center;
+}
+
+.sc-status-badge.status-modified {
+  color: #e2c08d;
+}
+
+.sc-status-badge.status-added {
+  color: #23d18b;
+}
+
+.sc-status-badge.status-deleted {
+  color: #f14c4c;
+}
+
+.sc-status-badge.status-untracked {
+  color: #cccccc;
+}
+
+/* 7. Inline Hunk Diff Viewer */
+.sc-hunk-diff-viewer {
+  background-color: #050505;
+  border-radius: 4px;
+  padding: 4px;
+  margin: 2px 8px 6px 16px;
+  font-family: var(--mono-font-family);
+  font-size: 10.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.sc-hunk-box {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.sc-hunk-header-row {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  background-color: rgba(255, 255, 255, 0.03);
+  color: #79c0ff;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.sc-diff-line-row {
+  height: 19px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  gap: 6px;
+  white-space: pre;
+}
+
+.sc-diff-line-row.sc-line-add {
+  background-color: rgba(35, 209, 139, 0.15);
+}
+
+.sc-diff-line-row.sc-line-del {
+  background-color: rgba(241, 76, 76, 0.18);
+}
+
+.sc-line-num {
+  width: 22px;
+  text-align: right;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.sc-line-num.old {
+  color: #f14c4c;
+}
+
+.sc-line-num.new {
+  color: #23d18b;
+}
+
+.sc-line-sign {
+  width: 10px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.sc-line-add .sc-line-sign {
+  color: #23d18b;
+}
+
+.sc-line-del .sc-line-sign {
+  color: #f14c4c;
+}
+
+.sc-line-code {
+  font-size: 10.5px;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+/* 8. Commit Graph */
+.sc-graph-body {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.sc-graph-row {
+  height: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 12px;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.sc-graph-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.sc-graph-row.head {
+  background-color: rgba(0, 120, 212, 0.1);
+}
+
+.sc-graph-node-col {
+  width: 12px;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sc-graph-timeline-line {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background-color: #007acc;
+}
+
+.sc-graph-node-circle {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #007acc;
+  z-index: 2;
+}
+
+.sc-graph-node-circle.head {
+  background-color: #38bdf8;
+  border: 2px solid #ffffff;
+}
+
+.sc-graph-msg {
+  font-size: 11.5px;
+  font-family: var(--font-family);
+  color: #cccccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.sc-graph-msg.head {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sc-graph-author {
+  font-size: 11px;
+  font-family: var(--font-family);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sc-graph-branch-pill {
+  background-color: #004b72;
+  border-radius: 10px;
+  height: 16px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sc-graph-branch-pill .ui-icon {
+  width: 10px;
+  height: 10px;
+  background-color: #ffffff;
+}
+
+.sc-branch-pill-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+  font-family: var(--font-family);
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 9. Context Menus & Submenus */
+.sc-menu-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background: transparent;
+}
+
+.sc-context-menu-popup {
+  position: fixed;
+  z-index: 1000;
+  background-color: #252526;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sc-nested-submenu {
+  z-index: 1001;
+}
+
+.sc-menu-item {
+  height: 24px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-family: var(--font-family);
+  color: #cccccc;
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.sc-menu-item:hover {
+  background-color: #094771;
+  color: #ffffff;
+}
+
+.sc-menu-item.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sc-menu-item-label {
+  flex: 1;
+}
+
+.sc-menu-item-shortcut {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-left: 12px;
+}
+
+.sc-menu-arrow {
+  width: 10px;
+  height: 10px;
+  background-color: currentColor;
+  margin-left: 8px;
+}
+
+.sc-menu-separator {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
+/* 10. Mask SVG Icons for Right Sidebar */
+.icon-sc-ellipsis {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/ellipsis.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/ellipsis.svg');
+}
+
+.icon-sc-sparkles {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/sparkles.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/sparkles.svg');
+}
+
+.icon-sc-check {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/check.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/check.svg');
+}
+
+.icon-sc-chevron-down {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/chevron-down.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/chevron-down.svg');
+}
+
+.icon-sc-chevron-right {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/chevron-right.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/chevron-right.svg');
+}
+
+.icon-sc-folder {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/folder.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/folder.svg');
+}
+
+.icon-sc-file-text {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/file-text.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/file-text.svg');
+}
+
+.icon-sc-plus {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
+}
+
+.icon-sc-minus {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/minus.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/minus.svg');
+}
+
+.icon-sc-undo-2 {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/undo-2.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/undo-2.svg');
+}
+
+.icon-sc-refresh-cw {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/refresh-cw.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/refresh-cw.svg');
+}
+
+.icon-sc-git-branch {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/git-branch.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/git-branch.svg');
+}
+
+.icon-sc-cloud {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/cloud.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/cloud.svg');
+}

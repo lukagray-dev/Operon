@@ -1,6 +1,7 @@
 import { createNewSessionIpc, openProjectPickerIpc } from '../left-sidebar/ipc.js';
 import { refreshSidebarContent } from '../left-sidebar/sidebar.js';
 import { sidebarState } from '../left-sidebar/state.js';
+import { rightSidebarState } from '../right-sidebar/state.js';
 import { invokeIpc } from '../shared/ipc.js';
 import { appState } from '../shared/state.js';
 
@@ -95,7 +96,7 @@ function setupViewMenuActions(): void {
 
   document.getElementById('menu-item-toggle-git-diff')?.addEventListener('click', () => {
     appState.setActiveMenu(null);
-    console.debug('[Menu:View] Toggle Git Diff requested');
+    rightSidebarState.toggleOpen();
   });
 }
 

@@ -4,6 +4,8 @@
 pub mod left_sidebar;
 #[path = "main-content/mod.rs"]
 pub mod main_content;
+#[path = "right-sidebar/mod.rs"]
+pub mod right_sidebar;
 pub mod shared;
 pub mod titlebar;
 
@@ -96,6 +98,24 @@ pub fn run() {
             main_content::messages::load_session_messages,
             main_content::messages::submit_prompt,
             main_content::messages::cancel_prompt,
+            // Right Sidebar (Source Control & Git Diff) actions
+            right_sidebar::get_git_diff_details,
+            right_sidebar::get_git_commit_graph,
+            right_sidebar::get_workspace_repositories,
+            right_sidebar::git_stage_file,
+            right_sidebar::git_unstage_file,
+            right_sidebar::git_revert_file,
+            right_sidebar::git_stage_all_files,
+            right_sidebar::git_unstage_all_files,
+            right_sidebar::git_revert_all_files,
+            right_sidebar::git_commit_changes,
+            right_sidebar::git_generate_commit_message,
+            right_sidebar::git_push_changes,
+            right_sidebar::git_pull_changes,
+            right_sidebar::git_fetch_changes,
+            right_sidebar::git_create_branch,
+            right_sidebar::git_switch_branch,
+            right_sidebar::git_delete_branch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

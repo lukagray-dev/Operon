@@ -5,6 +5,7 @@ import { sidebarState } from '../../left-sidebar/state.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
 import { inputState } from '../input/state.js';
 import { refreshTopbar } from '../topbar/topbar.js';
+import { renderWorkGroupElement } from '../work-group/work-group.js';
 import {
   listenAgentError,
   listenAgentEvent,
@@ -82,6 +83,26 @@ function handleAgentEvent(event: Record<string, unknown>): void {
     const delta = (event as { TextDelta: { text: string } }).TextDelta;
     if (delta && delta.text) {
       messagesState.appendStreamText(delta.text);
+    }
+  } else if ('ThinkingDelta' in event) {
+    const delta = (event as { ThinkingDelta: { text: string } }).ThinkingDelta;
+    if (delta && delta.text) {
+      messagesState.appendThinkingDelta(delta.text);
+    }
+  } else if ('ToolCallStart' in event) {
+    const start = (event as { ToolCallStart: { call_id: string; name: string } }).ToolCallStart;
+    if (start) {
+      messagesState.addToolCallStart(start.call_id, start.name);
+    }
+  } else if ('ToolCallArgsReady' in event) {
+    const args = (event as { ToolCallArgsReady: { call_id: string; name: string; args_json: string } }).ToolCallArgsReady;
+    if (args) {
+      messagesState.setToolCallArgs(args.call_id, args.args_json);
+    }
+  } else if ('ToolCallResult' in event) {
+    const res = (event as { ToolCallResult: { call_id: string; name: string; is_error: boolean; content_json: string } }).ToolCallResult;
+    if (res) {
+      messagesState.setToolCallResult(res.call_id, res.content_json, res.is_error);
     }
   } else if ('Done' in event) {
     messagesState.finishStreaming();
@@ -209,12 +230,30 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
   const row = document.createElement('div');
   row.className = 'assistant-message-row';
 
-  // Raw text body
-  const body = document.createElement('div');
-  body.className = 'assistant-message-body';
-  body.textContent = msg.text || '...';
+  // 1. Render WorkGroup / Tool Activity if present
+  if (msg.work_group && msg.work_group.items.length > 0) {
+    const workGroupEl = renderWorkGroupElement(
+      msg.work_group,
+      () => messagesState.toggleWorkGroupExpanded(msg.id),
+      (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, itemIdx)
+    );
+    row.appendChild(workGroupEl);
+  }
 
-  // Bottom action bar
+  // 2. Raw text body
+  if (msg.text) {
+    const body = document.createElement('div');
+    body.className = 'assistant-message-body';
+    body.textContent = msg.text;
+    row.appendChild(body);
+  } else if (!msg.work_group || msg.work_group.items.length === 0) {
+    const body = document.createElement('div');
+    body.className = 'assistant-message-body';
+    body.textContent = '...';
+    row.appendChild(body);
+  }
+
+  // 3. Bottom action bar
   const bar = document.createElement('div');
   bar.className = 'assistant-action-bar';
 
@@ -293,7 +332,6 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator: boolean)
   bar.appendChild(barLeft);
   bar.appendChild(barRight);
 
-  row.appendChild(body);
   row.appendChild(bar);
 
   if (showSeparator) {

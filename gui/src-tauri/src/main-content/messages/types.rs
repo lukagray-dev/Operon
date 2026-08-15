@@ -12,4 +12,5 @@ pub struct ChatMessageDto {
     pub turn_index: usize,
     pub is_liked: bool,
     pub is_disliked: bool,
+    pub work_group: Option<crate::main_content::work_group::WorkGroupDto>,
 }

@@ -3,6 +3,7 @@
 import { renameSessionIpc } from '../../left-sidebar/ipc.js';
 import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
+import { rightSidebarState } from '../../right-sidebar/state.js';
 import { getTopbarInfoIpc } from './ipc.js';
 import { topbarState } from './state.js';
 
@@ -17,6 +18,11 @@ export function initTopbar(): void {
 
   // Re-render when topbar state changes
   topbarState.subscribe(() => {
+    renderTopbar();
+  });
+
+  // Re-render when right sidebar state changes
+  rightSidebarState.subscribe(() => {
     renderTopbar();
   });
 
@@ -50,12 +56,6 @@ function setupButtons(): void {
   document.getElementById('btn-topbar-terminal')?.addEventListener('click', () => {
     const isOpen = topbarState.toggleTerminal();
     console.debug('[Topbar] Terminal toggled:', isOpen);
-  });
-
-  // Git Diff / Commit button
-  document.getElementById('btn-topbar-git-commit')?.addEventListener('click', () => {
-    const isOpen = topbarState.toggleGitDiff();
-    console.debug('[Topbar] Git Diff panel toggled:', isOpen);
   });
 }
 
@@ -123,7 +123,7 @@ function renderTopbar(): void {
       deletionsEl.style.display = 'none';
     }
 
-    gitBtn.classList.toggle('active', topbarState.getIsGitDiffOpen());
+    gitBtn.classList.toggle('active', rightSidebarState.getIsOpen());
   }
 
   // 4. Terminal button active state

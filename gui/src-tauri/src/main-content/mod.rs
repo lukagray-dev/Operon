@@ -5,3 +5,5 @@ pub mod empty_state;
 pub mod input;
 pub mod messages;
 pub mod topbar;
+#[path = "work-group/mod.rs"]
+pub mod work_group;
