@@ -21,7 +21,8 @@
 .markdown-body pre code,
 .markdown-body pre tt,
 .markdown-body samp,
-.assistant-message-body.markdown-body code,
-.assistant-message-body.markdown-body pre {
+.markdown-body pre code.hljs {
   font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+  background-color: transparent !important;
+  padding: 0 !important;
 }

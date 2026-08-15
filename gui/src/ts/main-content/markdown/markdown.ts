@@ -164,14 +164,20 @@ declare global {
         options?: { displayMode?: boolean; throwOnError?: boolean; errorColor?: string }
       ): string;
     };
+    hljs?: {
+      highlightElement(element: HTMLElement): void;
+      highlight(code: string, options: { language: string; ignoreIllegals?: boolean }): { value: string };
+      highlightAuto(code: string): { value: string; language?: string };
+    };
   }
 }
 
 /**
  * Post-processes rendered Markdown HTML inside a container element:
  *
- * 1. Compiles LaTeX math formulas via KaTeX ($inline$ and $$display$$).
- * 2. Intercepts all `<a>` tags to open external URLs securely via Tauri IPC.
+ * 1. Highlights source code syntax via highlight.js.
+ * 2. Compiles LaTeX math formulas via KaTeX ($inline$ and $$display$$).
+ * 3. Intercepts all `<a>` tags to open external URLs securely via Tauri IPC.
  *
  * @param container - The DOM element containing rendered Markdown.
  * @param options - Customization flags.
@@ -182,16 +188,38 @@ export function postProcessMarkdownElement(
 ): void {
   const interceptLinks = options.interceptLinks ?? true;
   const renderMath = options.renderMath ?? true;
+  const highlightSyntax = options.highlightSyntax ?? true;
 
-  // 1. Render LaTeX Math with KaTeX
+  // 1. Highlight Syntax with highlight.js
+  if (highlightSyntax) {
+    highlightCodeBlocks(container);
+  }
+
+  // 2. Render LaTeX Math with KaTeX
   if (renderMath) {
     renderMathFormulas(container);
   }
 
-  // 2. Intercept External Links to open in default browser
+  // 3. Intercept External Links to open in default browser
   if (interceptLinks) {
     interceptExternalLinks(container);
   }
+}
+
+/**
+ * Applies syntax highlighting to all `<pre><code>` blocks using highlight.js.
+ */
+function highlightCodeBlocks(container: HTMLElement): void {
+  if (!window.hljs) return;
+
+  const codeBlocks = container.querySelectorAll<HTMLElement>('pre code:not(.hljs)');
+  codeBlocks.forEach((block) => {
+    try {
+      window.hljs?.highlightElement(block);
+    } catch (err) {
+      console.debug('[hljs] Syntax highlight error:', err);
+    }
+  });
 }
 
 /**

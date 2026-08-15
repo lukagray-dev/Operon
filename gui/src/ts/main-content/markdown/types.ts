@@ -12,6 +12,8 @@ export interface RenderMarkdownOptions {
   wrapTables?: boolean;
   /** If true, compiles LaTeX math using KaTeX. Defaults to true. */
   renderMath?: boolean;
+  /** If true, highlights code blocks using highlight.js. Defaults to true. */
+  highlightSyntax?: boolean;
 }
 
 export interface StreamRenderTask {
