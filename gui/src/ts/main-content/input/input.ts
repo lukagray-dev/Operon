@@ -234,9 +234,9 @@ async function handleSubmit(): Promise<void> {
   inputState.setIsResponding(true);
 
   // 1. Immediately insert user message into chat view
-  const userTurnIndex = messagesState.getMessages().length;
+  const userTurnIndex = Math.floor(messagesState.getMessages().length / 2);
   const userMsg: ChatMessage = {
-    id: `user_${Date.now()}`,
+    id: `turn_${userTurnIndex}_user`,
     role: 'user',
     text,
     timestamp: 'Just now',

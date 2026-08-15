@@ -43,7 +43,13 @@ export function initMessages(): void {
     }
   });
 
-  // 2. Re-render entire message list when full list changes (e.g. session load, clear, message add)
+  // 2. Full reset handler (when session loads or resets)
+  messagesState.onFullReset(() => {
+    cleanupActiveOrb();
+    renderMessageList();
+  });
+
+  // 3. Incremental sync when items added
   messagesState.subscribe(() => {
     syncMessageList();
   });

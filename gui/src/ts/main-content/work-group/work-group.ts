@@ -318,8 +318,18 @@ export function renderWorkGroupElement(
         // 3. Tool Execution Output Result Section
         const resultEl = document.createElement('div');
         resultEl.className = `tool-result-text ${item.tool_status === 'failed' ? 'failed' : ''}`;
-        if (item.tool_result) {
-          resultEl.textContent = item.tool_result;
+        let formattedResult = item.tool_result;
+        try {
+          if (item.tool_result && (item.tool_result.trim().startsWith('{') || item.tool_result.trim().startsWith('['))) {
+            const parsed = JSON.parse(item.tool_result);
+            formattedResult = JSON.stringify(parsed, null, 2);
+          }
+        } catch {
+          // Keep raw output string if JSON parsing fails
+        }
+
+        if (formattedResult && formattedResult.trim().length > 0) {
+          resultEl.textContent = `output: ${formattedResult}`;
         } else if (item.tool_status === 'running') {
           resultEl.textContent = 'output: Tool is executing...';
         } else {

@@ -118,106 +118,153 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
     for (turn_idx, (created_at, messages)) in turns.into_iter().enumerate() {
         let timestamp_str = format_timestamp(created_at);
 
-        for (msg_idx, msg) in messages.into_iter().enumerate() {
-            let role_str = match msg.role {
-                operon_rs::context::MessageRole::User => "user",
-                operon_rs::context::MessageRole::Assistant => "assistant",
-                operon_rs::context::MessageRole::System => "system",
-                operon_rs::context::MessageRole::Tool => "tool",
-            };
+        let mut user_text_parts = Vec::new();
+        let mut assistant_text_parts = Vec::new();
+        let mut work_items: Vec<WorkGroupItemDto> = Vec::new();
 
-            let mut text_parts = Vec::new();
-            let mut work_items = Vec::new();
-
-            for block in msg.content {
-                match block {
-                    operon_rs::context::ContentBlock::Text(text) => {
-                        if !text.trim().is_empty() {
-                            text_parts.push(text);
-                        }
-                    }
-                    operon_rs::context::ContentBlock::Reasoning(r) => {
-                        if !r.thinking.trim().is_empty() {
-                            work_items.push(WorkGroupItemDto::Thinking {
-                                thinking_text: r.thinking,
-                                is_expanded: false,
-                            });
-                        }
-                    }
-                    operon_rs::context::ContentBlock::ToolCall(tc) => {
-                        let args_str = tc.arguments.to_string();
-                        let title = get_tool_friendly_title(&tc.name, &args_str);
-                        work_items.push(WorkGroupItemDto::Tool {
-                            call_id: tc.id.0.clone(),
-                            tool_name: tc.name,
-                            tool_title: title,
-                            tool_args: args_str,
-                            tool_result: String::new(),
-                            tool_status: "completed".to_string(),
-                            is_expanded: false,
-                        });
-                    }
-                    operon_rs::context::ContentBlock::ToolResult(tr) => {
-                        let result_text = match tr.content {
-                            operon_rs::context::ToolContent::Text(s) => s,
-                            operon_rs::context::ToolContent::Json(v) => v.to_string(),
-                        };
-
-                        // Pair with existing tool call if already present in work items
-                        let mut paired = false;
-                        for item in &mut work_items {
-                            if let WorkGroupItemDto::Tool { call_id, tool_result, tool_status, .. } = item {
-                                if *call_id == tr.call_id.0 {
-                                    *tool_result = result_text.clone();
-                                    *tool_status = if tr.is_error { "failed".to_string() } else { "completed".to_string() };
-                                    paired = true;
-                                    break;
-                                }
+        for msg in messages {
+            match msg.role {
+                operon_rs::context::MessageRole::User => {
+                    for block in msg.content {
+                        if let operon_rs::context::ContentBlock::Text(text) = block {
+                            if !text.trim().is_empty() {
+                                user_text_parts.push(text);
                             }
                         }
-
-                        if !paired {
-                            let title = format!("Result: {}", tr.name);
-                            work_items.push(WorkGroupItemDto::Tool {
-                                call_id: tr.call_id.0,
-                                tool_name: tr.name,
-                                tool_title: title,
-                                tool_args: String::new(),
-                                tool_result: result_text,
-                                tool_status: if tr.is_error { "failed".to_string() } else { "completed".to_string() },
-                                is_expanded: false,
-                            });
+                    }
+                }
+                operon_rs::context::MessageRole::Assistant => {
+                    for block in msg.content {
+                        match block {
+                            operon_rs::context::ContentBlock::Text(text) => {
+                                if !text.trim().is_empty() {
+                                    assistant_text_parts.push(text);
+                                }
+                            }
+                            operon_rs::context::ContentBlock::Reasoning(r) => {
+                                if !r.thinking.trim().is_empty() {
+                                    work_items.push(WorkGroupItemDto::Thinking {
+                                        thinking_text: r.thinking,
+                                        is_expanded: false,
+                                    });
+                                }
+                            }
+                            operon_rs::context::ContentBlock::ToolCall(tc) => {
+                                let args_str = match &tc.arguments {
+                                    serde_json::Value::String(s) => s.clone(),
+                                    other => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
+                                };
+                                let title = get_tool_friendly_title(&tc.name, &args_str);
+                                work_items.push(WorkGroupItemDto::Tool {
+                                    call_id: tc.id.0.clone(),
+                                    tool_name: tc.name,
+                                    tool_title: title,
+                                    tool_args: args_str,
+                                    tool_result: String::new(),
+                                    tool_status: "completed".to_string(),
+                                    is_expanded: false,
+                                });
+                            }
+                            _ => {}
                         }
                     }
-                    _ => {}
                 }
-            }
+                operon_rs::context::MessageRole::Tool => {
+                    for block in msg.content {
+                        if let operon_rs::context::ContentBlock::ToolResult(tr) = block {
+                            let result_text = match tr.content {
+                                operon_rs::context::ToolContent::Text(s) => s,
+                                operon_rs::context::ToolContent::Json(v) => {
+                                    serde_json::to_string_pretty(&v).unwrap_or_else(|_| v.to_string())
+                                }
+                            };
 
-            let full_text = text_parts.join("\n\n");
-            let work_group = if !work_items.is_empty() {
-                Some(WorkGroupDto {
-                    items: work_items,
-                    is_active: false,
-                    is_expanded: false,
-                    elapsed_secs: 0,
-                })
-            } else {
-                None
-            };
+                            let mut paired = false;
+                            for item in &mut work_items {
+                                if let WorkGroupItemDto::Tool {
+                                    call_id,
+                                    tool_result,
+                                    tool_status,
+                                    ..
+                                } = item
+                                {
+                                    if *call_id == tr.call_id.0 {
+                                        *tool_result = result_text.clone();
+                                        *tool_status = if tr.is_error {
+                                            "failed".to_string()
+                                        } else {
+                                            "completed".to_string()
+                                        };
+                                        paired = true;
+                                        break;
+                                    }
+                                }
+                            }
 
-            if !full_text.trim().is_empty() || work_group.is_some() {
-                result.push(ChatMessageDto {
-                    id: format!("{turn_idx}_{msg_idx}"),
-                    role: role_str.to_string(),
-                    text: full_text,
-                    timestamp: timestamp_str.clone(),
-                    created_at,
-                    turn_index: turn_idx,
-                    is_liked: false,
-                    is_disliked: false,
-                    work_group,
-                });
+                            if !paired {
+                                let title = format!("Result: {}", tr.name);
+                                work_items.push(WorkGroupItemDto::Tool {
+                                    call_id: tr.call_id.0,
+                                    tool_name: tr.name,
+                                    tool_title: title,
+                                    tool_args: String::new(),
+                                    tool_result: result_text,
+                                    tool_status: if tr.is_error {
+                                        "failed".to_string()
+                                    } else {
+                                        "completed".to_string()
+                                    },
+                                    is_expanded: false,
+                                });
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
+        }
+
+        // 1. Emit User Message for this turn if present
+        let user_text = user_text_parts.join("\n\n");
+        if !user_text.trim().is_empty() {
+            result.push(ChatMessageDto {
+                id: format!("turn_{turn_idx}_user"),
+                role: "user".to_string(),
+                text: user_text,
+                timestamp: timestamp_str.clone(),
+                created_at,
+                turn_index: turn_idx,
+                is_liked: false,
+                is_disliked: false,
+                work_group: None,
+            });
+        }
+
+        // 2. Emit Consolidated Assistant Message for this turn if present
+        let assistant_text = assistant_text_parts.join("\n\n");
+        let work_group = if !work_items.is_empty() {
+            Some(WorkGroupDto {
+                items: work_items,
+                is_active: false,
+                is_expanded: false,
+                elapsed_secs: 0,
+            })
+        } else {
+            None
+        };
+
+        if !assistant_text.trim().is_empty() || work_group.is_some() {
+            result.push(ChatMessageDto {
+                id: format!("turn_{turn_idx}_assistant"),
+                role: "assistant".to_string(),
+                text: assistant_text,
+                timestamp: timestamp_str,
+                created_at,
+                turn_index: turn_idx,
+                is_liked: false,
+                is_disliked: false,
+                work_group,
+            });
         }
     }
 

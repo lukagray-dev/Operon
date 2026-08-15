@@ -22,6 +22,8 @@ class MessagesStateManager {
   private streamWorkGroupListeners: Set<StreamWorkGroupListener> = new Set();
   private streamFinishedListeners: Set<StreamFinishedListener> = new Set();
 
+  private fullResetListeners: Set<() => void> = new Set();
+
   public getMessages(): ChatMessage[] {
     return this.messages;
   }
@@ -38,6 +40,9 @@ class MessagesStateManager {
     this.stopStreamingTimer();
     this.messages = messages;
     this.streamingMessageId = null;
+    for (const l of this.fullResetListeners) {
+      l();
+    }
     this.notify();
   }
 
@@ -48,7 +53,7 @@ class MessagesStateManager {
 
   public startAssistantStreaming(turnIndex: number): string {
     this.stopStreamingTimer();
-    const id = `stream_${turnIndex}_${Date.now()}`;
+    const id = `turn_${turnIndex}_assistant`;
     this.streamingStartTime = Date.now();
 
     const msg: ChatMessage = {
@@ -285,6 +290,11 @@ class MessagesStateManager {
   public onStreamFinished(listener: StreamFinishedListener): () => void {
     this.streamFinishedListeners.add(listener);
     return () => this.streamFinishedListeners.delete(listener);
+  }
+
+  public onFullReset(listener: () => void): () => void {
+    this.fullResetListeners.add(listener);
+    return () => this.fullResetListeners.delete(listener);
   }
 
   private notify(): void {
