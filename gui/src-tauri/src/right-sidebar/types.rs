@@ -50,6 +50,8 @@ pub struct GitFileDiffDto {
 pub struct GitRepositoryInfoDto {
     /// Repository name (e.g. "Operon")
     pub name: String,
+    /// Absolute directory path to the repository root
+    pub path: String,
     /// Active branch name (e.g. "main", "feature/auth")
     pub branch: String,
     /// Whether this is the active repo

@@ -25,6 +25,7 @@ export interface GitFileDiff {
 
 export interface GitRepositoryInfo {
   name: string;
+  path: string;
   branch: string;
   is_active: boolean;
   has_changes: boolean;

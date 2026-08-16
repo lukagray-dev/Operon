@@ -1,11 +1,21 @@
+// ============================================================================
 // Source Control & Git Diff Right Sidebar Controller & Renderer
 //
-// 1:1 visual and functional implementation inspired by the Slint GUI right sidebar:
-// - VS Code Source Control style panel with resizable left edge.
-// - Header with uppercase SOURCE CONTROL title and overflow context menu.
-// - Expandable multi-line commit input with AI "Generate" action button and split primary Commit button.
-// - Accordion sections: Repositories, Changes (Staged & Unstaged with inline unified hunk diffs), and Commit Graph.
-// - Full context menu and nested submenu system.
+// Hey friend! This is the main controller and DOM renderer for our VS Code-style
+// Source Control & Git Diff right sidebar.
+//
+// Here is how everything works under the hood:
+// 1. Header: Uppercase "SOURCE CONTROL" title + overflow "..." menu button.
+// 2. Multi-Repo Switching: Supports workspace multi-repositories. Clicking any
+//    repository immediately loads its active branch, changed files, and commit graph.
+// 3. Section Flex Layout: Sections automatically distribute vertical space.
+//    The bottom-most expanded section (like the Commit Graph) automatically
+//    flex-fills all remaining height down to the bottom of the window so there is
+//    no dead empty space.
+// 4. Smooth Resizing: Horizontal dividers allow you to drag and resize sections
+//    smoothly at 60fps without flickering or DOM destruction.
+// 5. Context Menus: Floating VS Code style popups with nested hover submenus.
+// ============================================================================
 
 import { sidebarState } from '../left-sidebar/state.js';
 import * as menuDefs from './menu-data.js';
@@ -26,18 +36,32 @@ import {
   gitUnstageFileIpc,
 } from './ipc.js';
 import { rightSidebarState } from './state.js';
-import type { ContextMenuItem, GitFileDiff } from './types.js';
+import type { ContextMenuItem, GitFileDiff, GitRepositoryInfo } from './types.js';
 
+// ----------------------------------------------------------------------------
+// Local state for Context Menu positioning and submenus
+// ----------------------------------------------------------------------------
 let activeMenuId: string | null = null;
 let activeSubmenuItems: ContextMenuItem[] | null = null;
 let menuCoords = { x: 0, y: 0 };
 let submenuY = 0;
 
 /**
- * Initializes the Right Sidebar component and binds all triggers and keybindings.
+ * Returns the currently active workspace / repository directory path.
+ */
+function resolveCurrentRepoPath(): string | undefined {
+  return (
+    rightSidebarState.getActiveRepoPath() ||
+    sidebarState.getActiveProjectPath() ||
+    undefined
+  );
+}
+
+/**
+ * Initializes the Right Sidebar component, binds buttons and shortcuts.
  */
 export function initRightSidebar(): void {
-  // 1. Topbar git-diff toggle button
+  // 1. Topbar git-diff toggle button click listener
   const topbarBtn = document.getElementById('btn-topbar-git-commit');
   if (topbarBtn) {
     topbarBtn.addEventListener('click', () => {
@@ -45,7 +69,7 @@ export function initRightSidebar(): void {
     });
   }
 
-  // 2. Menu Item "Toggle git-diff panel"
+  // 2. Titlebar "View -> Toggle git-diff panel" menu item listener
   const menuItemToggle = document.getElementById('menu-item-toggle-git-diff');
   if (menuItemToggle) {
     menuItemToggle.addEventListener('click', () => {
@@ -53,7 +77,7 @@ export function initRightSidebar(): void {
     });
   }
 
-  // 3. Global keyboard shortcut Ctrl+G
+  // 3. Global keyboard shortcut Ctrl+G (or Cmd+G on macOS)
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
       e.preventDefault();
@@ -61,44 +85,78 @@ export function initRightSidebar(): void {
     }
   });
 
-  // 4. Subscribe to state changes to re-render panel
+  // 4. Re-render whenever our state updates
   rightSidebarState.subscribe(() => {
     renderRightSidebar();
   });
 
-  // 5. Subscribe to sidebar project / session switch to refresh Git workspace
+  // 5. When the user switches projects in the left sidebar, reset active repo and refresh
   sidebarState.subscribe(() => {
+    rightSidebarState.setActiveRepoPath(null);
     refreshRightSidebar();
   });
 
-  // 6. Initial fetch of git diff and graph
+  // 6. Initial data fetch on application startup
   refreshRightSidebar();
 }
 
 /**
- * Refreshes Git diff details, repositories, and commit graph from backend.
+ * Fetches fresh Git status, changed files, and commit graph from our backend.
+ * If targetRepoPath is specified, switches the active repo context to that path.
  */
-export async function refreshRightSidebar(): Promise<void> {
-  const workspacePath = sidebarState.getActiveProjectPath() || undefined;
+export async function refreshRightSidebar(targetRepoPath?: string): Promise<void> {
+  if (targetRepoPath) {
+    rightSidebarState.setActiveRepoPath(targetRepoPath);
+  }
+
+  const workspaceRoot = sidebarState.getActiveProjectPath() || undefined;
+  const currentRepoPath = rightSidebarState.getActiveRepoPath() || workspaceRoot;
 
   try {
-    const details = await getGitDiffDetailsIpc(workspacePath);
+    // 1. Fetch details (staged/unstaged files) for the active repo
+    const details = await getGitDiffDetailsIpc(currentRepoPath);
     rightSidebarState.setDiffDetails(details);
 
-    if (details.has_repo) {
-      const repos = await getWorkspaceRepositoriesIpc(workspacePath);
-      rightSidebarState.setRepos(repos);
+    // 2. Discover all workspace repos (from root workspace project)
+    const rawRepos = await getWorkspaceRepositoriesIpc(workspaceRoot);
+    if (rawRepos.length > 0) {
+      // Determine which repo should be marked active
+      const activePath = currentRepoPath;
+      const repos: GitRepositoryInfo[] = rawRepos.map((r) => {
+        const isSelected = activePath
+          ? r.path === activePath || r.name === activePath
+          : r.is_active;
+        return {
+          ...r,
+          is_active: isSelected,
+        };
+      });
 
-      const graph = await getGitCommitGraphIpc(workspacePath, 40, 0);
+      // If none was matched as active, mark the first one as active
+      if (!repos.some((r) => r.is_active) && repos.length > 0) {
+        repos[0].is_active = true;
+        rightSidebarState.setActiveRepoPath(repos[0].path);
+      }
+
+      rightSidebarState.setRepos(repos);
+    } else {
+      rightSidebarState.setRepos([]);
+    }
+
+    // 3. Fetch commit graph history for the active repo
+    if (details.has_repo || currentRepoPath) {
+      const graph = await getGitCommitGraphIpc(currentRepoPath, 50, 0);
       rightSidebarState.setGraphCommits(graph);
+    } else {
+      rightSidebarState.setGraphCommits([]);
     }
   } catch (err) {
-    console.warn('[RightSidebar] Failed to refresh Git workspace:', err);
+    console.warn('[RightSidebar] Failed to refresh Git workspace data:', err);
   }
 }
 
 /**
- * Master DOM render function for the Right Sidebar.
+ * Master DOM rendering function. Constructs the sidebar layout structure.
  */
 export function renderRightSidebar(): void {
   const aside = document.getElementById('right-sidebar');
@@ -107,6 +165,7 @@ export function renderRightSidebar(): void {
   const isOpen = rightSidebarState.getIsOpen();
   const width = rightSidebarState.getWidth();
 
+  // If panel is closed, hide and clean up
   if (!isOpen) {
     aside.style.display = 'none';
     aside.classList.remove('open');
@@ -114,65 +173,87 @@ export function renderRightSidebar(): void {
     return;
   }
 
+  // Reveal panel and set current width
   aside.style.display = 'flex';
   aside.style.width = `${width}px`;
   aside.classList.add('open');
   aside.innerHTML = '';
 
-  // 1. Left drag resize handle
-  const resizeHandle = createResizeHandle();
+  // 1. Left drag resize handle (overall panel width)
+  const resizeHandle = createSidebarResizeHandle();
   aside.appendChild(resizeHandle);
 
   // 2. Main content container
   const container = document.createElement('div');
   container.className = 'right-sidebar-container';
 
-  // 3. Source Control Header
+  // 3. Top Header Bar ("SOURCE CONTROL" + "...")
   const header = createHeader();
   container.appendChild(header);
 
-  // 4. Scrollable middle content
+  // 4. Scrollable Middle Body
   const scrollContent = document.createElement('div');
   scrollContent.className = 'right-sidebar-scroll-content';
 
-  // 5. Commit Input Section
-  const commitSection = createCommitInputSection();
-  scrollContent.appendChild(commitSection);
+  // Determine which visible section is the last expanded section (to flex-fill full height)
+  const reposVisible = rightSidebarState.getReposVisible();
+  const changesVisible = rightSidebarState.getChangesVisible();
+  const graphVisible = rightSidebarState.getGraphVisible();
 
-  // 6. Repositories Section (if visible)
-  if (rightSidebarState.getReposVisible()) {
-    const reposSection = createRepositoriesSection();
+  const reposExpanded = reposVisible && rightSidebarState.isReposSectionExpanded();
+  const changesExpanded = changesVisible && rightSidebarState.isChangesSectionExpanded();
+  const graphExpanded = graphVisible && rightSidebarState.isGraphSectionExpanded();
+
+  let flexFillTarget: 'repos' | 'changes' | 'graph' | null = null;
+  if (graphExpanded) {
+    flexFillTarget = 'graph';
+  } else if (changesExpanded) {
+    flexFillTarget = 'changes';
+  } else if (reposExpanded) {
+    flexFillTarget = 'repos';
+  }
+
+  // 5. Repositories Section
+  if (reposVisible) {
+    const isFlexFill = flexFillTarget === 'repos';
+    const reposSection = createRepositoriesSection(isFlexFill, reposExpanded && (changesVisible || graphVisible));
     scrollContent.appendChild(reposSection);
   }
 
-  // 7. Changes Section (if visible)
-  if (rightSidebarState.getChangesVisible()) {
-    const changesSection = createChangesSection();
+  // 6. Changes Section
+  if (changesVisible) {
+    const isFlexFill = flexFillTarget === 'changes';
+    const changesSection = createChangesSection(isFlexFill, changesExpanded && graphVisible);
     scrollContent.appendChild(changesSection);
   }
 
-  // 8. Commit Graph Section (if visible)
-  if (rightSidebarState.getGraphVisible()) {
-    const graphSection = createCommitGraphSection();
+  // 7. Commit Graph Section
+  if (graphVisible) {
+    const isFlexFill = flexFillTarget === 'graph';
+    const graphSection = createCommitGraphSection(isFlexFill);
     scrollContent.appendChild(graphSection);
   }
 
   container.appendChild(scrollContent);
   aside.appendChild(container);
 
-  // 9. Render active context menus if open
+  // 8. Render floating context menus if active
   if (activeMenuId) {
     renderContextMenuOverlay(aside);
   }
 }
 
+// ============================================================================
+// Section 1: Left Drag Resize Handle (Panel Width)
+// ============================================================================
+
 /**
- * Creates the left-edge drag resize handle for smooth resizing.
+ * Creates the left-edge handle allowing users to drag horizontally and resize the panel width.
  */
-function createResizeHandle(): HTMLElement {
+function createSidebarResizeHandle(): HTMLElement {
   const handle = document.createElement('div');
   handle.className = 'right-sidebar-resize-handle';
-  handle.title = 'Drag to resize panel';
+  handle.title = 'Drag to resize panel width';
 
   let startX = 0;
   let startWidth = 0;
@@ -201,8 +282,12 @@ function createResizeHandle(): HTMLElement {
   return handle;
 }
 
+// ============================================================================
+// Section 2: Header Component
+// ============================================================================
+
 /**
- * Creates the uppercase SOURCE CONTROL top header with overflow ellipsis button.
+ * Creates the top titlebar of the panel with uppercase title and overflow menu button.
  */
 function createHeader(): HTMLElement {
   const header = document.createElement('div');
@@ -233,117 +318,28 @@ function createHeader(): HTMLElement {
   return header;
 }
 
-/**
- * Creates the Commit message input box, AI Generate button, and primary Commit split button.
- */
-function createCommitInputSection(): HTMLElement {
-  const section = document.createElement('div');
-  section.className = 'sc-commit-section';
-
-  const diffDetails = rightSidebarState.getDiffDetails();
-  const branchName = diffDetails.current_branch || 'main';
-
-  // Textarea input container
-  const inputContainer = document.createElement('div');
-  inputContainer.className = 'sc-commit-input-container';
-
-  const textarea = document.createElement('textarea');
-  textarea.className = 'sc-commit-textarea';
-  textarea.placeholder = `Message (Ctrl+Enter to commit on "${branchName}")`;
-  textarea.value = rightSidebarState.getCommitMessage();
-  textarea.rows = 2;
-
-  textarea.addEventListener('input', () => {
-    rightSidebarState.setCommitMessage(textarea.value);
-  });
-
-  textarea.addEventListener('keydown', async (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      await executeCommit();
-    }
-  });
-
-  // AI "Generate" button overlay
-  const genBtn = document.createElement('button');
-  genBtn.className = 'sc-btn-generate';
-  genBtn.title = 'Generate commit message using AI';
-  genBtn.innerHTML = `
-    <span class="ui-icon icon-sc-sparkles"></span>
-    <span>Generate</span>
-  `;
-
-  genBtn.addEventListener('click', async () => {
-    if (rightSidebarState.getIsGeneratingMessage()) return;
-    rightSidebarState.setIsGeneratingMessage(true);
-    genBtn.classList.add('loading');
-    try {
-      const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-      const generated = await gitGenerateCommitMessageIpc(workspacePath);
-      rightSidebarState.setCommitMessage(generated);
-      textarea.value = generated;
-      textarea.focus();
-    } catch (err) {
-      console.error('[RightSidebar] Failed to generate commit message:', err);
-    } finally {
-      rightSidebarState.setIsGeneratingMessage(false);
-      genBtn.classList.remove('loading');
-    }
-  });
-
-  inputContainer.appendChild(textarea);
-  inputContainer.appendChild(genBtn);
-
-  // Primary Commit Split Button
-  const splitBtn = document.createElement('div');
-  splitBtn.className = 'sc-commit-split-btn';
-
-  const mainCommit = document.createElement('button');
-  mainCommit.className = 'sc-commit-main-action';
-  mainCommit.innerHTML = `
-    <span class="ui-icon icon-sc-check"></span>
-    <span>Commit</span>
-  `;
-
-  mainCommit.addEventListener('click', async () => {
-    await executeCommit();
-  });
-
-  const sep = document.createElement('div');
-  sep.className = 'sc-split-btn-divider';
-
-  const dropdownCommit = document.createElement('button');
-  dropdownCommit.className = 'sc-commit-dropdown-action';
-  dropdownCommit.title = 'More Commit Actions';
-  dropdownCommit.innerHTML = '<span class="ui-icon icon-sc-chevron-down"></span>';
-
-  dropdownCommit.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const rect = dropdownCommit.getBoundingClientRect();
-    openContextMenu('commit', rect.left - 140, rect.bottom + 4);
-  });
-
-  splitBtn.appendChild(mainCommit);
-  splitBtn.appendChild(sep);
-  splitBtn.appendChild(dropdownCommit);
-
-  section.appendChild(inputContainer);
-  section.appendChild(splitBtn);
-
-  return section;
-}
+// ============================================================================
+// Section 3: Repositories Accordion Component
+// ============================================================================
 
 /**
- * Creates the Repositories accordion list.
+ * Creates the Repositories section.
+ * Supports multi-repo selection: clicking any repository row switches the active repo.
  */
-function createRepositoriesSection(): HTMLElement {
+function createRepositoriesSection(isFlexFill: boolean, hasDividerBelow: boolean): HTMLElement {
   const section = document.createElement('div');
-  section.className = 'sc-accordion-section';
+  const isExpanded = rightSidebarState.isReposSectionExpanded();
+  const sectionHeight = rightSidebarState.getReposSectionHeight();
+
+  section.className = `sc-accordion-section ${isExpanded ? (isFlexFill ? 'flex-fill' : '') : 'collapsed'}`;
+  if (isExpanded && !isFlexFill) {
+    section.style.height = `${sectionHeight}px`;
+    section.style.flex = `0 0 ${sectionHeight}px`;
+  }
 
   const repos = rightSidebarState.getRepos();
-  const isExpanded = rightSidebarState.isReposSectionExpanded();
 
-  // Accordion Header
+  // 1. Accordion Header
   const header = document.createElement('div');
   header.className = 'sc-accordion-header';
 
@@ -359,10 +355,25 @@ function createRepositoriesSection(): HTMLElement {
     rightSidebarState.toggleReposSection();
   });
 
+  const headerRight = document.createElement('div');
+  headerRight.className = 'sc-accordion-header-right';
+
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'sc-icon-btn';
+  moreBtn.title = 'Repository Options';
+  moreBtn.innerHTML = '<span class="ui-icon icon-sc-ellipsis"></span>';
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const rect = moreBtn.getBoundingClientRect();
+    openContextMenu('repo_heading', rect.left - 180, rect.bottom + 4);
+  });
+
+  headerRight.appendChild(moreBtn);
   header.appendChild(headerLeft);
+  header.appendChild(headerRight);
   section.appendChild(header);
 
-  // Accordion Content
+  // 2. Accordion Body (List of repositories)
   if (isExpanded) {
     const list = document.createElement('div');
     list.className = 'sc-accordion-body';
@@ -376,38 +387,107 @@ function createRepositoriesSection(): HTMLElement {
       repos.forEach((repo) => {
         const row = document.createElement('div');
         row.className = `sc-repo-row ${repo.is_active ? 'active' : ''}`;
+        row.title = `Click to switch to repository: ${repo.name} (${repo.path || repo.branch})`;
 
         const rowLeft = document.createElement('div');
         rowLeft.className = 'sc-repo-row-left';
         rowLeft.innerHTML = `
-          <span class="ui-icon icon-sc-folder sc-repo-icon"></span>
+          <span class="ui-icon icon-sc-book sc-repo-icon"></span>
           <span class="sc-repo-name">${repo.name}</span>
-          <span class="sc-repo-branch-pill">${repo.branch}</span>
         `;
 
+        const rowRight = document.createElement('div');
+        rowRight.className = 'sc-repo-row-right';
+
+        const branchSpan = document.createElement('span');
+        branchSpan.className = 'sc-repo-branch-text';
+        branchSpan.textContent = repo.branch;
+        rowRight.appendChild(branchSpan);
+
+        // Hover action: Refresh repo
+        const refreshBtn = document.createElement('button');
+        refreshBtn.className = 'sc-icon-btn';
+        refreshBtn.title = 'Refresh Repository';
+        refreshBtn.innerHTML = '<span class="ui-icon icon-sc-refresh-cw"></span>';
+        refreshBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await refreshRightSidebar(repo.path);
+        });
+        rowRight.appendChild(refreshBtn);
+
+        // Hover action: Repo options
+        const repoMoreBtn = document.createElement('button');
+        repoMoreBtn.className = 'sc-icon-btn';
+        repoMoreBtn.title = 'Repository Actions';
+        repoMoreBtn.innerHTML = '<span class="ui-icon icon-sc-ellipsis"></span>';
+        repoMoreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = repoMoreBtn.getBoundingClientRect();
+          openContextMenu('overflow', rect.left - 180, rect.bottom + 4);
+        });
+        rowRight.appendChild(repoMoreBtn);
+
         row.appendChild(rowLeft);
+        row.appendChild(rowRight);
+
+        // Clicking a repository switches active repository context immediately
+        row.addEventListener('click', async (e) => {
+          if ((e.target as HTMLElement).closest('.sc-icon-btn')) return;
+
+          rightSidebarState.setActiveRepoPath(repo.path);
+          // Immediate visual feedback
+          const updated = rightSidebarState.getRepos().map((r) => ({
+            ...r,
+            is_active: r.path === repo.path || r.name === repo.name,
+          }));
+          rightSidebarState.setRepos(updated);
+          await refreshRightSidebar(repo.path);
+        });
+
         list.appendChild(row);
       });
     }
 
     section.appendChild(list);
+
+    // 3. Smooth Resizable Horizontal Divider below Repositories
+    if (hasDividerBelow && !isFlexFill) {
+      const divider = createSmoothResizeDivider(
+        section,
+        (newHeight) => rightSidebarState.setReposSectionHeight(newHeight, true),
+        60,
+        500
+      );
+      section.appendChild(divider);
+    }
   }
 
   return section;
 }
 
+// ============================================================================
+// Section 4: Changes & Commit Input Component
+// ============================================================================
+
 /**
- * Creates the Changes accordion section with Staged and Unstaged file groups and inline hunk diffs.
+ * Creates the main Changes section with commit message input, split commit button,
+ * and Staged/Unstaged changes accordion subgroups.
  */
-function createChangesSection(): HTMLElement {
+function createChangesSection(isFlexFill: boolean, hasDividerBelow: boolean): HTMLElement {
   const section = document.createElement('div');
-  section.className = 'sc-accordion-section';
+  const isExpanded = rightSidebarState.isChangesSectionExpanded();
+  const sectionHeight = rightSidebarState.getChangesSectionHeight();
+
+  section.className = `sc-accordion-section ${isExpanded ? (isFlexFill ? 'flex-fill' : '') : 'collapsed'}`;
+  if (isExpanded && !isFlexFill) {
+    section.style.height = `${sectionHeight}px`;
+    section.style.flex = `0 0 ${sectionHeight}px`;
+  }
 
   const details = rightSidebarState.getDiffDetails();
   const totalCount = details.staged_files.length + details.unstaged_files.length;
-  const isExpanded = rightSidebarState.isChangesSectionExpanded();
 
-  // Accordion Header
+  // 1. Accordion Header
   const header = document.createElement('div');
   header.className = 'sc-accordion-header';
 
@@ -426,79 +506,174 @@ function createChangesSection(): HTMLElement {
   const headerRight = document.createElement('div');
   headerRight.className = 'sc-accordion-header-right';
 
-  // Stage All button (+)
-  const stageAllBtn = document.createElement('button');
-  stageAllBtn.className = 'sc-icon-btn';
-  stageAllBtn.title = 'Stage All Changes';
-  stageAllBtn.innerHTML = '<span class="ui-icon icon-sc-plus"></span>';
-  stageAllBtn.addEventListener('click', async (e) => {
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'sc-icon-btn';
+  moreBtn.title = 'Changes Options';
+  moreBtn.innerHTML = '<span class="ui-icon icon-sc-ellipsis"></span>';
+  moreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-    await gitStageAllFilesIpc(workspacePath);
-    await refreshRightSidebar();
+    const rect = moreBtn.getBoundingClientRect();
+    openContextMenu('overflow', rect.left - 180, rect.bottom + 4);
   });
 
-  // Revert All button (undo-2)
-  const revertAllBtn = document.createElement('button');
-  revertAllBtn.className = 'sc-icon-btn';
-  revertAllBtn.title = 'Discard All Changes';
-  revertAllBtn.innerHTML = '<span class="ui-icon icon-sc-undo-2"></span>';
-  revertAllBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-    await gitRevertAllFilesIpc(workspacePath);
-    await refreshRightSidebar();
-  });
-
-  // Refresh button (refresh-cw)
-  const refreshBtn = document.createElement('button');
-  refreshBtn.className = 'sc-icon-btn';
-  refreshBtn.title = 'Refresh Changes';
-  refreshBtn.innerHTML = '<span class="ui-icon icon-sc-refresh-cw"></span>';
-  refreshBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    await refreshRightSidebar();
-  });
-
-  headerRight.appendChild(stageAllBtn);
-  headerRight.appendChild(revertAllBtn);
-  headerRight.appendChild(refreshBtn);
-
+  headerRight.appendChild(moreBtn);
   header.appendChild(headerLeft);
   header.appendChild(headerRight);
   section.appendChild(header);
 
-  // Accordion Content
+  // 2. Accordion Body
   if (isExpanded) {
-    const list = document.createElement('div');
-    list.className = 'sc-accordion-body';
+    const body = document.createElement('div');
+    body.className = 'sc-accordion-body';
 
-    // 1. Staged Changes Group
+    // A. Commit Message Input Box & Split Commit Button
+    const commitBox = createCommitInputBox();
+    body.appendChild(commitBox);
+
+    // B. Staged Changes Subgroup (shown only if there are staged files)
     if (details.staged_files.length > 0) {
-      const stagedGroup = createFilesSubgroup(
+      const stagedSubgroup = createFilesSubgroup(
         'Staged Changes',
         details.staged_files,
         true,
         rightSidebarState.isStagedSectionExpanded(),
         () => rightSidebarState.toggleStagedSection()
       );
-      list.appendChild(stagedGroup);
+      body.appendChild(stagedSubgroup);
     }
 
-    // 2. Unstaged Changes Group
-    const unstagedGroup = createFilesSubgroup(
+    // C. Unstaged Changes Subgroup
+    const unstagedSubgroup = createFilesSubgroup(
       'Changes',
       details.unstaged_files,
       false,
       rightSidebarState.isUnstagedSectionExpanded(),
       () => rightSidebarState.toggleUnstagedSection()
     );
-    list.appendChild(unstagedGroup);
+    body.appendChild(unstagedSubgroup);
 
-    section.appendChild(list);
+    section.appendChild(body);
+
+    // 3. Smooth Resizable Horizontal Divider below Changes
+    if (hasDividerBelow && !isFlexFill) {
+      const divider = createSmoothResizeDivider(
+        section,
+        (newHeight) => rightSidebarState.setChangesSectionHeight(newHeight, true),
+        100,
+        700
+      );
+      section.appendChild(divider);
+    }
   }
 
   return section;
+}
+
+/**
+ * Creates the Commit message textarea with auto-expansion, AI "Generate" button,
+ * and primary split "Commit" button.
+ */
+function createCommitInputBox(): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'sc-commit-section';
+
+  const diffDetails = rightSidebarState.getDiffDetails();
+  const branchName = diffDetails.current_branch || 'main';
+
+  // 1. Textarea Container
+  const inputContainer = document.createElement('div');
+  inputContainer.className = 'sc-commit-input-container';
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'sc-commit-textarea';
+  textarea.placeholder = `Message (Ctrl+Enter to commit on "${branchName}")`;
+  textarea.value = rightSidebarState.getCommitMessage();
+  textarea.rows = 2;
+
+  // Auto-expand textarea height on typing
+  textarea.addEventListener('input', () => {
+    rightSidebarState.setCommitMessage(textarea.value);
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(240, Math.max(52, textarea.scrollHeight))}px`;
+  });
+
+  // Ctrl+Enter shortcut to commit
+  textarea.addEventListener('keydown', async (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      await executeCommit();
+    }
+  });
+
+  // 2. AI "Generate" Button overlay in top-right corner
+  const genBtn = document.createElement('button');
+  genBtn.className = 'sc-btn-generate';
+  genBtn.title = 'Generate commit message using AI';
+  genBtn.innerHTML = `
+    <span class="ui-icon icon-sc-sparkles"></span>
+    <span>Generate</span>
+  `;
+
+  genBtn.addEventListener('click', async () => {
+    if (rightSidebarState.getIsGeneratingMessage()) return;
+    rightSidebarState.setIsGeneratingMessage(true);
+    genBtn.classList.add('loading');
+    try {
+      const activePath = resolveCurrentRepoPath();
+      const generated = await gitGenerateCommitMessageIpc(activePath);
+      rightSidebarState.setCommitMessage(generated);
+      textarea.value = generated;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(240, Math.max(52, textarea.scrollHeight))}px`;
+      textarea.focus();
+    } catch (err) {
+      console.error('[RightSidebar] Failed to generate commit message:', err);
+    } finally {
+      rightSidebarState.setIsGeneratingMessage(false);
+      genBtn.classList.remove('loading');
+    }
+  });
+
+  inputContainer.appendChild(textarea);
+  inputContainer.appendChild(genBtn);
+
+  // 3. Primary Split "Commit" Button
+  const splitBtn = document.createElement('div');
+  splitBtn.className = 'sc-commit-split-btn';
+
+  const mainCommit = document.createElement('button');
+  mainCommit.className = 'sc-commit-main-action';
+  mainCommit.innerHTML = `
+    <span class="ui-icon icon-sc-check"></span>
+    <span>Commit</span>
+  `;
+
+  mainCommit.addEventListener('click', async () => {
+    await executeCommit();
+  });
+
+  const divider = document.createElement('div');
+  divider.className = 'sc-split-btn-divider';
+
+  const dropdownCommit = document.createElement('button');
+  dropdownCommit.className = 'sc-commit-dropdown-action';
+  dropdownCommit.title = 'More Commit Actions';
+  dropdownCommit.innerHTML = '<span class="ui-icon icon-sc-chevron-down"></span>';
+
+  dropdownCommit.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const rect = dropdownCommit.getBoundingClientRect();
+    openContextMenu('commit', rect.left - 140, rect.bottom + 4);
+  });
+
+  splitBtn.appendChild(mainCommit);
+  splitBtn.appendChild(divider);
+  splitBtn.appendChild(dropdownCommit);
+
+  container.appendChild(inputContainer);
+  container.appendChild(splitBtn);
+
+  return container;
 }
 
 /**
@@ -514,7 +689,7 @@ function createFilesSubgroup(
   const group = document.createElement('div');
   group.className = 'sc-subgroup-container';
 
-  // Subgroup Header
+  // 1. Subgroup Header
   const subHeader = document.createElement('div');
   subHeader.className = 'sc-subgroup-header';
 
@@ -532,6 +707,8 @@ function createFilesSubgroup(
   const subRight = document.createElement('div');
   subRight.className = 'sc-subgroup-header-right';
 
+  const activePath = resolveCurrentRepoPath();
+
   if (isStaged) {
     // Unstage all button (-)
     const unstageAllBtn = document.createElement('button');
@@ -540,21 +717,31 @@ function createFilesSubgroup(
     unstageAllBtn.innerHTML = '<span class="ui-icon icon-sc-minus"></span>';
     unstageAllBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-      await gitUnstageAllFilesIpc(workspacePath);
+      await gitUnstageAllFilesIpc(activePath);
       await refreshRightSidebar();
     });
     subRight.appendChild(unstageAllBtn);
   } else {
-    // Stage all button (+)
+    // Discard all changes button (undo-2)
+    const discardAllBtn = document.createElement('button');
+    discardAllBtn.className = 'sc-icon-btn';
+    discardAllBtn.title = 'Discard All Changes';
+    discardAllBtn.innerHTML = '<span class="ui-icon icon-sc-undo-2"></span>';
+    discardAllBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await gitRevertAllFilesIpc(activePath);
+      await refreshRightSidebar();
+    });
+    subRight.appendChild(discardAllBtn);
+
+    // Stage all changes button (+)
     const stageAllBtn = document.createElement('button');
     stageAllBtn.className = 'sc-icon-btn';
     stageAllBtn.title = 'Stage All';
     stageAllBtn.innerHTML = '<span class="ui-icon icon-sc-plus"></span>';
     stageAllBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-      await gitStageAllFilesIpc(workspacePath);
+      await gitStageAllFilesIpc(activePath);
       await refreshRightSidebar();
     });
     subRight.appendChild(stageAllBtn);
@@ -563,6 +750,7 @@ function createFilesSubgroup(
   subHeader.appendChild(subRight);
   group.appendChild(subHeader);
 
+  // 2. Subgroup File List
   if (isGroupExpanded) {
     const filesList = document.createElement('div');
     filesList.className = 'sc-files-list';
@@ -606,7 +794,11 @@ function createFilesSubgroup(
         const rowRight = document.createElement('div');
         rowRight.className = 'sc-file-row-right';
 
-        // Discard button for unstaged files (undo-2)
+        // Hover action buttons
+        const actionsContainer = document.createElement('div');
+        actionsContainer.className = 'sc-file-actions';
+
+        // Discard button (for unstaged files)
         if (!isStaged) {
           const discardBtn = document.createElement('button');
           discardBtn.className = 'sc-icon-btn sc-action-discard';
@@ -614,16 +806,17 @@ function createFilesSubgroup(
           discardBtn.innerHTML = '<span class="ui-icon icon-sc-undo-2"></span>';
           discardBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-            await gitRevertFileIpc(file.path, workspacePath);
+            await gitRevertFileIpc(file.path, activePath);
             await refreshRightSidebar();
           });
-          rowRight.appendChild(discardBtn);
+          actionsContainer.appendChild(discardBtn);
         }
 
         // Single file Stage (+) or Unstage (-) button
         const toggleStageBtn = document.createElement('button');
-        toggleStageBtn.className = 'sc-icon-btn sc-action-stage';
+        toggleStageBtn.className = `sc-icon-btn ${
+          isStaged ? 'sc-action-unstage' : 'sc-action-stage'
+        }`;
         toggleStageBtn.title = isStaged ? 'Unstage Changes' : 'Stage Changes';
         toggleStageBtn.innerHTML = `<span class="ui-icon ${
           isStaged ? 'icon-sc-minus' : 'icon-sc-plus'
@@ -631,17 +824,18 @@ function createFilesSubgroup(
 
         toggleStageBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const workspacePath = sidebarState.getActiveProjectPath() || undefined;
           if (isStaged) {
-            await gitUnstageFileIpc(file.path, workspacePath);
+            await gitUnstageFileIpc(file.path, activePath);
           } else {
-            await gitStageFileIpc(file.path, workspacePath);
+            await gitStageFileIpc(file.path, activePath);
           }
           await refreshRightSidebar();
         });
-        rowRight.appendChild(toggleStageBtn);
+        actionsContainer.appendChild(toggleStageBtn);
 
-        // Status Letter badge
+        rowRight.appendChild(actionsContainer);
+
+        // Status Letter badge (M, A, D, U)
         const badge = document.createElement('span');
         badge.className = `sc-status-badge ${statusBadgeClass}`;
         badge.textContent = statusLetter;
@@ -651,7 +845,7 @@ function createFilesSubgroup(
         row.appendChild(rowRight);
         fileItem.appendChild(row);
 
-        // Inline Hunk Diff Viewer (when expanded)
+        // Inline Hunk Diff Viewer (when row is clicked)
         if (rightSidebarState.isFileExpanded(file.path)) {
           const diffViewer = createInlineHunkDiffViewer(file);
           fileItem.appendChild(diffViewer);
@@ -733,17 +927,28 @@ function createInlineHunkDiffViewer(file: GitFileDiff): HTMLElement {
   return viewer;
 }
 
+// ============================================================================
+// Section 5: Commit Graph Component
+// ============================================================================
+
 /**
- * Creates the Commit Graph accordion section with visual commit timeline nodes and branch pills.
+ * Creates the Commit Graph section showing the visual commit history timeline.
+ * When expanded as the bottom section, flex-fills full remaining height to avoid dead space.
  */
-function createCommitGraphSection(): HTMLElement {
+function createCommitGraphSection(isFlexFill: boolean): HTMLElement {
   const section = document.createElement('div');
-  section.className = 'sc-accordion-section';
+  const isExpanded = rightSidebarState.isGraphSectionExpanded();
+  const sectionHeight = rightSidebarState.getGraphSectionHeight();
+
+  section.className = `sc-accordion-section ${isExpanded ? (isFlexFill ? 'flex-fill' : '') : 'collapsed'}`;
+  if (isExpanded && !isFlexFill) {
+    section.style.height = `${sectionHeight}px`;
+    section.style.flex = `0 0 ${sectionHeight}px`;
+  }
 
   const commits = rightSidebarState.getGraphCommits();
-  const isExpanded = rightSidebarState.isGraphSectionExpanded();
 
-  // Accordion Header
+  // 1. Accordion Header
   const header = document.createElement('div');
   header.className = 'sc-accordion-header';
 
@@ -762,27 +967,88 @@ function createCommitGraphSection(): HTMLElement {
   const headerRight = document.createElement('div');
   headerRight.className = 'sc-accordion-header-right';
 
-  // Refresh graph button
+  const activePath = resolveCurrentRepoPath();
+
+  // Action: Pull
+  const pullBtn = document.createElement('button');
+  pullBtn.className = 'sc-icon-btn';
+  pullBtn.title = 'Pull';
+  pullBtn.innerHTML = '<span class="ui-icon icon-sc-arrow-down"></span>';
+  pullBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await gitPullChangesIpc(undefined, undefined, activePath);
+    await refreshRightSidebar();
+  });
+
+  // Action: Push
+  const pushBtn = document.createElement('button');
+  pushBtn.className = 'sc-icon-btn';
+  pushBtn.title = 'Push';
+  pushBtn.innerHTML = '<span class="ui-icon icon-sc-arrow-up"></span>';
+  pushBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await gitPushChangesIpc(undefined, undefined, activePath);
+    await refreshRightSidebar();
+  });
+
+  // Action: Filter Branch
+  const filterBtn = document.createElement('button');
+  filterBtn.className = 'sc-icon-btn';
+  filterBtn.title = 'Filter Branch';
+  filterBtn.innerHTML = '<span class="ui-icon icon-sc-git-graph"></span>';
+  filterBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await refreshRightSidebar();
+  });
+
+  // Action: Center HEAD commit
+  const centerHeadBtn = document.createElement('button');
+  centerHeadBtn.className = 'sc-icon-btn';
+  centerHeadBtn.title = 'Center HEAD Commit';
+  centerHeadBtn.innerHTML = '<span class="ui-icon icon-sc-target"></span>';
+  centerHeadBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const headRow = section.querySelector('.sc-graph-row.head');
+    headRow?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  // Action: Refresh Graph
   const refreshGraphBtn = document.createElement('button');
   refreshGraphBtn.className = 'sc-icon-btn';
   refreshGraphBtn.title = 'Refresh Commit Graph';
   refreshGraphBtn.innerHTML = '<span class="ui-icon icon-sc-refresh-cw"></span>';
   refreshGraphBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-    const graph = await getGitCommitGraphIpc(workspacePath, 40, 0);
+    const graph = await getGitCommitGraphIpc(activePath, 50, 0);
     rightSidebarState.setGraphCommits(graph);
   });
 
+  // Action: More Graph Options
+  const moreGraphBtn = document.createElement('button');
+  moreGraphBtn.className = 'sc-icon-btn';
+  moreGraphBtn.title = 'More Graph Actions';
+  moreGraphBtn.innerHTML = '<span class="ui-icon icon-sc-ellipsis"></span>';
+  moreGraphBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const rect = moreGraphBtn.getBoundingClientRect();
+    openContextMenu('graph_heading', rect.left - 180, rect.bottom + 4);
+  });
+
+  headerRight.appendChild(pullBtn);
+  headerRight.appendChild(pushBtn);
+  headerRight.appendChild(filterBtn);
+  headerRight.appendChild(centerHeadBtn);
   headerRight.appendChild(refreshGraphBtn);
+  headerRight.appendChild(moreGraphBtn);
+
   header.appendChild(headerLeft);
   header.appendChild(headerRight);
   section.appendChild(header);
 
-  // Accordion Content
+  // 2. Accordion Body (List of commits - full height scroll)
   if (isExpanded) {
     const list = document.createElement('div');
-    list.className = 'sc-accordion-body sc-graph-body';
+    list.className = 'sc-graph-body';
 
     if (commits.length === 0) {
       const empty = document.createElement('div');
@@ -793,9 +1059,9 @@ function createCommitGraphSection(): HTMLElement {
       commits.forEach((commit) => {
         const row = document.createElement('div');
         row.className = `sc-graph-row ${commit.is_head ? 'head' : ''}`;
-        row.title = `Commit ${commit.short_hash}: ${commit.message} (${commit.author})`;
+        row.title = `Commit ${commit.short_hash}: ${commit.message} (${commit.author}) - Click to copy hash`;
 
-        // Left 12px visual graph column (2px vertical line + 8px dot)
+        // 12px visual graph column (2px vertical line + 8px dot)
         const nodeCol = document.createElement('div');
         nodeCol.className = 'sc-graph-node-col';
         nodeCol.innerHTML = `
@@ -817,7 +1083,7 @@ function createCommitGraphSection(): HTMLElement {
         row.appendChild(msg);
         row.appendChild(author);
 
-        // Branch pill if present
+        // Branch pill if present on HEAD or branch tip
         if (commit.branch_tag) {
           const pill = document.createElement('div');
           pill.className = 'sc-graph-branch-pill';
@@ -829,6 +1095,7 @@ function createCommitGraphSection(): HTMLElement {
           row.appendChild(pill);
         }
 
+        // Clicking commit row copies commit hash to clipboard
         row.addEventListener('click', async () => {
           try {
             await navigator.clipboard.writeText(commit.hash);
@@ -847,27 +1114,90 @@ function createCommitGraphSection(): HTMLElement {
   return section;
 }
 
-/**
- * Executes a Git commit with the current message in the textarea.
- */
-async function executeCommit(): Promise<void> {
-  const msg = rightSidebarState.getCommitMessage().trim();
-  if (!msg) return;
+// ============================================================================
+// Helper: Smooth Section Resizing Divider (Zero DOM recreation during drag)
+// ============================================================================
 
-  if (rightSidebarState.getIsCommitting()) return;
+/**
+ * Creates a horizontal divider that allows real-time smooth 60fps vertical dragging
+ * to resize a section, without wiping or rebuilding the DOM.
+ */
+function createSmoothResizeDivider(
+  targetSection: HTMLElement,
+  onSaveHeight: (finalHeight: number) => void,
+  minHeight: number,
+  maxHeight: number
+): HTMLElement {
+  const divider = document.createElement('div');
+  divider.className = 'sc-section-divider';
+  divider.title = 'Drag to resize section';
+
+  let startY = 0;
+  let startHeight = 0;
+
+  const onMouseMove = (e: MouseEvent) => {
+    const deltaY = e.clientY - startY;
+    const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY));
+    targetSection.style.height = `${newHeight}px`;
+    targetSection.style.flex = `0 0 ${newHeight}px`;
+  };
+
+  const onMouseUp = () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+    divider.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    const finalHeight = targetSection.offsetHeight;
+    onSaveHeight(finalHeight);
+  };
+
+  divider.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startY = e.clientY;
+    startHeight = targetSection.offsetHeight;
+    divider.classList.add('active');
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  });
+
+  return divider;
+}
+
+// ============================================================================
+// Section 6: Commit Action Execution
+// ============================================================================
+
+/**
+ * Executes a Git commit with the current message in the textarea for the active repo.
+ * @param amend Whether to amend the previous commit.
+ */
+async function executeCommit(amend = false): Promise<boolean> {
+  const msg = rightSidebarState.getCommitMessage().trim();
+  if (!msg && !amend) return false;
+
+  if (rightSidebarState.getIsCommitting()) return false;
   rightSidebarState.setIsCommitting(true);
 
   try {
-    const workspacePath = sidebarState.getActiveProjectPath() || undefined;
-    await gitCommitChangesIpc(msg, false, workspacePath);
+    const activePath = resolveCurrentRepoPath();
+    await gitCommitChangesIpc(msg, amend, activePath);
     rightSidebarState.setCommitMessage('');
     await refreshRightSidebar();
+    return true;
   } catch (err) {
     console.error('[RightSidebar] Commit failed:', err);
+    return false;
   } finally {
     rightSidebarState.setIsCommitting(false);
   }
 }
+
+// ============================================================================
+// Section 7: Floating Context Menus & Nested Submenus
+// ============================================================================
 
 /**
  * Opens a primary context menu popup overlay at given coordinates.
@@ -903,7 +1233,15 @@ function renderContextMenuOverlay(aside: HTMLElement): void {
   menu.style.left = `${Math.max(10, menuCoords.x)}px`;
   menu.style.top = `${menuCoords.y}px`;
 
-  const items = activeMenuId === 'commit' ? menuDefs.commitSubmenu : menuDefs.overflowMenu;
+  // Select items definition based on activeMenuId
+  let items: ContextMenuItem[] = menuDefs.overflowMenu;
+  if (activeMenuId === 'commit') {
+    items = menuDefs.commitSubmenu;
+  } else if (activeMenuId === 'repo_heading') {
+    items = menuDefs.overflowMenu;
+  } else if (activeMenuId === 'graph_heading') {
+    items = menuDefs.graphHeadingMenu;
+  }
 
   items.forEach((item) => {
     if (item.is_separator) {
@@ -934,6 +1272,7 @@ function renderContextMenuOverlay(aside: HTMLElement): void {
       arrow.className = 'ui-icon icon-sc-chevron-right sc-menu-arrow';
       row.appendChild(arrow);
 
+      // On hover, open the corresponding nested submenu
       row.addEventListener('mouseenter', () => {
         const itemRect = row.getBoundingClientRect();
         submenuY = itemRect.top;
@@ -967,7 +1306,7 @@ function renderContextMenuOverlay(aside: HTMLElement): void {
   if (activeSubmenuItems) {
     const subMenu = document.createElement('div');
     subMenu.className = 'sc-context-menu-popup sc-nested-submenu';
-    subMenu.style.left = `${Math.max(10, menuCoords.x - 190)}px`;
+    subMenu.style.left = `${Math.max(10, menuCoords.x - 210)}px`;
     subMenu.style.top = `${submenuY}px`;
 
     activeSubmenuItems.forEach((subItem) => {
@@ -1012,10 +1351,10 @@ function renderContextMenuOverlay(aside: HTMLElement): void {
 }
 
 /**
- * Handles clicks on context menu items.
+ * Dispatches and executes context menu item actions.
  */
 async function handleMenuItemAction(itemId: string): Promise<void> {
-  const ws = sidebarState.getActiveProjectPath() || undefined;
+  const activePath = resolveCurrentRepoPath();
 
   switch (itemId) {
     case 'toggle_repos':
@@ -1028,30 +1367,50 @@ async function handleMenuItemAction(itemId: string): Promise<void> {
       rightSidebarState.toggleGraphVisible();
       break;
     case 'cmd_stage_all':
-      await gitStageAllFilesIpc(ws);
+      await gitStageAllFilesIpc(activePath);
       await refreshRightSidebar();
       break;
     case 'cmd_unstage_all':
-      await gitUnstageAllFilesIpc(ws);
+      await gitUnstageAllFilesIpc(activePath);
       await refreshRightSidebar();
       break;
     case 'cmd_discard_all':
-      await gitRevertAllFilesIpc(ws);
+      await gitRevertAllFilesIpc(activePath);
       await refreshRightSidebar();
       break;
     case 'cmd_commit':
-      await executeCommit();
+      await executeCommit(false);
       break;
+    case 'cmd_commit_amend':
+      await executeCommit(true);
+      break;
+    case 'cmd_commit_push': {
+      const ok = await executeCommit(false);
+      if (ok) {
+        await gitPushChangesIpc(undefined, undefined, activePath);
+        await refreshRightSidebar();
+      }
+      break;
+    }
+    case 'cmd_commit_sync': {
+      const ok = await executeCommit(false);
+      if (ok) {
+        await gitPullChangesIpc(undefined, undefined, activePath);
+        await gitPushChangesIpc(undefined, undefined, activePath);
+        await refreshRightSidebar();
+      }
+      break;
+    }
     case 'cmd_push':
-      await gitPushChangesIpc(undefined, undefined, ws);
+      await gitPushChangesIpc(undefined, undefined, activePath);
       await refreshRightSidebar();
       break;
     case 'cmd_pull':
-      await gitPullChangesIpc(undefined, undefined, ws);
+      await gitPullChangesIpc(undefined, undefined, activePath);
       await refreshRightSidebar();
       break;
     case 'cmd_fetch':
-      await gitFetchChangesIpc(undefined, ws);
+      await gitFetchChangesIpc(undefined, activePath);
       await refreshRightSidebar();
       break;
     default:

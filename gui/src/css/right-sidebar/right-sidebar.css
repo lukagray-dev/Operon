@@ -1,26 +1,35 @@
-/* Source Control & Git Diff Right Sidebar Styling */
+/* ==========================================================================
+   Source Control & Git Diff Right Sidebar Styling
+   
+   This stylesheet provides a 1:1 pixel-perfect implementation of the
+   VS Code Source Control panel and matches the Slint reference UI.
+   ========================================================================== */
+
 @import '../shared/tokens.css';
 
-/* Right Sidebar Base Aside Container */
+/* --------------------------------------------------------------------------
+   1. Base Sidebar Aside Container
+   -------------------------------------------------------------------------- */
 .right-sidebar {
   position: relative;
   display: none;
   flex-direction: column;
   height: 100%;
-  background-color: #121212;
-  border-left: none;
+  background-color: #181818;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
   z-index: 50;
+  box-sizing: border-box;
 }
 
 .right-sidebar.open {
   display: flex;
 }
 
-/* Left Drag Resize Handle */
+/* Left Edge Drag Resize Handle (Adjusts overall sidebar width) */
 .right-sidebar-resize-handle {
   position: absolute;
   left: -2px;
@@ -37,7 +46,7 @@
   background-color: var(--accent-blue, #007acc);
 }
 
-/* Internal Layout Container */
+/* Internal Layout Flex Container */
 .right-sidebar-container {
   display: flex;
   flex-direction: column;
@@ -46,16 +55,20 @@
   overflow: hidden;
 }
 
-/* 1. Header */
+/* --------------------------------------------------------------------------
+   2. Source Control Header (Top Bar)
+   -------------------------------------------------------------------------- */
 .sc-header {
   height: 35px;
   min-height: 35px;
-  background-color: #121212;
+  flex: 0 0 35px;
+  background-color: #181818;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 8px 0 12px;
-  border-bottom: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  box-sizing: border-box;
 }
 
 .sc-header-title {
@@ -69,10 +82,10 @@
 .sc-header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
-/* Shared Icon Button */
+/* Shared Icon Button in Header & Action Bars */
 .sc-icon-btn {
   width: 22px;
   height: 22px;
@@ -83,40 +96,68 @@
   border: none;
   border-radius: 3px;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--text-muted, #999999);
   transition: background-color 0.1s ease, color 0.1s ease;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .sc-icon-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
+  color: var(--text-primary, #ffffff);
 }
 
 .sc-icon-btn .ui-icon {
   width: 12px;
   height: 12px;
   background-color: currentColor;
+  display: inline-block;
 }
 
-/* 2. Scrollable Middle Content */
+/* --------------------------------------------------------------------------
+   3. Scrollable Middle Body & Resizable Section Dividers
+   -------------------------------------------------------------------------- */
 .right-sidebar-scroll-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  flex: 1 1 0px;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-/* 3. Commit Input Section */
+/* Horizontal Divider for Resizing Independent Sections */
+.sc-section-divider {
+  height: 5px;
+  min-height: 5px;
+  flex: 0 0 5px;
+  width: 100%;
+  cursor: ns-resize;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+  z-index: 10;
+  position: relative;
+}
+
+.sc-section-divider:hover,
+.sc-section-divider.active {
+  background-color: var(--accent-blue, #007acc);
+}
+
+/* --------------------------------------------------------------------------
+   4. Commit Message Input Box & Split Commit Button
+   -------------------------------------------------------------------------- */
 .sc-commit-section {
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background-color: #121212;
-  border-bottom: none;
+  background-color: #181818;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
+/* Textarea input wrapper box */
 .sc-commit-input-container {
   position: relative;
   background-color: #252526;
@@ -128,36 +169,40 @@
   display: flex;
   flex-direction: column;
   transition: border-color 0.15s ease;
+  box-sizing: border-box;
 }
 
 .sc-commit-input-container:focus-within {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: var(--accent-blue, #007acc);
+  outline: 1px solid var(--accent-blue, #007acc);
 }
 
 .sc-commit-textarea {
-  width: calc(100% - 80px);
+  width: calc(100% - 84px);
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text-primary);
+  color: var(--text-primary, #ffffff);
   font-family: var(--font-family);
   font-size: 11px;
   line-height: 1.45;
   resize: none;
   overflow-y: auto;
+  box-sizing: border-box;
+  min-height: 52px;
 }
 
 .sc-commit-textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--text-muted, #888888);
 }
 
-/* AI Generate Button Overlay */
+/* AI "Generate" Action Button Inside Commit Box */
 .sc-btn-generate {
   position: absolute;
   top: 6px;
   right: 6px;
   height: 22px;
-  width: 78px;
+  width: 80px;
   background-color: #0e639c;
   color: #ffffff;
   border: none;
@@ -171,6 +216,7 @@
   gap: 4px;
   cursor: pointer;
   transition: background-color 0.12s ease;
+  z-index: 5;
 }
 
 .sc-btn-generate:hover {
@@ -188,7 +234,7 @@
   cursor: wait;
 }
 
-/* Primary Commit Split Button */
+/* Primary Split "Commit" Button */
 .sc-commit-split-btn {
   height: 28px;
   border-radius: 3px;
@@ -255,34 +301,54 @@
   background-color: #ffffff;
 }
 
-/* 4. Accordion Base */
+/* --------------------------------------------------------------------------
+   5. Accordion Section Base & Flex Layout
+   -------------------------------------------------------------------------- */
 .sc-accordion-section {
   display: flex;
   flex-direction: column;
   width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.sc-accordion-section.collapsed {
+  flex: 0 0 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+}
+
+.sc-accordion-section.flex-fill {
+  flex: 1 1 0px !important;
+  min-height: 80px !important;
+  height: auto !important;
 }
 
 .sc-accordion-header {
-  height: 28px;
-  min-height: 28px;
+  height: 24px;
+  min-height: 24px;
+  flex: 0 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px 0 10px;
+  padding: 0 8px 0 8px;
   cursor: pointer;
-  background-color: #1c1c1c;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: #1e1e1e;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
   transition: background-color 0.1s ease;
+  box-sizing: border-box;
 }
 
 .sc-accordion-header:hover {
-  background-color: #222222;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .sc-accordion-header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   min-width: 0;
 }
@@ -290,14 +356,15 @@
 .sc-accordion-header-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .sc-chevron {
-  width: 10px;
-  height: 10px;
-  background-color: #777777;
+  width: 14px;
+  height: 14px;
+  background-color: var(--text-muted, #888888);
   transition: transform 0.15s ease-in-out;
+  display: inline-block;
 }
 
 .sc-chevron.collapsed {
@@ -309,44 +376,56 @@
   font-weight: 700;
   font-family: var(--font-family);
   color: #cccccc;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sc-count-pill {
   font-size: 10px;
   font-weight: 600;
-  color: #888888;
-  background-color: rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  color: #cccccc;
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
   padding: 1px 6px;
+  line-height: 14px;
+  margin-left: 4px;
 }
 
 .sc-accordion-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   width: 100%;
 }
 
-/* Empty row */
+/* Empty row indicator */
 .sc-empty-row {
   height: 28px;
   padding-left: 20px;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-muted, #888888);
   font-family: var(--font-family);
   display: flex;
   align-items: center;
 }
 
-/* 5. Repositories List */
+/* --------------------------------------------------------------------------
+   6. Repositories Section
+   -------------------------------------------------------------------------- */
 .sc-repo-row {
-  height: 24px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 8px 0 16px;
   cursor: pointer;
   transition: background-color 0.1s ease;
+  box-sizing: border-box;
 }
 
 .sc-repo-row:hover {
@@ -354,7 +433,7 @@
 }
 
 .sc-repo-row.active {
-  background-color: rgba(0, 122, 204, 0.15);
+  background-color: rgba(42, 45, 46, 0.6);
 }
 
 .sc-repo-row-left {
@@ -366,35 +445,60 @@
 }
 
 .sc-repo-icon {
-  width: 12px;
-  height: 12px;
-  background-color: #cccccc;
+  width: 14px;
+  height: 14px;
+  background-color: #888888;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.sc-repo-row.active .sc-repo-icon {
+  background-color: #ffffff;
 }
 
 .sc-repo-name {
-  font-size: 11.5px;
+  font-size: 12px;
+  font-weight: 400;
   font-family: var(--font-family);
-  color: var(--text-primary);
+  color: #bbbbbb;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.sc-repo-branch-pill {
-  font-size: 10px;
+.sc-repo-row.active .sc-repo-name {
   font-weight: 600;
-  color: #38bdf8;
-  background-color: rgba(56, 189, 248, 0.1);
-  padding: 1px 5px;
-  border-radius: 4px;
-  margin-left: auto;
+  color: #ffffff;
 }
 
-/* 6. Changes & Subgroups */
+.sc-repo-row-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sc-repo-branch-text {
+  font-size: 11px;
+  color: #888888;
+  font-family: var(--font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.sc-repo-row.active .sc-repo-branch-text {
+  color: #cccccc;
+}
+
+/* --------------------------------------------------------------------------
+   7. Changes Subgroups (Staged Changes / Changes)
+   -------------------------------------------------------------------------- */
 .sc-subgroup-container {
   display: flex;
   flex-direction: column;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .sc-subgroup-header {
@@ -402,27 +506,31 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px 0 12px;
+  padding: 0 8px 0 10px;
   cursor: pointer;
+  background-color: #1e1e1e;
+  border-top: 1px solid rgba(255, 255, 255, 0.02);
   transition: background-color 0.1s ease;
+  box-sizing: border-box;
 }
 
 .sc-subgroup-header:hover {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .sc-subgroup-header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
 }
 
 .sc-sub-chevron {
-  width: 9px;
-  height: 9px;
+  width: 12px;
+  height: 12px;
   background-color: #777777;
   transition: transform 0.15s ease;
+  display: inline-block;
 }
 
 .sc-sub-chevron.collapsed {
@@ -434,6 +542,12 @@
   font-weight: 600;
   font-family: var(--font-family);
   color: #bbbbbb;
+}
+
+.sc-subgroup-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .sc-files-list {
@@ -456,6 +570,7 @@
   padding: 0 8px 0 16px;
   cursor: pointer;
   transition: background-color 0.1s ease;
+  box-sizing: border-box;
 }
 
 .sc-file-row:hover {
@@ -473,16 +588,22 @@
 .sc-file-icon {
   width: 12px;
   height: 12px;
-  background-color: var(--text-muted);
+  background-color: #9cdcfe;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .sc-file-name {
   font-size: 11.5px;
   font-family: var(--font-family);
-  color: var(--text-primary);
+  color: #cccccc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sc-file-row:hover .sc-file-name {
+  color: #ffffff;
 }
 
 .sc-file-dir {
@@ -498,15 +619,40 @@
 .sc-file-row-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
+/* Hover Action Buttons in File Row */
+.sc-file-actions {
+  display: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.sc-file-row:hover .sc-file-actions {
+  display: flex;
+}
+
+.sc-action-stage:hover {
+  color: #23d18b;
+}
+
+.sc-action-unstage:hover {
+  color: #e2c08d;
+}
+
+.sc-action-discard:hover {
+  color: #f14c4c;
+}
+
+/* Status letter badge (M, A, D, U) */
 .sc-status-badge {
   font-size: 11px;
   font-weight: 700;
-  font-family: var(--mono-font-family);
+  font-family: var(--mono-font-family, monospace);
   width: 14px;
   text-align: center;
+  display: inline-block;
 }
 
 .sc-status-badge.status-modified {
@@ -525,18 +671,21 @@
   color: #cccccc;
 }
 
-/* 7. Inline Hunk Diff Viewer */
+/* --------------------------------------------------------------------------
+   8. Inline Unified Hunk Diff Viewer
+   -------------------------------------------------------------------------- */
 .sc-hunk-diff-viewer {
   background-color: #050505;
   border-radius: 4px;
   padding: 4px;
-  margin: 2px 8px 6px 16px;
-  font-family: var(--mono-font-family);
+  margin: 2px 6px 6px 14px;
+  font-family: var(--mono-font-family, monospace);
   font-size: 10.5px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .sc-hunk-box {
@@ -563,6 +712,7 @@
   padding: 0 6px;
   gap: 6px;
   white-space: pre;
+  box-sizing: border-box;
 }
 
 .sc-diff-line-row.sc-line-add {
@@ -574,10 +724,11 @@
 }
 
 .sc-line-num {
-  width: 22px;
+  width: 24px;
   text-align: right;
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--text-muted, #777777);
+  flex-shrink: 0;
 }
 
 .sc-line-num.old {
@@ -593,6 +744,7 @@
   text-align: center;
   font-size: 10.5px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .sc-line-add .sc-line-sign {
@@ -605,14 +757,22 @@
 
 .sc-line-code {
   font-size: 10.5px;
-  color: var(--text-primary);
+  color: var(--text-primary, #ffffff);
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* 8. Commit Graph */
+/* --------------------------------------------------------------------------
+   9. Commit Graph Section
+   -------------------------------------------------------------------------- */
 .sc-graph-body {
-  max-height: 280px;
+  flex: 1 1 0px;
+  min-height: 0;
+  height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .sc-graph-row {
@@ -624,6 +784,7 @@
   gap: 8px;
   cursor: pointer;
   transition: background-color 0.1s ease;
+  box-sizing: border-box;
 }
 
 .sc-graph-row:hover {
@@ -634,6 +795,7 @@
   background-color: rgba(0, 120, 212, 0.1);
 }
 
+/* Visual timeline graph column */
 .sc-graph-node-col {
   width: 12px;
   height: 100%;
@@ -649,6 +811,8 @@
   width: 2px;
   height: 100%;
   background-color: #007acc;
+  top: 0;
+  bottom: 0;
 }
 
 .sc-graph-node-circle {
@@ -658,11 +822,14 @@
   border-radius: 50%;
   background-color: #007acc;
   z-index: 2;
+  box-sizing: border-box;
 }
 
 .sc-graph-node-circle.head {
   background-color: #38bdf8;
   border: 2px solid #ffffff;
+  width: 9px;
+  height: 9px;
 }
 
 .sc-graph-msg {
@@ -677,13 +844,13 @@
 
 .sc-graph-msg.head {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-primary, #ffffff);
 }
 
 .sc-graph-author {
   font-size: 11px;
   font-family: var(--font-family);
-  color: var(--text-muted);
+  color: var(--text-muted, #888888);
   flex-shrink: 0;
 }
 
@@ -702,6 +869,7 @@
   width: 10px;
   height: 10px;
   background-color: #ffffff;
+  display: inline-block;
 }
 
 .sc-branch-pill-text {
@@ -710,12 +878,14 @@
   color: #ffffff;
   font-family: var(--font-family);
   white-space: nowrap;
-  max-width: 100px;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* 9. Context Menus & Submenus */
+/* --------------------------------------------------------------------------
+   10. Context Menus & Submenus Overlay
+   -------------------------------------------------------------------------- */
 .sc-menu-backdrop {
   position: fixed;
   top: 0;
@@ -731,12 +901,14 @@
   z-index: 1000;
   background-color: #252526;
   border: 1px solid #454545;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  padding: 4px 0;
-  min-width: 190px;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  min-width: 210px;
   display: flex;
   flex-direction: column;
+  gap: 1px;
+  box-sizing: border-box;
 }
 
 .sc-nested-submenu {
@@ -745,7 +917,7 @@
 
 .sc-menu-item {
   height: 24px;
-  padding: 0 12px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -753,11 +925,13 @@
   font-family: var(--font-family);
   color: #cccccc;
   cursor: pointer;
+  border-radius: 3px;
   transition: background-color 0.1s ease, color 0.1s ease;
+  box-sizing: border-box;
 }
 
 .sc-menu-item:hover {
-  background-color: #094771;
+  background-color: #04395e;
   color: #ffffff;
 }
 
@@ -766,91 +940,151 @@
   cursor: default;
 }
 
+.sc-menu-item.disabled:hover {
+  background-color: transparent;
+  color: #cccccc;
+}
+
 .sc-menu-item-label {
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sc-menu-item-shortcut {
   font-size: 10.5px;
-  color: var(--text-muted);
+  color: var(--text-muted, #888888);
   margin-left: 12px;
 }
 
+.sc-menu-item:hover .sc-menu-item-shortcut {
+  color: #cccccc;
+}
+
 .sc-menu-arrow {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   background-color: currentColor;
   margin-left: 8px;
+  display: inline-block;
 }
 
 .sc-menu-separator {
   height: 1px;
-  background-color: rgba(255, 255, 255, 0.08);
-  margin: 4px 0;
+  background-color: #3c3c3c;
+  margin: 3px 0;
 }
 
-/* 10. Mask SVG Icons for Right Sidebar */
+/* --------------------------------------------------------------------------
+   11. Mask SVG Icons for Right Sidebar (All mapped to 2 levels up)
+   -------------------------------------------------------------------------- */
 .icon-sc-ellipsis {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/ellipsis.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/ellipsis.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/ellipsis.svg');
+  mask-image: url('../../assets/icons/right-sidebar/ellipsis.svg');
 }
 
 .icon-sc-sparkles {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/sparkles.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/sparkles.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/sparkles.svg');
+  mask-image: url('../../assets/icons/right-sidebar/sparkles.svg');
 }
 
 .icon-sc-check {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/check.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/check.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/check.svg');
+  mask-image: url('../../assets/icons/right-sidebar/check.svg');
 }
 
 .icon-sc-chevron-down {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/chevron-down.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/chevron-down.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/chevron-down.svg');
+  mask-image: url('../../assets/icons/right-sidebar/chevron-down.svg');
 }
 
 .icon-sc-chevron-right {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/chevron-right.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/chevron-right.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/chevron-right.svg');
+  mask-image: url('../../assets/icons/right-sidebar/chevron-right.svg');
+}
+
+.icon-sc-book {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/book.svg');
+  mask-image: url('../../assets/icons/right-sidebar/book.svg');
 }
 
 .icon-sc-folder {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/folder.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/folder.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/folder.svg');
+  mask-image: url('../../assets/icons/right-sidebar/folder.svg');
 }
 
 .icon-sc-file-text {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/file-text.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/file-text.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/file-text.svg');
+  mask-image: url('../../assets/icons/right-sidebar/file-text.svg');
 }
 
 .icon-sc-plus {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/plus.svg');
+  mask-image: url('../../assets/icons/right-sidebar/plus.svg');
 }
 
 .icon-sc-minus {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/minus.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/minus.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/minus.svg');
+  mask-image: url('../../assets/icons/right-sidebar/minus.svg');
 }
 
 .icon-sc-undo-2 {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/undo-2.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/undo-2.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/undo-2.svg');
+  mask-image: url('../../assets/icons/right-sidebar/undo-2.svg');
 }
 
 .icon-sc-refresh-cw {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/refresh-cw.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/refresh-cw.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/refresh-cw.svg');
+  mask-image: url('../../assets/icons/right-sidebar/refresh-cw.svg');
 }
 
 .icon-sc-git-branch {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/git-branch.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/git-branch.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/git-branch.svg');
+  mask-image: url('../../assets/icons/right-sidebar/git-branch.svg');
 }
 
 .icon-sc-cloud {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/cloud.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/cloud.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/cloud.svg');
+  mask-image: url('../../assets/icons/right-sidebar/cloud.svg');
+}
+
+.icon-sc-arrow-down {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/arrow-down.svg');
+  mask-image: url('../../assets/icons/right-sidebar/arrow-down.svg');
+}
+
+.icon-sc-arrow-up {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/arrow-up.svg');
+  mask-image: url('../../assets/icons/right-sidebar/arrow-up.svg');
+}
+
+.icon-sc-target {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/target.svg');
+  mask-image: url('../../assets/icons/right-sidebar/target.svg');
+}
+
+.icon-sc-git-graph {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/git-graph.svg');
+  mask-image: url('../../assets/icons/right-sidebar/git-graph.svg');
+}
+
+.icon-sc-external-link {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/external-link.svg');
+  mask-image: url('../../assets/icons/right-sidebar/external-link.svg');
+}
+
+.icon-sc-circle-dot {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/circle-dot.svg');
+  mask-image: url('../../assets/icons/right-sidebar/circle-dot.svg');
+}
+
+.icon-sc-rotate-ccw {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/rotate-ccw.svg');
+  mask-image: url('../../assets/icons/right-sidebar/rotate-ccw.svg');
+}
+
+.icon-sc-trash-2 {
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/trash-2.svg');
+  mask-image: url('../../assets/icons/right-sidebar/trash-2.svg');
 }

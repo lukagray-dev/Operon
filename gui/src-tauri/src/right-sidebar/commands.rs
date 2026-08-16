@@ -167,6 +167,7 @@ pub async fn get_workspace_repositories(
                 };
                 list.push(GitRepositoryInfoDto {
                     name: r.name,
+                    path: r.root.to_string_lossy().to_string(),
                     branch: branch_name,
                     is_active: r.is_active,
                     has_changes: r.has_changes,

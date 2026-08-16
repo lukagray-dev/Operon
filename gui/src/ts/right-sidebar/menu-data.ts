@@ -30,19 +30,13 @@ export const viewSubmenu: ContextMenuItem[] = [
   { id: 'view_list_mode', label: 'View as List', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
 ];
 
-// 3. Commit Submenu Items
+// 3. Commit Submenu Items (Primary Commit Dropdown)
 export const commitSubmenu: ContextMenuItem[] = [
   { id: 'cmd_commit', label: 'Commit', shortcut: 'Ctrl+Enter', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'cmd_commit_staged', label: 'Commit Staged', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'cmd_commit_all', label: 'Commit All', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'sep1', label: '', shortcut: '', has_submenu: false, is_separator: true, is_disabled: false },
   { id: 'cmd_commit_amend', label: 'Commit (Amend)', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'cmd_commit_staged_amend', label: 'Commit Staged (Amend)', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'cmd_commit_all_amend', label: 'Commit All (Amend)', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'sep2', label: '', shortcut: '', has_submenu: false, is_separator: true, is_disabled: false },
-  { id: 'cmd_commit_signed_off', label: 'Commit (Signed Off)', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'cmd_commit_staged_signed_off', label: 'Commit Staged (Signed Off)', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
-  { id: 'cmd_commit_all_signed_off', label: 'Commit All (Signed Off)', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
+  { id: 'sep1', label: '', shortcut: '', has_submenu: false, is_separator: true, is_disabled: false },
+  { id: 'cmd_commit_push', label: 'Commit & Push', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
+  { id: 'cmd_commit_sync', label: 'Commit & Sync', shortcut: '', has_submenu: false, is_separator: false, is_disabled: false },
 ];
 
 // 4. Changes Submenu Items
