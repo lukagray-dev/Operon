@@ -14,9 +14,9 @@
     "windows": [
       {
         "title": "Operon",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 800,
+        "width": 960,
+        "height": 600,
+        "minWidth": 960,
         "minHeight": 600,
         "decorations": false,
         "transparent": false,

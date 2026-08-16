@@ -269,79 +269,82 @@
           </div>
         </header>
 
-        <!-- Chat Message Stream Viewport -->
-        <div id="chat-messages-viewport" class="main-chat-viewport">
-          <!-- Empty State (Shown when no conversation is active/loaded) -->
-          <div id="chat-empty-state" class="empty-state-container">
-            <img
-              class="empty-state-logo"
-              src="assets/brand/operon.svg"
-              alt="Operon Logo"
-            />
-            <div class="empty-state-tagline">
-              <span>Agent that is built for everyone,</span>
-              <span>— not just for developers.</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pinned Bottom Input Area -->
-        <div class="input-panel-container">
-          <!-- Floating Permission Panel (Shown when model requests approval) -->
-          <div id="floating-permission-panel" class="floating-permission-panel" style="display: none;"></div>
-
-          <!-- Input Card -->
-          <div class="input-card">
-            <!-- Pending Attachments Bar -->
-            <div id="input-attachments-bar" class="attachments-bar"></div>
-
-            <!-- Multiline Prompt Input -->
-            <textarea id="chat-input-textarea" class="input-textarea" placeholder="Message Operon..."
-              rows="1"></textarea>
-
-            <!-- Bottom Input Toolbar -->
-            <div class="input-toolbar">
-              <!-- Left Section: Attach & Auto-Approve -->
-              <div class="toolbar-group-left">
-                <button id="btn-attach-files" class="toolbar-btn btn-attach" title="Attach file or image">
-                  <span class="ui-icon icon-input-attach"></span>
-                </button>
-                <button id="btn-auto-approve" class="toolbar-btn btn-auto-approve"
-                  title="Toggle Auto-Approve tool execution">
-                  <span class="ui-icon icon-input-auto-approve-disable"></span>
-                  <span>Autoapprove</span>
-                </button>
-              </div>
-
-              <!-- Right Section: Context, Model, Reasoning, Voice, Send -->
-              <div class="toolbar-group-right">
-                <button id="btn-context-usage" class="toolbar-btn btn-context-indicator"
-                  title="Context token window usage">
-                  <span class="ui-icon icon-input-context"></span>
-                  <span id="context-usage-text"></span>
-                </button>
-                <button id="btn-select-model" class="toolbar-btn btn-selector-pill" title="Select AI Model">
-                  <span class="ui-icon icon-input-model"></span>
-                  <span id="selected-model-text"></span>
-                  <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
-                </button>
-                <button id="btn-select-reasoning" class="toolbar-btn btn-selector-pill" title="Reasoning Strength">
-                  <span class="ui-icon icon-input-reasoning"></span>
-                  <span id="selected-reasoning-text">Medium</span>
-                  <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
-                </button>
-                <button id="btn-voice-input" class="toolbar-btn btn-voice" title="Voice input">
-                  <span class="ui-icon icon-input-voice"></span>
-                </button>
-                <button id="btn-send-message" class="btn-send-action disabled" title="Send message">
-                  <span class="ui-icon icon-input-send"></span>
-                </button>
+        <!-- Main Content Body: Viewport + Floating Input Container -->
+        <div id="main-content-body" class="main-content-body">
+          <!-- Chat Message Stream Viewport -->
+          <div id="chat-messages-viewport" class="main-chat-viewport">
+            <!-- Empty State (Shown when no conversation is active/loaded) -->
+            <div id="chat-empty-state" class="empty-state-container">
+              <img
+                class="empty-state-logo"
+                src="assets/brand/operon.svg"
+                alt="Operon Logo"
+              />
+              <div class="empty-state-tagline">
+                <span>Agent that is built for everyone,</span>
+                <span>— not just for developers.</span>
               </div>
             </div>
           </div>
 
-          <!-- Warning Disclaimer Text Below Input -->
-          <div class="input-warning-text">Operon uses AI models. AI can make mistakes.</div>
+          <!-- Pinned Bottom Floating Input Area -->
+          <div class="input-panel-container">
+            <!-- Floating Permission Panel (Shown when model requests approval) -->
+            <div id="floating-permission-panel" class="floating-permission-panel" style="display: none;"></div>
+
+            <!-- Input Card -->
+            <div class="input-card">
+              <!-- Pending Attachments Bar -->
+              <div id="input-attachments-bar" class="attachments-bar"></div>
+
+              <!-- Multiline Prompt Input -->
+              <textarea id="chat-input-textarea" class="input-textarea" placeholder="Message Operon..."
+                rows="1"></textarea>
+
+              <!-- Bottom Input Toolbar -->
+              <div class="input-toolbar">
+                <!-- Left Section: Attach & Auto-Approve -->
+                <div class="toolbar-group-left">
+                  <button id="btn-attach-files" class="toolbar-btn btn-attach" title="Attach file or image">
+                    <span class="ui-icon icon-input-attach"></span>
+                  </button>
+                  <button id="btn-auto-approve" class="toolbar-btn btn-auto-approve"
+                    title="Toggle Auto-Approve tool execution">
+                    <span class="ui-icon icon-input-auto-approve-disable"></span>
+                    <span>Autoapprove</span>
+                  </button>
+                </div>
+
+                <!-- Right Section: Context, Model, Reasoning, Voice, Send -->
+                <div class="toolbar-group-right">
+                  <button id="btn-context-usage" class="toolbar-btn btn-context-indicator"
+                    title="Context token window usage">
+                    <span class="ui-icon icon-input-context"></span>
+                    <span id="context-usage-text"></span>
+                  </button>
+                  <button id="btn-select-model" class="toolbar-btn btn-selector-pill" title="Select AI Model">
+                    <span class="ui-icon icon-input-model"></span>
+                    <span id="selected-model-text"></span>
+                    <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
+                  </button>
+                  <button id="btn-select-reasoning" class="toolbar-btn btn-selector-pill" title="Reasoning Strength">
+                    <span class="ui-icon icon-input-reasoning"></span>
+                    <span id="selected-reasoning-text">Medium</span>
+                    <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
+                  </button>
+                  <button id="btn-voice-input" class="toolbar-btn btn-voice" title="Voice input">
+                    <span class="ui-icon icon-input-voice"></span>
+                  </button>
+                  <button id="btn-send-message" class="btn-send-action disabled" title="Send message">
+                    <span class="ui-icon icon-input-send"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Warning Disclaimer Text Below Input -->
+            <div class="input-warning-text">Operon uses AI models. AI can make mistakes.</div>
+          </div>
         </div>
 
         <!-- Bottom-Docked PowerShell Terminal Panel -->

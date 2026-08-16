@@ -12,46 +12,67 @@
   overflow: hidden;
 }
 
-/* Chat Messages Scroll Viewport */
+/* Main Content Body (Holds scrollable chat messages viewport and floating input card) */
+.main-content-body {
+  flex: 1 1 0px;
+  min-height: 0;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Chat Messages Scroll Viewport - takes full height of the body so messages scroll seamlessly behind floating input */
 .main-chat-viewport {
-  flex: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  position: relative;
-  margin-bottom: 12px;
 }
 
-/* Input Panel Container pinned at the bottom */
+/* Floating Input Panel Container pinned at the bottom of the viewport */
 .input-panel-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 20px 14px 20px;
-  position: relative;
+  padding: 0 20px 10px 20px;
   z-index: 20;
+  pointer-events: none;
+  background: transparent;
 }
 
-/* Central Input Box Card */
+/* Central Input Box Card - matches left-sidebar color and floating appearance */
 .input-card {
   width: 100%;
-  max-width: 820px;
-  background-color: #171717;
-  border: 1px solid #282828;
-  border-radius: 10px;
+  max-width: 700px;
+  background-color: var(--sidebar-background, #121212);
+  border: 1px solid #222222;
+  border-radius: 12px;
   padding: 10px 12px 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   position: relative;
-  transition: border-color 0.12s ease;
+  pointer-events: auto;
+  transition: border-color 0.18s ease-in-out, box-shadow 0.18s ease-in-out;
 }
 
 .input-card:focus-within {
-  border-color: #383838;
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5),
+              0 0 14px 2px rgba(255, 255, 255, 0.35),
+              0 0 28px 4px rgba(255, 255, 255, 0.15),
+              0 8px 32px rgba(0, 0, 0, 0.8);
 }
 
 /* Attachments Chips Bar */
@@ -352,10 +373,12 @@
 /* Centered Warning Disclaimer Text */
 .input-warning-text {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-muted, #888888);
   font-family: var(--font-family);
   text-align: center;
-  margin-top: 8px;
+  margin-top: 5px;
+  pointer-events: auto;
+  background: transparent;
   user-select: none;
   -webkit-user-select: none;
 }
