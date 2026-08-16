@@ -209,19 +209,19 @@
             </div>
           </div>
 
-          <!-- Section 1: Theme & Color Palette -->
+          <!-- Section 1: Code Blocks & Tables Appearance -->
           <div class="settings-card">
-            <div class="settings-card-header">Theme & Color Palette</div>
+            <div class="settings-card-header">Code Block Appearance</div>
             <div class="settings-card-divider"></div>
 
-            <div class="theme-grid">
-              <!-- Operon Dark -->
-              <div class="theme-preview-card selected" data-index="0">
+            <div class="theme-grid" id="code-theme-grid">
+              <!-- GitHub Dark -->
+              <div class="theme-preview-card selected" data-type="code" data-index="0">
                 <div class="theme-card-header">
-                  <span class="theme-card-title">Operon Dark</span>
+                  <span class="theme-card-title">GitHub Dark</span>
                   <div class="theme-card-badge"></div>
                 </div>
-                <div class="theme-code-preview">
+                <div class="theme-code-preview" style="background-color: #161b22; border: 1px solid #30363d;">
                   <div><span class="kw">fn</span> <span class="fn">main</span>() {</div>
                   <div>  <span class="fn">println!</span>(<span class="str">"Operon"</span>);</div>
                   <div>}</div>
@@ -229,41 +229,138 @@
               </div>
 
               <!-- Midnight OLED -->
-              <div class="theme-preview-card" data-index="1">
+              <div class="theme-preview-card" data-type="code" data-index="1">
                 <div class="theme-card-header">
                   <span class="theme-card-title">Midnight OLED</span>
                   <div class="theme-card-badge"></div>
                 </div>
-                <div class="theme-code-preview" style="background-color: #000000;">
+                <div class="theme-code-preview" style="background-color: #000000; border: 1px solid #242424;">
                   <div><span class="kw">let</span> s = <span class="fn">new</span>();</div>
                   <div><span class="kw">await</span> s.<span class="fn">run</span>();</div>
                   <div><span class="kw">return</span>;</div>
                 </div>
               </div>
 
-              <!-- GitHub Dark -->
-              <div class="theme-preview-card" data-index="2">
+              <!-- Tokyo Night -->
+              <div class="theme-preview-card" data-type="code" data-index="2">
                 <div class="theme-card-header">
-                  <span class="theme-card-title">GitHub Dark</span>
+                  <span class="theme-card-title">Tokyo Night</span>
                   <div class="theme-card-badge"></div>
                 </div>
-                <div class="theme-code-preview" style="background-color: #0d1117;">
+                <div class="theme-code-preview" style="background-color: #1a1b26; border: 1px solid #292e42;">
+                  <div><span class="kw">import</span> { app }</div>
+                  <div>app.<span class="fn">listen</span>();</div>
+                  <div><span class="kw">done</span>();</div>
+                </div>
+              </div>
+
+              <!-- Monokai Matrix -->
+              <div class="theme-preview-card" data-type="code" data-index="3">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Monokai Matrix</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-code-preview" style="background-color: #1e1f1c; border: 1px solid #34352f;">
                   <div><span class="kw">const</span> c = <span class="fn">load</span>();</div>
                   <div>c.<span class="fn">start</span>();</div>
                   <div><span class="kw">export</span> c;</div>
                 </div>
               </div>
+            </div>
+            <div class="settings-card-divider"></div>
 
-              <!-- Tokyo Night -->
-              <div class="theme-preview-card" data-index="3">
+            <!-- Show Line Numbers in Code -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Show Line Numbers in Code</div>
+                <div class="settings-row-desc">Display non-selectable line numbers gutter inside code blocks</div>
+              </div>
+              <div id="toggle-app-line-numbers" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Highlight Inline-code -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Highlight Inline-code</div>
+                <div class="settings-row-desc">Apply syntax tokenization and tinted pill styling to inline code spans</div>
+              </div>
+              <div id="toggle-app-inline-code" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Tables Appearance Header & Cards -->
+            <div class="settings-row-title" style="margin-top: 4px; margin-bottom: 8px;">Tables Appearance</div>
+            <div class="theme-grid" id="table-theme-grid">
+              <!-- GitHub Dark -->
+              <div class="theme-preview-card selected" data-type="table" data-index="0">
                 <div class="theme-card-header">
-                  <span class="theme-card-title">Tokyo Night</span>
+                  <span class="theme-card-title">GitHub Dark</span>
                   <div class="theme-card-badge"></div>
                 </div>
-                <div class="theme-code-preview" style="background-color: #1a1b26;">
-                  <div><span class="kw">import</span> { app }</div>
-                  <div>app.<span class="fn">listen</span>();</div>
-                  <div><span class="kw">done</span>();</div>
+                <div class="theme-table-preview">
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell head">Key</span>
+                    <span class="theme-table-cell head">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell">id</span>
+                    <span class="theme-table-cell">string</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Modern Minimal -->
+              <div class="theme-preview-card" data-type="table" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Modern Minimal</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-table-preview" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+                  <div class="theme-table-row" style="border-bottom: 1.5px solid #60c5ff;">
+                    <span class="theme-table-cell head" style="background: transparent; color: #60c5ff;">Key</span>
+                    <span class="theme-table-cell head" style="background: transparent; color: #60c5ff;">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell" style="background: transparent;">id</span>
+                    <span class="theme-table-cell" style="background: transparent;">string</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Zebra Striped -->
+              <div class="theme-preview-card" data-type="table" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Zebra Striped</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-table-preview">
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell head" style="background-color: #222222;">Key</span>
+                    <span class="theme-table-cell head" style="background-color: #222222;">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell" style="background-color: #141414;">id</span>
+                    <span class="theme-table-cell" style="background-color: #141414;">string</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Boxed Grid -->
+              <div class="theme-preview-card" data-type="table" data-index="3">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Boxed Grid</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-table-preview" style="border: 1px solid #333333;">
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell head" style="background-color: #252525; border: 1px solid #383838;">Key</span>
+                    <span class="theme-table-cell head" style="background-color: #252525; border: 1px solid #383838;">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell" style="background-color: #171717; border: 1px solid #333333;">id</span>
+                    <span class="theme-table-cell" style="background-color: #171717; border: 1px solid #333333;">string</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -339,60 +436,131 @@
             </div>
           </div>
 
-          <!-- Section 3: Typography & Code Styling -->
+          <!-- Section 3: Typography -->
           <div class="settings-card">
-            <div class="settings-card-header">Typography & Code Styling</div>
+            <div class="settings-card-header">Typography</div>
             <div class="settings-card-divider"></div>
 
-            <!-- Primary UI Font -->
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-row-title">Primary Interface Font</div>
-                <div class="settings-row-desc">Sans-serif font family used for UI chrome, menus, and labels</div>
+            <!-- Primary Interface Font -->
+            <div class="settings-row-title" style="margin-bottom: 8px;">Primary Interface Font</div>
+            <div class="theme-grid font-preview-grid" id="ui-font-grid">
+              <!-- Open Sans -->
+              <div class="font-preview-card selected" data-type="ui-font" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Open Sans</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Open Sans', sans-serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">System Navigation & Labels</div>
+                </div>
               </div>
-              <div class="segmented-choice font-selector-row">
-                <button class="segmented-choice-btn seg-choice-ui-font active" data-index="0">Open Sans</button>
-                <button class="segmented-choice-btn seg-choice-ui-font" data-index="1">Inter</button>
-                <button class="segmented-choice-btn seg-choice-ui-font" data-index="2">Roboto</button>
+
+              <!-- Inter -->
+              <div class="font-preview-card" data-type="ui-font" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Inter</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Inter', sans-serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Modern Interface Sans</div>
+                </div>
+              </div>
+
+              <!-- Roboto -->
+              <div class="font-preview-card" data-type="ui-font" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Roboto</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Roboto', sans-serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Geometric Clean Sans</div>
+                </div>
               </div>
             </div>
             <div class="settings-card-divider"></div>
 
             <!-- Assistant Response Font -->
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-row-title">Assistant Response Font</div>
-                <div class="settings-row-desc">Serif / reading font family used for AI assistant message content</div>
+            <div class="settings-row-title" style="margin-top: 4px; margin-bottom: 8px;">Assistant Response Font</div>
+            <div class="theme-grid font-preview-grid" id="assistant-font-grid">
+              <!-- Literata -->
+              <div class="font-preview-card selected" data-type="assistant-font" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Literata</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Literata', Georgia, serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Editorial Assistant Prose</div>
+                </div>
               </div>
-              <div class="segmented-choice font-selector-row">
-                <button class="segmented-choice-btn seg-choice-assistant-font active" data-index="0">Literata</button>
-                <button class="segmented-choice-btn seg-choice-assistant-font" data-index="1">Georgia</button>
-                <button class="segmented-choice-btn seg-choice-assistant-font" data-index="2">Merriweather</button>
+
+              <!-- Lora -->
+              <div class="font-preview-card" data-type="assistant-font" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Lora</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Lora', Georgia, serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Contemporary Reading Serif</div>
+                </div>
+              </div>
+
+              <!-- Merriweather -->
+              <div class="font-preview-card" data-type="assistant-font" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Merriweather</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Merriweather', Georgia, serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Screen-Optimized Serif</div>
+                </div>
               </div>
             </div>
             <div class="settings-card-divider"></div>
 
             <!-- Monospace Code Font -->
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-row-title">Monospace Code Font</div>
-                <div class="settings-row-desc">Monospaced font family used for code blocks and terminal logs</div>
+            <div class="settings-row-title" style="margin-top: 4px; margin-bottom: 8px;">Monospace Code Font</div>
+            <div class="theme-grid font-preview-grid" id="code-font-grid">
+              <!-- Kode Mono -->
+              <div class="font-preview-card selected" data-type="code-font" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Kode Mono</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Kode Mono', monospace;">
+                  <div class="font-sample-headline">0x7F fn()</div>
+                  <div class="font-sample-desc">Default Monospace</div>
+                </div>
               </div>
-              <div class="segmented-choice font-selector-row">
-                <button class="segmented-choice-btn seg-choice-code-font active" data-index="0">Kode Mono</button>
-                <button class="segmented-choice-btn seg-choice-code-font" data-index="1">Fira Code</button>
-                <button class="segmented-choice-btn seg-choice-code-font" data-index="2">JetBrains</button>
-              </div>
-            </div>
-            <div class="settings-card-divider"></div>
 
-            <!-- Cursor Blinking -->
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-row-title">Text Cursor Blinking</div>
-                <div class="settings-row-desc">Animate text insertion cursor blinking in input boxes and terminal prompt</div>
+              <!-- JetBrains Mono -->
+              <div class="font-preview-card" data-type="code-font" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">JetBrains Mono</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'JetBrains Mono', monospace;">
+                  <div class="font-sample-headline">0x7F fn()</div>
+                  <div class="font-sample-desc">Developer Monospace</div>
+                </div>
               </div>
-              <div id="toggle-app-cursor-blink" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+
+              <!-- Fira Code -->
+              <div class="font-preview-card" data-type="code-font" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Fira Code</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Fira Code', monospace;">
+                  <div class="font-sample-headline">0x7F fn()</div>
+                  <div class="font-sample-desc">Geometric Monospace</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

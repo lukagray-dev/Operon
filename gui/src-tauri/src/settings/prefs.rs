@@ -78,6 +78,10 @@ fn default_auto_collapse_reasoning_tools() -> bool {
     false
 }
 
+fn default_true() -> bool {
+    true
+}
+
 /// GUI preferences state saved on disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiPrefs {
@@ -101,6 +105,24 @@ pub struct GuiPrefs {
     pub notify_on_response_complete: bool,
     #[serde(default = "default_auto_collapse_reasoning_tools")]
     pub auto_collapse_reasoning_tools: bool,
+
+    // Appearance: Markdown & Code block settings
+    #[serde(default)]
+    pub code_block_theme: i32, // 0 = GitHub Dark, 1 = Midnight OLED, 2 = Tokyo Night, 3 = Monokai
+    #[serde(default = "default_true")]
+    pub show_line_numbers: bool,
+    #[serde(default = "default_true")]
+    pub highlight_inline_code: bool,
+    #[serde(default)]
+    pub table_theme: i32, // 0 = GitHub Dark, 1 = Modern Minimal, 2 = Zebra Striped, 3 = Boxed Grid
+
+    // Appearance: Typography & Font Choices
+    #[serde(default)]
+    pub selected_ui_font: i32, // 0 = Open Sans, 1 = Inter, 2 = Roboto
+    #[serde(default)]
+    pub selected_assistant_font: i32, // 0 = Literata, 1 = Lora, 2 = Merriweather
+    #[serde(default)]
+    pub selected_code_font: i32, // 0 = Kode Mono, 1 = JetBrains Mono, 2 = Fira Code
 }
 
 impl Default for GuiPrefs {
@@ -116,6 +138,13 @@ impl Default for GuiPrefs {
             notify_on_permission_request: true,
             notify_on_response_complete: false,
             auto_collapse_reasoning_tools: false,
+            code_block_theme: 0,
+            show_line_numbers: true,
+            highlight_inline_code: true,
+            table_theme: 0,
+            selected_ui_font: 0,
+            selected_assistant_font: 0,
+            selected_code_font: 0,
         }
     }
 }

@@ -43,5 +43,17 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Re-sync appearance settings on window focus
+  window.addEventListener('focus', async () => {
+    try {
+      const { getAppearanceSettingsIpc } = await import('./settings/appearance/ipc.js');
+      const { applyGlobalFontsAndTheme } = await import('./main-content/markdown/markdown.js');
+      const settings = await getAppearanceSettingsIpc();
+      applyGlobalFontsAndTheme(settings);
+    } catch {
+      // Ignored if settings window not ready
+    }
+  });
+
   console.debug('[Operon GUI] Initialized with static TypeScript architecture.');
 });

@@ -17,7 +17,10 @@ let currentSettings: AppearanceSettings = {
   selected_ui_font: 0,
   selected_assistant_font: 0,
   selected_code_font: 0,
-  cursor_blink_enabled: true,
+  code_block_theme: 0,
+  show_line_numbers: true,
+  highlight_inline_code: true,
+  table_theme: 0,
 };
 
 let orbAnimReq: number | null = null;
@@ -32,7 +35,8 @@ export async function initAppearanceSettings(): Promise<void> {
     console.warn('[AppearanceSettings] Failed to load settings:', err);
   }
 
-  setupThemeCards();
+  setupCodeThemeCards();
+  setupTableThemeCards();
   setupScaleSelector();
   setupToggleSwitches();
   setupOrbCards();
@@ -42,48 +46,49 @@ export async function initAppearanceSettings(): Promise<void> {
 }
 
 /**
- * Binds theme selection cards.
+ * Binds Code Block theme selection cards.
  */
-function setupThemeCards(): void {
-  const cards = document.querySelectorAll<HTMLElement>('.theme-preview-card');
+function setupCodeThemeCards(): void {
+  const cards = document.querySelectorAll<HTMLElement>('.theme-preview-card[data-type="code"]');
   cards.forEach((card) => {
     card.addEventListener('click', async () => {
       const idx = parseInt(card.dataset.index || '0', 10);
-      currentSettings.selected_theme = idx;
-      updateThemeCardsUI();
-      applyLiveTheme(idx);
+      currentSettings.code_block_theme = idx;
+      updateCodeThemeCardsUI();
       await persist();
     });
   });
 }
 
-function updateThemeCardsUI(): void {
-  const cards = document.querySelectorAll<HTMLElement>('.theme-preview-card');
+function updateCodeThemeCardsUI(): void {
+  const cards = document.querySelectorAll<HTMLElement>('.theme-preview-card[data-type="code"]');
   cards.forEach((card) => {
     const idx = parseInt(card.dataset.index || '0', 10);
-    card.classList.toggle('selected', idx === currentSettings.selected_theme);
+    card.classList.toggle('selected', idx === currentSettings.code_block_theme);
   });
 }
 
-function applyLiveTheme(themeIndex: number): void {
-  const root = document.documentElement;
-  if (themeIndex === 1) {
-    // Midnight OLED
-    root.style.setProperty('--window-background', '#000000');
-    root.style.setProperty('--titlebar-background', '#0a0a0a');
-  } else if (themeIndex === 2) {
-    // GitHub Dark
-    root.style.setProperty('--window-background', '#0d1117');
-    root.style.setProperty('--titlebar-background', '#161b22');
-  } else if (themeIndex === 3) {
-    // Tokyo Night
-    root.style.setProperty('--window-background', '#1a1b26');
-    root.style.setProperty('--titlebar-background', '#16161e');
-  } else {
-    // Operon Dark (Default)
-    root.style.setProperty('--window-background', '#181818');
-    root.style.setProperty('--titlebar-background', '#191919');
-  }
+/**
+ * Binds Table theme selection cards.
+ */
+function setupTableThemeCards(): void {
+  const cards = document.querySelectorAll<HTMLElement>('.theme-preview-card[data-type="table"]');
+  cards.forEach((card) => {
+    card.addEventListener('click', async () => {
+      const idx = parseInt(card.dataset.index || '0', 10);
+      currentSettings.table_theme = idx;
+      updateTableThemeCardsUI();
+      await persist();
+    });
+  });
+}
+
+function updateTableThemeCardsUI(): void {
+  const cards = document.querySelectorAll<HTMLElement>('.theme-preview-card[data-type="table"]');
+  cards.forEach((card) => {
+    const idx = parseInt(card.dataset.index || '0', 10);
+    card.classList.toggle('selected', idx === currentSettings.table_theme);
+  });
 }
 
 /**
@@ -120,6 +125,18 @@ function applyLiveScale(scaleIndex: number): void {
  * Binds compact mode, smooth animations, and cursor blink toggles.
  */
 function setupToggleSwitches(): void {
+  // Section 1: Code Block Line Numbers & Inline Code
+  bindSwitch('toggle-app-line-numbers', currentSettings.show_line_numbers, async (val) => {
+    currentSettings.show_line_numbers = val;
+    await persist();
+  });
+
+  bindSwitch('toggle-app-inline-code', currentSettings.highlight_inline_code, async (val) => {
+    currentSettings.highlight_inline_code = val;
+    await persist();
+  });
+
+  // Section 2: Compact mode and smooth animations
   bindSwitch('toggle-app-compact', currentSettings.compact_mode, async (val) => {
     currentSettings.compact_mode = val;
     await persist();
@@ -127,11 +144,6 @@ function setupToggleSwitches(): void {
 
   bindSwitch('toggle-app-animations', currentSettings.smooth_animations, async (val) => {
     currentSettings.smooth_animations = val;
-    await persist();
-  });
-
-  bindSwitch('toggle-app-cursor-blink', currentSettings.cursor_blink_enabled, async (val) => {
-    currentSettings.cursor_blink_enabled = val;
     await persist();
   });
 }
@@ -269,28 +281,63 @@ function drawSolvingOrb(canvas: HTMLCanvasElement, t: number): void {
 }
 
 /**
- * Binds typography font selectors (UI Font, Assistant Font, Code Font).
+ * Binds typography font preview cards (UI Font, Assistant Font, Code Font).
  */
 function setupFontSelectors(): void {
-  // UI Font
-  bindSegmentedChoice('.seg-choice-ui-font', currentSettings.selected_ui_font, async (idx) => {
-    currentSettings.selected_ui_font = idx;
-    applyLiveFonts();
-    await persist();
+  // UI Font Cards
+  const uiCards = document.querySelectorAll<HTMLElement>('.font-preview-card[data-type="ui-font"]');
+  uiCards.forEach((card) => {
+    card.addEventListener('click', async () => {
+      const idx = parseInt(card.dataset.index || '0', 10);
+      currentSettings.selected_ui_font = idx;
+      updateFontCardsUI();
+      applyLiveFonts();
+      await persist();
+    });
   });
 
-  // Assistant Font
-  bindSegmentedChoice('.seg-choice-assistant-font', currentSettings.selected_assistant_font, async (idx) => {
-    currentSettings.selected_assistant_font = idx;
-    applyLiveFonts();
-    await persist();
+  // Assistant Font Cards
+  const astCards = document.querySelectorAll<HTMLElement>('.font-preview-card[data-type="assistant-font"]');
+  astCards.forEach((card) => {
+    card.addEventListener('click', async () => {
+      const idx = parseInt(card.dataset.index || '0', 10);
+      currentSettings.selected_assistant_font = idx;
+      updateFontCardsUI();
+      applyLiveFonts();
+      await persist();
+    });
   });
 
-  // Code Font
-  bindSegmentedChoice('.seg-choice-code-font', currentSettings.selected_code_font, async (idx) => {
-    currentSettings.selected_code_font = idx;
-    applyLiveFonts();
-    await persist();
+  // Code Font Cards
+  const codeCards = document.querySelectorAll<HTMLElement>('.font-preview-card[data-type="code-font"]');
+  codeCards.forEach((card) => {
+    card.addEventListener('click', async () => {
+      const idx = parseInt(card.dataset.index || '0', 10);
+      currentSettings.selected_code_font = idx;
+      updateFontCardsUI();
+      applyLiveFonts();
+      await persist();
+    });
+  });
+}
+
+function updateFontCardsUI(): void {
+  const uiCards = document.querySelectorAll<HTMLElement>('.font-preview-card[data-type="ui-font"]');
+  uiCards.forEach((card) => {
+    const idx = parseInt(card.dataset.index || '0', 10);
+    card.classList.toggle('selected', idx === currentSettings.selected_ui_font);
+  });
+
+  const astCards = document.querySelectorAll<HTMLElement>('.font-preview-card[data-type="assistant-font"]');
+  astCards.forEach((card) => {
+    const idx = parseInt(card.dataset.index || '0', 10);
+    card.classList.toggle('selected', idx === currentSettings.selected_assistant_font);
+  });
+
+  const codeCards = document.querySelectorAll<HTMLElement>('.font-preview-card[data-type="code-font"]');
+  codeCards.forEach((card) => {
+    const idx = parseInt(card.dataset.index || '0', 10);
+    card.classList.toggle('selected', idx === currentSettings.selected_code_font);
   });
 }
 
@@ -298,30 +345,28 @@ function applyLiveFonts(): void {
   const root = document.documentElement;
 
   // UI Font
-  const uiFonts = ['"Open Sans", sans-serif', '"Inter", sans-serif', '"Roboto", sans-serif'];
+  const uiFonts = [
+    "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  ];
   root.style.setProperty('--font-family', uiFonts[currentSettings.selected_ui_font] || uiFonts[0]);
 
   // Assistant Font
-  const astFonts = ['"Literata", serif', '"Georgia", serif', '"Merriweather", serif'];
+  const astFonts = [
+    "'Literata', Georgia, serif",
+    "'Lora', Georgia, serif",
+    "'Merriweather', Georgia, serif",
+  ];
   root.style.setProperty('--assistant-font-family', astFonts[currentSettings.selected_assistant_font] || astFonts[0]);
 
   // Code Font
-  const codeFonts = ['"Kode Mono", monospace', '"Fira Code", monospace', '"JetBrains Mono", monospace'];
+  const codeFonts = [
+    "'Kode Mono', monospace",
+    "'JetBrains Mono', monospace",
+    "'Fira Code', monospace",
+  ];
   root.style.setProperty('--mono-font-family', codeFonts[currentSettings.selected_code_font] || codeFonts[0]);
-}
-
-function bindSegmentedChoice(selector: string, initialIndex: number, onChange: (idx: number) => Promise<void>): void {
-  const buttons = document.querySelectorAll<HTMLButtonElement>(selector);
-  buttons.forEach((btn) => {
-    const idx = parseInt(btn.dataset.index || '0', 10);
-    btn.classList.toggle('active', idx === initialIndex);
-
-    btn.addEventListener('click', async () => {
-      buttons.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      await onChange(idx);
-    });
-  });
 }
 
 function bindSwitch(id: string, initial: boolean, onToggle: (checked: boolean) => Promise<void>): void {
@@ -339,15 +384,17 @@ function bindSwitch(id: string, initial: boolean, onToggle: (checked: boolean) =
 }
 
 function syncAppearanceUI(): void {
-  updateThemeCardsUI();
+  updateCodeThemeCardsUI();
+  updateTableThemeCardsUI();
   updateScaleUI();
   updateOrbCardsUI();
+  updateFontCardsUI();
 
+  setSwitchChecked('toggle-app-line-numbers', currentSettings.show_line_numbers);
+  setSwitchChecked('toggle-app-inline-code', currentSettings.highlight_inline_code);
   setSwitchChecked('toggle-app-compact', currentSettings.compact_mode);
   setSwitchChecked('toggle-app-animations', currentSettings.smooth_animations);
-  setSwitchChecked('toggle-app-cursor-blink', currentSettings.cursor_blink_enabled);
 
-  applyLiveTheme(currentSettings.selected_theme);
   applyLiveScale(currentSettings.selected_ui_scale);
   applyLiveFonts();
 }

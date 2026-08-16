@@ -7,9 +7,107 @@
 // 4. Secure external hyperlink interceptor opening links safely in user's default browser.
 // 5. Responsive table containers with smooth horizontal scrolling.
 
-import { invokeIpc } from '../../shared/ipc.js';
+import { invokeIpc, listenIpcEvent } from '../../shared/ipc.js';
+import { getAppearanceSettingsIpc } from '../../settings/appearance/ipc.js';
+import type { AppearanceSettings } from '../../settings/appearance/types.js';
 import { renderMarkdownIpc } from './ipc.js';
 import type { RenderMarkdownOptions } from './types.js';
+
+let cachedAppearance: AppearanceSettings = {
+  selected_theme: 0,
+  selected_ui_scale: 1,
+  compact_mode: false,
+  smooth_animations: true,
+  selected_thinking_orb: 1,
+  selected_ui_font: 0,
+  selected_assistant_font: 0,
+  selected_code_font: 0,
+  code_block_theme: 0,
+  show_line_numbers: true,
+  highlight_inline_code: true,
+  table_theme: 0,
+};
+
+export function applyGlobalFontsAndTheme(settings: AppearanceSettings): void {
+  const root = document.documentElement;
+
+  // 1. UI Font
+  const uiFonts = [
+    "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  ];
+  root.style.setProperty('--font-family', uiFonts[settings.selected_ui_font] || uiFonts[0]);
+
+  // 2. Assistant Message Font
+  const astFonts = [
+    "'Literata', Georgia, serif",
+    "'Lora', Georgia, serif",
+    "'Merriweather', Georgia, serif",
+  ];
+  root.style.setProperty('--assistant-font-family', astFonts[settings.selected_assistant_font] || astFonts[0]);
+
+  // 3. Monospace Code Font
+  const codeFonts = [
+    "'Kode Mono', monospace",
+    "'JetBrains Mono', monospace",
+    "'Fira Code', monospace",
+  ];
+  root.style.setProperty('--mono-font-family', codeFonts[settings.selected_code_font] || codeFonts[0]);
+
+  // 4. UI Scale
+  const scales = [0.8, 1.0, 1.2, 1.4, 1.6];
+  const scale = scales[settings.selected_ui_scale] ?? 1.0;
+  root.style.setProperty('--ui-scale', String(scale));
+}
+
+// Initial load & live event listener
+getAppearanceSettingsIpc()
+  .then((settings) => {
+    cachedAppearance = settings;
+    applyGlobalFontsAndTheme(settings);
+    reapplyAllMarkdownAppearance();
+  })
+  .catch(() => {});
+
+listenIpcEvent<AppearanceSettings>('operon://appearance-changed', (settings) => {
+  cachedAppearance = settings;
+  applyGlobalFontsAndTheme(settings);
+  reapplyAllMarkdownAppearance();
+});
+
+function reapplyAllMarkdownAppearance(): void {
+  const containers = document.querySelectorAll<HTMLElement>('.markdown-body');
+  containers.forEach((container) => {
+    postProcessMarkdownElement(container);
+  });
+}
+
+function getCodeThemeClass(themeIdx: number): string {
+  switch (themeIdx) {
+    case 1:
+      return 'code-theme-oled';
+    case 2:
+      return 'code-theme-tokyo';
+    case 3:
+      return 'code-theme-monokai';
+    default:
+      return 'code-theme-github';
+  }
+}
+
+function getTableThemeClass(themeIdx: number): string {
+  switch (themeIdx) {
+    case 1:
+      return 'table-theme-minimal';
+    case 2:
+      return 'table-theme-zebra';
+    case 3:
+      return 'table-theme-grid';
+    default:
+      return 'table-theme-github';
+  }
+}
 
 /**
  * State descriptor for an active streaming markdown element.
@@ -100,38 +198,32 @@ class LiveMarkdownStreamManager {
     const tasks: Promise<void>[] = [];
 
     for (const [element, state] of this.activeStreams.entries()) {
-      // If a compile is already in flight for this element, skip until it completes.
       if (state.inFlight) continue;
 
-      const textToRender = state.latestText;
       state.inFlight = true;
+      const textToRender = state.latestText;
+      const callback = state.onFrameCallback;
 
-      const task = (async () => {
-        try {
-          const html = await renderMarkdownIpc(textToRender);
-          // Check if element is still attached to the DOM before mutating
-          if (document.body.contains(element)) {
-            element.innerHTML = html;
-            // Post-process code cards, tables, and links
-            postProcessMarkdownElement(element, { enhanceCodeBlocks: true });
-            if (state.onFrameCallback) {
-              state.onFrameCallback();
-            }
+      const task = renderMarkdownIpc(textToRender)
+        .then((html) => {
+          element.innerHTML = html;
+          postProcessMarkdownElement(element, { renderMath: false });
+          if (callback) {
+            callback();
           }
-        } finally {
+        })
+        .catch((err) => {
+          console.error('[Markdown Stream] Compilation error:', err);
+        })
+        .finally(() => {
           state.inFlight = false;
-          // If newer tokens arrived while IPC was running, schedule another frame immediately!
-          if (state.latestText !== textToRender && this.activeStreams.has(element)) {
-            this.scheduleFlush();
-          }
-        }
-      })();
+        });
 
       tasks.push(task);
     }
 
     if (tasks.length > 0) {
-      await Promise.allSettled(tasks);
+      await Promise.all(tasks);
     }
   }
 }
@@ -142,13 +234,10 @@ class LiveMarkdownStreamManager {
 export const liveMarkdownRenderer = new LiveMarkdownStreamManager();
 
 /**
- * Renders raw Markdown into HTML directly and attaches post-processing enhancements.
- *
- * @param markdown - Raw Markdown string.
- * @returns Fully compiled and sanitized HTML string.
+ * Standard asynchronous markdown compiler for static or batch rendering.
  */
-export async function renderMarkdownToHtml(markdown: string): Promise<string> {
-  return await renderMarkdownIpc(markdown);
+export async function renderMarkdownToHtml(markdownText: string): Promise<string> {
+  return await renderMarkdownIpc(markdownText);
 }
 
 declare global {
@@ -173,11 +262,14 @@ declare global {
 }
 
 /**
- * Post-processes rendered Markdown HTML inside a container element:
- *
- * 1. Highlights source code syntax via highlight.js.
- * 2. Compiles LaTeX math formulas via KaTeX ($inline$ and $$display$$).
- * 3. Intercepts all `<a>` tags to open external URLs securely via Tauri IPC.
+ * Post-processes rendered HTML container:
+ * 1. Highlights all `<pre><code>` blocks via highlight.js.
+ * 2. Wraps `<pre>` in styled Code Cards with language badge and copy button.
+ * 3. Applies line numbers and code block theme.
+ * 4. Tokenizes and highlights inline `<code>` tags.
+ * 5. Applies table appearance theme.
+ * 6. Renders LaTeX formulas with KaTeX.
+ * 7. Intercepts all `<a>` tags to open external URLs securely via Tauri IPC.
  *
  * @param container - The DOM element containing rendered Markdown.
  * @param options - Customization flags.
@@ -196,17 +288,23 @@ export function postProcessMarkdownElement(
     highlightCodeBlocks(container);
   }
 
-  // 2. Enhance Code Blocks with Language Header & Copy Button
+  // 2. Enhance Code Blocks with Language Header, Theme & Line Numbers
   if (enhanceCode) {
     enhanceCodeBlocks(container);
   }
 
-  // 3. Render LaTeX Math with KaTeX
+  // 3. Enhance Inline Code tags
+  enhanceInlineCode(container);
+
+  // 4. Enhance Tables with active theme
+  enhanceTables(container);
+
+  // 5. Render LaTeX Math with KaTeX
   if (renderMath) {
     renderMathFormulas(container);
   }
 
-  // 4. Intercept External Links to open in default browser
+  // 6. Intercept External Links to open in default browser
   if (interceptLinks) {
     interceptExternalLinks(container);
   }
@@ -229,20 +327,37 @@ function highlightCodeBlocks(container: HTMLElement): void {
 }
 
 /**
- * Wraps `<pre>` elements with a clean header containing the language badge
- * and an interactive SVG copy button.
+ * Wraps `<pre>` elements with a clean header containing the language badge,
+ * an interactive SVG copy button, theme classes, and optional line numbers.
  */
 function enhanceCodeBlocks(container: HTMLElement): void {
   const preElements = container.querySelectorAll<HTMLPreElement>('pre');
+  const themeClass = getCodeThemeClass(cachedAppearance.code_block_theme);
+  const showLines = cachedAppearance.show_line_numbers;
 
   preElements.forEach((pre) => {
-    // Avoid double-wrapping
-    if (pre.parentElement?.classList.contains('code-block-wrapper')) {
-      return;
-    }
-
     const codeEl = pre.querySelector('code');
     const rawCode = codeEl ? codeEl.textContent || '' : pre.textContent || '';
+
+    // If already wrapped, update classes & line numbers
+    const existingWrapper = pre.closest('.code-block-wrapper') as HTMLElement | null;
+    if (existingWrapper) {
+      existingWrapper.className = `code-block-wrapper ${themeClass}`;
+
+      let gutter = existingWrapper.querySelector('.code-line-numbers') as HTMLElement | null;
+      if (showLines) {
+        if (!gutter) {
+          const body = existingWrapper.querySelector('.code-block-body') || pre.parentElement;
+          if (body) {
+            gutter = createLineNumbersElement(rawCode);
+            body.insertBefore(gutter, pre);
+          }
+        }
+      } else if (gutter) {
+        gutter.remove();
+      }
+      return;
+    }
 
     // Extract language identifier from class (e.g. language-rust, language-typescript)
     let lang = 'code';
@@ -256,9 +371,9 @@ function enhanceCodeBlocks(container: HTMLElement): void {
       }
     }
 
-    // Build the outer wrapper card
+    // Build the outer wrapper card with active theme
     const wrapper = document.createElement('div');
-    wrapper.className = 'code-block-wrapper';
+    wrapper.className = `code-block-wrapper ${themeClass}`;
 
     // Build the header bar
     const header = document.createElement('div');
@@ -305,12 +420,120 @@ function enhanceCodeBlocks(container: HTMLElement): void {
     header.appendChild(langLabel);
     header.appendChild(copyBtn);
 
-    // Structure DOM: Insert wrapper where pre was, place header + pre inside wrapper
+    // Build code body container
+    const body = document.createElement('div');
+    body.className = 'code-block-body';
+
+    if (showLines) {
+      const gutter = createLineNumbersElement(rawCode);
+      body.appendChild(gutter);
+    }
+
+    // Structure DOM: Insert wrapper where pre was
     if (pre.parentNode) {
       pre.parentNode.insertBefore(wrapper, pre);
       wrapper.appendChild(header);
-      wrapper.appendChild(pre);
+      wrapper.appendChild(body);
+      body.appendChild(pre);
     }
+  });
+}
+
+function createLineNumbersElement(rawCode: string): HTMLElement {
+  const gutter = document.createElement('div');
+  gutter.className = 'code-line-numbers';
+  gutter.setAttribute('aria-hidden', 'true');
+
+  const lines = rawCode.replace(/\n$/, '').split('\n');
+  const count = Math.max(1, lines.length);
+
+  for (let i = 1; i <= count; i++) {
+    const span = document.createElement('span');
+    span.textContent = String(i);
+    gutter.appendChild(span);
+  }
+
+  return gutter;
+}
+
+/**
+ * Enhances inline code tags with syntax keyword/symbol tokenization or plain pill styling.
+ */
+function enhanceInlineCode(container: HTMLElement): void {
+  const inlineCodeElements = container.querySelectorAll<HTMLElement>('code:not(pre code)');
+  const isHighlighted = cachedAppearance.highlight_inline_code;
+
+  inlineCodeElements.forEach((code) => {
+    if (isHighlighted) {
+      code.classList.remove('inline-code-plain');
+      code.classList.add('inline-code-highlighted');
+
+      // If text not tokenized yet
+      const raw = code.dataset.rawText || code.textContent || '';
+      if (!code.dataset.rawText) {
+        code.dataset.rawText = raw;
+      }
+      code.innerHTML = highlightInlineCodeContent(raw);
+    } else {
+      code.classList.remove('inline-code-highlighted');
+      code.classList.add('inline-code-plain');
+      if (code.dataset.rawText) {
+        code.textContent = code.dataset.rawText;
+      }
+    }
+  });
+}
+
+function highlightInlineCodeContent(raw: string): string {
+  const trimmed = raw.trim();
+
+  // Escape HTML
+  const escaped = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  // String literals
+  if (/^(&quot;|&#039;|`).*(&quot;|&#039;|`)$/.test(escaped.trim())) {
+    return `<span class="hl-str">${escaped}</span>`;
+  }
+
+  // Numeric literals
+  if (/^(\d+(\.\d+)?|0x[0-9a-fA-F]+)$/.test(trimmed)) {
+    return `<span class="hl-num">${escaped}</span>`;
+  }
+
+  // Keywords
+  const keywords = new Set([
+    'fn', 'let', 'const', 'var', 'function', 'import', 'export', 'return', 'async', 'await',
+    'struct', 'enum', 'class', 'trait', 'impl', 'def', 'pub', 'type', 'interface', 'match',
+    'if', 'else', 'while', 'for', 'in', 'loop', 'break', 'continue', 'true', 'false', 'null',
+    'None', 'Some', 'Ok', 'Err', 'self', 'Self', 'mut', 'use', 'from', 'as'
+  ]);
+
+  if (keywords.has(trimmed)) {
+    return `<span class="hl-kw">${escaped}</span>`;
+  }
+
+  // Function call pattern e.g. foo() or foo(...)
+  if (/^[a-zA-Z_][a-zA-Z0-9_]*\(.*\)$/.test(trimmed)) {
+    return escaped.replace(/^([a-zA-Z_][a-zA-Z0-9_]*)/, '<span class="hl-fn">$1</span>');
+  }
+
+  return escaped;
+}
+
+/**
+ * Enhances tables with active theme styling.
+ */
+function enhanceTables(container: HTMLElement): void {
+  const tables = container.querySelectorAll<HTMLTableElement>('table');
+  const themeClass = getTableThemeClass(cachedAppearance.table_theme);
+
+  tables.forEach((table) => {
+    table.className = `markdown-table ${themeClass}`;
   });
 }
 

@@ -7,7 +7,10 @@ export interface AppearanceSettings {
   smooth_animations: boolean;
   selected_thinking_orb: number; // 0 = Breathing Aurora, 1 = Composing Prism, 2 = Solving Helix
   selected_ui_font: number; // 0 = Open Sans, 1 = Inter, 2 = Roboto
-  selected_assistant_font: number; // 0 = Literata, 1 = Georgia, 2 = Merriweather
-  selected_code_font: number; // 0 = Kode Mono, 1 = Fira Code, 2 = JetBrains
-  cursor_blink_enabled: boolean;
+  selected_assistant_font: number; // 0 = Literata, 1 = Lora, 2 = Merriweather
+  selected_code_font: number; // 0 = Kode Mono, 1 = JetBrains Mono, 2 = Fira Code
+  code_block_theme: number; // 0 = GitHub Dark, 1 = Midnight OLED, 2 = Tokyo Night, 3 = Monokai
+  show_line_numbers: boolean;
+  highlight_inline_code: boolean;
+  table_theme: number; // 0 = GitHub Dark, 1 = Modern Minimal, 2 = Zebra Striped, 3 = Boxed Grid
 }

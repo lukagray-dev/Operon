@@ -15,7 +15,10 @@ export async function getAppearanceSettingsIpc(): Promise<AppearanceSettings> {
       selected_ui_font: 0,
       selected_assistant_font: 0,
       selected_code_font: 0,
-      cursor_blink_enabled: true,
+      code_block_theme: 0,
+      show_line_numbers: true,
+      highlight_inline_code: true,
+      table_theme: 0,
     }
   );
 }

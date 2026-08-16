@@ -83,6 +83,39 @@
 .theme-code-preview .fn { color: #dcdcaa; }
 .theme-code-preview .str { color: #ce9178; }
 
+/* Mini Table Preview inside Table Theme Card */
+.theme-table-preview {
+  background-color: #0b0b0b;
+  border-radius: 4px;
+  padding: 6px;
+  font-family: var(--font-family);
+  font-size: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.theme-table-row {
+  display: flex;
+  gap: 4px;
+  justify-content: space-between;
+}
+
+.theme-table-cell {
+  flex: 1;
+  padding: 2px 4px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.04);
+  color: #a0a0a0;
+  text-align: left;
+}
+
+.theme-table-cell.head {
+  font-weight: 600;
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
 /* UI Scale Selector */
 .scale-selector-bar {
   display: flex;
@@ -163,12 +196,58 @@
   color: var(--text-primary);
 }
 
-.orb-card-subtitle {
-  font-size: 10.5px;
-  color: var(--text-muted, #737373);
+/* Typography Font Preview Grid (3 columns) */
+.font-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
-/* Typography Font Preview Row */
-.font-selector-row {
-  width: 270px;
+.font-preview-card {
+  background-color: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  position: relative;
+}
+
+.font-preview-card:hover {
+  background-color: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.font-preview-card.selected {
+  border-color: var(--accent-blue, #007acc);
+  background-color: #191919;
+}
+
+.font-preview-card.selected .theme-card-badge {
+  background-color: var(--accent-blue, #007acc);
+}
+
+.font-card-sample {
+  background-color: #0b0b0b;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.font-sample-headline {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.font-sample-desc {
+  font-size: 9.5px;
+  color: #8c8c8c;
+  line-height: 1.3;
 }
