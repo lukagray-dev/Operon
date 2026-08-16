@@ -1,6 +1,4 @@
-//! Input panel backend Tauri commands.
-
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use super::types::{ContextUsageDto, ModelOptionDto, PendingAttachmentDto};
 use crate::shared::AppState;
@@ -55,10 +53,19 @@ pub async fn select_model(model_id: String) -> Result<(), String> {
 
 /// Toggles auto-approve permissions mode.
 #[tauri::command]
-pub async fn toggle_auto_approve(enabled: bool, state: State<'_, AppState>) -> Result<bool, String> {
+pub async fn toggle_auto_approve(
+    enabled: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<bool, String> {
     if let Ok(mut lock) = state.state_lock.lock() {
         lock.auto_approve = enabled;
     }
+    let mut prefs = crate::settings::prefs::GuiPrefs::load();
+    prefs.global_auto_approve_default = enabled;
+    let _ = prefs.save();
+
+    let _ = app.emit("operon://auto-approve-changed", enabled);
     Ok(enabled)
 }
 

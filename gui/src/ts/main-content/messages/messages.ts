@@ -8,6 +8,8 @@
 
 import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
+import { getGeneralSettingsIpc } from '../../settings/general/ipc.js';
+import type { GeneralSettings } from '../../settings/general/types.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
 import { inputState } from '../input/state.js';
 import {
@@ -16,6 +18,7 @@ import {
   renderMarkdownToHtml,
 } from '../markdown/markdown.js';
 import { hidePermissionDialog, showPermissionDialog } from '../permission/permission.js';
+import { approvePermissionIpc } from './ipc.js';
 import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
 import { renderWorkGroupElement } from '../work-group/work-group.js';
@@ -29,6 +32,38 @@ import { messagesState } from './state.js';
 import type { ChatMessage } from './types.js';
 
 let activeOrbRenderer: ThinkingOrbRenderer | null = null;
+let userIsScrolledUp = false;
+let cachedGeneralSettings: GeneralSettings | null = null;
+
+async function getCachedSettings(): Promise<GeneralSettings | null> {
+  if (!cachedGeneralSettings) {
+    try {
+      cachedGeneralSettings = await getGeneralSettingsIpc();
+    } catch {
+      // Ignored
+    }
+  }
+  return cachedGeneralSettings;
+}
+
+function setupScrollListener(): void {
+  const container = document.getElementById('chat-messages-viewport');
+  if (!container) return;
+
+  container.addEventListener(
+    'scroll',
+    () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      // If user scrolled up by more than 40px, pause autoscroll
+      if (distanceFromBottom > 40) {
+        userIsScrolledUp = true;
+      } else {
+        userIsScrolledUp = false;
+      }
+    },
+    { passive: true }
+  );
+}
 
 function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number): void {
   newEl.setAttribute('data-block-index', String(blockIdx));
@@ -58,6 +93,10 @@ function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number
 }
 
 export function initMessages(): void {
+  // Attach scroll tracking to protect user scrolling position
+  setupScrollListener();
+  getCachedSettings();
+
   // 1. Listen for session selection changes in the sidebar
   sidebarState.subscribe(async () => {
     liveMarkdownRenderer.clearAll();
@@ -169,6 +208,8 @@ export function initMessages(): void {
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
 
+    triggerTurnCompleteNotification();
+
     if (sidebarState.getActiveSessionId() === finishedSessionId) {
       await refreshMessages(finishedSessionId);
     }
@@ -191,6 +232,54 @@ export function initMessages(): void {
     refreshMessages(initialSessionId);
   } else {
     setEmptyStateVisible(true);
+  }
+}
+
+async function triggerPermissionNotification(tool: string, path?: string | null): Promise<void> {
+  try {
+    const settings = await getCachedSettings();
+    if (!settings || !settings.notify_on_permission_request) return;
+
+    if (!document.hasFocus() && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === 'granted') {
+        const notif = new Notification('Operon — Permission Required', {
+          body: `Operon requests permission to ${tool}${path ? ` on ${path}` : ''}`,
+          icon: 'assets/brand/operon.svg',
+        });
+        notif.onclick = () => {
+          window.focus();
+        };
+      }
+    }
+  } catch (err) {
+    console.debug('[Notification] Permission notification error:', err);
+  }
+}
+
+async function triggerTurnCompleteNotification(): Promise<void> {
+  try {
+    const settings = await getCachedSettings();
+    if (!settings || !settings.notify_on_response_complete) return;
+
+    if (!document.hasFocus() && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === 'granted') {
+        const notif = new Notification('Operon — Response Complete', {
+          body: 'The assistant has finished responding.',
+          icon: 'assets/brand/operon.svg',
+        });
+        notif.onclick = () => {
+          window.focus();
+        };
+      }
+    }
+  } catch (err) {
+    console.debug('[Notification] Turn complete notification error:', err);
   }
 }
 
@@ -251,8 +340,16 @@ function handleAgentEvent(event: Record<string, unknown>): void {
       };
     }).ApprovalRequired;
     if (req) {
-      showPermissionDialog(req.id, req.tool, req.path || null, req.reason, req.args_json);
-      smartAutoScroll();
+      if (inputState.isAutoApproveEnabled()) {
+        // Auto-approve mode active: immediately approve without prompting
+        approvePermissionIpc(req.id).catch((err: unknown) => {
+          console.error('[Messages] Auto-approve permission failed:', err);
+        });
+      } else {
+        showPermissionDialog(req.id, req.tool, req.path || null, req.reason, req.args_json);
+        triggerPermissionNotification(req.tool, req.path);
+        smartAutoScroll();
+      }
     }
   } else if ('ApprovalGranted' in event) {
     hidePermissionDialog();
@@ -374,12 +471,27 @@ function renderMessageList(): void {
   smartAutoScroll(true);
 }
 
-function smartAutoScroll(force = false): void {
+export function smartAutoScroll(force = false): void {
   const container = document.getElementById('chat-messages-viewport');
   if (!container) return;
 
+  if (force) {
+    userIsScrolledUp = false;
+    container.scrollTop = container.scrollHeight;
+    return;
+  }
+
+  // If user scrolled up or auto_scroll_stream is disabled in settings, do not force scroll
+  if (userIsScrolledUp) {
+    return;
+  }
+
+  if (cachedGeneralSettings && cachedGeneralSettings.auto_scroll_stream === false) {
+    return;
+  }
+
   const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 120;
-  if (force || isNearBottom) {
+  if (isNearBottom) {
     container.scrollTop = container.scrollHeight;
   }
 }

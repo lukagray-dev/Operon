@@ -16,12 +16,13 @@ pub struct AppStateDto {
 
 impl Default for AppStateDto {
     fn default() -> Self {
+        let initial_auto_approve = crate::settings::prefs::GuiPrefs::load().global_auto_approve_default;
         Self {
             sidebar_open: true,
             ui_scale: 1.0,
             active_session_id: None,
             active_project: None,
-            auto_approve: false,
+            auto_approve: initial_auto_approve,
         }
     }
 }

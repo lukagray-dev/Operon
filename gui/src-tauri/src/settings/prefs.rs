@@ -91,6 +91,8 @@ pub struct GuiPrefs {
     pub close_button_action: CloseButtonAction,
     #[serde(default)]
     pub thinking_orb_style: ThinkingOrbStyle,
+    #[serde(default)]
+    pub global_auto_approve_default: bool,
     #[serde(default = "default_auto_scroll_stream")]
     pub auto_scroll_stream: bool,
     #[serde(default = "default_notify_on_permission_request")]
@@ -109,6 +111,7 @@ impl Default for GuiPrefs {
             start_minimized: false,
             close_button_action: CloseButtonAction::default(),
             thinking_orb_style: ThinkingOrbStyle::default(),
+            global_auto_approve_default: false,
             auto_scroll_stream: true,
             notify_on_permission_request: true,
             notify_on_response_complete: false,

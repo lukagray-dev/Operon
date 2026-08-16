@@ -1,10 +1,8 @@
-//! General Settings Backend Commands.
-
 use super::types::GeneralSettingsDto;
 use crate::settings::prefs::{CloseButtonAction, GuiPrefs};
 use crate::shared::autostart;
 use crate::shared::tray;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter, Manager};
 
 /// Retrieves current General settings from disk (`~/.operon/gui_settings.toml`).
 #[tauri::command]
@@ -15,7 +13,7 @@ pub async fn get_general_settings() -> Result<GeneralSettingsDto, String> {
         minimize_to_tray_enabled: prefs.minimize_to_tray_enabled,
         start_minimized: prefs.start_minimized,
         close_button_action: prefs.close_button_action.to_index(),
-        global_auto_approve_default: false,
+        global_auto_approve_default: prefs.global_auto_approve_default,
         auto_scroll_stream: prefs.auto_scroll_stream,
         notify_on_permission_request: prefs.notify_on_permission_request,
         notify_on_response_complete: prefs.notify_on_response_complete,
@@ -36,6 +34,7 @@ pub async fn save_general_settings(
     prefs.minimize_to_tray_enabled = settings.minimize_to_tray_enabled;
     prefs.start_minimized = settings.start_minimized;
     prefs.close_button_action = CloseButtonAction::from_index(settings.close_button_action);
+    prefs.global_auto_approve_default = settings.global_auto_approve_default;
     prefs.auto_scroll_stream = settings.auto_scroll_stream;
     prefs.notify_on_permission_request = settings.notify_on_permission_request;
     prefs.notify_on_response_complete = settings.notify_on_response_complete;
@@ -49,6 +48,16 @@ pub async fn save_general_settings(
 
     // 3. Synchronize System Tray presence
     let _ = tray::update_system_tray(&app, settings.minimize_to_tray_enabled);
+
+    // 4. Synchronize auto_approve state in AppState
+    if let Some(state) = app.try_state::<crate::shared::AppState>() {
+        if let Ok(mut lock) = state.state_lock.lock() {
+            lock.auto_approve = settings.global_auto_approve_default;
+        }
+    }
+
+    // 5. Emit event to all windows so main window input bar updates instantly
+    let _ = app.emit("operon://auto-approve-changed", settings.global_auto_approve_default);
 
     Ok(())
 }

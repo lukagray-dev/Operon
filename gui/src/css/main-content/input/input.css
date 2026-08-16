@@ -169,18 +169,49 @@
 
 /* Auto-Approve Toggle Pill */
 .btn-auto-approve {
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  padding: 0 8px;
+  height: 24px;
   color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-auto-approve .ui-icon {
+  width: 13px;
+  height: 13px;
+  background-color: var(--text-muted);
+}
+
+.btn-auto-approve:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.btn-auto-approve:hover .ui-icon {
+  background-color: var(--text-secondary);
 }
 
 .btn-auto-approve.enabled {
-  border-color: rgba(96, 197, 255, 0.3);
-  background-color: rgba(96, 197, 255, 0.08);
+  border-color: rgba(96, 197, 255, 0.4);
+  background-color: rgba(96, 197, 255, 0.12);
   color: #60c5ff;
 }
 
 .btn-auto-approve.enabled .ui-icon {
   background-color: #60c5ff;
+}
+
+.btn-auto-approve.enabled:hover {
+  background-color: rgba(96, 197, 255, 0.18);
+  border-color: rgba(96, 197, 255, 0.6);
 }
 
 /* Context Indicator Pill */

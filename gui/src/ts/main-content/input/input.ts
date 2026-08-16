@@ -2,6 +2,8 @@ import { sidebarState } from '../../left-sidebar/state.js';
 import { cancelPromptIpc, submitPromptIpc } from '../messages/ipc.js';
 import { messagesState } from '../messages/state.js';
 import type { ChatMessage } from '../messages/types.js';
+import { getGeneralSettingsIpc } from '../../settings/general/ipc.js';
+import { listenIpcEvent } from '../../shared/ipc.js';
 import {
   getAvailableModelsIpc,
   getContextUsageIpc,
@@ -24,12 +26,26 @@ export function initInputPanel(): void {
   setupSendButton();
   setupOutsideClickListener();
 
-  // Initial load
-  loadInitialInputData();
-
   // Re-render when input state changes
   inputState.subscribe(() => {
     renderInputState();
+  });
+
+  // Render initial static defaults
+  renderInputState();
+
+  // Initial async load
+  loadInitialInputData();
+
+  // Listen to broadcast events from settings window
+  listenIpcEvent<boolean>('operon://auto-approve-changed', (enabled) => {
+    inputState.setAutoApproveEnabled(enabled);
+    renderInputState();
+  });
+
+  // Also re-verify on window focus
+  window.addEventListener('focus', () => {
+    loadInitialInputData();
   });
 }
 
@@ -41,13 +57,18 @@ export function dismissPopover(): void {
 }
 
 async function loadInitialInputData(): Promise<void> {
-  const [models, context] = await Promise.all([
+  const [models, context, generalSettings] = await Promise.all([
     getAvailableModelsIpc(),
     getContextUsageIpc(),
+    getGeneralSettingsIpc().catch(() => null),
   ]);
 
   inputState.setAvailableModels(models);
   inputState.setContextUsage(context);
+  if (generalSettings && typeof generalSettings.global_auto_approve_default === 'boolean') {
+    inputState.setAutoApproveEnabled(generalSettings.global_auto_approve_default);
+  }
+  renderInputState();
 }
 
 function setupTextarea(): void {
@@ -87,9 +108,14 @@ function setupAttachButton(): void {
 function setupAutoApproveButton(): void {
   const btn = document.getElementById('btn-auto-approve');
   btn?.addEventListener('click', async () => {
-    const current = inputState.isAutoApproveEnabled();
-    const next = await toggleAutoApproveIpc(!current);
+    const next = !inputState.isAutoApproveEnabled();
     inputState.setAutoApproveEnabled(next);
+    renderInputState();
+    try {
+      await toggleAutoApproveIpc(next);
+    } catch (err) {
+      console.error('[Input] Failed to toggle auto approve:', err);
+    }
   });
 }
 

@@ -5,6 +5,7 @@
 // - Section 2: Session & Chat Defaults (Auto-Approve, Auto-Scroll, Permission Notifications, Finish Notifications, Auto-Collapse Cards)
 // - Section 3: Updates & Diagnostics (Auto Update Checks, Anonymous Diagnostics)
 
+import { listenIpcEvent } from '../../shared/ipc.js';
 import { getGeneralSettingsIpc, saveGeneralSettingsIpc } from './ipc.js';
 import type { GeneralSettings } from './types.js';
 
@@ -35,6 +36,12 @@ export async function initGeneralSettings(): Promise<void> {
   setupToggleSwitches();
   setupSegmentedChoices();
   syncGeneralUI();
+
+  // Listen to external toggle changes (e.g. from the input panel shield button)
+  listenIpcEvent<boolean>('operon://auto-approve-changed', (enabled) => {
+    currentSettings.global_auto_approve_default = enabled;
+    syncGeneralUI();
+  });
 }
 
 /**
