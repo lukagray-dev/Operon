@@ -13,7 +13,9 @@ use std::os::windows::process::CommandExt;
 pub async fn get_git_diff_stats(workspace_path: Option<String>) -> Result<GitDiffStatsDto, String> {
     let workspace = match workspace_path {
         Some(w) if !w.trim().is_empty() => PathBuf::from(w),
-        _ => std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+        _ => operon_rs::config::OperonPaths::resolve()
+            .map(|p| p.workspace_dir)
+            .unwrap_or_else(|_| PathBuf::from(".")),
     };
 
     if !workspace.exists() {

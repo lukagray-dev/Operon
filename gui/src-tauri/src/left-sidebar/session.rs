@@ -98,16 +98,20 @@ pub async fn query_sidebar_data(
                                     }
                                 };
 
-                                let session_workspace_canon = {
-                                    let p = PathBuf::from(&row.workspace)
-                                        .canonicalize()
-                                        .unwrap_or_else(|_| PathBuf::from(&row.workspace))
-                                        .to_string_lossy()
-                                        .to_string();
-                                    clean_unc_path(p)
+                                let is_project = if row.workspace.trim().is_empty() {
+                                    false
+                                } else {
+                                    let session_workspace_canon = {
+                                        let p = PathBuf::from(&row.workspace)
+                                            .canonicalize()
+                                            .unwrap_or_else(|_| PathBuf::from(&row.workspace))
+                                            .to_string_lossy()
+                                            .to_string();
+                                        clean_unc_path(p)
+                                    };
+                                    session_workspace_canon != default_workspace
                                 };
 
-                                let is_project = session_workspace_canon != default_workspace;
                                 let project_name = if is_project {
                                     Path::new(&row.workspace)
                                         .file_name()
@@ -159,8 +163,24 @@ pub async fn query_sidebar_data(
         if !s.is_project {
             standalone_chats.push(dto);
         } else {
-            let entry = project_chats_map.entry(s.workspace).or_default();
-            entry.push(dto);
+            // Attempt to match with one of the configured projects in projects_list
+            let clean_ws = clean_unc_path(s.workspace.clone());
+            let mut matched_project_key = None;
+
+            for p in &projects_list {
+                if p == &s.workspace || clean_unc_path(p.clone()) == clean_ws {
+                    matched_project_key = Some(p.clone());
+                    break;
+                }
+            }
+
+            if let Some(key) = matched_project_key {
+                project_chats_map.entry(key).or_default().push(dto);
+            } else {
+                // If the session's workspace is not in the allowed projects list (e.g. project was removed or workspace was reset),
+                // fallback to standalone chats so the conversation NEVER disappears from the sidebar!
+                standalone_chats.push(dto);
+            }
         }
     }
 
@@ -281,8 +301,27 @@ pub async fn create_new_session(
 
     if let Ok(mut lock) = state.state_lock.lock() {
         lock.active_session_id = Some(id.clone());
-        lock.active_project = project_path;
+        lock.active_project = project_path.clone();
     }
+
+    // Sync process current directory to project or default workspace
+    let target_dir = if let Some(ref proj) = project_path {
+        if !proj.trim().is_empty() {
+            PathBuf::from(proj)
+        } else {
+            operon_rs::config::OperonPaths::resolve()
+                .map(|p| p.workspace_dir)
+                .unwrap_or_else(|_| PathBuf::from("."))
+        }
+    } else {
+        operon_rs::config::OperonPaths::resolve()
+            .map(|p| p.workspace_dir)
+            .unwrap_or_else(|_| PathBuf::from("."))
+    };
+
+    let _ = std::fs::create_dir_all(&target_dir);
+    let _ = std::env::set_current_dir(&target_dir);
+
     Ok(id)
 }
 
@@ -295,8 +334,27 @@ pub async fn set_active_session(
 ) -> Result<(), String> {
     if let Ok(mut lock) = state.state_lock.lock() {
         lock.active_session_id = session_id;
-        lock.active_project = project_path;
+        lock.active_project = project_path.clone();
     }
+
+    // Sync process current directory to project or default workspace
+    let target_dir = if let Some(ref proj) = project_path {
+        if !proj.trim().is_empty() {
+            PathBuf::from(proj)
+        } else {
+            operon_rs::config::OperonPaths::resolve()
+                .map(|p| p.workspace_dir)
+                .unwrap_or_else(|_| PathBuf::from("."))
+        }
+    } else {
+        operon_rs::config::OperonPaths::resolve()
+            .map(|p| p.workspace_dir)
+            .unwrap_or_else(|_| PathBuf::from("."))
+    };
+
+    let _ = std::fs::create_dir_all(&target_dir);
+    let _ = std::env::set_current_dir(&target_dir);
+
     Ok(())
 }
 

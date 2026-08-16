@@ -11,13 +11,17 @@ use super::types::{
 };
 
 /// Resolves the absolute directory path to operate on.
+/// If a workspace override is provided (e.g. active project path or repo root), uses that.
+/// Otherwise, cleanly falls back to the system default workspace (~/.operon/workspace).
 fn resolve_workspace(workspace_override: Option<String>) -> PathBuf {
     if let Some(w) = workspace_override {
         if !w.trim().is_empty() {
             return PathBuf::from(w);
         }
     }
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    operon_rs::config::OperonPaths::resolve()
+        .map(|p| p.workspace_dir)
+        .unwrap_or_else(|_| PathBuf::from("."))
 }
 
 /// Converts an internal `operon_rs::diff::FileDiff` DTO into our frontend DTO.

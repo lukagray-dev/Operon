@@ -35,10 +35,25 @@ pub async fn submit_prompt(
 
     let app_config = operon_rs::load().map_err(|e| e.to_string())?;
 
+    // Resolve workspace root from the frontend's current context:
+    //   - PROJECT mode: workspace_path = Some("D:\MyProject") → use that path
+    //   - GENERAL mode: workspace_path = None → use default workspace (~/.operon/workspace/)
+    //
+    // We intentionally do NOT read the historical workspace from the session store here.
+    // The frontend knows the user's CURRENT context (which sidebar section the session
+    // is under). If a session was moved from a project to general chats (or vice versa),
+    // the frontend sends the new context, and we must respect that — not the old one.
     let workspace_root = match workspace_path {
         Some(ref p) if !p.trim().is_empty() => PathBuf::from(p),
         _ => app_config.paths.workspace_dir.clone(),
     };
+
+    // Ensure the workspace root directory physically exists on disk
+    let _ = std::fs::create_dir_all(&workspace_root);
+
+    // Set the process CWD to workspace_root so relative paths in tools
+    // (e.g. `ls .`, shell commands) resolve against the active workspace
+    let _ = std::env::set_current_dir(&workspace_root);
 
     let store_path = app_config.paths.session_db(&active_id);
     let is_new_session = !store_path.exists();
@@ -75,6 +90,38 @@ pub async fn submit_prompt(
             map.insert("id".to_string(), serde_json::json!(active_id));
             map.insert("title".to_string(), serde_json::json!(title));
             let _ = std::fs::write(&session_file, serde_json::to_string_pretty(&map).unwrap_or_default());
+        }
+    } else {
+        // Existing session: if the workspace context changed (session moved between
+        // general ↔ project), update the stored workspace to match the new context.
+        // This keeps the session metadata file accurate for sidebar categorization.
+        if let Ok(paths) = operon_rs::config::OperonPaths::resolve() {
+            let session_file = paths.sessions_dir.join(format!("{}.json", active_id));
+            if session_file.exists() {
+                if let Ok(content) = std::fs::read_to_string(&session_file) {
+                    if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(obj) = val.as_object_mut() {
+                            let stored_ws = obj
+                                .get("workspace")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+                            let current_ws = workspace_root.to_string_lossy();
+
+                            // Only rewrite if the workspace actually changed
+                            if stored_ws != current_ws.as_ref() {
+                                obj.insert(
+                                    "workspace".to_string(),
+                                    serde_json::json!(current_ws),
+                                );
+                                let _ = std::fs::write(
+                                    &session_file,
+                                    serde_json::to_string_pretty(&val).unwrap_or_default(),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
