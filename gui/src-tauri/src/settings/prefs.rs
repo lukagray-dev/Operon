@@ -37,27 +37,30 @@ impl CloseButtonAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ThinkingOrbStyle {
-    Breathing,
     #[default]
     Composing,
-    Solving,
+    Shaping,
+    Working,
+    Connecting,
 }
 
 impl ThinkingOrbStyle {
     pub fn from_index(idx: i32) -> Self {
         match idx {
-            0 => Self::Breathing,
-            1 => Self::Composing,
-            2 => Self::Solving,
+            0 => Self::Composing,
+            1 => Self::Shaping,
+            2 => Self::Working,
+            3 => Self::Connecting,
             _ => Self::Composing,
         }
     }
 
     pub fn to_index(self) -> i32 {
         match self {
-            Self::Breathing => 0,
-            Self::Composing => 1,
-            Self::Solving => 2,
+            Self::Composing => 0,
+            Self::Shaping => 1,
+            Self::Working => 2,
+            Self::Connecting => 3,
         }
     }
 }
@@ -123,6 +126,20 @@ pub struct GuiPrefs {
     pub selected_assistant_font: i32, // 0 = Literata, 1 = Lora, 2 = Merriweather
     #[serde(default)]
     pub selected_code_font: i32, // 0 = Kode Mono, 1 = JetBrains Mono, 2 = Fira Code
+
+    // Appearance: Thinking Orb Controls
+    #[serde(default = "default_orb_speed")]
+    pub orb_speed: i32, // 0 = 1.5x, 1 = 3.0x (default), 2 = 4.5x
+    #[serde(default = "default_show_live_orb")]
+    pub show_live_orb: bool,
+}
+
+fn default_orb_speed() -> i32 {
+    1
+}
+
+fn default_show_live_orb() -> bool {
+    true
 }
 
 impl Default for GuiPrefs {
@@ -145,6 +162,8 @@ impl Default for GuiPrefs {
             selected_ui_font: 0,
             selected_assistant_font: 0,
             selected_code_font: 0,
+            orb_speed: 1,
+            show_live_orb: true,
         }
     }
 }

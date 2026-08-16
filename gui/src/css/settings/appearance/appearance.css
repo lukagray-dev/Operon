@@ -153,18 +153,18 @@
   color: #ffffff;
 }
 
-/* Thinking & Reasoning Orbs Cards Grid */
+/* Thinking & Reasoning Orbs Cards Grid (4 columns) */
 .orb-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
 
 .orb-selection-card {
   background-color: #121212;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  padding: 14px 12px;
+  padding: 12px 8px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -186,14 +186,20 @@
 }
 
 .orb-preview-canvas {
-  width: 48px;
-  height: 48px;
+  width: 64px;
+  height: 64px;
+  display: block;
 }
 
 .orb-card-title {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.orb-card-subtitle {
+  font-size: 10px;
+  color: var(--text-muted, #737373);
 }
 
 /* Typography Font Preview Grid (3 columns) */

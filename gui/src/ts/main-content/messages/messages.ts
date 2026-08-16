@@ -21,7 +21,7 @@ import { hidePermissionDialog, showPermissionDialog } from '../permission/permis
 import { approvePermissionIpc } from './ipc.js';
 import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
-import { renderWorkGroupElement } from '../work-group/work-group.js';
+import { renderWorkGroupElement, syncWorkGroupElement } from '../work-group/work-group.js';
 import {
   listenAgentError,
   listenAgentEvent,
@@ -160,23 +160,22 @@ export function initMessages(): void {
 
     const existingWgEl = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].work-group-container`);
 
-    const { element: newEl, orbRenderer } = renderWorkGroupElement(
+    const { element: wgEl, orbRenderer } = syncWorkGroupElement(
+      existingWgEl,
       targetWorkGroup,
       () => messagesState.toggleWorkGroupExpanded(msg.id, blockIdx),
       (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, blockIdx, itemIdx),
       targetWorkGroup.is_active ? activeOrbRenderer : null
     );
-    newEl.setAttribute('data-block-index', String(blockIdx));
+    wgEl.setAttribute('data-block-index', String(blockIdx));
 
     if (orbRenderer && orbRenderer !== activeOrbRenderer) {
       cleanupActiveOrb();
       activeOrbRenderer = orbRenderer;
     }
 
-    if (existingWgEl) {
-      existingWgEl.replaceWith(newEl);
-    } else {
-      insertBlockInRow(row, newEl, blockIdx);
+    if (!existingWgEl) {
+      insertBlockInRow(row, wgEl, blockIdx);
     }
 
     smartAutoScroll();

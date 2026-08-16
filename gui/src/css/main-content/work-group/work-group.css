@@ -62,18 +62,33 @@
   opacity: 1.0;
 }
 
-/* Pulse animation while model is actively thinking/working */
-@keyframes work-pulse {
-  0%, 100% {
-    opacity: 0.9;
+/* Smooth left-to-right white light sweep across active text */
+@keyframes text-shine-sweep {
+  0% {
+    background-position: 200% 0;
   }
-  50% {
-    opacity: 0.45;
+  100% {
+    background-position: -200% 0;
   }
 }
 
 .work-group-summary-text.active {
-  animation: work-pulse 1.8s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    rgba(130, 130, 130, 0.7) 0%,
+    rgba(130, 130, 130, 0.7) 20%,
+    #ffffff 42%,
+    #ffffff 58%,
+    rgba(130, 130, 130, 0.7) 80%,
+    rgba(130, 130, 130, 0.7) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shine-sweep 2.0s linear infinite;
+  opacity: 1;
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.4));
 }
 
 /* Header Trailing Chevron Icon */
@@ -220,6 +235,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 120ms ease;
+}
+
+.work-group-tool-title.running {
+  background: linear-gradient(
+    90deg,
+    rgba(140, 140, 140, 0.7) 0%,
+    rgba(140, 140, 140, 0.7) 20%,
+    #ffffff 42%,
+    #ffffff 58%,
+    rgba(140, 140, 140, 0.7) 80%,
+    rgba(140, 140, 140, 0.7) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shine-sweep 2.0s linear infinite;
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.4));
 }
 
 .work-group-tool-header:hover .work-group-tool-title {

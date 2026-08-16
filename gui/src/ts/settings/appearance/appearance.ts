@@ -1,10 +1,7 @@
-// Appearance Settings Controller & DOM Coordinator
-//
-// 1:1 implementation matching Slint appearance.slint:
-// - Section 1: Theme & Color Palette (4 syntax code preview cards)
-// - Section 2: UI Scale & Thinking Orb (5 scale levels, Compact mode, Smooth animations, 3 Live Orb cards)
-// - Section 3: Typography & Code Styling (UI Font, Assistant Font, Code Font, Cursor Blink)
+// Appearance Settings Panel Coordinator
+// Manages Themes, Code/Table Appearance, Thinking Orbs, and Typography
 
+import { ThinkingOrbRenderer } from '../../thinking-orbs/orb-renderer.js';
 import { getAppearanceSettingsIpc, saveAppearanceSettingsIpc } from './ipc.js';
 import type { AppearanceSettings } from './types.js';
 
@@ -13,7 +10,7 @@ let currentSettings: AppearanceSettings = {
   selected_ui_scale: 1,
   compact_mode: false,
   smooth_animations: true,
-  selected_thinking_orb: 1,
+  selected_thinking_orb: 0,
   selected_ui_font: 0,
   selected_assistant_font: 0,
   selected_code_font: 0,
@@ -21,9 +18,11 @@ let currentSettings: AppearanceSettings = {
   show_line_numbers: true,
   highlight_inline_code: true,
   table_theme: 0,
+  orb_speed: 1,
+  show_live_orb: true,
 };
 
-let orbAnimReq: number | null = null;
+let orbRenderers: ThinkingOrbRenderer[] = [];
 
 /**
  * Initializes the Appearance Settings panel and live previews.
@@ -37,9 +36,9 @@ export async function initAppearanceSettings(): Promise<void> {
 
   setupCodeThemeCards();
   setupTableThemeCards();
-  setupScaleSelector();
   setupToggleSwitches();
   setupOrbCards();
+  setupOrbSpeedSelector();
   setupFontSelectors();
   startLiveOrbPreviews();
   syncAppearanceUI();
@@ -69,7 +68,7 @@ function updateCodeThemeCardsUI(): void {
 }
 
 /**
- * Binds Table theme selection cards.
+ * Binds Table style selection cards.
  */
 function setupTableThemeCards(): void {
   const cards = document.querySelectorAll<HTMLElement>('.theme-preview-card[data-type="table"]');
@@ -92,40 +91,9 @@ function updateTableThemeCardsUI(): void {
 }
 
 /**
- * Binds UI Scaling preset buttons (80%, 100%, 120%, 140%, 160%).
- */
-function setupScaleSelector(): void {
-  const buttons = document.querySelectorAll<HTMLButtonElement>('.scale-option-btn');
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const idx = parseInt(btn.dataset.index || '1', 10);
-      currentSettings.selected_ui_scale = idx;
-      updateScaleUI();
-      applyLiveScale(idx);
-      await persist();
-    });
-  });
-}
-
-function updateScaleUI(): void {
-  const buttons = document.querySelectorAll<HTMLButtonElement>('.scale-option-btn');
-  buttons.forEach((btn) => {
-    const idx = parseInt(btn.dataset.index || '1', 10);
-    btn.classList.toggle('active', idx === currentSettings.selected_ui_scale);
-  });
-}
-
-function applyLiveScale(scaleIndex: number): void {
-  const scales = [0.8, 1.0, 1.2, 1.4, 1.6];
-  const scale = scales[scaleIndex] || 1.0;
-  document.documentElement.style.setProperty('--ui-scale', String(scale));
-}
-
-/**
- * Binds compact mode, smooth animations, and cursor blink toggles.
+ * Binds toggle switches.
  */
 function setupToggleSwitches(): void {
-  // Section 1: Code Block Line Numbers & Inline Code
   bindSwitch('toggle-app-line-numbers', currentSettings.show_line_numbers, async (val) => {
     currentSettings.show_line_numbers = val;
     await persist();
@@ -136,20 +104,14 @@ function setupToggleSwitches(): void {
     await persist();
   });
 
-  // Section 2: Compact mode and smooth animations
-  bindSwitch('toggle-app-compact', currentSettings.compact_mode, async (val) => {
-    currentSettings.compact_mode = val;
-    await persist();
-  });
-
-  bindSwitch('toggle-app-animations', currentSettings.smooth_animations, async (val) => {
-    currentSettings.smooth_animations = val;
+  bindSwitch('toggle-app-live-orb', currentSettings.show_live_orb, async (val) => {
+    currentSettings.show_live_orb = val;
     await persist();
   });
 }
 
 /**
- * Binds the 3 Thinking & Reasoning Orb preview cards.
+ * Binds the 4 Thinking & Reasoning Orb preview cards.
  */
 function setupOrbCards(): void {
   const cards = document.querySelectorAll<HTMLElement>('.orb-selection-card');
@@ -172,112 +134,75 @@ function updateOrbCardsUI(): void {
 }
 
 /**
- * Continuous 60fps canvas renderer for the 3 thinking orb preview canvases.
+ * Binds Orb Animation Speed selector (1.5x, 3.0x, 4.5x).
  */
-function startLiveOrbPreviews(): void {
-  if (orbAnimReq) cancelAnimationFrame(orbAnimReq);
-
-  const canvas0 = document.getElementById('canvas-orb-breathing') as HTMLCanvasElement | null;
-  const canvas1 = document.getElementById('canvas-orb-composing') as HTMLCanvasElement | null;
-  const canvas2 = document.getElementById('canvas-orb-solving') as HTMLCanvasElement | null;
-
-  let startT = performance.now();
-
-  const drawFrame = (now: number) => {
-    const elapsed = (now - startT) / 1000.0;
-
-    // 0: Breathing Orb (Cosmic Ripple)
-    if (canvas0) {
-      drawBreathingOrb(canvas0, elapsed);
-    }
-
-    // 1: Composing Orb (Chromatic Ribbon)
-    if (canvas1) {
-      drawComposingOrb(canvas1, elapsed);
-    }
-
-    // 2: Solving Orb (Harmonic Pulse)
-    if (canvas2) {
-      drawSolvingOrb(canvas2, elapsed);
-    }
-
-    orbAnimReq = requestAnimationFrame(drawFrame);
-  };
-
-  orbAnimReq = requestAnimationFrame(drawFrame);
+function setupOrbSpeedSelector(): void {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.seg-choice-orb-speed');
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.index || '1', 10);
+      currentSettings.orb_speed = idx;
+      updateOrbSpeedUI();
+      const mult = getSpeedMultiplier(idx);
+      orbRenderers.forEach((r) => r.setSpeed(mult));
+      await persist();
+    });
+  });
 }
 
-function drawBreathingOrb(canvas: HTMLCanvasElement, t: number): void {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  const cx = w / 2;
-  const cy = h / 2;
-  const pulse = 0.5 + 0.5 * Math.sin(t * 2.4);
-
-  const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 18 + pulse * 4);
-  grad.addColorStop(0, 'rgba(56, 189, 248, 0.95)');
-  grad.addColorStop(0.5, 'rgba(129, 140, 248, 0.6)');
-  grad.addColorStop(1, 'rgba(168, 85, 247, 0)');
-
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 20 + pulse * 3, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(cx, cy, 3 + pulse, 0, Math.PI * 2);
-  ctx.fill();
+function updateOrbSpeedUI(): void {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.seg-choice-orb-speed');
+  buttons.forEach((btn) => {
+    const idx = parseInt(btn.dataset.index || '1', 10);
+    btn.classList.toggle('active', idx === currentSettings.orb_speed);
+  });
 }
 
-function drawComposingOrb(canvas: HTMLCanvasElement, t: number): void {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  const cx = w / 2;
-  const cy = h / 2;
-
-  for (let i = 0; i < 3; i++) {
-    const angle = t * 3.0 + (i * Math.PI * 2) / 3;
-    const r = 10 + Math.sin(t * 4.0 + i) * 3;
-    const px = cx + Math.cos(angle) * r;
-    const py = cy + Math.sin(angle) * r;
-
-    ctx.fillStyle = i === 0 ? 'rgba(56, 189, 248, 0.85)' : i === 1 ? 'rgba(168, 85, 247, 0.85)' : 'rgba(236, 72, 153, 0.85)';
-    ctx.beginPath();
-    ctx.arc(px, py, 4, 0, Math.PI * 2);
-    ctx.fill();
+function getSpeedMultiplier(idx: number): number {
+  switch (idx) {
+    case 0:
+      return 1.5;
+    case 2:
+      return 4.5;
+    default:
+      return 3.0;
   }
 }
 
-function drawSolvingOrb(canvas: HTMLCanvasElement, t: number): void {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
+/**
+ * Initializes the 4 live thinking orb preview canvases with the thinking-orbs engine.
+ */
+function startLiveOrbPreviews(): void {
+  // Clean up any existing instances
+  orbRenderers.forEach((r) => r.destroy());
+  orbRenderers = [];
 
-  const cx = w / 2;
-  const cy = h / 2;
+  const speed = getSpeedMultiplier(currentSettings.orb_speed);
 
-  ctx.strokeStyle = '#38bdf8';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  const ringR = 12 + Math.sin(t * 3.5) * 3;
-  ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-  ctx.stroke();
+  const configs: Array<{ id: string; state: 'composing' | 'shaping' | 'working' | 'connecting' }> = [
+    { id: 'canvas-orb-composing', state: 'composing' },
+    { id: 'canvas-orb-shaping', state: 'shaping' },
+    { id: 'canvas-orb-working', state: 'working' },
+    { id: 'canvas-orb-connecting', state: 'connecting' },
+  ];
 
-  ctx.fillStyle = '#60a5fa';
-  ctx.beginPath();
-  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-  ctx.fill();
+  configs.forEach(({ id, state }) => {
+    const canvas = document.getElementById(id) as HTMLCanvasElement | null;
+    if (canvas) {
+      try {
+        const renderer = new ThinkingOrbRenderer(canvas, {
+          state,
+          size: 64,
+          speed,
+          dark: true,
+        });
+        renderer.start();
+        orbRenderers.push(renderer);
+      } catch (err) {
+        console.warn(`[AppearanceSettings] Failed to create ThinkingOrbRenderer for ${id}:`, err);
+      }
+    }
+  });
 }
 
 /**
@@ -386,16 +311,14 @@ function bindSwitch(id: string, initial: boolean, onToggle: (checked: boolean) =
 function syncAppearanceUI(): void {
   updateCodeThemeCardsUI();
   updateTableThemeCardsUI();
-  updateScaleUI();
   updateOrbCardsUI();
+  updateOrbSpeedUI();
   updateFontCardsUI();
 
   setSwitchChecked('toggle-app-line-numbers', currentSettings.show_line_numbers);
   setSwitchChecked('toggle-app-inline-code', currentSettings.highlight_inline_code);
-  setSwitchChecked('toggle-app-compact', currentSettings.compact_mode);
-  setSwitchChecked('toggle-app-animations', currentSettings.smooth_animations);
+  setSwitchChecked('toggle-app-live-orb', currentSettings.show_live_orb);
 
-  applyLiveScale(currentSettings.selected_ui_scale);
   applyLiveFonts();
 }
 

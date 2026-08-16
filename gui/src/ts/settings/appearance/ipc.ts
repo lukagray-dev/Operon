@@ -11,7 +11,7 @@ export async function getAppearanceSettingsIpc(): Promise<AppearanceSettings> {
       selected_ui_scale: 1,
       compact_mode: false,
       smooth_animations: true,
-      selected_thinking_orb: 1,
+      selected_thinking_orb: 0,
       selected_ui_font: 0,
       selected_assistant_font: 0,
       selected_code_font: 0,
@@ -19,6 +19,8 @@ export async function getAppearanceSettingsIpc(): Promise<AppearanceSettings> {
       show_line_numbers: true,
       highlight_inline_code: true,
       table_theme: 0,
+      orb_speed: 1,
+      show_live_orb: true,
     }
   );
 }

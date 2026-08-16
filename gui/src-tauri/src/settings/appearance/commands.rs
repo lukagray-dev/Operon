@@ -19,6 +19,8 @@ pub async fn get_appearance_settings() -> Result<AppearanceSettingsDto, String> 
         show_line_numbers: prefs.show_line_numbers,
         highlight_inline_code: prefs.highlight_inline_code,
         table_theme: prefs.table_theme,
+        orb_speed: prefs.orb_speed,
+        show_live_orb: prefs.show_live_orb,
     })
 }
 
@@ -37,6 +39,8 @@ pub async fn save_appearance_settings(
     prefs.show_line_numbers = settings.show_line_numbers;
     prefs.highlight_inline_code = settings.highlight_inline_code;
     prefs.table_theme = settings.table_theme;
+    prefs.orb_speed = settings.orb_speed;
+    prefs.show_live_orb = settings.show_live_orb;
     prefs.save()?;
 
     // Broadcast appearance change to all windows so main chat view updates in real-time

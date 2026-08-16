@@ -366,73 +366,68 @@
             </div>
           </div>
 
-          <!-- Section 2: UI Scale & Thinking Orb Animations -->
+          <!-- Section 2: Thinking & Reasoning Orb -->
           <div class="settings-card">
-            <div class="settings-card-header">UI Scale & Thinking Orb</div>
+            <div class="settings-card-header">Thinking & Reasoning Orb</div>
             <div class="settings-card-divider"></div>
 
-            <!-- UI Scale Selector -->
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-row-title">Interface Scale Level</div>
-                <div class="settings-row-desc">Adjust the global sizing and zoom multiplier for all interface elements</div>
-              </div>
-              <div class="scale-selector-bar">
-                <button class="scale-option-btn" data-index="0">80%</button>
-                <button class="scale-option-btn active" data-index="1">100%</button>
-                <button class="scale-option-btn" data-index="2">120%</button>
-                <button class="scale-option-btn" data-index="3">140%</button>
-                <button class="scale-option-btn" data-index="4">160%</button>
-              </div>
-            </div>
-            <div class="settings-card-divider"></div>
-
-            <!-- Compact Mode -->
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-row-title">Compact Mode</div>
-                <div class="settings-row-desc">Reduce padding and margins across the interface for higher information density</div>
-              </div>
-              <div id="toggle-app-compact" class="toggle-switch" role="switch" aria-checked="false"></div>
-            </div>
-            <div class="settings-card-divider"></div>
-
-            <!-- Smooth Animations -->
-            <div class="settings-row">
-              <div class="settings-row-text">
-                <div class="settings-row-title">Smooth Animations</div>
-                <div class="settings-row-desc">Enable buttery smooth 60fps transitions and interactive micro-animations</div>
-              </div>
-              <div id="toggle-app-animations" class="toggle-switch checked" role="switch" aria-checked="true"></div>
-            </div>
-            <div class="settings-card-divider"></div>
-
-            <!-- Live Thinking Orb Selection Cards -->
+            <!-- Live Thinking Orb Selection Cards (4 Cards) -->
             <div style="display: flex; flex-direction: column; gap: 8px;">
-              <div class="settings-row-title">Thinking & Reasoning Animation</div>
-              <div class="settings-row-desc">Select the dynamic visual orb animation displayed while the agent is reasoning</div>
+              <div class="settings-row-title">Orb Animation Style</div>
+              <div class="settings-row-desc">Select the dynamic particle orb animation displayed while the agent is reasoning</div>
               <div class="orb-grid" style="margin-top: 6px;">
-                <!-- Orb 0: Breathing Aurora -->
-                <div class="orb-selection-card" data-index="0">
-                  <canvas id="canvas-orb-breathing" class="orb-preview-canvas" width="48" height="48"></canvas>
-                  <div class="orb-card-title">Breathing Aurora</div>
-                  <div class="orb-card-subtitle">Cosmic Ripple</div>
+                <!-- Orb 0: Composing -->
+                <div class="orb-selection-card selected" data-index="0">
+                  <canvas id="canvas-orb-composing" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Composing</div>
+                  <div class="orb-card-subtitle">Undulating Ribbon</div>
                 </div>
 
-                <!-- Orb 1: Composing Prism -->
-                <div class="orb-selection-card selected" data-index="1">
-                  <canvas id="canvas-orb-composing" class="orb-preview-canvas" width="48" height="48"></canvas>
-                  <div class="orb-card-title">Composing Prism</div>
-                  <div class="orb-card-subtitle">Chromatic Ribbon</div>
+                <!-- Orb 1: Shaping -->
+                <div class="orb-selection-card" data-index="1">
+                  <canvas id="canvas-orb-shaping" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Shaping</div>
+                  <div class="orb-card-subtitle">Morphing Geometry</div>
                 </div>
 
-                <!-- Orb 2: Solving Helix -->
+                <!-- Orb 2: Working -->
                 <div class="orb-selection-card" data-index="2">
-                  <canvas id="canvas-orb-solving" class="orb-preview-canvas" width="48" height="48"></canvas>
-                  <div class="orb-card-title">Solving Helix</div>
-                  <div class="orb-card-subtitle">Harmonic Pulse</div>
+                  <canvas id="canvas-orb-working" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Working</div>
+                  <div class="orb-card-subtitle">Planetary Orbits</div>
+                </div>
+
+                <!-- Orb 3: Connecting -->
+                <div class="orb-selection-card" data-index="3">
+                  <canvas id="canvas-orb-connecting" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Connecting</div>
+                  <div class="orb-card-subtitle">Neural Web</div>
                 </div>
               </div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Orb Animation Speed -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Orb Animation Speed</div>
+                <div class="settings-row-desc">Tune the particle velocity and orbit rotation speed</div>
+              </div>
+              <div class="segmented-choice" style="width: 270px;">
+                <button class="segmented-choice-btn seg-choice-orb-speed" data-index="0">1.5x Normal</button>
+                <button class="segmented-choice-btn seg-choice-orb-speed active" data-index="1">3.0x Fast</button>
+                <button class="segmented-choice-btn seg-choice-orb-speed" data-index="2">4.5x Rapid</button>
+              </div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Live Orb in Workgroups Toggle -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Show Live Orb in Workgroups</div>
+                <div class="settings-row-desc">Display active 60 FPS particle animation while the agent is executing tools and reasoning</div>
+              </div>
+              <div id="toggle-app-live-orb" class="toggle-switch checked" role="switch" aria-checked="true"></div>
             </div>
           </div>
 

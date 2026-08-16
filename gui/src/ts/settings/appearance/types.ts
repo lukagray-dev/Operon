@@ -5,7 +5,7 @@ export interface AppearanceSettings {
   selected_ui_scale: number; // 0 = 80%, 1 = 100%, 2 = 120%, 3 = 140%, 4 = 160%
   compact_mode: boolean;
   smooth_animations: boolean;
-  selected_thinking_orb: number; // 0 = Breathing Aurora, 1 = Composing Prism, 2 = Solving Helix
+  selected_thinking_orb: number; // 0 = Composing, 1 = Shaping, 2 = Working, 3 = Connecting
   selected_ui_font: number; // 0 = Open Sans, 1 = Inter, 2 = Roboto
   selected_assistant_font: number; // 0 = Literata, 1 = Lora, 2 = Merriweather
   selected_code_font: number; // 0 = Kode Mono, 1 = JetBrains Mono, 2 = Fira Code
@@ -13,4 +13,6 @@ export interface AppearanceSettings {
   show_line_numbers: boolean;
   highlight_inline_code: boolean;
   table_theme: number; // 0 = GitHub Dark, 1 = Modern Minimal, 2 = Zebra Striped, 3 = Boxed Grid
+  orb_speed: number; // 0 = 1.5x, 1 = 3.0x, 2 = 4.5x
+  show_live_orb: boolean;
 }
