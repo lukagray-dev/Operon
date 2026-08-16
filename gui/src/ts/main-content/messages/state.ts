@@ -50,6 +50,36 @@ class MessagesStateManager {
     this.notify();
   }
 
+  public truncateAndStartTurn(turnIndex: number, newPromptText: string): void {
+    this.stopStreamingTimer();
+    this.streamingMessageId = null;
+
+    // 1. Keep only messages strictly prior to this turn
+    this.messages = this.messages.filter((m) => m.turn_index < turnIndex);
+
+    // 2. Add the updated user message for this turn
+    const userMsg: ChatMessage = {
+      id: `turn_${turnIndex}_user`,
+      role: 'user',
+      text: newPromptText,
+      timestamp: 'Just now',
+      created_at: Math.floor(Date.now() / 1000),
+      turn_index: turnIndex,
+      is_liked: false,
+      is_disliked: false,
+    };
+    this.messages.push(userMsg);
+
+    // 3. Prepare streaming assistant placeholder
+    this.startAssistantStreaming(turnIndex);
+
+    // 4. Trigger full reset / rerender of the messages view
+    for (const l of this.fullResetListeners) {
+      l();
+    }
+    this.notify();
+  }
+
   public startAssistantStreaming(turnIndex: number): string {
     this.stopStreamingTimer();
     const id = `turn_${turnIndex}_assistant`;

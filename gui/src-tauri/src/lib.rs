@@ -130,6 +130,7 @@ pub fn run() {
             // Main Content Messages actions
             main_content::messages::load_session_messages,
             main_content::messages::submit_prompt,
+            main_content::messages::edit_and_submit_prompt,
             main_content::messages::cancel_prompt,
             main_content::messages::approve_permission,
             main_content::messages::deny_permission,

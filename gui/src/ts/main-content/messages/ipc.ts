@@ -25,6 +25,22 @@ export async function submitPromptIpc(
   return res || '';
 }
 
+export async function editAndSubmitPromptIpc(
+  sessionId: string,
+  prompt: string,
+  targetTurnIndex: number,
+  workspacePath: string | null
+): Promise<string> {
+  const res = await invokeIpc<string>('edit_and_submit_prompt', {
+    sessionId,
+    prompt,
+    targetTurnIndex,
+    workspacePath: workspacePath || null,
+  });
+
+  return res || '';
+}
+
 export async function cancelPromptIpc(): Promise<void> {
   await invokeIpc('cancel_prompt');
 }

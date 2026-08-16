@@ -376,9 +376,12 @@ pub async fn rename_session(session_id: String, new_title: String) -> Result<(),
     Ok(())
 }
 
-/// Forks a session into a brand new session with copied message history.
+/// Forks a session into a brand new session with copied message history up to an optional turn index.
 #[tauri::command]
-pub async fn fork_session(session_id: String) -> Result<String, String> {
+pub async fn fork_session(
+    session_id: String,
+    until_turn_index: Option<usize>,
+) -> Result<String, String> {
     let paths = operon_rs::config::OperonPaths::resolve().map_err(|e| e.to_string())?;
     let src_path = paths.session_db(&session_id);
     if !src_path.exists() {
@@ -393,14 +396,36 @@ pub async fn fork_session(session_id: String) -> Result<String, String> {
     let dest_path = paths.session_db(&new_id);
 
     let content = std::fs::read_to_string(&src_path).map_err(|e| e.to_string())?;
-    if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
-        if let Some(obj) = val.as_object_mut() {
-            obj.insert("id".to_string(), serde_json::Value::String(new_id.clone()));
-            obj.insert("created_at".to_string(), serde_json::json!(ts as i64 / 1000));
-            let formatted = serde_json::to_string_pretty(&val).map_err(|e| e.to_string())?;
-            std::fs::write(&dest_path, formatted).map_err(|e| e.to_string())?;
-            return Ok(new_id);
+    let mut val: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse session JSON: {}", e))?;
+
+    if let Some(obj) = val.as_object_mut() {
+        obj.insert("id".to_string(), serde_json::Value::String(new_id.clone()));
+        obj.insert("created_at".to_string(), serde_json::json!(ts as i64 / 1000));
+
+        // Append (Fork) to title if present
+        if let Some(orig_title) = obj.get("title").and_then(|t| t.as_str()) {
+            if !orig_title.is_empty() {
+                let forked_title = format!("{} (Fork)", orig_title);
+                obj.insert("title".to_string(), serde_json::Value::String(forked_title));
+            }
         }
+
+        // If until_turn_index is specified, filter turns to retain only turns <= until_turn_index
+        if let Some(max_turn) = until_turn_index {
+            if let Some(turns_arr) = obj.get_mut("turns").and_then(|t| t.as_array_mut()) {
+                turns_arr.retain(|turn_val| {
+                    turn_val
+                        .get("turn_index")
+                        .and_then(|idx| idx.as_u64())
+                        .map_or(true, |idx| idx as usize <= max_turn)
+                });
+            }
+        }
+
+        let formatted = serde_json::to_string_pretty(&val).map_err(|e| e.to_string())?;
+        std::fs::write(&dest_path, formatted).map_err(|e| e.to_string())?;
+        return Ok(new_id);
     }
 
     let modified = content.replace(&session_id, &new_id);

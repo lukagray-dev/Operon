@@ -6,6 +6,7 @@
 // 3. In-place RAF-batched DOM stream updates.
 // 4. Stable ThinkingOrbRenderer lifecycle and smart non-intrusive auto-scroll.
 
+import { forkSessionIpc } from '../../left-sidebar/ipc.js';
 import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { getGeneralSettingsIpc } from '../../settings/general/ipc.js';
@@ -23,6 +24,7 @@ import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
 import { renderWorkGroupElement, syncWorkGroupElement } from '../work-group/work-group.js';
 import {
+  editAndSubmitPromptIpc,
   listenAgentError,
   listenAgentEvent,
   listenAgentFinished,
@@ -561,15 +563,111 @@ function createUserMessageElement(msg: ChatMessage): HTMLElement {
   editBtn.innerHTML = '<span class="ui-icon icon-msg-edit"></span>';
 
   editBtn.addEventListener('click', () => {
-    const textarea = document.getElementById('chat-input-textarea') as HTMLTextAreaElement | null;
-    if (textarea) {
-      textarea.value = msg.text;
-      textarea.style.height = 'auto';
-      const newHeight = Math.min(200, Math.max(42, textarea.scrollHeight));
-      textarea.style.height = `${newHeight}px`;
-      textarea.focus();
-      inputState.setInputText(msg.text);
+    // If already editing this message, do not create duplicate
+    if (row.querySelector('.user-edit-container')) {
+      return;
     }
+
+    // Cancel any other message that might currently be in edit mode
+    document.querySelectorAll<HTMLElement>('.user-edit-container').forEach((el) => {
+      const parentRow = el.closest('.user-message-row');
+      if (parentRow) {
+        const origBubble = parentRow.querySelector<HTMLElement>('.user-message-bubble');
+        const origActions = parentRow.querySelector<HTMLElement>('.user-message-actions');
+        if (origBubble) origBubble.style.display = '';
+        if (origActions) origActions.style.display = '';
+        el.remove();
+      }
+    });
+
+    // Hide original bubble and action buttons
+    bubble.style.display = 'none';
+    actions.style.display = 'none';
+
+    // Create inline edit container
+    const editContainer = document.createElement('div');
+    editContainer.className = 'user-edit-container';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'user-edit-textarea';
+    textarea.value = msg.text;
+    textarea.rows = 1;
+    textarea.placeholder = 'Edit prompt...';
+
+    // Auto-adjust height based on content
+    const autoResize = () => {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(300, Math.max(38, textarea.scrollHeight))}px`;
+    };
+
+    textarea.addEventListener('input', autoResize);
+
+    const editActions = document.createElement('div');
+    editActions.className = 'user-edit-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'user-edit-btn btn-user-edit-cancel';
+    cancelBtn.textContent = 'Cancel';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'user-edit-btn btn-user-edit-save';
+    saveBtn.textContent = 'Save';
+
+    const cancelEdit = () => {
+      editContainer.remove();
+      bubble.style.display = '';
+      actions.style.display = '';
+    };
+
+    const submitEdit = async () => {
+      const newText = textarea.value.trim();
+      if (!newText) return;
+
+      const activeSessionId = sidebarState.getActiveSessionId();
+      if (!activeSessionId) return;
+
+      const workspacePath = sidebarState.getActiveProjectPath();
+
+      // Slices UI messages: removes all turns from msg.turn_index onwards and inserts updated prompt
+      messagesState.truncateAndStartTurn(msg.turn_index, newText);
+      inputState.setIsResponding(true);
+
+      // Invoke backend edit and submit
+      try {
+        await editAndSubmitPromptIpc(activeSessionId, newText, msg.turn_index, workspacePath);
+      } catch (err) {
+        console.error('[Messages] Edit submit error:', err);
+        inputState.setIsResponding(false);
+      }
+    };
+
+    cancelBtn.addEventListener('click', cancelEdit);
+    saveBtn.addEventListener('click', submitEdit);
+
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        submitEdit();
+      }
+    });
+
+    editActions.appendChild(cancelBtn);
+    editActions.appendChild(saveBtn);
+
+    editContainer.appendChild(textarea);
+    editContainer.appendChild(editActions);
+
+    row.insertBefore(editContainer, actions);
+
+    // Initial resize and focus
+    requestAnimationFrame(() => {
+      autoResize();
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    });
   });
 
   actions.appendChild(copyBtn);
@@ -740,8 +838,25 @@ function createAssistantActionBar(msg: ChatMessage, showSeparator = true): HTMLE
   forkBtn.className = 'assistant-action-btn';
   forkBtn.title = 'Fork from this turn';
   forkBtn.innerHTML = '<span class="ui-icon icon-asst-fork"></span>';
-  forkBtn.addEventListener('click', () => {
-    console.debug('[Messages] Fork from turn:', msg.turn_index);
+  forkBtn.addEventListener('click', async () => {
+    const currentSessionId = sidebarState.getActiveSessionId();
+    if (!currentSessionId) return;
+
+    const confirmed = confirm('Fork conversation from this turn into a new chat?');
+    if (!confirmed) return;
+
+    try {
+      const newSessionId = await forkSessionIpc(currentSessionId, msg.turn_index);
+      if (newSessionId) {
+        const projectPath = sidebarState.getActiveProjectPath();
+        sidebarState.selectSession(newSessionId, projectPath);
+        await refreshSidebarContent();
+        await refreshMessages(newSessionId);
+        await refreshTopbar();
+      }
+    } catch (err) {
+      console.error('[Messages] Fork from turn error:', err);
+    }
   });
   bar.appendChild(forkBtn);
 

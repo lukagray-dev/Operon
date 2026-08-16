@@ -16,6 +16,7 @@
   position: relative;
   z-index: 25;
   box-sizing: border-box;
+  pointer-events: auto;
   animation: slideUpFade 0.15s ease-out;
 }
 

@@ -33,8 +33,11 @@ export async function renameSessionIpc(sessionId: string, newTitle: string): Pro
   await invokeIpc('rename_session', { sessionId, newTitle });
 }
 
-export async function forkSessionIpc(sessionId: string): Promise<string> {
-  const res = await invokeIpc<string>('fork_session', { sessionId });
+export async function forkSessionIpc(sessionId: string, untilTurnIndex?: number): Promise<string> {
+  const res = await invokeIpc<string>('fork_session', {
+    sessionId,
+    untilTurnIndex: untilTurnIndex !== undefined ? untilTurnIndex : null,
+  });
   return res || sessionId;
 }
 

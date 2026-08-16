@@ -257,3 +257,126 @@ pub async fn deny_permission(permission_id: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Truncates a session to a target turn index and resubmits an edited prompt.
+#[tauri::command]
+pub async fn edit_and_submit_prompt(
+    app_handle: AppHandle,
+    session_id: String,
+    prompt: String,
+    target_turn_index: usize,
+    workspace_path: Option<String>,
+) -> Result<String, String> {
+    if prompt.trim().is_empty() {
+        return Err("Prompt content cannot be empty".to_string());
+    }
+
+    if session_id.trim().is_empty() {
+        return Err("Session ID cannot be empty".to_string());
+    }
+
+    // 1. Cancel any active prompt execution before rewinding history
+    let cmd_tx_opt = if let Ok(lock) = ACTIVE_CMD_TX.lock() {
+        lock.clone()
+    } else {
+        None
+    };
+
+    if let Some(cmd_tx) = cmd_tx_opt {
+        let _ = cmd_tx.send(operon_rs::SessionCommand::Cancel).await;
+    }
+
+    let app_config = operon_rs::load().map_err(|e| e.to_string())?;
+
+    // 2. Resolve workspace root from active context
+    let workspace_root = match workspace_path {
+        Some(ref p) if !p.trim().is_empty() => PathBuf::from(p),
+        _ => app_config.paths.workspace_dir.clone(),
+    };
+
+    let _ = std::fs::create_dir_all(&workspace_root);
+    let _ = std::env::set_current_dir(&workspace_root);
+
+    let store_path = app_config.paths.session_db(&session_id);
+    let store = operon_rs::session::store::SessionStore::open(&store_path)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 3. Truncate persistent store turns starting from target_turn_index
+    store
+        .truncate_turns(&session_id, target_turn_index)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let config = operon_rs::session::SessionConfig {
+        provider_config: app_config.provider.clone(),
+        policy: app_config.policy.clone(),
+        project_dir: if workspace_root != app_config.paths.workspace_dir {
+            Some(workspace_root.clone())
+        } else {
+            None
+        },
+        workspace_root,
+        role: operon_rs::context::Role::Owner,
+        tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
+        compaction: operon_rs::context::CompactionConfig::default(),
+        store_path: Some(store_path.clone()),
+        channel_instructions: None,
+    };
+
+    let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<operon_rs::SessionEvent>(100);
+    let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel::<operon_rs::SessionCommand>(20);
+
+    if let Ok(mut lock) = ACTIVE_CMD_TX.lock() {
+        *lock = Some(cmd_tx);
+    }
+
+    let mut runner = operon_rs::session::SessionRunner::new(config, event_tx, cmd_rx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 4. Load truncated history up to target_turn_index into runner memory
+    if let Ok(history) = store.load_full_history(&session_id).await {
+        let turns = store.load_turns(&session_id).await.unwrap_or_default();
+        let last_tokens = store.get_last_token_count(&session_id).await.ok().flatten();
+        if !history.is_empty() {
+            runner.set_history(history, turns.len(), last_tokens);
+        }
+    }
+
+    let run_id = session_id.clone();
+    let app_handle_events = app_handle.clone();
+    let app_handle_done = app_handle.clone();
+    let prompt_text = prompt.clone();
+
+    // 5. Spawn background task for streaming events to webview
+    tokio::spawn(async move {
+        let events_task = tokio::spawn(async move {
+            while let Some(event) = event_rx.recv().await {
+                let _ = app_handle_events.emit("agent-event", &event);
+            }
+        });
+
+        let run_result = runner.run(prompt_text, Vec::new(), Vec::new()).await;
+        if let Err(e) = run_result {
+            eprintln!("[Operon GUI] Edit SessionRunner run error: {}", e);
+            let _ = app_handle_done.emit("agent-error", e.to_string());
+        }
+
+        // Explicitly drop runner to close event_tx channel
+        drop(runner);
+
+        // Wait for all buffered events to be dispatched to webview
+        let _ = events_task.await;
+
+        // Clear active command sender
+        if let Ok(mut lock) = ACTIVE_CMD_TX.lock() {
+            *lock = None;
+        }
+
+        let _ = app_handle_done.emit("agent-finished", &run_id);
+    });
+
+    Ok(session_id)
+}
+
