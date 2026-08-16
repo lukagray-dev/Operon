@@ -213,6 +213,14 @@ function createToolDetailBody(item: WorkGroupItem & { kind: 'tool' }): HTMLEleme
   const detailBody = document.createElement('div');
   detailBody.className = 'tool-detail-body';
 
+  detailBody.addEventListener(
+    'wheel',
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: true }
+  );
+
   // 1. Tool Input Arguments Section
   const argsEl = document.createElement('div');
   argsEl.className = 'tool-args-text';

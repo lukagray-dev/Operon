@@ -54,14 +54,26 @@ function setupScrollListener(): void {
     'scroll',
     () => {
       const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-      // If user scrolled up by more than 40px, pause autoscroll
-      if (distanceFromBottom > 40) {
+      // If user scrolled up by more than 30px, pause autoscroll
+      if (distanceFromBottom > 30) {
         userIsScrolledUp = true;
       } else {
         userIsScrolledUp = false;
       }
     },
     { passive: true }
+  );
+
+  // If user interacts with an expanded tool detail body, pause autoscroll
+  container.addEventListener(
+    'mouseenter',
+    (e) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('.tool-detail-body')) {
+        userIsScrolledUp = true;
+      }
+    },
+    true
   );
 }
 
@@ -95,12 +107,17 @@ function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number
 export function initMessages(): void {
   // Attach scroll tracking to protect user scrolling position
   setupScrollListener();
-  getCachedSettings();
+  let previousActiveSessionId: string | null = sidebarState.getActiveSessionId();
 
   // 1. Listen for session selection changes in the sidebar
   sidebarState.subscribe(async () => {
-    liveMarkdownRenderer.clearAll();
     const activeSessionId = sidebarState.getActiveSessionId();
+    if (activeSessionId === previousActiveSessionId) {
+      return; // Active session didn't change: preserve existing live DOM and scroll position
+    }
+    previousActiveSessionId = activeSessionId;
+
+    liveMarkdownRenderer.clearAll();
     if (activeSessionId) {
       await refreshMessages(activeSessionId);
     } else {
@@ -181,18 +198,16 @@ export function initMessages(): void {
     smartAutoScroll();
   });
 
-  // 6. Stream finished handler: finalizes workgroups and displays action bar
+  // 6. Stream finished handler: finalizes workgroups and displays action bar in-place
   messagesState.onStreamFinished((msgId) => {
     cleanupActiveOrb();
     const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
     if (row) {
       const msg = messagesState.getMessageById(msgId);
       if (msg) {
-        const updated = createAssistantMessageElement(msg, true);
-        row.replaceWith(updated);
+        finalizeAssistantMessageRow(row, msg, true);
       }
     }
-    smartAutoScroll();
   });
 
   // 7. Listen to streaming agent events from Tauri backend
@@ -200,8 +215,8 @@ export function initMessages(): void {
     handleAgentEvent(event);
   });
 
-  // 8. Listen to agent finish turn notification
-  listenAgentFinished(async (finishedSessionId) => {
+  // 8. Listen to agent finish turn notification (turn complete without wiping DOM)
+  listenAgentFinished(async () => {
     cleanupActiveOrb();
     hidePermissionDialog();
     messagesState.finishStreaming();
@@ -209,9 +224,6 @@ export function initMessages(): void {
 
     triggerTurnCompleteNotification();
 
-    if (sidebarState.getActiveSessionId() === finishedSessionId) {
-      await refreshMessages(finishedSessionId);
-    }
     await refreshSidebarContent();
     await refreshTopbar();
   });
@@ -485,11 +497,17 @@ export function smartAutoScroll(force = false): void {
     return;
   }
 
+  // If user is hovering over any tool detail body, do not force scroll
+  const hoveredToolBody = container.querySelector('.tool-detail-body:hover');
+  if (hoveredToolBody) {
+    return;
+  }
+
   if (cachedGeneralSettings && cachedGeneralSettings.auto_scroll_stream === false) {
     return;
   }
 
-  const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 120;
+  const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
   if (isNearBottom) {
     container.scrollTop = container.scrollHeight;
   }
@@ -649,85 +667,141 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): 
   // Bottom controls container with separator line and action bar (shown once turn is finalized)
   const isStreaming = messagesState.getStreamingMessageId() === msg.id;
   if (!isStreaming) {
-    const controlsContainer = document.createElement('div');
-    controlsContainer.className = `assistant-controls-container ${msg.is_liked || msg.is_disliked ? 'has-active' : ''}`;
-
-    // 1. Separator Line
-    if (showSeparator) {
-      const separatorLine = document.createElement('div');
-      separatorLine.className = 'assistant-separator-line';
-      controlsContainer.appendChild(separatorLine);
-    }
-
-    // 2. Action Bar matching Slint (Operon Logo -> Copy -> Like -> Dislike -> Fork -> Time)
-    const bar = document.createElement('div');
-    bar.className = 'assistant-action-bar';
-
-    // 2.1 Operon Brand Logo (20px)
-    const logoImg = document.createElement('img');
-    logoImg.className = 'assistant-brand-logo';
-    logoImg.src = 'assets/brand/operon.svg';
-    logoImg.alt = 'Operon';
-    bar.appendChild(logoImg);
-
-    // 2.2 Copy button
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'assistant-action-btn';
-    copyBtn.title = 'Copy response';
-    copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
-
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(msg.text);
-        copyBtn.innerHTML = '<span class="ui-icon icon-asst-check"></span>';
-        setTimeout(() => {
-          copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
-        }, 3000);
-      } catch {
-        // Fallback
-      }
-    });
-    bar.appendChild(copyBtn);
-
-    // 2.3 Like button
-    const likeBtn = document.createElement('button');
-    likeBtn.className = `assistant-action-btn ${msg.is_liked ? 'active' : ''}`;
-    likeBtn.title = 'Good response';
-    likeBtn.innerHTML = '<span class="ui-icon icon-asst-like"></span>';
-    likeBtn.addEventListener('click', () => {
-      messagesState.toggleLike(msg.id);
-    });
-    bar.appendChild(likeBtn);
-
-    // 2.4 Dislike button
-    const dislikeBtn = document.createElement('button');
-    dislikeBtn.className = `assistant-action-btn ${msg.is_disliked ? 'active' : ''}`;
-    dislikeBtn.title = 'Bad response';
-    dislikeBtn.innerHTML = '<span class="ui-icon icon-asst-dislike"></span>';
-    dislikeBtn.addEventListener('click', () => {
-      messagesState.toggleDislike(msg.id);
-    });
-    bar.appendChild(dislikeBtn);
-
-    // 2.5 Fork button
-    const forkBtn = document.createElement('button');
-    forkBtn.className = 'assistant-action-btn';
-    forkBtn.title = 'Fork from this turn';
-    forkBtn.innerHTML = '<span class="ui-icon icon-asst-fork"></span>';
-    forkBtn.addEventListener('click', () => {
-      console.debug('[Messages] Fork from turn:', msg.turn_index);
-    });
-    bar.appendChild(forkBtn);
-
-    // 2.6 Time display
-    const timeEl = document.createElement('span');
-    timeEl.className = 'assistant-time-text';
-    timeEl.textContent = msg.timestamp;
-    bar.appendChild(timeEl);
-
-    controlsContainer.appendChild(bar);
+    const controlsContainer = createAssistantActionBar(msg, showSeparator);
     row.appendChild(controlsContainer);
   }
 
   return row;
+}
+
+function createAssistantActionBar(msg: ChatMessage, showSeparator = true): HTMLElement {
+  const controlsContainer = document.createElement('div');
+  controlsContainer.className = `assistant-controls-container ${msg.is_liked || msg.is_disliked ? 'has-active' : ''}`;
+
+  // 1. Separator Line
+  if (showSeparator) {
+    const separatorLine = document.createElement('div');
+    separatorLine.className = 'assistant-separator-line';
+    controlsContainer.appendChild(separatorLine);
+  }
+
+  // 2. Action Bar matching Slint (Operon Logo -> Copy -> Like -> Dislike -> Fork -> Time)
+  const bar = document.createElement('div');
+  bar.className = 'assistant-action-bar';
+
+  // 2.1 Operon Brand Logo (20px)
+  const logoImg = document.createElement('img');
+  logoImg.className = 'assistant-brand-logo';
+  logoImg.src = 'assets/brand/operon.svg';
+  logoImg.alt = 'Operon';
+  bar.appendChild(logoImg);
+
+  // 2.2 Copy button
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'assistant-action-btn';
+  copyBtn.title = 'Copy response';
+  copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
+
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(msg.text);
+      copyBtn.innerHTML = '<span class="ui-icon icon-asst-check"></span>';
+      setTimeout(() => {
+        copyBtn.innerHTML = '<span class="ui-icon icon-asst-copy"></span>';
+      }, 3000);
+    } catch {
+      // Fallback
+    }
+  });
+  bar.appendChild(copyBtn);
+
+  // 2.3 Like button
+  const likeBtn = document.createElement('button');
+  likeBtn.className = `assistant-action-btn ${msg.is_liked ? 'active' : ''}`;
+  likeBtn.title = 'Good response';
+  likeBtn.innerHTML = '<span class="ui-icon icon-asst-like"></span>';
+  likeBtn.addEventListener('click', () => {
+    messagesState.toggleLike(msg.id);
+  });
+  bar.appendChild(likeBtn);
+
+  // 2.4 Dislike button
+  const dislikeBtn = document.createElement('button');
+  dislikeBtn.className = `assistant-action-btn ${msg.is_disliked ? 'active' : ''}`;
+  dislikeBtn.title = 'Bad response';
+  dislikeBtn.innerHTML = '<span class="ui-icon icon-asst-dislike"></span>';
+  dislikeBtn.addEventListener('click', () => {
+    messagesState.toggleDislike(msg.id);
+  });
+  bar.appendChild(dislikeBtn);
+
+  // 2.5 Fork button
+  const forkBtn = document.createElement('button');
+  forkBtn.className = 'assistant-action-btn';
+  forkBtn.title = 'Fork from this turn';
+  forkBtn.innerHTML = '<span class="ui-icon icon-asst-fork"></span>';
+  forkBtn.addEventListener('click', () => {
+    console.debug('[Messages] Fork from turn:', msg.turn_index);
+  });
+  bar.appendChild(forkBtn);
+
+  // 2.6 Time display
+  const timeEl = document.createElement('span');
+  timeEl.className = 'assistant-time-text';
+  timeEl.textContent = msg.timestamp;
+  bar.appendChild(timeEl);
+
+  controlsContainer.appendChild(bar);
+  return controlsContainer;
+}
+
+function finalizeAssistantMessageRow(row: HTMLElement, msg: ChatMessage, showSeparator = true): void {
+  // 1. Ensure all WorkGroups inside row are finalized in-place
+  if (msg.blocks && msg.blocks.length > 0) {
+    msg.blocks.forEach((block, blockIdx) => {
+      if (block.kind === 'work_group') {
+        const existingWgEl = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].work-group-container`);
+        if (existingWgEl) {
+          syncWorkGroupElement(
+            existingWgEl,
+            block.data,
+            () => messagesState.toggleWorkGroupExpanded(msg.id, blockIdx),
+            (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, blockIdx, itemIdx),
+            null
+          );
+        }
+      } else if (block.kind === 'text') {
+        const body = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].assistant-message-body`);
+        if (body) {
+          liveMarkdownRenderer.finalizeStream(body, block.text);
+        }
+      }
+    });
+  } else {
+    if (msg.work_group) {
+      const existingWgEl = row.querySelector<HTMLElement>('.work-group-container');
+      if (existingWgEl) {
+        syncWorkGroupElement(
+          existingWgEl,
+          msg.work_group,
+          () => messagesState.toggleWorkGroupExpanded(msg.id, 0),
+          (itemIdx) => messagesState.toggleWorkGroupItemExpanded(msg.id, 0, itemIdx),
+          null
+        );
+      }
+    }
+    if (msg.text) {
+      const body = row.querySelector<HTMLElement>('.assistant-message-body');
+      if (body) {
+        liveMarkdownRenderer.finalizeStream(body, msg.text);
+      }
+    }
+  }
+
+  // 2. Add action bar if not already present
+  const existingControls = row.querySelector('.assistant-controls-container');
+  if (!existingControls) {
+    const controlsContainer = createAssistantActionBar(msg, showSeparator);
+    row.appendChild(controlsContainer);
+  }
 }
