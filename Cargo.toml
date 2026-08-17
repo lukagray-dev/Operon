@@ -114,8 +114,6 @@ trash        = "5"
 duckduckgo   = "0.3"
 htmd         = "0.5"
 pulldown-cmark = "0.11.3"
-spider               = { version = "2.52.0", features = ["chrome"] }
-spider_transformations = "2.39.13"
 
 # ── Token Tracking ────────────────────────────────────────────────────────────
 tiktoken = "3"
@@ -125,21 +123,10 @@ ratatui      = "0.30.0"
 crossterm    = "0.29.0"
 arboard      = "3.6.1"
 rfd          = "0.15"
-syntect      = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy", "default-themes", "default-syntaxes"] }
-merman       = { version = "0.7", features = ["render"] }
 regex        = "1.10"
 windows-sys  = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading", "Win32_Graphics_Dwm"] }
 sha2         = "0.10"
 base64       = "0.22"
-slint        = { version = "1.16.1", features = ["unstable-winit-030", "renderer-skia"] }
-tray-icon    = "0.19"
-auto-launch  = "0.5"
-image        = "0.25"
-slint-build  = "1.16.1"
-resvg        = "0.44"
-tiny-skia    = "0.11"
-png          = "0.17"
-ico          = "0.3"
 
 # ── Channels (WhatsApp & Telegram) ────────────────────────────────────────────
 parking_lot                   = "0.12"
@@ -155,10 +142,6 @@ wacore-binary                 = { git = "https://github.com/oxidezap/whatsapp-ru
 waproto                       = { git = "https://github.com/oxidezap/whatsapp-rust", rev = "cbcdd2a6b931d804f3c2693554dce75e654834e3", default-features = false }
 windows-acl                   = "0.3"
 winapi                        = { version = "0.3", features = ["processthreadsapi", "securitybaseapi", "winnt", "handleapi"] }
-
-# ── Audio capture and speech-to-text ──────────────────────────────────────────
-cpal       = "0.18"
-whisper-rs = "0.16"
 
 # ── Third party dependencies ──────────────────────────────────────────────────
 portable-pty     = "0.8"
