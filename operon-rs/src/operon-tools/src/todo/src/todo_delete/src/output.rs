@@ -2,13 +2,19 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Output returned to the model after a todo item is deleted.
-///
-/// Contains the ID that was deleted and the remaining count of todos.
-#[derive(Debug, Serialize, Deserialize)]
+/// Output returned to the model after todo item(s) are deleted.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TodoDeleteOutput {
-    /// The id that was deleted.
-    pub id: String,
+    /// The list of IDs that were deleted.
+    pub ids: Vec<String>,
+
+    /// Primary/first deleted ID (included for backward compatibility).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// List of IDs that were not found in the store, if any.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub not_found: Vec<String>,
 
     /// Total number of todos remaining after deletion.
     pub remaining: usize,

@@ -1,7 +1,4 @@
-//! Executor for the todo_create tool — handles todo item creation and validation.
-//!
-//! This module contains the core logic for validating task descriptions,
-//! creating new todo items in the store, and returning the result.
+//! Executor for the todo_create tool — handles single and batch todo item creation.
 
 use crate::args::TodoCreateArgs;
 use crate::output::TodoCreateOutput;
@@ -10,44 +7,50 @@ use operon_tools_core::TodoStore;
 
 /// Executes the todo_create tool with the given arguments.
 ///
-/// Validates the task description, creates a new todo item in the store,
-/// and returns the created item with its assigned ID and the updated total count.
-///
-/// # Arguments
-/// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args`: The deserialized todo_create arguments containing content and optional priority.
-/// - `store`: Mutable reference to the TodoStore where the item will be created.
-///
-/// # Returns
-/// A `ToolResult` with either success (JSON TodoCreateOutput) or failure (Text error message).
+/// Validates all task descriptions, creates new todo item(s) in the store,
+/// and returns the created item(s) with assigned IDs and total store count.
 pub async fn execute(
     call_id: ToolCallId,
     args: TodoCreateArgs,
     store: &mut TodoStore,
 ) -> ToolResult {
-    // Step 1: Validate content is non-empty after trim.
-    // An empty task description is a mistake by the model.
-    let trimmed = args.content.trim();
-    if trimmed.is_empty() {
+    // Extract all items to create
+    let items_to_create = args.into_items();
+
+    if items_to_create.is_empty() {
         return ToolResult {
             call_id,
             name: "todo_create".to_string(),
-            content: ToolContent::Text("content is empty".to_string()),
+            content: ToolContent::Text("content is empty — provide at least one task description".to_string()),
             is_error: true,
         };
     }
 
-    // Step 2: Create the todo item in the store.
-    // The store assigns a unique ID and sets default status (Pending) and priority (Medium if not provided).
-    let item = store.create(trimmed.to_string(), args.priority);
+    // Validate that every item has non-empty content after trim.
+    let mut validated = Vec::with_capacity(items_to_create.len());
+    for (content, priority) in items_to_create {
+        let trimmed = content.trim();
+        if trimmed.is_empty() {
+            return ToolResult {
+                call_id,
+                name: "todo_create".to_string(),
+                content: ToolContent::Text("content is empty".to_string()),
+                is_error: true,
+            };
+        }
+        validated.push((trimmed.to_string(), priority));
+    }
 
-    // Step 3: Construct the output with the created item and total count.
+    // Create the items in the store in sequential order
+    let created = store.create_many(validated);
+    let primary_item = created.first().cloned();
+
     let output = TodoCreateOutput {
-        item,
+        items: created,
+        item: primary_item,
         total: store.len(),
     };
 
-    // Step 4: Return success with JSON output.
     ToolResult {
         call_id,
         name: "todo_create".to_string(),

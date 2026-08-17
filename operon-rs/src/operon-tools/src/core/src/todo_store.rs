@@ -197,6 +197,69 @@ impl TodoStore {
         self.items.len() < before
     }
 
+    /// Creates multiple todo items in a single atomic batch and appends them to the list.
+    ///
+    /// Assigns sequential auto-incrementing IDs to each created item.
+    ///
+    /// # Arguments
+    /// - `items`: Vector of `(content, priority)` pairs to create.
+    ///
+    /// # Returns
+    /// A vector containing all newly created `TodoItem` records in order.
+    pub fn create_many(&mut self, items: Vec<(String, Option<TodoPriority>)>) -> Vec<TodoItem> {
+        let mut created = Vec::with_capacity(items.len());
+        for (content, priority) in items {
+            created.push(self.create(content, priority));
+        }
+        created
+    }
+
+    /// Updates multiple todo items in a single batch.
+    ///
+    /// For each update tuple `(id, content, status, priority)`, finds the matching
+    /// item and applies any non-None fields.
+    ///
+    /// # Returns
+    /// `(updated_items, not_found_ids)`
+    pub fn update_many(
+        &mut self,
+        updates: Vec<(String, Option<String>, Option<TodoStatus>, Option<TodoPriority>)>,
+    ) -> (Vec<TodoItem>, Vec<String>) {
+        let mut updated = Vec::new();
+        let mut not_found = Vec::new();
+
+        for (id, content, status, priority) in updates {
+            match self.update(&id, content, status, priority) {
+                Some(item) => updated.push(item),
+                None => not_found.push(id),
+            }
+        }
+
+        (updated, not_found)
+    }
+
+    /// Deletes multiple todo items by their IDs in a single batch.
+    ///
+    /// # Arguments
+    /// - `ids`: Slice of ID strings to remove.
+    ///
+    /// # Returns
+    /// `(deleted_ids, not_found_ids)`
+    pub fn delete_many(&mut self, ids: &[String]) -> (Vec<String>, Vec<String>) {
+        let mut deleted = Vec::new();
+        let mut not_found = Vec::new();
+
+        for id in ids {
+            if self.delete(id) {
+                deleted.push(id.clone());
+            } else {
+                not_found.push(id.clone());
+            }
+        }
+
+        (deleted, not_found)
+    }
+
     /// Returns the number of items in the store.
     ///
     /// # Example
@@ -398,6 +461,61 @@ mod tests {
         assert_eq!(store.len(), 1);
         let items = store.list();
         assert_eq!(items[0].id, item2.id);
+    }
+
+    #[test]
+    fn test_create_many_assigns_sequential_ids() {
+        let mut store = TodoStore::new();
+        let items = store.create_many(vec![
+            ("Task 1".to_string(), Some(TodoPriority::High)),
+            ("Task 2".to_string(), None),
+            ("Task 3".to_string(), Some(TodoPriority::Low)),
+        ]);
+
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].id, "1");
+        assert_eq!(items[0].priority, TodoPriority::High);
+        assert_eq!(items[1].id, "2");
+        assert_eq!(items[1].priority, TodoPriority::Medium);
+        assert_eq!(items[2].id, "3");
+        assert_eq!(items[2].priority, TodoPriority::Low);
+        assert_eq!(store.len(), 3);
+    }
+
+    #[test]
+    fn test_update_many_handles_mixed_results() {
+        let mut store = TodoStore::new();
+        let items = store.create_many(vec![
+            ("Task 1".to_string(), None),
+            ("Task 2".to_string(), None),
+        ]);
+
+        let (updated, not_found) = store.update_many(vec![
+            (items[0].id.clone(), Some("Task 1 Renamed".to_string()), Some(TodoStatus::Completed), None),
+            ("9999".to_string(), None, Some(TodoStatus::InProgress), None),
+        ]);
+
+        assert_eq!(updated.len(), 1);
+        assert_eq!(updated[0].content, "Task 1 Renamed");
+        assert_eq!(updated[0].status, TodoStatus::Completed);
+        assert_eq!(not_found, vec!["9999".to_string()]);
+    }
+
+    #[test]
+    fn test_delete_many_removes_matching_items() {
+        let mut store = TodoStore::new();
+        let items = store.create_many(vec![
+            ("Task 1".to_string(), None),
+            ("Task 2".to_string(), None),
+            ("Task 3".to_string(), None),
+        ]);
+
+        let (deleted, not_found) = store.delete_many(&[items[0].id.clone(), items[2].id.clone(), "missing".to_string()]);
+        assert_eq!(deleted.len(), 2);
+        assert_eq!(deleted, vec![items[0].id.clone(), items[2].id.clone()]);
+        assert_eq!(not_found, vec!["missing".to_string()]);
+        assert_eq!(store.len(), 1);
+        assert_eq!(store.list()[0].id, items[1].id);
     }
 }
 

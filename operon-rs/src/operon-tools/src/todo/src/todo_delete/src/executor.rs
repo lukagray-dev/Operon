@@ -1,4 +1,4 @@
-//! Executor for the todo_delete tool — handles todo item deletion.
+//! Executor for the todo_delete tool — handles single and batch todo item deletions.
 
 use crate::args::TodoDeleteArgs;
 use crate::output::TodoDeleteOutput;
@@ -6,42 +6,58 @@ use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 use operon_tools_core::TodoStore;
 
 /// Executes the todo_delete tool with the given arguments.
-///
-/// Deletes the todo item with the specified ID from the store and returns
-/// the deleted ID and the remaining count.
-///
-/// # Arguments
-/// - `call_id`: The unique identifier for this tool call (from the model's request).
-/// - `args`: The deserialized todo_delete arguments containing the id to delete.
-/// - `store`: Mutable reference to the TodoStore where the item will be deleted.
-///
-/// # Returns
-/// A `ToolResult` with either success (JSON TodoDeleteOutput) or failure (Text error message).
 pub async fn execute(
     call_id: ToolCallId,
     args: TodoDeleteArgs,
     store: &mut TodoStore,
 ) -> ToolResult {
-    // Step 1: Attempt to delete the item from the store.
-    let deleted = store.delete(&args.id);
+    let ids_to_delete = args.into_ids();
 
-    // Step 2: If not found, return error.
-    if !deleted {
+    if ids_to_delete.is_empty() {
         return ToolResult {
             call_id,
             name: "todo_delete".to_string(),
-            content: ToolContent::Text(format!("todo not found: id '{}'", args.id)),
+            content: ToolContent::Text(
+                "no target tasks specified — provide `id`, `ids`, or `todos`".to_string(),
+            ),
             is_error: true,
         };
     }
 
-    // Step 3: Construct the output with the deleted id and remaining count.
+    let is_single = ids_to_delete.len() == 1;
+    let (deleted_ids, not_found_ids) = store.delete_many(&ids_to_delete);
+
+    // If single delete failed because item wasn't found, return standard error message
+    if is_single && deleted_ids.is_empty() && !not_found_ids.is_empty() {
+        return ToolResult {
+            call_id,
+            name: "todo_delete".to_string(),
+            content: ToolContent::Text(format!("todo not found: id '{}'", not_found_ids[0])),
+            is_error: true,
+        };
+    }
+
+    // If all deletions failed:
+    if deleted_ids.is_empty() && !not_found_ids.is_empty() {
+        return ToolResult {
+            call_id,
+            name: "todo_delete".to_string(),
+            content: ToolContent::Text(format!(
+                "todos not found: IDs [{}]",
+                not_found_ids.join(", ")
+            )),
+            is_error: true,
+        };
+    }
+
+    let primary_id = deleted_ids.first().cloned();
     let output = TodoDeleteOutput {
-        id: args.id,
+        ids: deleted_ids,
+        id: primary_id,
+        not_found: not_found_ids,
         remaining: store.len(),
     };
 
-    // Step 4: Return success with JSON output.
     ToolResult {
         call_id,
         name: "todo_delete".to_string(),

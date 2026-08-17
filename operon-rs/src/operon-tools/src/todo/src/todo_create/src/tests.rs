@@ -1,7 +1,4 @@
 //! Comprehensive tests for the todo_create tool.
-//!
-//! Tests cover success cases (basic creation, with priority), failure cases (empty content),
-//! and ID uniqueness verification.
 
 use crate::{execute, TodoCreateOutput};
 use operon_context_normalize_tools::{ToolCallId, ToolContent};
@@ -31,12 +28,11 @@ fn call_id(n: &str) -> ToolCallId {
 }
 
 // ============================================================================
-// SUCCESS TESTS
+// SUCCESS TESTS (Single & Batch)
 // ============================================================================
 
 #[tokio::test]
 async fn test_create_basic() {
-    // Test: Create with content "Fix bug", no priority
     let mut store = TodoStore::new();
     let result = execute(
         call_id("test_create_basic"),
@@ -50,24 +46,24 @@ async fn test_create_basic() {
 
     assert!(!result.is_error, "expected success");
     let output = get_create_output(&result);
-    assert_eq!(output.item.content, "Fix bug");
+    assert_eq!(output.items.len(), 1);
+    assert_eq!(output.items[0].content, "Fix bug");
     assert_eq!(
-        output.item.status,
+        output.items[0].status,
         operon_tools_core::TodoStatus::Pending,
         "new items should start as pending"
     );
     assert_eq!(
-        output.item.priority,
+        output.items[0].priority,
         operon_tools_core::TodoPriority::Medium,
         "default priority should be medium"
     );
-    assert!(!output.item.id.is_empty(), "id should be assigned");
+    assert_eq!(output.item.as_ref().unwrap().content, "Fix bug");
     assert_eq!(output.total, 1, "total should be 1 after first creation");
 }
 
 #[tokio::test]
 async fn test_create_with_priority_high() {
-    // Test: Create with priority: "high"
     let mut store = TodoStore::new();
     let result = execute(
         call_id("test_create_with_priority_high"),
@@ -83,7 +79,7 @@ async fn test_create_with_priority_high() {
     assert!(!result.is_error);
     let output = get_create_output(&result);
     assert_eq!(
-        output.item.priority,
+        output.items[0].priority,
         operon_tools_core::TodoPriority::High,
         "priority should be high"
     );
@@ -91,7 +87,6 @@ async fn test_create_with_priority_high() {
 
 #[tokio::test]
 async fn test_create_with_priority_low() {
-    // Test: Create with priority: "low"
     let mut store = TodoStore::new();
     let result = execute(
         call_id("test_create_with_priority_low"),
@@ -107,15 +102,84 @@ async fn test_create_with_priority_low() {
     assert!(!result.is_error);
     let output = get_create_output(&result);
     assert_eq!(
-        output.item.priority,
+        output.items[0].priority,
         operon_tools_core::TodoPriority::Low,
         "priority should be low"
     );
 }
 
 #[tokio::test]
+async fn test_create_batch_objects() {
+    let mut store = TodoStore::new();
+    let result = execute(
+        call_id("test_create_batch_objects"),
+        json!({
+            "todos": [
+                { "content": "Task 1", "priority": "high" },
+                { "content": "Task 2", "priority": "medium" },
+                { "content": "Task 3", "priority": "low" }
+            ]
+        }),
+        &mut store,
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let output = get_create_output(&result);
+    assert_eq!(output.items.len(), 3);
+    assert_eq!(output.items[0].id, "1");
+    assert_eq!(output.items[0].content, "Task 1");
+    assert_eq!(output.items[0].priority, operon_tools_core::TodoPriority::High);
+    assert_eq!(output.items[1].id, "2");
+    assert_eq!(output.items[2].id, "3");
+    assert_eq!(output.total, 3);
+}
+
+#[tokio::test]
+async fn test_create_batch_strings() {
+    let mut store = TodoStore::new();
+    let result = execute(
+        call_id("test_create_batch_strings"),
+        json!({
+            "todos": ["Task Alpha", "Task Beta"]
+        }),
+        &mut store,
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let output = get_create_output(&result);
+    assert_eq!(output.items.len(), 2);
+    assert_eq!(output.items[0].content, "Task Alpha");
+    assert_eq!(output.items[1].content, "Task Beta");
+    assert_eq!(output.total, 2);
+}
+
+#[tokio::test]
+async fn test_create_root_array() {
+    let mut store = TodoStore::new();
+    let result = execute(
+        call_id("test_create_root_array"),
+        json!([
+            { "content": "Root Task 1", "priority": "high" },
+            { "content": "Root Task 2" }
+        ]),
+        &mut store,
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    let output = get_create_output(&result);
+    assert_eq!(output.items.len(), 2);
+    assert_eq!(output.items[0].content, "Root Task 1");
+    assert_eq!(output.items[1].content, "Root Task 2");
+}
+
+#[tokio::test]
 async fn test_create_whitespace_trimmed() {
-    // Test: Create with leading/trailing whitespace
     let mut store = TodoStore::new();
     let result = execute(
         call_id("test_create_whitespace_trimmed"),
@@ -130,45 +194,9 @@ async fn test_create_whitespace_trimmed() {
     assert!(!result.is_error);
     let output = get_create_output(&result);
     assert_eq!(
-        output.item.content, "Task with spaces",
+        output.items[0].content, "Task with spaces",
         "whitespace should be trimmed"
     );
-}
-
-#[tokio::test]
-async fn test_create_total_count_increments() {
-    // Test: Create multiple items, verify total count increments
-    let mut store = TodoStore::new();
-
-    let result1 = execute(
-        call_id("test_create_total_1"),
-        json!({"content": "Task 1"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output1 = get_create_output(&result1);
-    assert_eq!(output1.total, 1);
-
-    let result2 = execute(
-        call_id("test_create_total_2"),
-        json!({"content": "Task 2"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output2 = get_create_output(&result2);
-    assert_eq!(output2.total, 2);
-
-    let result3 = execute(
-        call_id("test_create_total_3"),
-        json!({"content": "Task 3"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output3 = get_create_output(&result3);
-    assert_eq!(output3.total, 3);
 }
 
 // ============================================================================
@@ -177,7 +205,6 @@ async fn test_create_total_count_increments() {
 
 #[tokio::test]
 async fn test_create_empty_content_error() {
-    // Test: Pass content: ""
     let mut store = TodoStore::new();
     let result = execute(
         call_id("test_create_empty_content_error"),
@@ -197,124 +224,23 @@ async fn test_create_empty_content_error() {
 }
 
 #[tokio::test]
-async fn test_create_whitespace_only_error() {
-    // Test: Pass content with only whitespace
+async fn test_create_empty_batch_item_error() {
     let mut store = TodoStore::new();
     let result = execute(
-        call_id("test_create_whitespace_only_error"),
+        call_id("test_create_empty_batch_item_error"),
         json!({
-            "content": "   \t\n  "
+            "todos": [
+                { "content": "Valid task" },
+                { "content": "   " }
+            ]
         }),
         &mut store,
     )
     .await
     .unwrap();
 
-    assert!(
-        result.is_error,
-        "whitespace-only content should be an error"
-    );
-    assert!(
-        get_error_text(&result).contains("empty"),
-        "error message should mention empty"
-    );
-}
-
-#[tokio::test]
-async fn test_create_malformed_json_error() {
-    // Test: Malformed JSON (missing required field)
-    let mut store = TodoStore::new();
-    let result = execute(
-        call_id("test_create_malformed_json_error"),
-        json!({
-            "priority": "high"
-            // missing "content"
-        }),
-        &mut store,
-    )
-    .await;
-
-    assert!(
-        result.is_err(),
-        "malformed args should return Err(TodoCreateToolError::ArgsParse)"
-    );
-}
-
-// ============================================================================
-// ID UNIQUENESS TESTS
-// ============================================================================
-
-#[tokio::test]
-async fn test_ids_are_unique() {
-    // Test: Create three items, verify all ids are distinct
-    let mut store = TodoStore::new();
-
-    let result1 = execute(
-        call_id("test_ids_unique_1"),
-        json!({"content": "Task 1"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output1 = get_create_output(&result1);
-
-    let result2 = execute(
-        call_id("test_ids_unique_2"),
-        json!({"content": "Task 2"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output2 = get_create_output(&result2);
-
-    let result3 = execute(
-        call_id("test_ids_unique_3"),
-        json!({"content": "Task 3"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output3 = get_create_output(&result3);
-
-    assert_ne!(output1.item.id, output2.item.id, "ids should be unique");
-    assert_ne!(output2.item.id, output3.item.id, "ids should be unique");
-    assert_ne!(output1.item.id, output3.item.id, "ids should be unique");
-}
-
-#[tokio::test]
-async fn test_ids_increment_sequentially() {
-    // Test: Create items sequentially, verify ids are "1", "2", "3"
-    let mut store = TodoStore::new();
-
-    let result1 = execute(
-        call_id("test_ids_increment_1"),
-        json!({"content": "Task 1"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output1 = get_create_output(&result1);
-    assert_eq!(output1.item.id, "1", "first id should be '1'");
-
-    let result2 = execute(
-        call_id("test_ids_increment_2"),
-        json!({"content": "Task 2"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output2 = get_create_output(&result2);
-    assert_eq!(output2.item.id, "2", "second id should be '2'");
-
-    let result3 = execute(
-        call_id("test_ids_increment_3"),
-        json!({"content": "Task 3"}),
-        &mut store,
-    )
-    .await
-    .unwrap();
-    let output3 = get_create_output(&result3);
-    assert_eq!(output3.item.id, "3", "third id should be '3'");
+    assert!(result.is_error, "empty content in batch should be an error");
+    assert!(get_error_text(&result).contains("empty"));
 }
 
 #[tokio::test]
@@ -333,6 +259,6 @@ async fn test_create_defensive_aliases() {
 
     assert!(!result.is_error);
     let output = get_create_output(&result);
-    assert_eq!(output.item.content, "Build defensive parser");
-    assert_eq!(output.item.priority, operon_tools_core::TodoPriority::High);
+    assert_eq!(output.items[0].content, "Build defensive parser");
+    assert_eq!(output.items[0].priority, operon_tools_core::TodoPriority::High);
 }

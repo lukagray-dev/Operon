@@ -152,6 +152,29 @@ where
     }
 }
 
+/// Deserializes an optional ID string from either a string `"1"`, integer `1`, or null/omitted.
+pub fn deserialize_flexible_id_opt<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(trimmed.to_string()))
+            }
+        }
+        serde_json::Value::Number(n) => Ok(Some(n.to_string())),
+        serde_json::Value::Null => Ok(None),
+        other => Err(serde::de::Error::custom(format!(
+            "expected a string or integer ID, got {other}"
+        ))),
+    }
+}
+
 /// Deserializes an optional `u64` from either a number `5000` or numeric string `"5000"`.
 pub fn deserialize_flexible_u64_opt<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where

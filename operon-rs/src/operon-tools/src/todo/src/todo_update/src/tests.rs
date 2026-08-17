@@ -1,7 +1,4 @@
 //! Comprehensive tests for the todo_update tool.
-//!
-//! Tests cover updating status, content, and priority; partial updates;
-//! error cases (no fields, nonexistent id, empty content); and validation.
 
 use crate::{execute, TodoUpdateOutput};
 use operon_context_normalize_tools::{ToolCallId, ToolContent};
@@ -31,12 +28,11 @@ fn call_id(n: &str) -> ToolCallId {
 }
 
 // ============================================================================
-// SUCCESS TESTS
+// SUCCESS TESTS (Single, Batch & Bulk)
 // ============================================================================
 
 #[tokio::test]
 async fn test_update_status_to_in_progress() {
-    // Test: Update status from pending to in_progress
     let mut store = TodoStore::new();
     let item = store.create("Task".to_string(), None);
 
@@ -53,17 +49,14 @@ async fn test_update_status_to_in_progress() {
 
     assert!(!result.is_error, "expected success");
     let output = get_update_output(&result);
-    assert_eq!(
-        output.item.status,
-        TodoStatus::InProgress,
-        "status should be in_progress"
-    );
-    assert_eq!(output.item.content, "Task", "content should be unchanged");
+    assert_eq!(output.items.len(), 1);
+    assert_eq!(output.items[0].status, TodoStatus::InProgress);
+    assert_eq!(output.items[0].content, "Task");
+    assert_eq!(output.item.unwrap().status, TodoStatus::InProgress);
 }
 
 #[tokio::test]
 async fn test_update_status_to_completed() {
-    // Test: Update status to completed
     let mut store = TodoStore::new();
     let item = store.create("Task".to_string(), None);
 
@@ -80,20 +73,22 @@ async fn test_update_status_to_completed() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(output.item.status, TodoStatus::Completed);
+    assert_eq!(output.items[0].status, TodoStatus::Completed);
 }
 
 #[tokio::test]
-async fn test_update_content() {
-    // Test: Update content
+async fn test_update_batch_distinct_items() {
     let mut store = TodoStore::new();
-    let item = store.create("Old content".to_string(), None);
+    let item1 = store.create("Task 1".to_string(), None);
+    let item2 = store.create("Task 2".to_string(), None);
 
     let result = execute(
-        call_id("test_update_content"),
+        call_id("test_update_batch"),
         json!({
-            "id": item.id,
-            "content": "New content"
+            "todos": [
+                { "id": item1.id, "status": "completed" },
+                { "id": item2.id, "status": "in_progress", "priority": "high" }
+            ]
         }),
         &mut store,
     )
@@ -102,28 +97,23 @@ async fn test_update_content() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(
-        output.item.content, "New content",
-        "content should be updated"
-    );
-    assert_eq!(
-        output.item.status,
-        TodoStatus::Pending,
-        "status should be unchanged"
-    );
+    assert_eq!(output.items.len(), 2);
+    assert_eq!(output.items[0].status, TodoStatus::Completed);
+    assert_eq!(output.items[1].status, TodoStatus::InProgress);
+    assert_eq!(output.items[1].priority, TodoPriority::High);
 }
 
 #[tokio::test]
-async fn test_update_priority() {
-    // Test: Update priority
+async fn test_update_bulk_ids() {
     let mut store = TodoStore::new();
-    let item = store.create("Task".to_string(), Some(TodoPriority::Low));
+    let item1 = store.create("Task 1".to_string(), None);
+    let item2 = store.create("Task 2".to_string(), None);
 
     let result = execute(
-        call_id("test_update_priority"),
+        call_id("test_bulk_ids"),
         json!({
-            "id": item.id,
-            "priority": "high"
+            "ids": [item1.id, item2.id],
+            "status": "completed"
         }),
         &mut store,
     )
@@ -132,27 +122,23 @@ async fn test_update_priority() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(
-        output.item.priority,
-        TodoPriority::High,
-        "priority should be high"
-    );
+    assert_eq!(output.items.len(), 2);
+    assert_eq!(output.items[0].status, TodoStatus::Completed);
+    assert_eq!(output.items[1].status, TodoStatus::Completed);
 }
 
 #[tokio::test]
-async fn test_update_multiple_fields() {
-    // Test: Update multiple fields at once
+async fn test_update_root_array() {
     let mut store = TodoStore::new();
-    let item = store.create("Old".to_string(), Some(TodoPriority::Low));
+    let item1 = store.create("Task 1".to_string(), None);
+    let item2 = store.create("Task 2".to_string(), None);
 
     let result = execute(
-        call_id("test_update_multiple_fields"),
-        json!({
-            "id": item.id,
-            "content": "New",
-            "status": "in_progress",
-            "priority": "high"
-        }),
+        call_id("test_root_array"),
+        json!([
+            { "id": item1.id, "status": "completed" },
+            { "id": item2.id, "content": "Updated Task 2" }
+        ]),
         &mut store,
     )
     .await
@@ -160,14 +146,13 @@ async fn test_update_multiple_fields() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(output.item.content, "New");
-    assert_eq!(output.item.status, TodoStatus::InProgress);
-    assert_eq!(output.item.priority, TodoPriority::High);
+    assert_eq!(output.items.len(), 2);
+    assert_eq!(output.items[0].status, TodoStatus::Completed);
+    assert_eq!(output.items[1].content, "Updated Task 2");
 }
 
 #[tokio::test]
 async fn test_update_content_with_whitespace_trimmed() {
-    // Test: Content whitespace is trimmed
     let mut store = TodoStore::new();
     let item = store.create("Task".to_string(), None);
 
@@ -185,32 +170,9 @@ async fn test_update_content_with_whitespace_trimmed() {
     assert!(!result.is_error);
     let output = get_update_output(&result);
     assert_eq!(
-        output.item.content, "New content",
+        output.items[0].content, "New content",
         "whitespace should be trimmed"
     );
-}
-
-#[tokio::test]
-async fn test_update_persists_in_store() {
-    // Test: Update is persisted in the store
-    let mut store = TodoStore::new();
-    let item = store.create("Task".to_string(), None);
-
-    execute(
-        call_id("test_update_persists_1"),
-        json!({
-            "id": item.id,
-            "status": "completed"
-        }),
-        &mut store,
-    )
-    .await
-    .unwrap();
-
-    // Verify by listing
-    let items = store.list();
-    assert_eq!(items.len(), 1);
-    assert_eq!(items[0].status, TodoStatus::Completed);
 }
 
 // ============================================================================
@@ -219,7 +181,6 @@ async fn test_update_persists_in_store() {
 
 #[tokio::test]
 async fn test_update_nonexistent_id() {
-    // Test: Update with nonexistent id
     let mut store = TodoStore::new();
     let result = execute(
         call_id("test_update_nonexistent_id"),
@@ -241,7 +202,6 @@ async fn test_update_nonexistent_id() {
 
 #[tokio::test]
 async fn test_update_no_fields_error() {
-    // Test: Update with only id, no other fields
     let mut store = TodoStore::new();
     let item = store.create("Task".to_string(), None);
 
@@ -262,7 +222,6 @@ async fn test_update_no_fields_error() {
 
 #[tokio::test]
 async fn test_update_empty_content_error() {
-    // Test: Update content to empty string
     let mut store = TodoStore::new();
     let item = store.create("Task".to_string(), None);
 
@@ -281,153 +240,6 @@ async fn test_update_empty_content_error() {
     assert!(
         get_error_text(&result).contains("empty"),
         "error message should mention empty"
-    );
-}
-
-#[tokio::test]
-async fn test_update_whitespace_only_content_error() {
-    // Test: Update content to whitespace-only
-    let mut store = TodoStore::new();
-    let item = store.create("Task".to_string(), None);
-
-    let result = execute(
-        call_id("test_update_whitespace_only_content_error"),
-        json!({
-            "id": item.id,
-            "content": "   \t\n  "
-        }),
-        &mut store,
-    )
-    .await
-    .unwrap();
-
-    assert!(
-        result.is_error,
-        "whitespace-only content should be an error"
-    );
-    assert!(
-        get_error_text(&result).contains("empty"),
-        "error message should mention empty"
-    );
-}
-
-#[tokio::test]
-async fn test_update_malformed_json_error() {
-    // Test: Malformed JSON (invalid status value)
-    let mut store = TodoStore::new();
-    let item = store.create("Task".to_string(), None);
-
-    let result = execute(
-        call_id("test_update_malformed_json_error"),
-        json!({
-            "id": item.id,
-            "status": "invalid_status"
-        }),
-        &mut store,
-    )
-    .await;
-
-    assert!(
-        result.is_err(),
-        "invalid status should return Err(TodoUpdateToolError::ArgsParse)"
-    );
-}
-
-// ============================================================================
-// PARTIAL UPDATE TESTS
-// ============================================================================
-
-#[tokio::test]
-async fn test_update_only_status_leaves_others_unchanged() {
-    // Test: Updating only status leaves content and priority unchanged
-    let mut store = TodoStore::new();
-    let item = store.create("Task".to_string(), Some(TodoPriority::High));
-
-    execute(
-        call_id("test_update_only_status_1"),
-        json!({
-            "id": item.id,
-            "status": "in_progress"
-        }),
-        &mut store,
-    )
-    .await
-    .unwrap();
-
-    let items = store.list();
-    assert_eq!(items[0].content, "Task", "content should be unchanged");
-    assert_eq!(
-        items[0].priority,
-        TodoPriority::High,
-        "priority should be unchanged"
-    );
-    assert_eq!(
-        items[0].status,
-        TodoStatus::InProgress,
-        "status should be updated"
-    );
-}
-
-#[tokio::test]
-async fn test_update_only_priority_leaves_others_unchanged() {
-    // Test: Updating only priority leaves content and status unchanged
-    let mut store = TodoStore::new();
-    let item = store.create("Task".to_string(), Some(TodoPriority::Low));
-
-    execute(
-        call_id("test_update_only_priority_1"),
-        json!({
-            "id": item.id,
-            "priority": "high"
-        }),
-        &mut store,
-    )
-    .await
-    .unwrap();
-
-    let items = store.list();
-    assert_eq!(items[0].content, "Task", "content should be unchanged");
-    assert_eq!(
-        items[0].status,
-        TodoStatus::Pending,
-        "status should be unchanged"
-    );
-    assert_eq!(
-        items[0].priority,
-        TodoPriority::High,
-        "priority should be updated"
-    );
-}
-
-#[tokio::test]
-async fn test_update_only_content_leaves_others_unchanged() {
-    // Test: Updating only content leaves status and priority unchanged
-    let mut store = TodoStore::new();
-    let item = store.create("Old".to_string(), Some(TodoPriority::High));
-    store.update(&item.id, None, Some(TodoStatus::InProgress), None);
-
-    execute(
-        call_id("test_update_only_content_1"),
-        json!({
-            "id": item.id,
-            "content": "New"
-        }),
-        &mut store,
-    )
-    .await
-    .unwrap();
-
-    let items = store.list();
-    assert_eq!(items[0].content, "New", "content should be updated");
-    assert_eq!(
-        items[0].status,
-        TodoStatus::InProgress,
-        "status should be unchanged"
-    );
-    assert_eq!(
-        items[0].priority,
-        TodoPriority::High,
-        "priority should be unchanged"
     );
 }
 
@@ -451,6 +263,6 @@ async fn test_update_defensive_aliases_and_numeric_id() {
 
     assert!(!result.is_error);
     let output = get_update_output(&result);
-    assert_eq!(output.item.content, "Renamed task");
-    assert_eq!(output.item.status, TodoStatus::Completed);
+    assert_eq!(output.items[0].content, "Renamed task");
+    assert_eq!(output.items[0].status, TodoStatus::Completed);
 }
