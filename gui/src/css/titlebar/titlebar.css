@@ -78,12 +78,6 @@
   display: inline-block;
 }
 
-/* Navigation Controls (Back / Forward) */
-.nav-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 
 .titlebar-icon-btn {
   width: var(--titlebar-icon-hit-width);

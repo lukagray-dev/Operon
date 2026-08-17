@@ -5,10 +5,12 @@
 
 import { getToolFriendlyTitle } from '../work-group/work-group.js';
 import type { ChatMessage, MessageBlock } from './types.js';
+import type { AskQuestionData } from './ask-card/types.js';
 
 type MessagesChangeListener = () => void;
 type StreamTextListener = (messageId: string, blockIndex: number, fullBlockText: string, chunk: string) => void;
 type StreamWorkGroupListener = (messageId: string, blockIndex: number) => void;
+type StreamAskQuestionListener = (messageId: string, blockIndex: number, data: AskQuestionData) => void;
 type StreamFinishedListener = (messageId: string) => void;
 
 class MessagesStateManager {
@@ -20,6 +22,7 @@ class MessagesStateManager {
   private listeners: Set<MessagesChangeListener> = new Set();
   private streamTextListeners: Set<StreamTextListener> = new Set();
   private streamWorkGroupListeners: Set<StreamWorkGroupListener> = new Set();
+  private streamAskQuestionListeners: Set<StreamAskQuestionListener> = new Set();
   private streamFinishedListeners: Set<StreamFinishedListener> = new Set();
   private fullResetListeners: Set<() => void> = new Set();
 
@@ -162,8 +165,8 @@ class MessagesStateManager {
       return;
     }
 
-    // If the last block is a WorkGroup, conclude its active state and create a new text block
-    if (!lastBlock || lastBlock.kind === 'work_group') {
+    // If the last block is not a text block, conclude any work_group active state and create a new text block
+    if (!lastBlock || lastBlock.kind !== 'text') {
       if (lastBlock && lastBlock.kind === 'work_group') {
         lastBlock.data.is_active = false;
       }
@@ -205,8 +208,8 @@ class MessagesStateManager {
 
     let lastBlock = msg.blocks[msg.blocks.length - 1];
 
-    // If last block is a text block, trim its trailing whitespace, update its DOM text, then start a new WorkGroup block chronologically after it
-    if (!lastBlock || lastBlock.kind === 'text') {
+    // If last block is not a WorkGroup, trim trailing whitespace if text, then start a new WorkGroup block chronologically after it
+    if (!lastBlock || lastBlock.kind !== 'work_group') {
       if (lastBlock && lastBlock.kind === 'text') {
         lastBlock.text = lastBlock.text.trimEnd();
         const prevTextIdx = msg.blocks.length - 1;
@@ -228,6 +231,7 @@ class MessagesStateManager {
     }
 
     const blockIdx = msg.blocks.length - 1;
+    if (lastBlock.kind !== 'work_group') return;
     const workGroup = lastBlock.data;
 
     // Chronological thinking: append to last item if it's thinking, otherwise start new thinking item
@@ -258,8 +262,8 @@ class MessagesStateManager {
 
     let lastBlock = msg.blocks[msg.blocks.length - 1];
 
-    // If last block is a text block, trim its trailing whitespace, update its DOM text, then start a new WorkGroup block chronologically after it
-    if (!lastBlock || lastBlock.kind === 'text') {
+    // If last block is not a WorkGroup, trim trailing whitespace if text, then start a new WorkGroup block chronologically after it
+    if (!lastBlock || lastBlock.kind !== 'work_group') {
       if (lastBlock && lastBlock.kind === 'text') {
         lastBlock.text = lastBlock.text.trimEnd();
         const prevTextIdx = msg.blocks.length - 1;
@@ -281,6 +285,7 @@ class MessagesStateManager {
     }
 
     const blockIdx = msg.blocks.length - 1;
+    if (lastBlock.kind !== 'work_group') return;
     const workGroup = lastBlock.data;
 
     const existing = workGroup.items.find((i) => i.kind === 'tool' && i.call_id === callId);
@@ -468,6 +473,64 @@ class MessagesStateManager {
   public onStreamWorkGroup(listener: StreamWorkGroupListener): () => void {
     this.streamWorkGroupListeners.add(listener);
     return () => this.streamWorkGroupListeners.delete(listener);
+  }
+
+  public addAskQuestion(id: string, question: string, options: string[]): void {
+    if (!this.streamingMessageId) return;
+    const msg = this.messages.find((m) => m.id === this.streamingMessageId);
+    if (!msg) return;
+
+    if (!msg.blocks) {
+      msg.blocks = [];
+    }
+
+    // If last block is an active WorkGroup, finalize its active state
+    const lastBlock = msg.blocks[msg.blocks.length - 1];
+    if (lastBlock && lastBlock.kind === 'work_group') {
+      lastBlock.data.is_active = false;
+    }
+
+    const askData: AskQuestionData = {
+      id,
+      question,
+      options,
+      answer: undefined,
+      is_answered: false,
+    };
+
+    const askBlock: MessageBlock = {
+      kind: 'ask',
+      data: askData,
+    };
+
+    msg.blocks.push(askBlock);
+    const blockIdx = msg.blocks.length - 1;
+
+    for (const l of this.streamAskQuestionListeners) {
+      l(this.streamingMessageId, blockIdx, askData);
+    }
+
+    this.notify();
+  }
+
+  public resolveAskQuestion(id: string, answer: string): void {
+    for (const msg of this.messages) {
+      if (msg.blocks) {
+        for (const block of msg.blocks) {
+          if (block.kind === 'ask' && block.data.id === id) {
+            block.data.answer = answer;
+            block.data.is_answered = true;
+            this.notify();
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  public onStreamAskQuestion(listener: StreamAskQuestionListener): () => void {
+    this.streamAskQuestionListeners.add(listener);
+    return () => this.streamAskQuestionListeners.delete(listener);
   }
 
   public onStreamFinished(listener: StreamFinishedListener): () => void {

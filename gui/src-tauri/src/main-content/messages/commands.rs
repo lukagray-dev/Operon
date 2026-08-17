@@ -199,37 +199,60 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                 }
                             }
                             operon_rs::context::ContentBlock::ToolCall(tc) => {
-                                let args_str = match &tc.arguments {
-                                    serde_json::Value::String(s) => s.clone(),
-                                    other => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
-                                };
-                                let title = get_tool_friendly_title(&tc.name, &args_str);
+                                if tc.name == "ask" {
+                                    // Parse question and options for the interactive Ask Prompt Card
+                                    let (question, options) = if let serde_json::Value::Object(map) = &tc.arguments {
+                                        let q = map.get("question").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                                        let opts = map.get("options").and_then(|v| v.as_array()).map(|arr| {
+                                            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<String>>()
+                                        }).unwrap_or_default();
+                                        (q, opts)
+                                    } else {
+                                        (String::new(), Vec::new())
+                                    };
 
-                                let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
-                                if !is_last_wg {
-                                    if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
-                                        *prev_text = prev_text.trim_end().to_string();
-                                    }
-                                    blocks.push(MessageBlockDto::WorkGroup {
-                                        data: WorkGroupDto {
-                                            items: Vec::new(),
-                                            is_active: false,
-                                            is_expanded: false,
-                                            elapsed_secs: 0,
+                                    blocks.push(MessageBlockDto::Ask {
+                                        data: super::types::AskQuestionDto {
+                                            id: tc.id.0.clone(),
+                                            question,
+                                            options,
+                                            answer: None,
+                                            is_answered: false,
                                         },
                                     });
-                                }
+                                } else {
+                                    let args_str = match &tc.arguments {
+                                        serde_json::Value::String(s) => s.clone(),
+                                        other => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
+                                    };
+                                    let title = get_tool_friendly_title(&tc.name, &args_str);
 
-                                if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
-                                    data.items.push(WorkGroupItemDto::Tool {
-                                        call_id: tc.id.0.clone(),
-                                        tool_name: tc.name,
-                                        tool_title: title,
-                                        tool_args: args_str,
-                                        tool_result: String::new(),
-                                        tool_status: "completed".to_string(),
-                                        is_expanded: false,
-                                    });
+                                    let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
+                                    if !is_last_wg {
+                                        if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
+                                            *prev_text = prev_text.trim_end().to_string();
+                                        }
+                                        blocks.push(MessageBlockDto::WorkGroup {
+                                            data: WorkGroupDto {
+                                                items: Vec::new(),
+                                                is_active: false,
+                                                is_expanded: false,
+                                                elapsed_secs: 0,
+                                            },
+                                        });
+                                    }
+
+                                    if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
+                                        data.items.push(WorkGroupItemDto::Tool {
+                                            call_id: tc.id.0.clone(),
+                                            tool_name: tc.name,
+                                            tool_title: title,
+                                            tool_args: args_str,
+                                            tool_result: String::new(),
+                                            tool_status: "completed".to_string(),
+                                            is_expanded: false,
+                                        });
+                                    }
                                 }
                             }
                             operon_rs::context::ContentBlock::Text(text) => {
@@ -259,35 +282,51 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                             };
 
                             let mut paired = false;
+
+                            // 1. Check if it pairs with a MessageBlockDto::Ask card
                             for b in blocks.iter_mut().rev() {
-                                if let MessageBlockDto::WorkGroup { data } = b {
-                                    for item in data.items.iter_mut().rev() {
-                                        if let WorkGroupItemDto::Tool {
-                                            call_id,
-                                            tool_result,
-                                            tool_status,
-                                            ..
-                                        } = item
-                                        {
-                                            if *call_id == tr.call_id.0 {
-                                                *tool_result = result_text.clone();
-                                                *tool_status = if tr.is_error {
-                                                    "failed".to_string()
-                                                } else {
-                                                    "completed".to_string()
-                                                };
-                                                paired = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if paired {
+                                if let MessageBlockDto::Ask { data } = b {
+                                    if data.id == tr.call_id.0 {
+                                        data.answer = Some(result_text.clone());
+                                        data.is_answered = true;
+                                        paired = true;
                                         break;
                                     }
                                 }
                             }
 
+                            // 2. Check if it pairs with a WorkGroup Tool item
                             if !paired {
+                                for b in blocks.iter_mut().rev() {
+                                    if let MessageBlockDto::WorkGroup { data } = b {
+                                        for item in data.items.iter_mut().rev() {
+                                            if let WorkGroupItemDto::Tool {
+                                                call_id,
+                                                tool_result,
+                                                tool_status,
+                                                ..
+                                            } = item
+                                            {
+                                                if *call_id == tr.call_id.0 {
+                                                    *tool_result = result_text.clone();
+                                                    *tool_status = if tr.is_error {
+                                                        "failed".to_string()
+                                                    } else {
+                                                        "completed".to_string()
+                                                    };
+                                                    paired = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if paired {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !paired && tr.name != "ask" {
                                 let title = format!("Result: {}", tr.name);
                                 let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
                                 if !is_last_wg {
@@ -374,6 +413,26 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
     }
 
     Ok(result)
+}
+
+/// Sends the user's response to an interactive clarifying question prompt (`ask` tool).
+#[tauri::command]
+pub async fn respond_to_ask(id: String, answer: String) -> Result<(), String> {
+    let cmd_tx_opt = if let Ok(lock) = super::executor::ACTIVE_CMD_TX.lock() {
+        lock.clone()
+    } else {
+        None
+    };
+
+    if let Some(cmd_tx) = cmd_tx_opt {
+        cmd_tx
+            .send(operon_rs::SessionCommand::AskResponse { id, answer })
+            .await
+            .map_err(|e| format!("Failed to send ask response: {e}"))?;
+        Ok(())
+    } else {
+        Err("No active running session to respond to".to_string())
+    }
 }
 
 /// Retrieves all currently pending permission requests across all active sessions.

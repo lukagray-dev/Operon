@@ -142,6 +142,7 @@ pub fn run() {
             main_content::messages::cancel_prompt,
             main_content::messages::approve_permission,
             main_content::messages::deny_permission,
+            main_content::messages::respond_to_ask,
             main_content::messages::get_pending_permissions,
             // Main Content Markdown actions
             main_content::markdown::render_markdown,

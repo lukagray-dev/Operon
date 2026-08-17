@@ -26,6 +26,8 @@ import {
   syncPendingPermissionForActiveSession,
 } from '../permission/permission.js';
 import { approvePermissionIpc } from './ipc.js';
+import { createAskCardElement, resolveAskCardElement } from './ask-card/ask-card.js';
+import { respondToAskIpc } from './ask-card/ipc.js';
 import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
 import { renderWorkGroupElement, syncWorkGroupElement } from '../work-group/work-group.js';
@@ -222,7 +224,21 @@ export function initMessages(): void {
     smartAutoScroll();
   });
 
-  // 6. Stream finished handler: finalizes workgroups and displays action bar in-place
+  // 6. Stream Ask Question handler: renders interactive clarification prompt inline in the message row
+  messagesState.onStreamAskQuestion((msgId, blockIdx, data) => {
+    cleanupActiveOrb();
+    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    if (row) {
+      const askCardEl = createAskCardElement(data, async (answer) => {
+        await respondToAskIpc(data.id, answer);
+        messagesState.resolveAskQuestion(data.id, answer);
+      });
+      insertBlockInRow(row, askCardEl, blockIdx);
+      smartAutoScroll(true);
+    }
+  });
+
+  // 7. Stream finished handler: finalizes workgroups and displays action bar in-place
   messagesState.onStreamFinished((msgId) => {
     cleanupActiveOrb();
     const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
@@ -411,6 +427,18 @@ function handleAgentEvent(event: Record<string, unknown>): void {
         triggerPermissionNotification(req.tool, req.path);
         smartAutoScroll();
       }
+    }
+  } else if ('AskQuestion' in event) {
+    const ask = (event as {
+      AskQuestion: {
+        id: string;
+        question: string;
+        options: string[];
+      };
+    }).AskQuestion;
+    if (ask) {
+      messagesState.addAskQuestion(ask.id, ask.question, ask.options);
+      smartAutoScroll(true);
     }
   } else if ('ApprovalGranted' in event || 'PermissionDenied' in event) {
     syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
@@ -769,6 +797,13 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): 
           renderMarkdownBody(body, block.text);
           row.appendChild(body);
         }
+      } else if (block.kind === 'ask') {
+        const askCardEl = createAskCardElement(block.data, async (answer) => {
+          await respondToAskIpc(block.data.id, answer);
+          messagesState.resolveAskQuestion(block.data.id, answer);
+        });
+        askCardEl.setAttribute('data-block-index', String(blockIdx));
+        row.appendChild(askCardEl);
       }
     });
   } else {
@@ -936,6 +971,11 @@ function finalizeAssistantMessageRow(row: HTMLElement, msg: ChatMessage, showSep
         const body = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].assistant-message-body`);
         if (body) {
           liveMarkdownRenderer.finalizeStream(body, block.text);
+        }
+      } else if (block.kind === 'ask') {
+        const existingAskEl = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].ask-card`);
+        if (existingAskEl && block.data.is_answered && block.data.answer) {
+          resolveAskCardElement(existingAskEl, block.data.answer);
         }
       }
     });

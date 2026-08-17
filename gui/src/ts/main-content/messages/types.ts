@@ -1,10 +1,12 @@
 // TypeScript interfaces for Chat Messages
 
 import type { WorkGroupData } from '../work-group/types.js';
+import type { AskQuestionData } from './ask-card/types.js';
 
 export type MessageBlock =
   | { kind: 'work_group'; data: WorkGroupData }
-  | { kind: 'text'; text: string };
+  | { kind: 'text'; text: string }
+  | { kind: 'ask'; data: AskQuestionData };
 
 export interface ChatMessage {
   id: string;
