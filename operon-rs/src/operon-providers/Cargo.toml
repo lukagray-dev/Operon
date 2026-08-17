@@ -1,6 +1,6 @@
 [package]
 name        = "operon-providers"
-description = "Provider identity, API credentials, model configuration, and capability metadata for Operon's ten supported LLM providers."
+description = "Provider identity, API credentials, model configuration, and capability metadata for Operon's eleven supported LLM providers."
 version.workspace    = true
 edition.workspace    = true
 authors.workspace    = true
