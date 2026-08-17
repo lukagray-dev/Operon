@@ -311,14 +311,15 @@
   display: none;
   background: transparent;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
-  padding: 2px;
+  padding: 2px 4px;
   opacity: 0.6;
   transition: opacity 0.12s ease, background-color 0.12s ease;
 }
 
-.session-item:hover .item-delete-btn {
+.session-item:hover .item-delete-btn,
+.session-item.active .item-delete-btn {
   display: flex;
 }
 

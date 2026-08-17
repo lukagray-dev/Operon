@@ -219,14 +219,51 @@ pub async fn query_sidebar_data(
     })
 }
 
-/// Deletes a single session JSON file from disk.
+/// Deletes a session JSON file from disk (handles regular, project, and channel sessions).
 #[tauri::command]
 pub async fn delete_session(session_id: String) -> Result<(), String> {
     let paths = operon_rs::config::OperonPaths::resolve().map_err(|e| e.to_string())?;
-    let json_path = paths.session_db(&session_id);
-    if json_path.exists() {
-        std::fs::remove_file(json_path).map_err(|e| e.to_string())?;
+    
+    // 1. Direct standard session lookup: ~/.operon/sessions/<session_id>.json
+    let standard_json = paths.session_db(&session_id);
+    if standard_json.exists() {
+        let _ = std::fs::remove_file(&standard_json);
     }
+
+    // 2. Recursive channel lookup: ~/.operon/sessions/{whatsapp,telegram}/<contact>/<session_id>.json
+    let target_filename = format!("{}.json", session_id);
+    if paths.sessions_dir.exists() {
+        if let Ok(channel_dirs) = std::fs::read_dir(&paths.sessions_dir) {
+            for ch_entry in channel_dirs.flatten() {
+                let ch_path = ch_entry.path();
+                if ch_path.is_dir() {
+                    if let Ok(contact_dirs) = std::fs::read_dir(&ch_path) {
+                        for contact_entry in contact_dirs.flatten() {
+                            let contact_path = contact_entry.path();
+                            if contact_path.is_dir() {
+                                let candidate_file = contact_path.join(&target_filename);
+                                if candidate_file.exists() {
+                                    let _ = std::fs::remove_file(&candidate_file);
+                                }
+
+                                // If the contact folder is now empty (all sessions deleted), prune the directory
+                                if let Ok(mut remaining) = std::fs::read_dir(&contact_path) {
+                                    if remaining.next().is_none() {
+                                        let _ = std::fs::remove_dir(&contact_path);
+                                    }
+                                }
+                            } else if contact_path.is_file()
+                                && contact_path.file_name().map_or(false, |f| f == target_filename.as_str())
+                            {
+                                let _ = std::fs::remove_file(&contact_path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 

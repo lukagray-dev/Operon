@@ -432,8 +432,8 @@ function renderWhatsAppSection(): void {
             <span class="session-title-text" title="${conv.title}">${conv.title}</span>
             ${hasPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
           </div>
-          <button class="item-more-btn" title="Options">
-            <span class="ui-icon icon-sidebar-more-vertical"></span>
+          <button class="item-delete-btn" title="Delete conversation">
+            <span class="ui-icon icon-sidebar-trash"></span>
           </button>
         `;
 
@@ -441,10 +441,17 @@ function renderWhatsAppSection(): void {
           sidebarState.selectSession(conv.id, contact.workspace);
         });
 
-        const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
-        moreBtn?.addEventListener('click', (e) => {
+        // Direct delete action for channel session with confirmation prompt
+        const deleteBtn = item.querySelector<HTMLButtonElement>('.item-delete-btn');
+        deleteBtn?.addEventListener('click', async (e) => {
           e.stopPropagation();
-          showConversationContextMenu(e, conv, contact.workspace);
+          if (confirm(`Are you sure you want to delete conversation "${conv.title}"?`)) {
+            await deleteSessionIpc(conv.id);
+            if (sidebarState.getActiveSessionId() === conv.id) {
+              sidebarState.selectSession(null, null);
+            }
+            await refreshSidebarContent();
+          }
         });
 
         convList.appendChild(item);
@@ -513,8 +520,8 @@ function renderTelegramSection(): void {
             <span class="session-title-text" title="${conv.title}">${conv.title}</span>
             ${hasPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
           </div>
-          <button class="item-more-btn" title="Options">
-            <span class="ui-icon icon-sidebar-more-vertical"></span>
+          <button class="item-delete-btn" title="Delete conversation">
+            <span class="ui-icon icon-sidebar-trash"></span>
           </button>
         `;
 
@@ -522,10 +529,17 @@ function renderTelegramSection(): void {
           sidebarState.selectSession(conv.id, contact.workspace);
         });
 
-        const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
-        moreBtn?.addEventListener('click', (e) => {
+        // Direct delete action for channel session with confirmation prompt
+        const deleteBtn = item.querySelector<HTMLButtonElement>('.item-delete-btn');
+        deleteBtn?.addEventListener('click', async (e) => {
           e.stopPropagation();
-          showConversationContextMenu(e, conv, contact.workspace);
+          if (confirm(`Are you sure you want to delete conversation "${conv.title}"?`)) {
+            await deleteSessionIpc(conv.id);
+            if (sidebarState.getActiveSessionId() === conv.id) {
+              sidebarState.selectSession(null, null);
+            }
+            await refreshSidebarContent();
+          }
         });
 
         convList.appendChild(item);
