@@ -156,6 +156,8 @@
   --text-muted: #888888;
 
   /* State & Action Colors */
+  --accent-blue: #007acc;
+  --accent-blue-surface: #161a20;
   --danger-red: #ff0000;
   --danger-red-hover: #ff4747;
   --danger-red-surface-hover: #4f2026;

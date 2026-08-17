@@ -22,7 +22,7 @@
 .theme-preview-card {
   background-color: #121212;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 10px;
   cursor: pointer;
   display: flex;
@@ -39,7 +39,7 @@
 
 .theme-preview-card.selected {
   border-color: var(--accent-blue, #007acc);
-  background-color: #191919;
+  background-color: var(--accent-blue-surface, #161a20);
 }
 
 .theme-card-header {
@@ -55,14 +55,7 @@
 }
 
 .theme-card-badge {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: transparent;
-}
-
-.theme-preview-card.selected .theme-card-badge {
-  background-color: var(--accent-blue, #007acc);
+  display: none;
 }
 
 /* Mini Syntax Code Preview inside Theme Card */
@@ -212,7 +205,7 @@
 .font-preview-card {
   background-color: #121212;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 10px;
   cursor: pointer;
   display: flex;
@@ -229,11 +222,7 @@
 
 .font-preview-card.selected {
   border-color: var(--accent-blue, #007acc);
-  background-color: #191919;
-}
-
-.font-preview-card.selected .theme-card-badge {
-  background-color: var(--accent-blue, #007acc);
+  background-color: var(--accent-blue-surface, #161a20);
 }
 
 .font-card-sample {

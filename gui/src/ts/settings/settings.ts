@@ -56,50 +56,52 @@ function initSettingsTitlebar(): void {
     await closeSettingsWindowIpc();
   });
 
-  // Dragging support
+  // Dragging and double-click maximization support:
+  // Differentiates single click (drag) from double click (toggle maximize) using e.detail
   titlebar?.addEventListener('mousedown', async (e) => {
-    if ((e.target as HTMLElement).closest('.action-btn') || (e.target as HTMLElement).closest('button')) {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('.action-btn') || target?.closest('button')) {
       return;
     }
     if (e.button === 0) {
-      const target = e.target as HTMLElement | null;
       if (
         target === titlebar ||
         target === dragSpacer ||
         target?.classList.contains('titlebar-left') ||
-        target?.hasAttribute('data-tauri-drag-region')
+        target?.classList.contains('titlebar') ||
+        target?.closest('.titlebar-left')
       ) {
-        try {
-          await invokeIpc('start_dragging');
-        } catch {
-          // Handled natively by data-tauri-drag-region
+        if (e.detail % 2 === 0) {
+          // Double-click: Toggle maximize / restore
+          const isMax = await invokeIpc<boolean>('toggle_maximize_window');
+          if (isMax !== null) {
+            updateMaximizeIcon(isMax, maxIcon);
+          }
+        } else {
+          // Single-click: Start dragging
+          try {
+            await invokeIpc('start_dragging');
+          } catch {
+            // Window drag error handled gracefully
+          }
         }
       }
     }
   });
 
-  // Double click on titlebar to maximize / restore
-  titlebar?.addEventListener('dblclick', async (e) => {
-    const target = e.target as HTMLElement | null;
-    if (
-      target === titlebar ||
-      target === dragSpacer ||
-      target?.classList.contains('titlebar-left') ||
-      target?.hasAttribute('data-tauri-drag-region')
-    ) {
-      const isMax = await invokeIpc<boolean>('toggle_maximize_window');
-      if (isMax !== null) {
-        updateMaximizeIcon(isMax, maxIcon);
-      }
-    }
-  });
-
-  // Check initial maximized state
-  invokeIpc<boolean>('is_window_maximized').then((isMax) => {
+  // Synchronize maximize icon state with current window status
+  const syncMaximized = async () => {
+    const isMax = await invokeIpc<boolean>('is_window_maximized');
     if (isMax !== null) {
       updateMaximizeIcon(isMax, maxIcon);
     }
-  });
+  };
+
+  // Check initial maximized state
+  syncMaximized();
+
+  // Listen to window resize events to keep the maximize/restore icon synchronized (for native double-clicks & OS snap)
+  window.addEventListener('resize', syncMaximized);
 }
 
 function updateMaximizeIcon(max: boolean, iconEl: HTMLElement | null): void {

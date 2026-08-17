@@ -30,14 +30,14 @@ export function setupWindowActions(): void {
     await invokeIpc('close_window');
   });
 
-  // Check initial maximized state
+  // Initial synchronization: query Rust backend to check if the window launched maximized
   invokeIpc<boolean>('is_window_maximized').then((isMax) => {
     if (isMax !== null) {
       appState.setIsMaximized(isMax);
     }
   });
 
-  // Update maximize icon class on state changes
+  // Keep maximize icon synchronized whenever the app state changes
   appState.subscribe(() => {
     if (maxIcon) {
       const isMax = appState.getIsMaximized();
@@ -51,51 +51,79 @@ export function setupWindowActions(): void {
     }
   });
 
-  // Setup dragging
+  // Listen to window resize events to keep the maximize/restore icon and state synchronized.
+  // Whenever the user double-clicks the native titlebar, uses Aero Snap, or presses Win+Up / Win+Down,
+  // the OS resizes the window, firing the DOM 'resize' event, where we query the active maximized state.
+  window.addEventListener('resize', async () => {
+    const isMax = await invokeIpc<boolean>('is_window_maximized');
+    if (isMax !== null) {
+      appState.setIsMaximized(isMax);
+    }
+  });
+
+  // Setup dragging support for the titlebar
   setupWindowDragging();
 }
 
+/**
+ * Sets up titlebar dragging and double-click maximization capabilities.
+ *
+ * HOW TAURI / WINDOWS WINDOW MANAGEMENT WORKS:
+ * 1. When the titlebar is clicked once (e.detail === 1), we invoke 'start_dragging'
+ *    so the OS handles native smooth window movement across multi-monitors and screen edges.
+ * 2. When the user double-clicks (e.detail === 2 or any even click), we invoke 'toggle_maximize_window'
+ *    directly, and we intentionally do NOT call 'start_dragging'. If 'start_dragging' were called on
+ *    the second click of a double click, Windows OS would interpret the drag on a maximized window as
+ *    an Aero Snap tear-off, immediately unmaximizing it!
+ * 3. By differentiating single-click (drag) vs double-click (maximize) via e.detail, the window
+ *    maximizes cleanly and stays maximized without bouncing back.
+ */
 export function setupWindowDragging(): void {
   const titlebar = document.getElementById('app-titlebar');
   const dragSpacer = document.querySelector('.titlebar-drag-spacer');
 
-  // Explicit mousedown handler fallback for dragging
-  const handleDrag = async (e: MouseEvent) => {
-    // Only drag on left-click and when not clicking an interactive button or menu
+  const handleMousedown = async (e: MouseEvent) => {
+    // Only process primary left-click (button 0)
     if (e.button === 0) {
       const target = e.target as HTMLElement | null;
+
+      // Do NOT initiate window drag or toggle maximize if the user clicked inside interactive UI elements
+      // like buttons, dropdown menus, or brand sidebar toggles.
+      if (
+        target?.closest('button') ||
+        target?.closest('.dropdown-menu') ||
+        target?.closest('.brand-container')
+      ) {
+        return;
+      }
+
+      // Verify the click occurred on a valid draggable titlebar region
       if (
         target === titlebar ||
         target === dragSpacer ||
         target?.classList.contains('titlebar-left') ||
-        target?.hasAttribute('data-tauri-drag-region')
+        target?.classList.contains('titlebar') ||
+        target?.closest('.titlebar-left')
       ) {
-        try {
-          await invokeIpc('start_dragging');
-        } catch {
-          // Native data-tauri-drag-region or window drag handled
+        if (e.detail % 2 === 0) {
+          // Double-click (or 4th click, etc.): Toggle maximize / restore
+          const isMax = await invokeIpc<boolean>('toggle_maximize_window');
+          if (isMax !== null) {
+            appState.setIsMaximized(isMax);
+          }
+        } else {
+          // Single-click (or 3rd click, etc.): Start window dragging
+          try {
+            await invokeIpc('start_dragging');
+          } catch {
+            // Window drag error handled gracefully
+          }
         }
       }
     }
   };
 
-  titlebar?.addEventListener('mousedown', handleDrag);
-
-  // Double click to maximize / restore
-  titlebar?.addEventListener('dblclick', async (e) => {
-    const target = e.target as HTMLElement | null;
-    if (
-      target === titlebar ||
-      target === dragSpacer ||
-      target?.classList.contains('titlebar-left') ||
-      target?.hasAttribute('data-tauri-drag-region')
-    ) {
-      const isMax = await invokeIpc<boolean>('toggle_maximize_window');
-      if (isMax !== null) {
-        appState.setIsMaximized(isMax);
-      }
-    }
-  });
+  titlebar?.addEventListener('mousedown', handleMousedown);
 }
 
 export function setupBrandLogoToggle(): void {
