@@ -353,6 +353,8 @@ mod tests {
             workspace_dir: temp.path().join(".operon").join("workspace"),
             config_file: temp.path().join(".operon").join("config.toml"),
             sessions_dir: temp.path().join(".operon").join("sessions"),
+            memory_dir: temp.path().join(".operon").join("memory"),
+            memory_db: temp.path().join(".operon").join("memory").join("memory.db"),
         };
 
         let provider_config = ProviderConfig {
@@ -435,6 +437,8 @@ mod tests {
             workspace_dir: tmp.path().join(".operon").join("workspace"),
             config_file: tmp.path().join(".operon").join("config.toml"),
             sessions_dir: tmp.path().join(".operon").join("sessions"),
+            memory_dir: tmp.path().join(".operon").join("memory"),
+            memory_db: tmp.path().join(".operon").join("memory").join("memory.db"),
         };
 
         // Create the dirs manually (normally done by ensure_dirs_exist).
@@ -493,6 +497,8 @@ web = "allow"
             workspace_dir: temp.path().join(".operon").join("workspace"),
             config_file: temp.path().join(".operon").join("config.toml"),
             sessions_dir: temp.path().join(".operon").join("sessions"),
+            memory_dir: temp.path().join(".operon").join("memory"),
+            memory_db: temp.path().join(".operon").join("memory").join("memory.db"),
         };
         fake_paths.ensure_dirs_exist().unwrap();
 
