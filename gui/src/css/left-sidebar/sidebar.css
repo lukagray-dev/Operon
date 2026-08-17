@@ -511,13 +511,23 @@
 }
 
 .icon-sidebar-whatsapp {
-  -webkit-mask-image: url('../../assets/icons/sidebar/connector-whatsapp.svg');
-  mask-image: url('../../assets/icons/sidebar/connector-whatsapp.svg');
+  background-color: transparent !important;
+  background-image: url('../../assets/icons/sidebar/connector-whatsapp.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
 .icon-sidebar-telegram {
-  -webkit-mask-image: url('../../assets/icons/sidebar/connector-telegram.svg');
-  mask-image: url('../../assets/icons/sidebar/connector-telegram.svg');
+  background-color: transparent !important;
+  background-image: url('../../assets/icons/sidebar/connector-telegram.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
 .icon-sidebar-more-vertical {

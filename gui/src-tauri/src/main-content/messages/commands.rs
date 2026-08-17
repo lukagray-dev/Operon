@@ -88,6 +88,43 @@ fn get_tool_friendly_title(name: &str, args_json: &str) -> String {
     }
 }
 
+/// Locates a session JSON database file across global sessions and channel subdirectories.
+pub fn find_session_db_path(session_id: &str) -> Option<std::path::PathBuf> {
+    let paths = operon_rs::config::OperonPaths::resolve().ok()?;
+    let direct = paths.session_db(session_id);
+    if direct.exists() {
+        return Some(direct);
+    }
+
+    // Check WhatsApp channels sessions: ~/.operon/sessions/whatsapp/*/<session_id>.json
+    let wa_base = paths.sessions_dir.join("whatsapp");
+    if wa_base.exists() {
+        if let Ok(entries) = std::fs::read_dir(&wa_base) {
+            for entry in entries.flatten() {
+                let candidate = entry.path().join(format!("{}.json", session_id));
+                if candidate.exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+
+    // Check Telegram channels sessions: ~/.operon/sessions/telegram/*/<session_id>.json
+    let tg_base = paths.sessions_dir.join("telegram");
+    if tg_base.exists() {
+        if let Ok(entries) = std::fs::read_dir(&tg_base) {
+            for entry in entries.flatten() {
+                let candidate = entry.path().join(format!("{}.json", session_id));
+                if candidate.exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+
+    None
+}
+
 /// Loads all messages for a specific session ID in chronological order.
 #[tauri::command]
 pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessageDto>, String> {
@@ -95,12 +132,10 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
         return Ok(Vec::new());
     }
 
-    let paths = operon_rs::config::OperonPaths::resolve().map_err(|e| e.to_string())?;
-    let db_path = paths.session_db(&session_id);
-
-    if !db_path.exists() {
-        return Ok(Vec::new());
-    }
+    let db_path = match find_session_db_path(&session_id) {
+        Some(p) => p,
+        None => return Ok(Vec::new()),
+    };
 
     let store = operon_rs::session::store::SessionStore::open(&db_path)
         .await

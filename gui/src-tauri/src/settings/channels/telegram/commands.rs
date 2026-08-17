@@ -1,14 +1,17 @@
 //! Telegram Settings Backend Tauri Commands.
-//
-// 1:1 match with Slint settings/main-content/telegram.rs:
-// - Loads Telegram bot credentials, chat ID allowlist, and policy coverage.
-// - Tests Bot Token validation via TelegramClient.
-// - Persists Telegram configuration.
+//!
+//! Handles:
+//! - Loading persisted Telegram bot credentials, chat ID allowlist, and policy coverage.
+//! - Testing Bot Token connectivity via TelegramClient.
+//! - Persisting Telegram configuration and starting background polling service.
 
 use super::types::{SaveTelegramPayloadDto, TelegramStateDto};
+use crate::shared::channels_manager::{
+    load_telegram_saved_config, save_telegram_saved_config, ACTIVE_TELEGRAM_CLIENT,
+    TelegramSavedConfig,
+};
 use operon_rs::channels::telegram::client::TelegramClient;
 use operon_rs::channels::telegram::config::TelegramConfig;
-use operon_rs::channels::telegram::types::ChatId;
 
 /// Evaluates whether the given workspace path is covered by security policy.
 pub fn evaluate_tg_policy_coverage(path_str: &str, default_path: std::path::PathBuf) -> bool {
@@ -30,14 +33,28 @@ pub fn evaluate_tg_policy_coverage(path_str: &str, default_path: std::path::Path
 #[tauri::command]
 pub async fn get_telegram_state() -> Result<TelegramStateDto, String> {
     let default_tg_ws = TelegramConfig::default().resolved_workspace_dir();
-    let is_policy_covered = evaluate_tg_policy_coverage("", default_tg_ws.clone());
+    let saved = load_telegram_saved_config();
+
+    let is_connected = if let Ok(lock) = ACTIVE_TELEGRAM_CLIENT.lock() {
+        lock.is_some()
+    } else {
+        false
+    };
+
+    let conn_status = if is_connected || !saved.bot_token.trim().is_empty() {
+        "Connected".to_string()
+    } else {
+        "Disconnected".to_string()
+    };
+
+    let is_policy_covered = evaluate_tg_policy_coverage(&saved.workspace_dir, default_tg_ws.clone());
 
     Ok(TelegramStateDto {
-        connection_status: "Disconnected".to_string(),
-        bot_token: "".to_string(),
-        owner_chat_id: "".to_string(),
-        allowlist: Vec::new(),
-        workspace_dir: "".to_string(),
+        connection_status: conn_status,
+        bot_token: saved.bot_token,
+        owner_chat_id: saved.owner_chat_id,
+        allowlist: saved.allowlist,
+        workspace_dir: saved.workspace_dir,
         resolved_workspace_placeholder: default_tg_ws.to_string_lossy().to_string(),
         is_policy_covered,
     })
@@ -85,7 +102,7 @@ pub async fn test_telegram_channel_connection(bot_token: String) -> Result<Strin
     }
 }
 
-/// Persists Telegram configuration.
+/// Persists Telegram configuration and spawns background service.
 #[tauri::command]
 pub async fn save_telegram_channel_config(payload: SaveTelegramPayloadDto) -> Result<(), String> {
     let token = payload.bot_token.trim();
@@ -93,39 +110,20 @@ pub async fn save_telegram_channel_config(payload: SaveTelegramPayloadDto) -> Re
         return Err("Bot token is required to enable Telegram channel.".to_string());
     }
 
-    let owner_chat = if payload.owner_chat_id.trim().is_empty() {
-        None
-    } else {
-        payload
-            .owner_chat_id
-            .trim()
-            .parse::<i64>()
-            .ok()
-            .map(ChatId::new)
-    };
-
-    let allowlist: Vec<ChatId> = payload
-        .allowlist
-        .iter()
-        .filter_map(|s| s.trim().parse::<i64>().ok().map(ChatId::new))
-        .collect();
-
-    let workspace_dir = if payload.workspace_dir.trim().is_empty() {
-        None
-    } else {
-        Some(std::path::PathBuf::from(payload.workspace_dir.trim()))
-    };
-
-    let _config = TelegramConfig {
+    let saved = TelegramSavedConfig {
         enabled: true,
-        bot_token: Some(token.to_string()),
-        owner_chat_id: owner_chat,
-        allowlist,
-        workspace_dir,
-        poll_interval_secs: Some(30),
+        bot_token: token.to_string(),
+        owner_chat_id: payload.owner_chat_id.trim().to_string(),
+        allowlist: payload.allowlist,
+        workspace_dir: payload.workspace_dir.trim().to_string(),
     };
+
+    save_telegram_saved_config(&saved)?;
 
     println!("[operon-gui][telegram-settings] Saved Telegram configuration.");
+
+    // Start background Telegram service
+    crate::shared::channels_manager::start_telegram_channel_if_configured().await;
 
     Ok(())
 }

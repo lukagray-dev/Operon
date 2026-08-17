@@ -302,6 +302,33 @@ async function handleCancel(): Promise<void> {
 }
 
 function renderInputState(): void {
+  // 0. Read-only posture check for channel conversations
+  const isReadOnly = inputState.getIsReadOnly();
+  const textarea = document.getElementById('chat-input-textarea') as HTMLTextAreaElement | null;
+  const attachBtn = document.getElementById('btn-attach-files') as HTMLButtonElement | null;
+  const voiceBtn = document.getElementById('btn-voice-input') as HTMLButtonElement | null;
+
+  if (textarea) {
+    textarea.disabled = isReadOnly;
+    if (isReadOnly) {
+      textarea.placeholder = inputState.getReadOnlyReason() || 'Channel conversation (read-only in GUI)';
+    } else {
+      textarea.placeholder = 'Ask a question or describe a task...';
+    }
+  }
+
+  if (attachBtn) {
+    attachBtn.disabled = isReadOnly;
+    attachBtn.style.opacity = isReadOnly ? '0.35' : '1';
+    attachBtn.style.pointerEvents = isReadOnly ? 'none' : 'auto';
+  }
+
+  if (voiceBtn) {
+    voiceBtn.disabled = isReadOnly;
+    voiceBtn.style.opacity = isReadOnly ? '0.35' : '1';
+    voiceBtn.style.pointerEvents = isReadOnly ? 'none' : 'auto';
+  }
+
   // 1. Attachments bar
   const bar = document.getElementById('input-attachments-bar');
   if (bar) {
@@ -362,7 +389,6 @@ function renderInputState(): void {
   }
 
   // 6. Voice button recording state
-  const voiceBtn = document.getElementById('btn-voice-input');
   voiceBtn?.classList.toggle('recording', inputState.getIsVoiceRecording());
 
   // 7. Send button active / responding state
@@ -373,7 +399,15 @@ function renderInputState(): void {
       inputState.getInputText().trim().length > 0 || inputState.getPendingAttachments().length > 0;
 
     sendBtn.classList.toggle('responding', isResponding);
-    sendBtn.classList.toggle('disabled', !isResponding && !hasContent);
+    sendBtn.classList.toggle('disabled', isReadOnly || (!isResponding && !hasContent));
+
+    if (isReadOnly) {
+      sendBtn.style.opacity = '0.35';
+      sendBtn.style.pointerEvents = 'none';
+    } else {
+      sendBtn.style.opacity = '';
+      sendBtn.style.pointerEvents = '';
+    }
 
     const icon = sendBtn.querySelector('.ui-icon');
     if (icon) {

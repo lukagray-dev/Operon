@@ -1,11 +1,12 @@
 //! Telegram channel session queries for the Left Sidebar.
 
-use crate::left_sidebar::types::ChannelContactDto;
+use crate::left_sidebar::types::{SidebarConversationDto, SidebarProjectDto};
+use std::path::PathBuf;
 
-/// Queries Telegram contact sessions from `~/.operon/sessions/telegram`.
+/// Query Telegram chat IDs and session JSON files from disk and construct SidebarProjectDto items.
 #[tauri::command]
-pub async fn query_telegram_contacts() -> Result<Vec<ChannelContactDto>, String> {
-    let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+pub async fn query_telegram_contacts() -> Result<Vec<SidebarProjectDto>, String> {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     let base_sessions = home.join(".operon").join("sessions").join("telegram");
 
     if !base_sessions.exists() {
@@ -24,39 +25,72 @@ pub async fn query_telegram_contacts() -> Result<Vec<ChannelContactDto>, String>
                     .to_string();
 
                 if !chat_id.is_empty() {
-                    let mut latest_session_id = String::new();
-                    let mut latest_ts = 0i64;
-                    let mut last_msg = String::new();
+                    let mut conversations = Vec::new();
 
                     if let Ok(session_files) = std::fs::read_dir(&path) {
                         for s_entry in session_files.flatten() {
                             let s_path = s_entry.path();
                             if s_path.extension().map_or(false, |e| e == "json") {
-                                if let Ok(store) = operon_rs::session::store::SessionStore::open(&s_path).await {
-                                    if let Ok(rows) = store.list_sessions().await {
-                                        if let Some(row) = rows.first() {
-                                            if row.created_at >= latest_ts {
-                                                latest_ts = row.created_at;
-                                                latest_session_id = row.id.clone();
-                                                if let Ok(Some(first)) = store.get_first_user_message_text(&row.id).await {
-                                                    last_msg = first;
-                                                }
+                                let session_id = s_path
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("")
+                                    .to_string();
+
+                                if !session_id.is_empty() {
+                                    let custom_title = std::fs::read_to_string(&s_path)
+                                        .ok()
+                                        .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
+                                        .and_then(|v| v.get("title").and_then(|t| t.as_str()).map(String::from));
+
+                                    let mut created_at = 0i64;
+                                    let mut first_msg_text = None;
+
+                                    if let Ok(store) = operon_rs::session::store::SessionStore::open(&s_path).await {
+                                        if let Ok(rows) = store.list_sessions().await {
+                                            if let Some(row) = rows.first() {
+                                                created_at = row.created_at;
+                                                first_msg_text = store.get_first_user_message_text(&row.id).await.ok().flatten();
                                             }
                                         }
                                     }
+
+                                    let title = match custom_title {
+                                        Some(t) if !t.trim().is_empty() => t,
+                                        _ => match first_msg_text {
+                                            Some(msg) if !msg.trim().is_empty() => {
+                                                let trimmed = msg.trim().lines().next().unwrap_or("").trim();
+                                                let display_title = if trimmed.len() > 36 {
+                                                    format!("{}...", &trimmed[..36])
+                                                } else {
+                                                    trimmed.to_string()
+                                                };
+                                                if display_title.is_empty() {
+                                                    format!("Session {}", &session_id[..session_id.len().min(8)])
+                                                } else {
+                                                    display_title
+                                                }
+                                            }
+                                            _ => format!("Session {}", &session_id[..session_id.len().min(8)]),
+                                        },
+                                    };
+
+                                    conversations.push(SidebarConversationDto {
+                                        id: session_id,
+                                        title,
+                                        created_at,
+                                    });
                                 }
                             }
                         }
                     }
 
-                    if !latest_session_id.is_empty() {
-                        contacts.push(ChannelContactDto {
-                            id: latest_session_id,
+                    if !conversations.is_empty() {
+                        conversations.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                        contacts.push(SidebarProjectDto {
                             name: format!("Chat {}", chat_id),
-                            number: chat_id,
-                            last_message: last_msg,
-                            last_timestamp: latest_ts,
-                            unread_count: 0,
+                            workspace: path.to_string_lossy().to_string(),
+                            conversations,
                         });
                     }
                 }
@@ -64,6 +98,5 @@ pub async fn query_telegram_contacts() -> Result<Vec<ChannelContactDto>, String>
         }
     }
 
-    contacts.sort_by(|a, b| b.last_timestamp.cmp(&a.last_timestamp));
     Ok(contacts)
 }

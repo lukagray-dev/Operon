@@ -1,13 +1,13 @@
 import { setActiveSessionIpc } from './ipc.js';
-import type { ChannelContact, SidebarConversation, SidebarData, SidebarProject } from './types.js';
+import type { SidebarConversation, SidebarData, SidebarProject } from './types.js';
 
 type SidebarChangeListener = () => void;
 
 class SidebarStateManager {
   private chats: SidebarConversation[] = [];
   private projects: SidebarProject[] = [];
-  private whatsappContacts: ChannelContact[] = [];
-  private telegramContacts: ChannelContact[] = [];
+  private whatsappContacts: SidebarProject[] = [];
+  private telegramContacts: SidebarProject[] = [];
   private activeSessionId: string | null = null;
   private activeProjectPath: string | null = null;
   private searchQuery = '';
@@ -39,11 +39,11 @@ class SidebarStateManager {
     return this.projects;
   }
 
-  public getWhatsAppContacts(): ChannelContact[] {
+  public getWhatsAppContacts(): SidebarProject[] {
     return this.whatsappContacts;
   }
 
-  public getTelegramContacts(): ChannelContact[] {
+  public getTelegramContacts(): SidebarProject[] {
     return this.telegramContacts;
   }
 
@@ -134,7 +134,7 @@ class SidebarStateManager {
     this.notify();
   }
 
-  public setChannelContacts(whatsapp: ChannelContact[], telegram: ChannelContact[]): void {
+  public setChannelContacts(whatsapp: SidebarProject[], telegram: SidebarProject[]): void {
     this.whatsappContacts = whatsapp;
     this.telegramContacts = telegram;
     this.notify();

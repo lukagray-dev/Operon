@@ -75,11 +75,13 @@ function renderChannelsList(): void {
       </div>
     `;
 
-    card.addEventListener('click', () => {
+    card.addEventListener('click', async () => {
       if (ch.id === 'whatsapp') {
         activeView = 1;
+        await refreshWhatsAppState();
       } else if (ch.id === 'telegram') {
         activeView = 2;
+        await refreshTelegramState();
       }
       updateChannelsViewSwitch();
     });

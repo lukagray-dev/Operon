@@ -1,13 +1,23 @@
 //! WhatsApp Settings Backend Tauri Commands.
-//
-// 1:1 match with Slint settings/main-content/whatsapp.rs:
-// - Loads WhatsApp config, auth state, and policy coverage.
-// - Saves Owner mobile number and allowlist configuration.
-// - Handles WhatsApp QR pairing and mobile pairing code generation.
+//!
+//! Handles:
+//! - Loading persisted WhatsApp config, auth state, and policy coverage.
+//! - Saving owner mobile number, allowlist, and custom workspace directory.
+//! - Real WhatsApp QR code pairing via WhatsAppClient & WhatsAppAuth::render_svg.
+//! - Real WhatsApp 8-digit pairing code generation from WhatsApp servers.
+
+use std::sync::Arc;
+use std::time::Duration;
 
 use super::types::{SaveWhatsAppPayloadDto, WhatsAppStateDto};
+use crate::shared::channels_manager::{
+    load_whatsapp_saved_config, save_whatsapp_saved_config, ACTIVE_WHATSAPP_CLIENT,
+    WhatsAppSavedConfig,
+};
 use operon_rs::channels::whatsapp::auth::WhatsAppAuth;
+use operon_rs::channels::whatsapp::client::WhatsAppClient;
 use operon_rs::channels::whatsapp::config::WhatsAppConfig;
+use operon_rs::channels::whatsapp::service::WhatsAppService;
 use operon_rs::channels::whatsapp::types::ContactId;
 
 /// Evaluates whether the given workspace path is covered by security policy.
@@ -37,20 +47,41 @@ pub async fn get_whatsapp_state() -> Result<WhatsAppStateDto, String> {
         .join("auth");
     let default_wa_ws = WhatsAppConfig::default().resolved_workspace_dir();
 
-    let auth_checker = WhatsAppAuth::new(default_wa_auth);
+    let saved = load_whatsapp_saved_config();
+    let auth_checker = WhatsAppAuth::new(default_wa_auth.clone());
     let wa_has_creds = auth_checker.has_credentials();
-    let wa_status = if wa_has_creds {
+    let is_client_connected = if let Ok(lock) = ACTIVE_WHATSAPP_CLIENT.lock() {
+        lock.is_some()
+    } else {
+        false
+    };
+
+    let wa_status = if wa_has_creds || is_client_connected {
         "Connected".to_string()
     } else {
         "Disconnected".to_string()
     };
-    let is_policy_covered = evaluate_wa_policy_coverage("", default_wa_ws.clone());
+
+    let mut owner_number = saved.owner_number;
+    if owner_number.trim().is_empty() && wa_has_creds {
+        let session_path = default_wa_auth.join("session.db");
+        if let Ok(storage) = operon_rs::channels::whatsapp::RusqliteStore::new(&session_path) {
+            use operon_rs::channels::whatsapp::DeviceStore;
+            if let Ok(Some(core_device)) = storage.load().await {
+                if let Some(pn) = core_device.pn {
+                    owner_number = pn.user.to_string();
+                }
+            }
+        }
+    }
+
+    let is_policy_covered = evaluate_wa_policy_coverage(&saved.workspace_dir, default_wa_ws.clone());
 
     Ok(WhatsAppStateDto {
         connection_status: wa_status,
-        owner_number: "".to_string(),
-        allowlist: Vec::new(),
-        workspace_dir: "".to_string(),
+        owner_number,
+        allowlist: saved.allowlist,
+        workspace_dir: saved.workspace_dir,
         resolved_workspace_placeholder: default_wa_ws.to_string_lossy().to_string(),
         is_policy_covered,
     })
@@ -74,9 +105,32 @@ pub async fn pick_whatsapp_workspace_dialog() -> Result<Option<String>, String> 
     Ok(folder.map(|f| f.path().to_string_lossy().to_string()))
 }
 
-/// Persists WhatsApp configuration.
+/// Persists WhatsApp configuration and restarts background service if connected.
 #[tauri::command]
 pub async fn save_whatsapp_channel_config(payload: SaveWhatsAppPayloadDto) -> Result<(), String> {
+    let saved = WhatsAppSavedConfig {
+        enabled: true,
+        owner_number: payload.owner_number.trim().to_string(),
+        allowlist: payload.allowlist,
+        workspace_dir: payload.workspace_dir.trim().to_string(),
+    };
+
+    save_whatsapp_saved_config(&saved)?;
+
+    println!(
+        "[operon-gui][whatsapp-settings] Saved WhatsApp config for owner: {}",
+        payload.owner_number
+    );
+
+    // Restart/start channel service in background
+    crate::shared::channels_manager::start_whatsapp_channel_if_configured().await;
+
+    Ok(())
+}
+
+/// Generates a real visual QR matrix SVG string from WhatsApp Web for scan pairing.
+#[tauri::command]
+pub async fn start_whatsapp_qr_pairing() -> Result<String, String> {
     let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     let default_auth = home
         .join(".operon")
@@ -84,25 +138,26 @@ pub async fn save_whatsapp_channel_config(payload: SaveWhatsAppPayloadDto) -> Re
         .join("whatsapp")
         .join("auth");
 
-    let owner_contact = if payload.owner_number.trim().is_empty() {
+    let saved = load_whatsapp_saved_config();
+    let owner_contact = if saved.owner_number.trim().is_empty() {
         None
     } else {
-        Some(ContactId::new(payload.owner_number.trim()))
+        Some(ContactId::new(saved.owner_number.trim()))
     };
 
-    let allowlist: Vec<ContactId> = payload
+    let allowlist: Vec<ContactId> = saved
         .allowlist
         .iter()
         .map(|s| ContactId::new(s.trim()))
         .collect();
 
-    let workspace_dir = if payload.workspace_dir.trim().is_empty() {
+    let workspace_dir = if saved.workspace_dir.trim().is_empty() {
         None
     } else {
-        Some(std::path::PathBuf::from(payload.workspace_dir.trim()))
+        Some(std::path::PathBuf::from(saved.workspace_dir.trim()))
     };
 
-    let _config = WhatsAppConfig {
+    let config = WhatsAppConfig {
         enabled: true,
         owner_number: owner_contact,
         allowlist,
@@ -110,42 +165,104 @@ pub async fn save_whatsapp_channel_config(payload: SaveWhatsAppPayloadDto) -> Re
         workspace_dir,
     };
 
-    println!(
-        "[operon-gui][whatsapp-settings] Saved WhatsApp config for owner: {}",
-        payload.owner_number
-    );
+    let client = Arc::new(WhatsAppClient::new(&config));
+    if let Ok(mut lock) = ACTIVE_WHATSAPP_CLIENT.lock() {
+        *lock = Some(client.clone());
+    }
 
-    Ok(())
+    let mut qr_rx = client
+        .take_qr_receiver()
+        .await
+        .ok_or_else(|| "QR receiver already active".to_string())?;
+
+    let client_clone = client.clone();
+    let wa_config_clone = config.clone();
+
+    // Spawn connect in background
+    tokio::spawn(async move {
+        if let Err(e) = client_clone.connect().await {
+            eprintln!("[operon-gui][whatsapp-qr] Connect error: {}", e);
+        } else if let Ok(app_config) = operon_rs::load() {
+            let service = WhatsAppService::new(client_clone, wa_config_clone, app_config);
+            let _ = service.run().await;
+        }
+    });
+
+    // Await first real QR code state with timeout
+    match tokio::time::timeout(Duration::from_secs(15), qr_rx.recv()).await {
+        Ok(Some(qr_state)) => {
+            let svg = WhatsAppAuth::render_svg(&qr_state.payload)
+                .map_err(|e| format!("Failed to render QR SVG: {e}"))?;
+            Ok(svg)
+        }
+        Ok(None) => Err("WhatsApp server closed QR pairing stream".to_string()),
+        Err(_) => Err("Timed out waiting for WhatsApp QR code. Please try again.".to_string()),
+    }
 }
 
-/// Generates a visual QR matrix SVG string for WhatsApp scan pairing.
-#[tauri::command]
-pub async fn start_whatsapp_qr_pairing() -> Result<String, String> {
-    let qr_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%"><rect width="200" height="200" fill="#ffffff"/><path d="M20 20h50v50h-50zM30 30h30v30h-30zM40 40h10v10h-10zM130 20h50v50h-50zM140 30h30v30h-30zM150 40h10v10h-10zM20 130h50v50h-50zM30 140h30v30h-30zM40 150h10v10h-10zM90 20h20v20h-20zM90 60h20v20h-20zM20 90h20v20h-20zM60 90h20v20h-20zM100 90h20v20h-20zM140 90h20v20h-20zM180 90h20v20h-20zM90 120h20v20h-20zM130 120h20v20h-20zM170 120h20v20h-20zM90 150h20v20h-20zM130 150h20v20h-20zM170 150h20v20h-20zM90 180h20v20h-20zM130 180h20v20h-20zM170 180h20v20h-20z" fill="#000000"/></svg>"##;
-    Ok(qr_svg.to_string())
-}
-
-/// Generates an 8-character pairing code for WhatsApp mobile linking.
+/// Requests a real 8-character pairing code from WhatsApp servers.
 #[tauri::command]
 pub async fn start_whatsapp_code_pairing(phone_number: String) -> Result<String, String> {
-    if phone_number.trim().is_empty() {
+    let clean_phone = phone_number.trim();
+    if clean_phone.is_empty() {
         return Err("Please enter your mobile phone number first.".to_string());
     }
 
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    let chars = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let mut code = String::with_capacity(9);
-    for i in 0..8 {
-        if i == 4 {
-            code.push('-');
-        }
-        let idx = ((seed >> (i * 4)) % (chars.len() as u128)) as usize;
-        code.push(chars[idx] as char);
+    let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    let default_auth = home
+        .join(".operon")
+        .join("channels")
+        .join("whatsapp")
+        .join("auth");
+
+    let saved = load_whatsapp_saved_config();
+    let allowlist: Vec<ContactId> = saved
+        .allowlist
+        .iter()
+        .map(|s| ContactId::new(s.trim()))
+        .collect();
+
+    let workspace_dir = if saved.workspace_dir.trim().is_empty() {
+        None
+    } else {
+        Some(std::path::PathBuf::from(saved.workspace_dir.trim()))
+    };
+
+    let config = WhatsAppConfig {
+        enabled: true,
+        owner_number: Some(ContactId::new(clean_phone)),
+        allowlist,
+        auth_dir: Some(default_auth),
+        workspace_dir,
+    };
+
+    let client = Arc::new(WhatsAppClient::new(&config));
+    if let Ok(mut lock) = ACTIVE_WHATSAPP_CLIENT.lock() {
+        *lock = Some(client.clone());
     }
 
-    Ok(code)
+    let mut code_rx = client
+        .take_pairing_code_receiver()
+        .await
+        .ok_or_else(|| "Pairing code receiver already active".to_string())?;
+
+    let client_clone = client.clone();
+    let wa_config_clone = config.clone();
+
+    // Spawn connect in background
+    tokio::spawn(async move {
+        if let Err(e) = client_clone.connect().await {
+            eprintln!("[operon-gui][whatsapp-code] Connect error: {}", e);
+        } else if let Ok(app_config) = operon_rs::load() {
+            let service = WhatsAppService::new(client_clone, wa_config_clone, app_config);
+            let _ = service.run().await;
+        }
+    });
+
+    // Await first real pairing code from server with timeout
+    match tokio::time::timeout(Duration::from_secs(15), code_rx.recv()).await {
+        Ok(Some(pairing_state)) => Ok(pairing_state.code),
+        Ok(None) => Err("WhatsApp server closed pairing code stream".to_string()),
+        Err(_) => Err("Timed out waiting for WhatsApp pairing code. Please try again.".to_string()),
+    }
 }

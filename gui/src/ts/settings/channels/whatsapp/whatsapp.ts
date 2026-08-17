@@ -153,6 +153,9 @@ function setupWhatsAppModals(): void {
     const modal = document.getElementById('modal-wa-qr-popup');
     const qrContainer = document.getElementById('wa-qr-code-image-container');
     if (modal) modal.classList.remove('hidden');
+    if (qrContainer) {
+      qrContainer.innerHTML = '<div style="padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px;">Connecting to WhatsApp servers...</div>';
+    }
 
     try {
       const qrSvg = await startWhatsAppQrPairingIpc();
@@ -160,6 +163,9 @@ function setupWhatsAppModals(): void {
         qrContainer.innerHTML = qrSvg;
       }
     } catch (err) {
+      if (qrContainer) {
+        qrContainer.innerHTML = `<div style="padding: 40px 20px; text-align: center; color: #ef4444; font-size: 13px;">${err}</div>`;
+      }
       console.warn('[WhatsAppSettings] QR generation error:', err);
     }
   });
@@ -177,6 +183,9 @@ function setupWhatsAppModals(): void {
     const modal = document.getElementById('modal-wa-pairing-code-popup');
     const codeEl = document.getElementById('wa-pairing-code-display');
     if (modal) modal.classList.remove('hidden');
+    if (codeEl) {
+      codeEl.textContent = 'Connecting...';
+    }
 
     try {
       const code = await startWhatsAppCodePairingIpc(phone);
@@ -184,6 +193,9 @@ function setupWhatsAppModals(): void {
         codeEl.textContent = code;
       }
     } catch (err) {
+      if (codeEl) {
+        codeEl.textContent = `Error: ${err}`;
+      }
       console.warn('[WhatsAppSettings] Pairing code error:', err);
     }
   });

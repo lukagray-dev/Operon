@@ -1,4 +1,5 @@
 import { openSettingsWindowIpc } from '../settings/ipc.js';
+import { listenIpcEvent } from '../shared/ipc.js';
 import { appState } from '../shared/state.js';
 import {
   createNewSessionIpc,
@@ -40,6 +41,11 @@ export function initSidebar(): void {
   // Re-render when sidebar state changes
   sidebarState.subscribe(() => {
     renderSidebarContent();
+  });
+
+  // Hot-reload sidebar lists when notify watcher detects session changes on disk
+  listenIpcEvent<string[]>('sessions-changed', async () => {
+    await refreshSidebarContent();
   });
 }
 
@@ -368,21 +374,62 @@ function renderWhatsAppSection(): void {
 
   container.innerHTML = '';
   contacts.forEach((contact) => {
-    const row = document.createElement('div');
-    row.className = 'channel-contact-row';
-    row.innerHTML = `
-      <span class="ui-icon icon-sidebar-whatsapp"></span>
-      <div class="channel-contact-info">
-        <span class="channel-contact-name">${contact.name}</span>
-        <span class="channel-contact-preview">${contact.last_message || 'No messages yet'}</span>
+    const card = document.createElement('div');
+    const isCollapsed = sidebarState.isProjectCollapsed(contact.workspace);
+    card.className = `project-card ${isCollapsed ? 'collapsed' : ''}`;
+
+    const isContactActive = sidebarState.getActiveProjectPath() === contact.workspace;
+
+    const header = document.createElement('div');
+    header.className = `project-header ${isContactActive ? 'active' : ''}`;
+    header.innerHTML = `
+      <div class="session-item-left">
+        <span class="ui-icon icon-sidebar-chevron-down chevron-icon proj-chevron"></span>
+        <span class="ui-icon icon-sidebar-whatsapp"></span>
+        <span class="session-title-text" title="${contact.workspace}">${contact.name}</span>
       </div>
     `;
 
-    row.addEventListener('click', () => {
-      sidebarState.selectSession(contact.id, null);
+    header.addEventListener('click', () => {
+      sidebarState.toggleProjectCollapsed(contact.workspace);
     });
 
-    container.appendChild(row);
+    card.appendChild(header);
+
+    if (contact.conversations.length > 0) {
+      const convList = document.createElement('div');
+      convList.className = 'project-conversations';
+
+      contact.conversations.forEach((conv) => {
+        const item = document.createElement('div');
+        const isActive = sidebarState.getActiveSessionId() === conv.id;
+        item.className = `session-item ${isActive ? 'active' : ''}`;
+        item.innerHTML = `
+          <div class="session-item-left">
+            <span class="session-title-text" title="${conv.title}">${conv.title}</span>
+          </div>
+          <button class="item-more-btn" title="Options">
+            <span class="ui-icon icon-sidebar-more-vertical"></span>
+          </button>
+        `;
+
+        item.addEventListener('click', () => {
+          sidebarState.selectSession(conv.id, contact.workspace);
+        });
+
+        const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
+        moreBtn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showConversationContextMenu(e, conv, contact.workspace);
+        });
+
+        convList.appendChild(item);
+      });
+
+      card.appendChild(convList);
+    }
+
+    container.appendChild(card);
   });
 }
 
@@ -404,21 +451,62 @@ function renderTelegramSection(): void {
 
   container.innerHTML = '';
   contacts.forEach((contact) => {
-    const row = document.createElement('div');
-    row.className = 'channel-contact-row';
-    row.innerHTML = `
-      <span class="ui-icon icon-sidebar-telegram"></span>
-      <div class="channel-contact-info">
-        <span class="channel-contact-name">${contact.name}</span>
-        <span class="channel-contact-preview">${contact.last_message || 'No messages yet'}</span>
+    const card = document.createElement('div');
+    const isCollapsed = sidebarState.isProjectCollapsed(contact.workspace);
+    card.className = `project-card ${isCollapsed ? 'collapsed' : ''}`;
+
+    const isContactActive = sidebarState.getActiveProjectPath() === contact.workspace;
+
+    const header = document.createElement('div');
+    header.className = `project-header ${isContactActive ? 'active' : ''}`;
+    header.innerHTML = `
+      <div class="session-item-left">
+        <span class="ui-icon icon-sidebar-chevron-down chevron-icon proj-chevron"></span>
+        <span class="ui-icon icon-sidebar-telegram"></span>
+        <span class="session-title-text" title="${contact.workspace}">${contact.name}</span>
       </div>
     `;
 
-    row.addEventListener('click', () => {
-      sidebarState.selectSession(contact.id, null);
+    header.addEventListener('click', () => {
+      sidebarState.toggleProjectCollapsed(contact.workspace);
     });
 
-    container.appendChild(row);
+    card.appendChild(header);
+
+    if (contact.conversations.length > 0) {
+      const convList = document.createElement('div');
+      convList.className = 'project-conversations';
+
+      contact.conversations.forEach((conv) => {
+        const item = document.createElement('div');
+        const isActive = sidebarState.getActiveSessionId() === conv.id;
+        item.className = `session-item ${isActive ? 'active' : ''}`;
+        item.innerHTML = `
+          <div class="session-item-left">
+            <span class="session-title-text" title="${conv.title}">${conv.title}</span>
+          </div>
+          <button class="item-more-btn" title="Options">
+            <span class="ui-icon icon-sidebar-more-vertical"></span>
+          </button>
+        `;
+
+        item.addEventListener('click', () => {
+          sidebarState.selectSession(conv.id, contact.workspace);
+        });
+
+        const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
+        moreBtn?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showConversationContextMenu(e, conv, contact.workspace);
+        });
+
+        convList.appendChild(item);
+      });
+
+      card.appendChild(convList);
+    }
+
+    container.appendChild(card);
   });
 }
 

@@ -75,6 +75,13 @@ pub fn run() {
                     let _ = main_window.set_focus();
                 }
             }
+
+            // 3. Initialize background filesystem sessions watcher
+            shared::watcher::init_sessions_watcher(app.handle().clone());
+
+            // 4. Auto-start WhatsApp and Telegram background services if configured
+            shared::channels_manager::auto_start_channels_on_launch();
+
             Ok(())
         })
         .on_window_event(|window, event| {

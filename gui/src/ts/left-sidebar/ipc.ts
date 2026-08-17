@@ -1,7 +1,7 @@
 // Left Sidebar IPC callers
 
 import { invokeIpc } from '../shared/ipc.js';
-import type { ChannelContact, SidebarData } from './types.js';
+import type { SidebarData, SidebarProject } from './types.js';
 
 export async function querySidebarData(searchQuery = ''): Promise<SidebarData> {
   const res = await invokeIpc<SidebarData>('query_sidebar_data', { searchQuery });
@@ -45,12 +45,12 @@ export async function moveSessionIpc(sessionId: string, targetWorkspace: string)
   await invokeIpc('move_session', { sessionId, targetWorkspace });
 }
 
-export async function queryWhatsAppContactsIpc(): Promise<ChannelContact[]> {
-  const res = await invokeIpc<ChannelContact[]>('query_whatsapp_contacts');
+export async function queryWhatsAppContactsIpc(): Promise<SidebarProject[]> {
+  const res = await invokeIpc<SidebarProject[]>('query_whatsapp_contacts');
   return res || [];
 }
 
-export async function queryTelegramContactsIpc(): Promise<ChannelContact[]> {
-  const res = await invokeIpc<ChannelContact[]>('query_telegram_contacts');
+export async function queryTelegramContactsIpc(): Promise<SidebarProject[]> {
+  const res = await invokeIpc<SidebarProject[]>('query_telegram_contacts');
   return res || [];
 }

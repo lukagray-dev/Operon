@@ -13,6 +13,8 @@ class InputStateManager {
   private selectedReasoning: ReasoningLevel = 'Medium';
   private isVoiceRecording = false;
   private isResponding = false;
+  private isReadOnly = false;
+  private readOnlyReason = '';
   private contextUsage: ContextUsage = {
     tokens_used: 0,
     tokens_total: 0,
@@ -123,6 +125,22 @@ class InputStateManager {
   public setIsResponding(responding: boolean): void {
     if (this.isResponding !== responding) {
       this.isResponding = responding;
+      this.notify();
+    }
+  }
+
+  public getIsReadOnly(): boolean {
+    return this.isReadOnly;
+  }
+
+  public getReadOnlyReason(): string {
+    return this.readOnlyReason;
+  }
+
+  public setReadOnly(readOnly: boolean, reason = ''): void {
+    if (this.isReadOnly !== readOnly || this.readOnlyReason !== reason) {
+      this.isReadOnly = readOnly;
+      this.readOnlyReason = reason;
       this.notify();
     }
   }

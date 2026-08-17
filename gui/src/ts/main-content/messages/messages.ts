@@ -11,6 +11,7 @@ import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { getGeneralSettingsIpc } from '../../settings/general/ipc.js';
 import type { GeneralSettings } from '../../settings/general/types.js';
+import { listenIpcEvent } from '../../shared/ipc.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
 import { inputState } from '../input/state.js';
 import {
@@ -106,6 +107,18 @@ function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number
   }
 }
 
+function isChannelSession(sessionId: string | null): boolean {
+  if (!sessionId) return false;
+  if (sessionId.startsWith('wa-') || sessionId.startsWith('tg-')) return true;
+  const isWa = sidebarState
+    .getWhatsAppContacts()
+    .some((c) => c.conversations.some((s) => s.id === sessionId));
+  const isTg = sidebarState
+    .getTelegramContacts()
+    .some((c) => c.conversations.some((s) => s.id === sessionId));
+  return isWa || isTg;
+}
+
 export function initMessages(): void {
   // Attach scroll tracking to protect user scrolling position
   setupScrollListener();
@@ -114,6 +127,9 @@ export function initMessages(): void {
   // 1. Listen for session selection changes in the sidebar
   sidebarState.subscribe(async () => {
     const activeSessionId = sidebarState.getActiveSessionId();
+    const isChannel = isChannelSession(activeSessionId);
+    inputState.setReadOnly(isChannel, isChannel ? 'Channel conversation (read-only in GUI)' : '');
+
     if (activeSessionId === previousActiveSessionId) {
       return; // Active session didn't change: preserve existing live DOM and scroll position
     }
@@ -239,9 +255,28 @@ export function initMessages(): void {
     inputState.setIsResponding(false);
   });
 
+  // 10. Listen to notify filesystem watcher for real-time external session updates (WhatsApp/Telegram/CLI)
+  listenIpcEvent<string[]>('sessions-changed', async (changedIds) => {
+    const activeSessionId = sidebarState.getActiveSessionId();
+    if (!activeSessionId) return;
+
+    // CRITICAL: NEVER reload while prompt execution is generating in the GUI to prevent flickering!
+    const isResponding = inputState.getIsResponding() || messagesState.getStreamingMessageId() !== null;
+    if (isResponding) {
+      return;
+    }
+
+    const ids = changedIds || [];
+    if (ids.length === 0 || ids.includes(activeSessionId)) {
+      await refreshMessages(activeSessionId);
+    }
+  });
+
   // Initial check
   const initialSessionId = sidebarState.getActiveSessionId();
   if (initialSessionId) {
+    const isChannel = isChannelSession(initialSessionId);
+    inputState.setReadOnly(isChannel, isChannel ? 'Channel conversation (read-only in GUI)' : '');
     refreshMessages(initialSessionId);
   } else {
     setEmptyStateVisible(true);
