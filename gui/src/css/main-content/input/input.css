@@ -270,14 +270,35 @@
 .btn-voice {
   width: 28px;
   padding: 0;
+  position: relative;
+  transition: all 0.15s ease;
 }
 
 .btn-voice.recording {
-  background-color: var(--danger-red-surface-hover);
+  background-color: rgba(239, 68, 68, 0.18);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  animation: voice-recording-pulse 1.8s ease-in-out infinite;
+}
+
+.btn-voice.recording:hover {
+  background-color: rgba(239, 68, 68, 0.28);
 }
 
 .btn-voice.recording .ui-icon {
-  background-color: var(--danger-red);
+  background-color: #ef4444;
+}
+
+@keyframes voice-recording-pulse {
+  0% {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.25);
+  }
 }
 
 /* Send / Stop Action Button */

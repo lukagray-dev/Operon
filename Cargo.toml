@@ -61,9 +61,6 @@ members = [
     # Events bus — pure types, no async
     "operon-rs/src/operon-events",
 
-    # Markdown rendering crate
-   # "operon-rs/src/operon-markdown",
-
     # Providers — Provider enum, ApiCredentials, ModelConfig, ProviderConfig (root crate, zero operon-* deps)
     "operon-rs/src/operon-providers",
 
@@ -88,9 +85,6 @@ members = [
     "operon-rs/src/operon-channels",
     "operon-rs/src/operon-channels/src/whatsapp",
     "operon-rs/src/operon-channels/src/telegram",
-
-    # Voice — local speech-to-text via whisper.cpp
-    "operon-rs/src/operon-voice",
 ]
 
 [workspace.dependencies]
@@ -227,7 +221,6 @@ operon-diff      = { path = "operon-rs/src/operon-diff" }
 operon-channels  = { path = "operon-rs/src/operon-channels" }
 operon-channels-whatsapp = { path = "operon-rs/src/operon-channels/src/whatsapp" }
 operon-channels-telegram = { path = "operon-rs/src/operon-channels/src/telegram" }
-operon-voice     = { path = "operon-rs/src/operon-voice" }
 
 [workspace.package]
 version    = "0.1.0"

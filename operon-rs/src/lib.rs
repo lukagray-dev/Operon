@@ -9,7 +9,6 @@
 pub use operon_config as config;
 pub use operon_context as context;
 pub use operon_events as events;
-// pub use operon_markdown as markdown;
 pub use operon_policy as policy;
 pub use operon_providers as providers;
 pub use operon_session as session;
@@ -18,7 +17,6 @@ pub use operon_diff as diff;
 pub use operon_tools as tools;
 pub use operon_tools_core as tools_core;
 pub use operon_channels as channels;
-pub use operon_voice as voice;
 
 pub use config::{
     add_allowed_directory, get_allowed_directories_list, get_permission_rows, load,
@@ -49,7 +47,6 @@ pub use tools_core::{
     ReadLedger, TieredToolDefinition, TodoItem, TodoPriority, TodoStatus, TodoStore,
     ToolDispatchError,
 };
-pub use voice::{VoiceEngine, VoiceEvent, VoiceState};
 
 pub mod prelude {
     pub use crate::{
@@ -65,6 +62,6 @@ pub mod prelude {
         TieredToolDefinition, TodoItem, TodoPriority, TodoStatus, TodoStore, TokenBudget,
         TokenEstimator, TokenRecorder, TokenTrackerError, ToolCall, ToolCallId, ToolContent,
         ToolDefinition, ToolDispatchError, ToolProgress, ToolProgressEmitter, ToolProgressStage,
-        ToolResult, UsageRecord, VoiceEngine, VoiceEvent, VoiceState,
+        ToolResult, UsageRecord,
     };
 }

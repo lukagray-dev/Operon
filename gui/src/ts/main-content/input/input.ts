@@ -13,6 +13,7 @@ import {
 } from './ipc.js';
 import { inputState } from './state.js';
 import type { ReasoningLevel } from './types.js';
+import { stopVoiceRecording, toggleVoiceRecording } from './voice.js';
 
 let activePopover: HTMLElement | null = null;
 
@@ -216,10 +217,9 @@ function toggleReasoningPopover(trigger: HTMLElement): void {
 
 function setupVoiceButton(): void {
   const btn = document.getElementById('btn-voice-input');
-  btn?.addEventListener('click', () => {
-    const current = inputState.getIsVoiceRecording();
-    inputState.setIsVoiceRecording(!current);
-    console.debug('[Input] Voice toggled:', !current);
+  btn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleVoiceRecording();
   });
 }
 
@@ -240,6 +240,11 @@ function setupOutsideClickListener(): void {
 }
 
 async function handleSubmit(): Promise<void> {
+  // If voice recording is actively running, gracefully finish it upon prompt submission
+  if (inputState.getIsVoiceRecording()) {
+    stopVoiceRecording();
+  }
+
   const text = inputState.getInputText().trim();
   const attachments = [...inputState.getPendingAttachments()];
 
