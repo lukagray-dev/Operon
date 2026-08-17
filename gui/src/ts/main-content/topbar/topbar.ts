@@ -4,6 +4,7 @@ import { renameSessionIpc } from '../../left-sidebar/ipc.js';
 import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { rightSidebarState } from '../../right-sidebar/state.js';
+import { refreshTodoPanel } from '../../right-sidebar/todo-panel/todo-panel.js';
 import { showPromptDialog } from '../../shared/dialog.js';
 import { getTopbarInfoIpc } from './ipc.js';
 import { topbarState } from './state.js';
@@ -39,6 +40,10 @@ export async function refreshTopbar(): Promise<void> {
 
   topbarState.setTitle(data.title);
   topbarState.setProjectContext(data.is_project, data.project_name || null);
+  topbarState.setTodoCounts(
+    data.unfinished_todo_count || 0,
+    data.total_todo_count || 0
+  );
 
   if (data.git_stats) {
     topbarState.setGitStats(data.git_stats);
@@ -53,6 +58,12 @@ export async function refreshTopbar(): Promise<void> {
 }
 
 function setupButtons(): void {
+  // Todo button (opens/switches to session tasks panel)
+  document.getElementById('btn-topbar-todo')?.addEventListener('click', async () => {
+    rightSidebarState.openPanel('todos');
+    await refreshTodoPanel();
+  });
+
   // Terminal button
   document.getElementById('btn-topbar-terminal')?.addEventListener('click', () => {
     const isOpen = topbarState.toggleTerminal();
@@ -107,7 +118,30 @@ function renderTopbar(): void {
     }
   }
 
-  // 3. Git stats badges
+  // 3. Todo topbar button (Visible whenever session has any tasks present)
+  const todoBtn = document.getElementById('btn-topbar-todo');
+  const totalCount = topbarState.getTotalTodoCount();
+  const unfinishedCount = topbarState.getUnfinishedTodoCount();
+
+  if (todoBtn) {
+    if (totalCount > 0) {
+      todoBtn.style.display = 'flex';
+      if (unfinishedCount > 0) {
+        todoBtn.title = `Session Tasks (${unfinishedCount} pending, ${totalCount} total)`;
+      } else {
+        todoBtn.title = `Session Tasks (All ${totalCount} completed)`;
+      }
+    } else {
+      todoBtn.style.display = 'none';
+    }
+
+    const isTodosOpen =
+      rightSidebarState.getIsOpen() &&
+      rightSidebarState.getActivePanel() === 'todos';
+    todoBtn.classList.toggle('active', isTodosOpen);
+  }
+
+  // 4. Git stats badges and toggle button
   const gitStatsWrapper = document.getElementById('topbar-git-stats');
   const insertionsEl = document.getElementById('git-stat-insertions');
   const deletionsEl = document.getElementById('git-stat-deletions');
@@ -133,10 +167,13 @@ function renderTopbar(): void {
       deletionsEl.style.display = 'none';
     }
 
-    gitBtn.classList.toggle('active', rightSidebarState.getIsOpen());
+    const isGitOpen =
+      rightSidebarState.getIsOpen() &&
+      rightSidebarState.getActivePanel() === 'git';
+    gitBtn.classList.toggle('active', isGitOpen);
   }
 
-  // 4. Terminal button active state
+  // 5. Terminal button active state
   const terminalBtn = document.getElementById('btn-topbar-terminal');
   terminalBtn?.classList.toggle('active', topbarState.getIsTerminalOpen());
 }

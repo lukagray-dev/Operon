@@ -258,7 +258,7 @@ impl SessionRunner {
             let assistant_message = build_assistant_message(&stream_result);
             self.messages.push(assistant_message);
 
-            // ── 8. Persist turn ──────────────────────────────────────────────
+            // ── 8. Persist turn and todos ───────────────────────────────────
             if let Some(store) = &self.store {
                 let turn_messages = &self.messages[turn_start_len..];
                 store
@@ -268,6 +268,13 @@ impl SessionRunner {
                         turn_messages,
                         Some(self.token_state.current_context_tokens),
                     )
+                    .await?;
+
+                // Hey friend! We also persist the current session's todo list to disk.
+                // This ensures any todo items created or updated during this turn are
+                // permanently saved in the session JSON file so they survive across turns.
+                store
+                    .save_todos(&self.session_id, &self.dispatcher.todo_store().list())
                     .await?;
             }
 
@@ -326,6 +333,13 @@ impl SessionRunner {
                         break;
                     }
                 }
+            }
+
+            // Hey friend! If any tool calls ran, immediately sync the latest todo state to disk.
+            if let Some(store) = &self.store {
+                let _ = store
+                    .save_todos(&self.session_id, &self.dispatcher.todo_store().list())
+                    .await;
             }
 
             // Push all tool results as a single Tool-role message.

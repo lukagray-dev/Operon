@@ -170,6 +170,11 @@ pub fn run() {
             right_sidebar::git_create_branch,
             right_sidebar::git_switch_branch,
             right_sidebar::git_delete_branch,
+            // Right Sidebar Session Tasks actions
+            right_sidebar::get_session_todos,
+            right_sidebar::update_session_todo_status,
+            right_sidebar::delete_session_todo,
+            right_sidebar::create_session_todo,
             // Settings Window actions
             settings::open_settings_window,
             settings::close_settings_window,

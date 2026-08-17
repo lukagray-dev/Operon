@@ -51,7 +51,7 @@ impl Default for TodoStatus {
 /// Represents one task in the agent's session-scoped task list.
 /// Items are created with auto-assigned numeric IDs (as strings: "1", "2", "3", ...).
 /// Status and priority can be updated as work progresses.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TodoItem {
     /// Unique identifier. Auto-assigned by `TodoStore` on creation.
     /// Format: simple incrementing integer as string: "1", "2", "3", ...

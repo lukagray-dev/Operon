@@ -36,6 +36,7 @@ import {
   gitUnstageFileIpc,
 } from './ipc.js';
 import { rightSidebarState } from './state.js';
+import { refreshTodoPanel, renderTodoPanel } from './todo-panel/todo-panel.js';
 import type { ContextMenuItem, GitFileDiff, GitRepositoryInfo } from './types.js';
 
 // ----------------------------------------------------------------------------
@@ -65,7 +66,7 @@ export function initRightSidebar(): void {
   const topbarBtn = document.getElementById('btn-topbar-git-commit');
   if (topbarBtn) {
     topbarBtn.addEventListener('click', () => {
-      rightSidebarState.toggleOpen();
+      rightSidebarState.openPanel('git');
     });
   }
 
@@ -73,7 +74,7 @@ export function initRightSidebar(): void {
   const menuItemToggle = document.getElementById('menu-item-toggle-git-diff');
   if (menuItemToggle) {
     menuItemToggle.addEventListener('click', () => {
-      rightSidebarState.toggleOpen();
+      rightSidebarState.openPanel('git');
     });
   }
 
@@ -81,7 +82,7 @@ export function initRightSidebar(): void {
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
       e.preventDefault();
-      rightSidebarState.toggleOpen();
+      rightSidebarState.openPanel('git');
     }
   });
 
@@ -90,14 +91,16 @@ export function initRightSidebar(): void {
     renderRightSidebar();
   });
 
-  // 5. When the user switches projects in the left sidebar, reset active repo and refresh
+  // 5. When the user switches projects/sessions in the left sidebar, reset active repo and refresh
   sidebarState.subscribe(() => {
     rightSidebarState.setActiveRepoPath(null);
     refreshRightSidebar();
+    refreshTodoPanel();
   });
 
   // 6. Initial data fetch on application startup
   refreshRightSidebar();
+  refreshTodoPanel();
 }
 
 /**
@@ -178,6 +181,12 @@ export function renderRightSidebar(): void {
   aside.style.width = `${width}px`;
   aside.classList.add('open');
   aside.innerHTML = '';
+
+  // If the active panel is the Todo Panel, delegate entirely to renderTodoPanel
+  if (rightSidebarState.getActivePanel() === 'todos') {
+    renderTodoPanel(aside);
+    return;
+  }
 
   // 1. Left drag resize handle (overall panel width)
   const resizeHandle = createSidebarResizeHandle();

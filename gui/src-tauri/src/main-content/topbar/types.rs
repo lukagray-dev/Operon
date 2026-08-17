@@ -16,4 +16,6 @@ pub struct TopbarDataDto {
     pub is_project: bool,
     pub project_name: Option<String>,
     pub git_stats: Option<GitDiffStatsDto>,
+    pub unfinished_todo_count: usize,
+    pub total_todo_count: usize,
 }

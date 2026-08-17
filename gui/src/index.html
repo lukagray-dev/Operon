@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="assets/xterm/xterm.css" />
   <link rel="stylesheet" href="css/main-content/terminal/terminal.css" />
   <link rel="stylesheet" href="css/right-sidebar/right-sidebar.css" />
+  <link rel="stylesheet" href="css/right-sidebar/todo-panel.css" />
 </head>
 
 <body>
@@ -256,8 +257,12 @@
             <span id="topbar-project-badge" class="topbar-project-badge"></span>
           </div>
 
-          <!-- Right: Terminal & Git Commit Buttons -->
+          <!-- Right: Todos, Terminal & Git Commit Buttons -->
           <div class="topbar-right-section">
+            <button id="btn-topbar-todo" class="topbar-btn" title="Session Tasks" style="display: none;">
+              <span class="ui-icon icon-topbar-todo"></span>
+              <span id="topbar-todo-count-badge" class="todo-count-badge" style="display: none;">0</span>
+            </button>
             <button id="btn-topbar-terminal" class="topbar-btn" title="Toggle Terminal (Ctrl+`)">
               <span class="ui-icon icon-topbar-terminal"></span>
             </button>

@@ -1028,11 +1028,28 @@ impl Dispatcher {
         self.loaded_groups.insert(group.to_string());
     }
 
+    /// Returns an immutable reference to the todo store.
+    ///
+    /// Hey friend! This allows the session runner to snapshot current todos and
+    /// persist them into SessionStore (~/.operon/sessions/<id>.json).
+    pub fn todo_store(&self) -> &operon_tools_core::TodoStore {
+        &self.todo_store
+    }
+
     /// Returns a mutable reference to the todo store.
     ///
     /// Used by todo tool execute functions which receive the store as a parameter.
     pub fn todo_store_mut(&mut self) -> &mut operon_tools_core::TodoStore {
         &mut self.todo_store
+    }
+
+    /// Restores or populates the todo store from a list of previously saved `TodoItem` items.
+    ///
+    /// Hey buddy! When resuming an existing session, we load the saved items from disk
+    /// and feed them into the dispatcher here so that `todo_list`, `todo_update`, etc.
+    /// have access to all items created in prior turns.
+    pub fn load_todos(&mut self, items: Vec<operon_tools_core::TodoItem>) {
+        self.todo_store = operon_tools_core::TodoStore::from_items(items);
     }
 
     /// Returns an optional reference to the memory store.

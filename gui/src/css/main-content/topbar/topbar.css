@@ -121,7 +121,11 @@
   color: #f14c4c;
 }
 
-/* Mask Icon Definitions for Topbar */
+.icon-topbar-todo {
+  -webkit-mask-image: url('../../../assets/icons/main-content/topbar/todo.svg');
+  mask-image: url('../../../assets/icons/main-content/topbar/todo.svg');
+}
+
 .icon-topbar-terminal {
   -webkit-mask-image: url('../../../assets/icons/main-content/topbar/terminal.svg');
   mask-image: url('../../../assets/icons/main-content/topbar/terminal.svg');

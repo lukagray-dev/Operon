@@ -7,14 +7,19 @@
 //! The store is not designed for concurrent access — all methods take `&mut self`.
 //! It is owned by the Dispatcher and accessed only during tool dispatch.
 
+use serde::{Deserialize, Serialize};
+
 use crate::todo::{TodoItem, TodoPriority, TodoStatus};
 
 /// In-memory store for the agent's todo list.
 ///
-/// Manages a list of TodoItem objects with auto-incrementing IDs.
-/// All methods take `&mut self` — not designed for concurrent access.
-/// The store is owned by the Dispatcher and accessed during tool dispatch.
-#[derive(Debug, Default)]
+/// Manages a list of `TodoItem` objects with auto-incrementing numeric IDs ("1", "2", ...).
+/// Methods taking `&mut self` mutate the internal list.
+///
+/// # Session Persistence
+/// The store can be serialized/deserialized to JSON, allowing `SessionStore`
+/// to preserve tasks across multiple conversation turns in the same session.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TodoStore {
     /// The list of todo items in insertion order.
     items: Vec<TodoItem>,
@@ -23,7 +28,7 @@ pub struct TodoStore {
 }
 
 impl TodoStore {
-    /// Creates an empty store.
+    /// Creates an empty store with `next_id` starting at 0.
     ///
     /// # Example
     /// ```ignore
@@ -32,6 +37,49 @@ impl TodoStore {
     /// ```
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Reconstructs a `TodoStore` from an existing list of `TodoItem` items.
+    ///
+    /// Hey friend! When resuming a previous session, we load the saved items from disk.
+    /// This constructor calculates the highest existing numeric ID so any new tasks created
+    /// afterwards get a unique, higher ID (e.g. if we load items "1" and "2", the next created
+    /// task will automatically receive ID "3"!).
+    ///
+    /// # Arguments
+    /// - `items`: The vector of saved `TodoItem` items to initialize the store with.
+    pub fn from_items(items: Vec<TodoItem>) -> Self {
+        // Hey buddy! We look at all existing item IDs, parse them as integers,
+        // and find the maximum one. If there are no items or IDs aren't numeric, we default to 0.
+        let max_id = items
+            .iter()
+            .filter_map(|item| item.id.parse::<u64>().ok())
+            .max()
+            .unwrap_or(0);
+
+        Self {
+            items,
+            next_id: max_id,
+        }
+    }
+
+    /// Replaces the current items in the store and recalculates `next_id`.
+    ///
+    /// Useful when restoring or syncing session todos from persistent storage.
+    pub fn set_items(&mut self, items: Vec<TodoItem>) {
+        let max_id = items
+            .iter()
+            .filter_map(|item| item.id.parse::<u64>().ok())
+            .max()
+            .unwrap_or(0);
+
+        self.items = items;
+        self.next_id = max_id;
+    }
+
+    /// Returns a borrowed slice of all todo items in insertion order.
+    pub fn items(&self) -> &[TodoItem] {
+        &self.items
     }
 
     /// Creates a new todo item and appends it to the list.
@@ -199,6 +247,67 @@ mod tests {
     }
 
     #[test]
+    fn test_from_items_and_id_continuation() {
+        // Hey friend! Let's test that from_items properly calculates next_id from loaded tasks.
+        let items = vec![
+            TodoItem {
+                id: "1".to_string(),
+                content: "First task".to_string(),
+                status: TodoStatus::Completed,
+                priority: TodoPriority::High,
+            },
+            TodoItem {
+                id: "5".to_string(),
+                content: "Fifth task".to_string(),
+                status: TodoStatus::Pending,
+                priority: TodoPriority::Medium,
+            },
+        ];
+
+        let mut store = TodoStore::from_items(items);
+        assert_eq!(store.len(), 2);
+        assert_eq!(store.items().len(), 2);
+
+        // When creating a new task, its ID should continue right after the highest existing ID (5 -> 6)!
+        let new_item = store.create("Sixth task".to_string(), None);
+        assert_eq!(new_item.id, "6");
+        assert_eq!(store.len(), 3);
+    }
+
+    #[test]
+    fn test_set_items_updates_state() {
+        let mut store = TodoStore::new();
+        store.create("Initial".to_string(), None);
+
+        let new_items = vec![TodoItem {
+            id: "10".to_string(),
+            content: "Restored item".to_string(),
+            status: TodoStatus::InProgress,
+            priority: TodoPriority::Low,
+        }];
+
+        store.set_items(new_items);
+        assert_eq!(store.len(), 1);
+        assert_eq!(store.items()[0].content, "Restored item");
+
+        let next = store.create("Next item".to_string(), None);
+        assert_eq!(next.id, "11");
+    }
+
+    #[test]
+    fn test_json_serialization_roundtrip() {
+        // Test that TodoStore can be serialized to JSON and deserialized back identically.
+        let mut original = TodoStore::new();
+        original.create("Task A".to_string(), Some(TodoPriority::High));
+        original.create("Task B".to_string(), Some(TodoPriority::Low));
+
+        let json = serde_json::to_string(&original).expect("Serialization failed");
+        let restored: TodoStore = serde_json::from_str(&json).expect("Deserialization failed");
+
+        assert_eq!(original, restored);
+    }
+
+    #[test]
     fn test_create_defaults() {
         let mut store = TodoStore::new();
         let item = store.create("Task".to_string(), None);
@@ -291,3 +400,4 @@ mod tests {
         assert_eq!(items[0].id, item2.id);
     }
 }
+

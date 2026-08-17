@@ -209,6 +209,16 @@ impl SessionRunner {
         let mut dispatcher = Dispatcher::new();
         dispatcher.register_load_tool();
 
+        // If an existing session store is present, load saved todos into the dispatcher.
+        // Hey friend! This restores any todos created in prior turns so the agent can see them immediately!
+        if let Some(s) = &store {
+            if let Ok(saved_todos) = s.load_todos(&session_id).await {
+                if !saved_todos.is_empty() {
+                    dispatcher.load_todos(saved_todos);
+                }
+            }
+        }
+
         // Register tool groups based on the session configuration.
         for group in &config.tool_groups {
             match group.as_str() {

@@ -12,4 +12,6 @@ export interface TopbarData {
   is_project: boolean;
   project_name?: string;
   git_stats?: GitDiffStats;
+  unfinished_todo_count?: number;
+  total_todo_count?: number;
 }

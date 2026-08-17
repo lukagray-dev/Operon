@@ -438,3 +438,101 @@ fn test_build_user_message_mixed_turn() {
         other => panic!("expected Text block second, got {:?}", other),
     }
 }
+
+#[tokio::test]
+async fn test_session_runner_restores_persisted_todos() {
+    // Hey friend! Let's test that when a SessionRunner is created for an existing session
+    // with saved todos, it correctly loads those todos into the dispatcher so the model
+    // can access them across multiple turns in the session.
+    use operon_providers::credentials::ApiCredentials;
+    use operon_providers::model::ModelConfig;
+    use operon_providers::{Provider, ProviderConfig};
+    use operon_tools::{TodoItem, TodoPriority, TodoStatus};
+
+    let temp_dir = std::env::temp_dir();
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let session_file = temp_dir.join(format!("test-runner-todos-{}.json", ts));
+
+    // 1. Prepare SessionStore on disk with saved todos
+    let store = SessionStore::open(&session_file)
+        .await
+        .expect("open store");
+
+    store
+        .create_session(
+            "session-runner-todos",
+            &temp_dir.to_string_lossy(),
+            "test-model",
+            "Anthropic",
+        )
+        .await
+        .expect("create_session");
+
+    let saved_todos = vec![
+        TodoItem {
+            id: "1".to_string(),
+            content: "First persistent task".to_string(),
+            status: TodoStatus::Pending,
+            priority: TodoPriority::High,
+        },
+        TodoItem {
+            id: "2".to_string(),
+            content: "Second persistent task".to_string(),
+            status: TodoStatus::InProgress,
+            priority: TodoPriority::Medium,
+        },
+    ];
+
+    store
+        .save_todos("session-runner-todos", &saved_todos)
+        .await
+        .expect("save_todos");
+
+    // 2. Build SessionConfig targeting this store
+    let config = SessionConfig {
+        provider_config: ProviderConfig {
+            provider: Provider::Anthropic,
+            credentials: ApiCredentials::unauthenticated(),
+            model: ModelConfig {
+                model_id: "test-model".to_string(),
+                context_window: 100_000,
+                max_tokens: 1000,
+            },
+            base_url_override: None,
+        },
+        policy: PolicyConfig::empty(),
+        project_dir: None,
+        workspace_root: temp_dir.clone(),
+        role: Role::Owner,
+        tool_groups: vec!["todo".to_string()],
+        compaction: operon_context::CompactionConfig::default(),
+        store_path: Some(session_file.clone()),
+        channel_instructions: None,
+    };
+
+    let (event_tx, _event_rx) = mpsc::channel(10);
+    let (_cmd_tx, cmd_rx) = mpsc::channel(10);
+
+    let runner = SessionRunner::new(config, event_tx, cmd_rx)
+        .await
+        .expect("SessionRunner::new should succeed");
+
+    // 3. Verify that the dispatcher has loaded the persisted todos!
+    let todos = runner.dispatcher.todo_store().list();
+    assert_eq!(todos.len(), 2, "Dispatcher must have 2 restored todos");
+    assert_eq!(todos[0].id, "1");
+    assert_eq!(todos[0].content, "First persistent task");
+    assert_eq!(todos[0].status, TodoStatus::Pending);
+    assert_eq!(todos[0].priority, TodoPriority::High);
+    assert_eq!(todos[1].id, "2");
+    assert_eq!(todos[1].content, "Second persistent task");
+    assert_eq!(todos[1].status, TodoStatus::InProgress);
+
+    // Clean up temporary file
+    let _ = std::fs::remove_file(session_file);
+}
+
+

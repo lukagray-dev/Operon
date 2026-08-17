@@ -18,6 +18,7 @@
 use std::path::{Path, PathBuf};
 
 use operon_context::ConversationMessage;
+use operon_tools::TodoItem;
 use serde::{Deserialize, Serialize};
 
 use crate::error::SessionError;
@@ -43,6 +44,10 @@ pub struct SessionJson {
     pub provider: String,
     /// Ordered list of all conversation turns.
     pub turns: Vec<TurnJson>,
+    /// Session-scoped todo items created and managed during this session.
+    /// Defaulted to empty vector for backward compatibility with older session files.
+    #[serde(default)]
+    pub todos: Vec<TodoItem>,
 }
 
 /// A single interaction turn containing the conversation messages list
@@ -121,7 +126,7 @@ impl SessionStore {
     ) -> Result<(), SessionError> {
         let created_at = unix_timestamp_secs() as i64;
 
-        // Build the session structure with empty turns list initially.
+        // Build the session structure with empty turns and todos lists initially.
         let session = SessionJson {
             id: session_id.to_string(),
             created_at,
@@ -129,6 +134,7 @@ impl SessionStore {
             model_id: model_id.to_string(),
             provider: provider.to_string(),
             turns: Vec::new(),
+            todos: Vec::new(),
         };
 
         // Convert it to a pretty JSON string. Pretty formatting is great for debugging!
@@ -171,6 +177,7 @@ impl SessionStore {
                 model_id: String::new(),
                 provider: String::new(),
                 turns: Vec::new(),
+                todos: Vec::new(),
             }
         };
 
@@ -204,10 +211,74 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Save the current list of session todos to the session JSON file.
+    ///
+    /// Hey friend! Whenever the model creates, updates, or deletes todo items,
+    /// this method ensures the latest task list is immediately serialized to disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read/write or JSON serialization failure.
+    pub async fn save_todos(
+        &self,
+        session_id: &str,
+        todos: &[TodoItem],
+    ) -> Result<(), SessionError> {
+        let mut session = if self.path.exists() {
+            let file_content = std::fs::read_to_string(&self.path)
+                .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+            serde_json::from_str::<SessionJson>(&file_content)
+                .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?
+        } else {
+            SessionJson {
+                id: session_id.to_string(),
+                created_at: unix_timestamp_secs() as i64,
+                workspace: String::new(),
+                model_id: String::new(),
+                provider: String::new(),
+                turns: Vec::new(),
+                todos: Vec::new(),
+            }
+        };
+
+        session.todos = todos.to_vec();
+
+        let json_str = serde_json::to_string_pretty(&session)
+            .map_err(|e| SessionError::Store(format!("Failed to serialize session: {e}")))?;
+        std::fs::write(&self.path, json_str)
+            .map_err(|e| SessionError::Store(format!("Failed to write session file: {e}")))?;
+
+        Ok(())
+    }
+
+    /// Load all todo items associated with this session.
+    ///
+    /// Returns an empty vector if the session file does not exist or has no todos.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
+    pub async fn load_todos(
+        &self,
+        _session_id: &str,
+    ) -> Result<Vec<TodoItem>, SessionError> {
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        Ok(session.todos)
+    }
+
     /// Truncate all saved turns with turn_index >= keep_turns_count for a session.
     ///
     /// This removes all saved turns starting from `keep_turns_count` onwards,
     /// enabling editing a previous user turn and continuing the conversation from there.
+    /// Note: session todos are preserved during truncation!
     ///
     /// # Errors
     ///
@@ -407,6 +478,7 @@ fn unix_timestamp_secs() -> u64 {
 mod tests {
     use super::*;
     use operon_context::{ContentBlock, ConversationMessage};
+    use operon_tools::{TodoPriority, TodoStatus};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     // Hey buddy! Since unit tests in Rust run concurrently on multiple threads,
@@ -457,6 +529,81 @@ mod tests {
         assert_eq!(sessions[0].provider, "Anthropic");
 
         // Clean up our temporary file!
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn save_and_load_todos() {
+        // Hey friend! Let's test saving and loading todo items for a session.
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
+
+        store
+            .create_session("session-todos", "/ws", "model", "provider")
+            .await
+            .expect("create_session");
+
+        let initial_todos = store.load_todos("session-todos").await.expect("load_todos");
+        assert!(initial_todos.is_empty(), "Initial todos should be empty");
+
+        let todos = vec![
+            TodoItem {
+                id: "1".to_string(),
+                content: "Implement feature X".to_string(),
+                status: TodoStatus::Pending,
+                priority: TodoPriority::High,
+            },
+            TodoItem {
+                id: "2".to_string(),
+                content: "Write unit tests".to_string(),
+                status: TodoStatus::InProgress,
+                priority: TodoPriority::Medium,
+            },
+        ];
+
+        store
+            .save_todos("session-todos", &todos)
+            .await
+            .expect("save_todos");
+
+        let loaded = store
+            .load_todos("session-todos")
+            .await
+            .expect("load_todos after save");
+
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded[0].id, "1");
+        assert_eq!(loaded[0].content, "Implement feature X");
+        assert_eq!(loaded[0].status, TodoStatus::Pending);
+        assert_eq!(loaded[0].priority, TodoPriority::High);
+        assert_eq!(loaded[1].id, "2");
+        assert_eq!(loaded[1].status, TodoStatus::InProgress);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn backward_compatibility_when_todos_key_is_missing() {
+        // Hey friend! Older JSON files don't have the "todos" field.
+        // Let's verify serde(default) treats missing todos as an empty list without error!
+        let path = temp_store_path().await;
+        let old_json = r#"{
+            "id": "old-session",
+            "created_at": 1700000000,
+            "workspace": "/ws",
+            "model_id": "model",
+            "provider": "provider",
+            "turns": []
+        }"#;
+
+        std::fs::write(&path, old_json).expect("write old json");
+        let store = SessionStore::open(&path).await.expect("open store");
+
+        let loaded = store.load_todos("old-session").await.expect("load_todos");
+        assert!(loaded.is_empty(), "Missing todos key should default to empty vector");
+
         let _ = std::fs::remove_file(path);
     }
 
@@ -601,6 +748,15 @@ mod tests {
         store.save_turn("session-tr", 1, &turn1, None).await.unwrap();
         store.save_turn("session-tr", 2, &turn2, None).await.unwrap();
 
+        // Also save some todos and verify they are preserved!
+        let todos = vec![TodoItem {
+            id: "1".to_string(),
+            content: "Task".to_string(),
+            status: TodoStatus::Pending,
+            priority: TodoPriority::Medium,
+        }];
+        store.save_todos("session-tr", &todos).await.unwrap();
+
         // Truncate turns starting from index 1 (removes turn 1 and turn 2)
         store.truncate_turns("session-tr", 1).await.unwrap();
 
@@ -608,6 +764,11 @@ mod tests {
         assert_eq!(loaded.len(), 1, "Only turn 0 should remain");
         assert_eq!(loaded[0], turn0);
 
+        let loaded_todos = store.load_todos("session-tr").await.unwrap();
+        assert_eq!(loaded_todos.len(), 1, "Todos must be preserved across turn truncation");
+        assert_eq!(loaded_todos[0].content, "Task");
+
         let _ = std::fs::remove_file(path);
     }
 }
+

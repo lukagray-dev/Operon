@@ -12,6 +12,7 @@ import type {
   GitDiffDetails,
   GitGraphCommit,
   GitRepositoryInfo,
+  RightSidebarPanel,
 } from './types.js';
 
 /** Callback listener type triggered on every state update */
@@ -23,6 +24,9 @@ class RightSidebarStateManager {
   // --------------------------------------------------------------------------
   /** Whether the right sidebar is currently open/visible on the screen */
   private isOpen = false;
+
+  /** Active panel mode: 'git' for source control, 'todos' for session tasks */
+  private activePanel: RightSidebarPanel = 'git';
 
   /** Overall pixel width of the right sidebar */
   private width = 340;
@@ -137,6 +141,39 @@ class RightSidebarStateManager {
   public setIsOpen(open: boolean): void {
     if (this.isOpen !== open) {
       this.isOpen = open;
+      this.notify();
+    }
+  }
+
+  /** Gets the active panel mode ('git' | 'todos') */
+  public getActivePanel(): RightSidebarPanel {
+    return this.activePanel;
+  }
+
+  /** Sets active panel mode */
+  public setActivePanel(panel: RightSidebarPanel): void {
+    if (this.activePanel !== panel) {
+      this.activePanel = panel;
+      this.notify();
+    }
+  }
+
+  /**
+   * Intelligently opens or switches to a target panel:
+   * - If sidebar is closed: opens sidebar with target panel.
+   * - If sidebar is open with the same panel: toggles sidebar closed.
+   * - If sidebar is open with a different panel: switches to target panel smoothly.
+   */
+  public openPanel(panel: RightSidebarPanel): void {
+    if (!this.isOpen) {
+      this.activePanel = panel;
+      this.isOpen = true;
+      this.notify();
+    } else if (this.activePanel === panel) {
+      this.isOpen = false;
+      this.notify();
+    } else {
+      this.activePanel = panel;
       this.notify();
     }
   }
@@ -381,7 +418,7 @@ class RightSidebarStateManager {
   }
 
   /** Notifies all registered listeners of a change */
-  private notify(): void {
+  public notify(): void {
     for (const listener of this.listeners) {
       try {
         listener();

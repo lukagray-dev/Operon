@@ -16,7 +16,25 @@ class TopbarStateManager {
   };
   private isTerminalOpen = false;
   private isGitDiffOpen = false;
+  private unfinishedTodoCount = 0;
+  private totalTodoCount = 0;
   private listeners: Set<TopbarChangeListener> = new Set();
+
+  public getUnfinishedTodoCount(): number {
+    return this.unfinishedTodoCount;
+  }
+
+  public getTotalTodoCount(): number {
+    return this.totalTodoCount;
+  }
+
+  public setTodoCounts(unfinished: number, total: number): void {
+    if (this.unfinishedTodoCount !== unfinished || this.totalTodoCount !== total) {
+      this.unfinishedTodoCount = unfinished;
+      this.totalTodoCount = total;
+      this.notify();
+    }
+  }
 
   public getTitle(): string {
     return this.title;

@@ -1,5 +1,7 @@
 // TypeScript interfaces for Source Control & Git Diff Right Sidebar
 
+export type RightSidebarPanel = 'git' | 'todos';
+
 export interface GitDiffLine {
   line_type: string; // "+" for addition, "-" for deletion, " " for context
   content: string;

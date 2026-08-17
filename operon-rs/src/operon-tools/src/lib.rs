@@ -35,7 +35,8 @@ pub mod dispatcher;
 mod tests;
 
 pub use operon_tools_core::{
-    emit_tool_progress, ToolProgress, ToolProgressEmitter, ToolProgressStage,
+    emit_tool_progress, TodoItem, TodoPriority, TodoStatus, TodoStore, ToolProgress,
+    ToolProgressEmitter, ToolProgressStage,
 };
 pub use operon_tools_ask as ask;
 pub use operon_tools_fs as fs;

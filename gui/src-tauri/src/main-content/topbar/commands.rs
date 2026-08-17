@@ -113,6 +113,9 @@ pub async fn get_topbar_info(
 ) -> Result<TopbarDataDto, String> {
     let mut title = "New Session".to_string();
 
+    let mut unfinished_todo_count = 0;
+    let mut total_todo_count = 0;
+
     if let Some(ref sid) = session_id {
         if let Ok(paths) = operon_rs::config::OperonPaths::resolve() {
             let session_file = paths.sessions_dir.join(format!("{}.json", sid));
@@ -122,6 +125,20 @@ pub async fn get_topbar_info(
                         if let Some(t) = val.get("title").and_then(|v| v.as_str()) {
                             if !t.trim().is_empty() {
                                 title = t.to_string();
+                            }
+                        }
+
+                        // Inspect todos array to calculate pending/unfinished tasks
+                        if let Some(todos_arr) = val.get("todos").and_then(|v| v.as_array()) {
+                            total_todo_count = todos_arr.len();
+                            for item in todos_arr {
+                                let status = item
+                                    .get("status")
+                                    .and_then(|s| s.as_str())
+                                    .unwrap_or("pending");
+                                if status != "completed" {
+                                    unfinished_todo_count += 1;
+                                }
                             }
                         }
                     }
@@ -169,5 +186,7 @@ pub async fn get_topbar_info(
         is_project,
         project_name,
         git_stats,
+        unfinished_todo_count,
+        total_todo_count,
     })
 }
