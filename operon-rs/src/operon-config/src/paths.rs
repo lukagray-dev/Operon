@@ -6,8 +6,10 @@
 //   ├── config.toml     ← main config file (created with defaults on first run)
 //   ├── workspace/      ← Direction 1: default agent workspace, always accessible
 //   │   └── AGENTS.md   ← global agent instructions (written by the owner)
-//   └── sessions/       ← session SQLite databases, one per session ID
-//       └── <id>.db
+//   ├── sessions/       ← session SQLite databases, one per session ID
+//   │   └── <id>.db
+//   └── memory/         ← global persistent memory SQLite database
+//       └── memory.db
 //
 // On Windows, ~ resolves to %USERPROFILE% (C:\Users\<username>\).
 // On macOS, ~ is /Users/<username>/.
@@ -61,6 +63,20 @@ pub struct OperonPaths {
     /// Each session creates one file: `~/.operon/sessions/<session_id>.db`.
     /// The session runner is responsible for cleaning up old databases.
     pub sessions_dir: PathBuf,
+
+    /// `~/.operon/memory/` — directory containing the global persistent memory database.
+    ///
+    /// Unlike `sessions_dir` (per-session), the memory directory is shared across ALL
+    /// sessions — memories persist forever until explicitly deleted by the agent.
+    /// The directory is separate from the database file so additional metadata files
+    /// can be placed here in the future without touching sessions/.
+    pub memory_dir: PathBuf,
+
+    /// `~/.operon/memory/memory.db` — the global persistent memory SQLite database.
+    ///
+    /// Created by `MemoryStore::connect_default()` on first use (via `SqliteConnectOptions`
+    /// with `create_if_missing(true)`). Stores agent memories as FTS5-indexed rows.
+    pub memory_db: PathBuf,
 }
 
 impl OperonPaths {
@@ -79,10 +95,18 @@ impl OperonPaths {
         // All Operon state lives in ~/.operon/ — one directory, easy to back up / nuke.
         let config_dir = home.join(".operon");
 
+        // memory/ is a sibling of sessions/ — a stable, session-independent directory
+        // that survives across restarts. The DB file is explicitly named to make it
+        // obvious what it is when browsing the ~/.operon/ tree.
+        let memory_dir = config_dir.join("memory");
+        let memory_db = memory_dir.join("memory.db");
+
         Ok(Self {
             workspace_dir: config_dir.join("workspace"),
             config_file: config_dir.join("config.toml"),
             sessions_dir: config_dir.join("sessions"),
+            memory_dir,
+            memory_db,
             config_dir,
         })
     }
@@ -101,6 +125,9 @@ impl OperonPaths {
         // create_dir_all is a no-op if the directory already exists.
         fs::create_dir_all(&self.workspace_dir)?;
         fs::create_dir_all(&self.sessions_dir)?;
+        // Also ensure the memory directory exists so MemoryStore::connect_default()
+        // never has to create it — consistent with the pattern above.
+        fs::create_dir_all(&self.memory_dir)?;
         Ok(())
     }
 
@@ -145,6 +172,17 @@ mod tests {
         assert!(paths.workspace_dir.ends_with("workspace"));
         assert!(paths.config_file.file_name().unwrap() == "config.toml");
         assert!(paths.sessions_dir.ends_with("sessions"));
+        // Memory paths should be under the new memory/ subdirectory.
+        assert!(paths.memory_dir.ends_with("memory"));
+    }
+
+    #[test]
+    fn test_memory_db_path() {
+        // The memory database file must be named "memory.db" and live inside
+        // the "memory" subdirectory — not directly in ~/.operon/.
+        let paths = OperonPaths::resolve().expect("resolve should succeed in test environment");
+        assert_eq!(paths.memory_db.file_name().unwrap(), "memory.db");
+        assert!(paths.memory_db.parent().unwrap().ends_with("memory"));
     }
 
     #[test]
@@ -170,11 +208,14 @@ mod tests {
         // Calling ensure_dirs_exist() twice must not error.
         // Use a temp dir to avoid touching the real ~/.operon.
         let tmp = tempfile::tempdir().unwrap();
+        let base = tmp.path().join(".operon");
         let fake_paths = OperonPaths {
-            config_dir: tmp.path().join(".operon"),
-            workspace_dir: tmp.path().join(".operon").join("workspace"),
-            config_file: tmp.path().join(".operon").join("config.toml"),
-            sessions_dir: tmp.path().join(".operon").join("sessions"),
+            config_dir: base.clone(),
+            workspace_dir: base.join("workspace"),
+            config_file: base.join("config.toml"),
+            sessions_dir: base.join("sessions"),
+            memory_dir: base.join("memory"),
+            memory_db: base.join("memory").join("memory.db"),
         };
 
         fake_paths
@@ -186,5 +227,6 @@ mod tests {
 
         assert!(fake_paths.workspace_dir.is_dir());
         assert!(fake_paths.sessions_dir.is_dir());
+        assert!(fake_paths.memory_dir.is_dir(), "memory_dir must be created");
     }
 }

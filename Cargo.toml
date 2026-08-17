@@ -52,6 +52,15 @@ members = [
     "operon-rs/src/operon-tools/src/todo/src/todo_update",
     "operon-rs/src/operon-tools/src/todo/src/todo_delete",
 
+    # Memory tools — global persistent SQLite-backed memory subsystem
+    "operon-rs/src/operon-tools/src/memory",
+    "operon-rs/src/operon-tools/src/memory/src/store",
+    "operon-rs/src/operon-tools/src/memory/src/memory_add",
+    "operon-rs/src/operon-tools/src/memory/src/memory_edit",
+    "operon-rs/src/operon-tools/src/memory/src/memory_delete",
+    "operon-rs/src/operon-tools/src/memory/src/memory_retrieve",
+    "operon-rs/src/operon-tools/src/memory/src/memory_search",
+
     # Load tools
     "operon-rs/src/operon-tools/src/load",
 
@@ -187,6 +196,14 @@ operon-tools-todo-create              = { path = "operon-rs/src/operon-tools/src
 operon-tools-todo-list                = { path = "operon-rs/src/operon-tools/src/todo/src/todo_list" }
 operon-tools-todo-update              = { path = "operon-rs/src/operon-tools/src/todo/src/todo_update" }
 operon-tools-todo-delete              = { path = "operon-rs/src/operon-tools/src/todo/src/todo_delete" }
+# Memory tools — leaf store crate first, then five tool sub-crates, then facade
+operon-tools-memory-store             = { path = "operon-rs/src/operon-tools/src/memory/src/store" }
+operon-tools-memory-add               = { path = "operon-rs/src/operon-tools/src/memory/src/memory_add" }
+operon-tools-memory-edit              = { path = "operon-rs/src/operon-tools/src/memory/src/memory_edit" }
+operon-tools-memory-delete            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_delete" }
+operon-tools-memory-retrieve          = { path = "operon-rs/src/operon-tools/src/memory/src/memory_retrieve" }
+operon-tools-memory-search            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_search" }
+operon-tools-memory                   = { path = "operon-rs/src/operon-tools/src/memory" }
 operon-tools-load                     = { path = "operon-rs/src/operon-tools/src/load" }
 operon-tools-ask                      = { path = "operon-rs/src/operon-tools/src/ask" }
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }

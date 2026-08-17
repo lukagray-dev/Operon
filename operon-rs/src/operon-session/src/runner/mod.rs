@@ -52,6 +52,7 @@ use operon_context::{
 use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::PolicyResolver;
 use operon_tools::dispatcher::Dispatcher;
+use operon_tools_memory_store::MemoryStore;
 
 use crate::config::SessionConfig;
 use crate::error::SessionError;
@@ -211,13 +212,23 @@ impl SessionRunner {
         // Register tool groups based on the session configuration.
         for group in &config.tool_groups {
             match group.as_str() {
-                "fs" => dispatcher.register_fs_tools(),
-                "shell" => dispatcher.register_shell_tools(),
-                "web" => dispatcher.register_web_tools(),
-                "todo" => dispatcher.register_todo_tools(),
-                "ask" => dispatcher.register_ask_tool(),
-                other => tracing::warn!("Unknown tool group: {other}"),
+                "fs"     => dispatcher.register_fs_tools(),
+                "shell"  => dispatcher.register_shell_tools(),
+                "web"    => dispatcher.register_web_tools(),
+                "todo"   => dispatcher.register_todo_tools(),
+                "ask"    => dispatcher.register_ask_tool(),
+                // Memory tools register definitions here; the store is attached below.
+                "memory" => dispatcher.register_memory_tools(),
+                other    => tracing::warn!("Unknown tool group: {other}"),
             }
+        }
+
+        // Connect the global persistent memory store if the "memory" group is configured.
+        // This is async (opens SQLite, runs DDL migrations) so we do it here, not in register_memory_tools().
+        // If connection fails we return a fatal SessionError::Memory so the caller can surface it cleanly.
+        if config.tool_groups.iter().any(|g| g == "memory") {
+            let memory_store = MemoryStore::connect_default().await?;
+            dispatcher.attach_memory_store(memory_store);
         }
 
         // Build the token budget from the provider config's context window size.

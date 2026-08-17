@@ -51,6 +51,12 @@ use operon_tools_core::{
     emit_tool_progress, ReadLedger, ToolDispatchError, ToolProgress, ToolProgressEmitter,
 };
 use operon_tools_load;
+use operon_tools_memory_add;
+use operon_tools_memory_delete;
+use operon_tools_memory_edit;
+use operon_tools_memory_retrieve;
+use operon_tools_memory_search;
+use operon_tools_memory_store::MemoryStore;
 use operon_tools_todo_create;
 use operon_tools_todo_delete;
 use operon_tools_todo_list;
@@ -128,6 +134,12 @@ pub struct Dispatcher {
     read_ledger: ReadLedger,
     /// In-memory todo list for the current agent session.
     todo_store: operon_tools_core::TodoStore,
+    /// Global persistent memory store — shared across sessions, SQLite-backed.
+    ///
+    /// `Option` because the store requires async initialization (connecting to SQLite).
+    /// The session runner calls `attach_memory_store()` after awaiting `MemoryStore::connect_default()`.
+    /// While `None`, any memory tool call returns a user-friendly error explaining the situation.
+    memory_store: Option<MemoryStore>,
     /// Tool groups that the AI model has requested and loaded in this session.
     /// By default, the AI only knows about basic/bootstrap tools (the "core" group).
     /// If the model needs to do file operations, it calls `load_tools` for the "fs" group,
@@ -144,6 +156,8 @@ impl Dispatcher {
             degraded: HashSet::new(),
             read_ledger: ReadLedger::new(),
             todo_store: operon_tools_core::TodoStore::new(),
+            // Memory store starts as None — attached asynchronously by the session runner.
+            memory_store: None,
             // When starting a new session, the model hasn't loaded any tool groups yet.
             // So we start with an empty set. The model will request groups like "fs" on demand!
             loaded_groups: HashSet::new(),
@@ -333,6 +347,50 @@ impl Dispatcher {
                 },
             );
         }
+    }
+
+    /// Registers all memory tools.
+    ///
+    /// Call this after `Dispatcher::new()` to make memory tools available.
+    /// Memory tools require the MemoryStore, which is attached via `attach_memory_store()`.
+    /// Definitions are registered here, but actual dispatch is handled directly
+    /// in the dispatch() method with explicit routing (same pattern as todo tools).
+    pub fn register_memory_tools(&mut self) {
+        // Register memory tool definitions only — actual dispatch is intercepted in dispatch()
+        // because memory tools need access to `self.memory_store`.
+        let defs = [
+            operon_tools_memory_add::definition(),
+            operon_tools_memory_edit::definition(),
+            operon_tools_memory_delete::definition(),
+            operon_tools_memory_retrieve::definition(),
+            operon_tools_memory_search::definition(),
+        ];
+
+        for def in defs {
+            let name = def.name().to_string();
+            self.tools.insert(
+                name.clone(),
+                ToolEntry {
+                    tiered: def,
+                    group: "memory",
+                    execute: Box::new(move |_call_id, _args, _progress| {
+                        // This path is never reached — memory tools are intercepted in dispatch().
+                        let n = name.clone();
+                        Box::pin(async move {
+                            Err(format!("memory tool '{}' should have been intercepted", n))
+                        })
+                    }),
+                },
+            );
+        }
+    }
+
+    /// Attaches the global persistent memory store to the dispatcher.
+    ///
+    /// Called by the session runner after `MemoryStore::connect_default().await` succeeds.
+    /// Until this is called, any memory tool call returns an error describing the situation.
+    pub fn attach_memory_store(&mut self, store: MemoryStore) {
+        self.memory_store = Some(store);
     }
 
     /// Registers the load_tools tool.
@@ -722,7 +780,86 @@ impl Dispatcher {
                     newly_degraded: None,
                 };
             }
-            _ => {} // fall through to generic tool dispatch
+            _ => {} // fall through to memory or generic tool dispatch
+        }
+
+        // Memory tools: intercepted directly because they need access to self.memory_store.
+        // Unlike todo_store (&mut), MemoryStore wraps a SqlitePool (Arc internally) so
+        // we only need a shared reference (&). We clone it out of the Option to avoid
+        // a borrow conflict with `self` during the async .await.
+        if matches!(
+            call.name.as_str(),
+            "memory_add" | "memory_edit" | "memory_delete" | "memory_retrieve" | "memory_search"
+        ) {
+            // Guard: if the store hasn't been attached yet, return a clear error.
+            let store = match &self.memory_store {
+                Some(s) => s.clone(), // Clone is O(1) — just increments Arc refcount
+                None => {
+                    return DispatchOutcome {
+                        result: error_result(
+                            call_id.clone(),
+                            &call.name,
+                            "memory store not available (attach_memory_store was not called)",
+                        ),
+                        newly_degraded: None,
+                    };
+                }
+            };
+
+            let tool_name_str = call.name.as_str();
+            let label = match tool_name_str {
+                "memory_add"      => "Storing memory",
+                "memory_edit"     => "Updating memory",
+                "memory_delete"   => "Deleting memory",
+                "memory_retrieve" => "Retrieving memories",
+                "memory_search"   => "Searching memories",
+                _                 => "Processing memory tool",
+            };
+
+            emit_tool_progress(
+                progress.as_ref(),
+                ToolProgress::started(call_id.clone(), call.name.clone(), None, label),
+            );
+
+            let result = match call.name.as_str() {
+                "memory_add" => operon_tools_memory_add::execute_with_progress(
+                    call_id.clone(), call.arguments, &store, progress.clone(),
+                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_add", &e.to_string())),
+
+                "memory_edit" => operon_tools_memory_edit::execute_with_progress(
+                    call_id.clone(), call.arguments, &store, progress.clone(),
+                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_edit", &e.to_string())),
+
+                "memory_delete" => operon_tools_memory_delete::execute_with_progress(
+                    call_id.clone(), call.arguments, &store, progress.clone(),
+                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_delete", &e.to_string())),
+
+                "memory_retrieve" => operon_tools_memory_retrieve::execute_with_progress(
+                    call_id.clone(), call.arguments, &store, progress.clone(),
+                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_retrieve", &e.to_string())),
+
+                "memory_search" => operon_tools_memory_search::execute_with_progress(
+                    call_id.clone(), call.arguments, &store, progress.clone(),
+                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_search", &e.to_string())),
+
+                _ => unreachable!("matches! guard above ensures only memory tools reach here"),
+            };
+
+            emit_tool_progress(
+                progress.as_ref(),
+                if result.is_error {
+                    ToolProgress::failed(call_id.clone(), call.name.clone(), None,
+                        format!("{} failed", call.name))
+                } else {
+                    ToolProgress::completed(call_id.clone(), call.name.clone(), None,
+                        format!("{} completed", call.name))
+                },
+            );
+
+            return DispatchOutcome {
+                result,
+                newly_degraded: None,
+            };
         }
 
         // Look up the tool.
@@ -896,6 +1033,14 @@ impl Dispatcher {
     /// Used by todo tool execute functions which receive the store as a parameter.
     pub fn todo_store_mut(&mut self) -> &mut operon_tools_core::TodoStore {
         &mut self.todo_store
+    }
+
+    /// Returns an optional reference to the memory store.
+    ///
+    /// Returns None if `attach_memory_store` has not been called yet.
+    /// Primarily useful for tests and diagnostics.
+    pub fn memory_store(&self) -> Option<&MemoryStore> {
+        self.memory_store.as_ref()
     }
 }
 

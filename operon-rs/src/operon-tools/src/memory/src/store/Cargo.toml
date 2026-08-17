@@ -1,0 +1,21 @@
+[package]
+name        = "operon-tools-memory-store"
+description = "Global persistent memory store (SQLite-backed). Owns Memory, MemoryStore, and MemoryStoreError. Leaf crate — no dependency on any memory_* tool crate."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace  = true
+serde.workspace      = true
+serde_json.workspace = true
+tokio.workspace      = true
+chrono.workspace     = true
+operon-config.workspace = true
+sqlx = { workspace = true, features = ["sqlite", "runtime-tokio", "macros"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["full"] }

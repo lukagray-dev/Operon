@@ -63,4 +63,14 @@ pub enum SessionError {
     /// or the provider config is inconsistent.
     #[error("Session configuration error: {0}")]
     Config(String),
+
+    /// Failure while connecting to or initializing the global memory store.
+    ///
+    /// Occurs when `MemoryStore::connect_default()` fails during session startup.
+    /// Covers: HOME env var missing (config resolution), disk full, SQLite corruption,
+    /// or permission denied on the `~/.operon/memory/` directory.
+    ///
+    /// This is a fatal startup error — the session will not start without the memory store.
+    #[error("Memory store error: {0}")]
+    Memory(#[from] operon_tools_memory_store::MemoryStoreError),
 }
