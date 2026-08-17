@@ -152,7 +152,7 @@ impl SessionRunnerBridge {
             project_dir: None,
             workspace_root: workspace_root.clone(),
             role: context_role,
-            tool_groups: vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
+            tool_groups: SessionConfig::default_tool_groups(),
             compaction: operon_context::CompactionConfig::default(),
             store_path: Some(store_path.clone()),
             channel_instructions: Some(channel_instructions),
@@ -348,9 +348,10 @@ mod tests {
             .unwrap();
         event_tx.send(SessionEvent::Done).await.unwrap();
 
+        let (cmd_tx, _cmd_rx) = mpsc::channel::<SessionCommand>(1);
         tokio::time::timeout(
             Duration::from_secs(1),
-            forward_session_events_to_outbound(&chat, &outbound_tx, &mut event_rx),
+            forward_session_events_to_outbound(&chat, "test-session", &cmd_tx, None, &outbound_tx, &mut event_rx),
         )
         .await
         .expect("Done must release the Telegram event forwarder");

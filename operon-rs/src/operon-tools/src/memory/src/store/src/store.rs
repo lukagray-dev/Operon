@@ -25,7 +25,6 @@ use chrono::Utc;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use sqlx::Row;
 use std::path::Path;
-use std::str::FromStr;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Schema DDL — runs on connect, idempotent due to IF NOT EXISTS
@@ -116,15 +115,15 @@ impl MemoryStore {
             }
         }
 
-        // Build SQLite connect options with create_if_missing so the DB file is
-        // auto-created on first connect. WAL journal mode improves concurrent
-        // read performance significantly for long-lived pools.
-        let connect_opts = SqliteConnectOptions::from_str(&format!(
-            "sqlite://{}",
-            db_path.to_string_lossy()
-        ))?
-        .create_if_missing(true)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
+        // Build SQLite connect options using `.filename(path)` rather than a URI string.
+        // On Windows, db_path looks like `C:\Users\...\memory.db`. Constructing a URI
+        // via `format!("sqlite://{}", path)` breaks: backslashes are not valid URI path
+        // separators and the drive letter after `//` is ambiguous with a URI authority.
+        // `.filename()` accepts a `Path` directly — no URI encoding, no platform issues.
+        let connect_opts = SqliteConnectOptions::new()
+            .filename(db_path)
+            .create_if_missing(true)
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
 
         // Build a small pool — memory operations are fast so 4 connections is plenty.
         let pool = SqlitePoolOptions::new()

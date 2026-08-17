@@ -28,6 +28,12 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     description: 'WhatsApp and Telegram companion bridge pairing and listener setup.',
   },
   {
+    id: 'memory',
+    label: 'Memory',
+    iconClass: 'icon-settings-memory',
+    description: 'Inspect, add, edit, and delete agent long-term memories stored in SQLite.',
+  },
+  {
     id: 'permissions',
     label: 'Permissions',
     iconClass: 'icon-settings-permissions',

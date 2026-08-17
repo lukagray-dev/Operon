@@ -655,3 +655,67 @@ async fn test_progress_events_flow_through_dispatcher() {
         "running update should describe the active file write"
     );
 }
+
+#[tokio::test]
+async fn test_load_tools_no_args_lists_all_registered_groups() {
+    let mut d = Dispatcher::new();
+    d.register_load_tool();
+    d.register_fs_tools();
+    d.register_shell_tools();
+    d.register_web_tools();
+    d.register_todo_tools();
+    d.register_ask_tool();
+    d.register_memory_tools();
+
+    // Call load_tools with no arguments ({})
+    let result = d.dispatch(make_call("load_tools", json!({}))).await;
+    assert!(!result.is_error, "load_tools list should succeed");
+
+    match result.content {
+        operon_context_normalize_tools::ToolContent::Json(val) => {
+            let groups = val["available_groups"]
+                .as_array()
+                .expect("available_groups must be an array")
+                .iter()
+                .map(|v| v.as_str().unwrap().to_string())
+                .collect::<Vec<_>>();
+
+            assert!(groups.contains(&"ask".to_string()), "must list ask group");
+            assert!(groups.contains(&"memory".to_string()), "must list memory group");
+            assert!(groups.contains(&"fs".to_string()), "must list fs group");
+            assert!(groups.contains(&"shell".to_string()), "must list shell group");
+            assert!(groups.contains(&"web".to_string()), "must list web group");
+            assert!(groups.contains(&"todo".to_string()), "must list todo group");
+            assert!(!groups.contains(&"core".to_string()), "core group must not be listed");
+        }
+        other => panic!("expected JSON content, got {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_lazy_loading_memory_group() {
+    let mut d = Dispatcher::new();
+    d.register_load_tool();
+    d.register_memory_tools();
+
+    // 1. Initially only load_tools is visible
+    let defs: Vec<_> = d.definitions().collect();
+    assert_eq!(defs.len(), 1);
+    assert_eq!(defs[0].name, "load_tools");
+
+    // 2. Load "memory" group
+    let result = d
+        .dispatch(make_call("load_tools", json!({ "group": "memory" })))
+        .await;
+    assert!(!result.is_error);
+
+    // 3. Now memory tools + load_tools are visible (5 memory + 1 load_tools = 6)
+    let defs_after: Vec<_> = d.definitions().collect();
+    assert_eq!(defs_after.len(), 6);
+    assert!(defs_after.iter().any(|d| d.name == "memory_add"));
+    assert!(defs_after.iter().any(|d| d.name == "memory_edit"));
+    assert!(defs_after.iter().any(|d| d.name == "memory_delete"));
+    assert!(defs_after.iter().any(|d| d.name == "memory_retrieve"));
+    assert!(defs_after.iter().any(|d| d.name == "memory_search"));
+}
+

@@ -4328,6 +4328,7 @@ dependencies = [
  "operon-terminal",
  "operon-tools",
  "operon-tools-core",
+ "operon-tools-memory-store",
  "serde",
  "serde_json",
  "tempfile",

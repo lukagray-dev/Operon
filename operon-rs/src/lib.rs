@@ -16,6 +16,7 @@ pub use operon_terminal as terminal;
 pub use operon_diff as diff;
 pub use operon_tools as tools;
 pub use operon_tools_core as tools_core;
+pub use operon_tools_memory_store as memory_store;
 pub use operon_channels as channels;
 
 pub use config::{

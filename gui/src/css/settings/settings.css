@@ -7,6 +7,7 @@
 @import './models/models.css';
 @import './permissions/permissions.css';
 @import './channels/channels.css';
+@import './memory/memory.css';
 @import './about/about.css';
 
 /* Window Shell */

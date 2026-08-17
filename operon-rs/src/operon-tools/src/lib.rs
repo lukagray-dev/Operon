@@ -37,8 +37,10 @@ mod tests;
 pub use operon_tools_core::{
     emit_tool_progress, ToolProgress, ToolProgressEmitter, ToolProgressStage,
 };
+pub use operon_tools_ask as ask;
 pub use operon_tools_fs as fs;
 pub use operon_tools_load as load;
+pub use operon_tools_memory as memory;
 pub use operon_tools_shell as shell;
 pub use operon_tools_todo as todo;
 pub use operon_tools_web as web;

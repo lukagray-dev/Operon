@@ -16,6 +16,7 @@ operon-providers  = { workspace = true }
 operon-session    = { workspace = true }
 operon-tools      = { workspace = true }
 operon-tools-core = { workspace = true }
+operon-tools-memory-store = { workspace = true }
 operon-terminal   = { workspace = true }
 operon-diff       = { workspace = true }
 operon-channels   = { workspace = true }

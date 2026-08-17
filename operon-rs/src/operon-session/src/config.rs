@@ -68,7 +68,7 @@ use operon_providers::ProviderConfig;
 ///     project_dir:     None,                          // or Some(PathBuf::from("/my/project"))
 ///     workspace_root:  app.paths.workspace_dir.clone(), // or project_dir.clone()
 ///     role:            Role::Owner,
-///     tool_groups:     vec!["fs".into(), "shell".into(), "web".into(), "todo".into()],
+///     tool_groups:     SessionConfig::default_tool_groups(),
 ///     compaction:      CompactionConfig::default(),
 ///     store_path:      Some(app.paths.session_db("my-session-id")),
 /// };
@@ -133,7 +133,7 @@ pub struct SessionConfig {
     // ── Tool groups ───────────────────────────────────────────────────────────
     /// Names of tool groups to register on the `Dispatcher` at startup.
     ///
-    /// Valid values: `"fs"`, `"shell"`, `"web"`, `"todo"`.
+    /// Valid values: `"fs"`, `"shell"`, `"web"`, `"todo"`, `"ask"`, `"memory"`.
     /// Unknown names are logged as warnings and skipped.
     /// This list is also passed to `SnapshotBuilder` so the system prompt
     /// includes an accurate tool availability block.
@@ -163,6 +163,20 @@ pub struct SessionConfig {
 }
 
 impl SessionConfig {
+    /// Returns the standard set of built-in tool groups for an interactive session.
+    ///
+    /// Includes: `"fs"`, `"shell"`, `"web"`, `"todo"`, `"ask"`, `"memory"`.
+    pub fn default_tool_groups() -> Vec<String> {
+        vec![
+            "fs".into(),
+            "shell".into(),
+            "web".into(),
+            "todo".into(),
+            "ask".into(),
+            "memory".into(),
+        ]
+    }
+
     /// Derive a [`SnapshotConfig`] for this session.
     ///
     /// Called once in `SessionRunner::new()` after the session ID is generated.

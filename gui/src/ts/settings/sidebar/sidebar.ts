@@ -142,6 +142,12 @@ function renderActivePanel(): void {
       refreshChannelsData();
     }).catch(() => {});
   }
+
+  if (currentTab === 'memory') {
+    import('../memory/memory.js').then(({ refreshMemoryData }) => {
+      refreshMemoryData();
+    }).catch(() => {});
+  }
 }
 
 /**

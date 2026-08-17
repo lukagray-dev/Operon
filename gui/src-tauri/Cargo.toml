@@ -29,5 +29,3 @@ dirs.workspace       = true
 toml.workspace       = true
 pulldown-cmark.workspace = true
 notify.workspace     = true
-
-

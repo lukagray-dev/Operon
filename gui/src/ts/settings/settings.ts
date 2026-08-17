@@ -6,6 +6,7 @@ import { initAppearanceSettings } from './appearance/appearance.js';
 import { initChannelsSettings } from './channels/channels.js';
 import { initGeneralSettings } from './general/general.js';
 import { closeSettingsWindowIpc } from './ipc.js';
+import { initMemorySettings } from './memory/memory.js';
 import { initModelsSettings } from './models/models.js';
 import { initPermissionsSettings } from './permissions/permissions.js';
 import { initSettingsSidebar } from './sidebar/sidebar.js';
@@ -20,8 +21,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   await initModelsSettings();
   await initPermissionsSettings();
   await initChannelsSettings();
+  await initMemorySettings();
   await initAboutSettings();
-  console.debug('[Operon Settings] Window initialized with General, Appearance, Models, Permissions, Channels & About panels.');
+  console.debug('[Operon Settings] Window initialized with General, Appearance, Models, Permissions, Channels, Memory & About panels.');
 });
 
 /**

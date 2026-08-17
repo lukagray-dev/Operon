@@ -200,6 +200,11 @@ pub fn run() {
             settings::channels::telegram::test_telegram_channel_connection,
             settings::channels::telegram::save_telegram_channel_config,
             settings::about::get_about_system_info,
+            // Memory Settings actions
+            settings::memory::memory_list,
+            settings::memory::memory_add,
+            settings::memory::memory_edit,
+            settings::memory::memory_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -959,12 +959,18 @@
         </div>
 
         <!-- 8. MEMORY TAB PANEL -->
-        <div class="settings-panel-view" data-tab="memory">
-          <h1 class="settings-panel-title">Memory & Context</h1>
-          <div class="settings-section-card">
-            <div class="settings-section-card-title">Long-term Memory Store</div>
-            <div class="settings-section-card-desc">Manage vector embeddings, indexed knowledge items, and context limits.</div>
+        <div class="settings-panel-view mem-panel" data-tab="memory">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-memory settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">Memory</h1>
+              <p class="settings-header-desc">Manage the agent's persistent long-term memories. View, search, edit, or delete them manually.</p>
+            </div>
           </div>
+
+          <!-- Dynamic host: toolbar + list + add-input injected by memory.ts -->
+          <div id="memory-host" class="mem-host"></div>
         </div>
 
         <!-- 9. ABOUT TAB PANEL (1:1 with Slint about.slint) -->

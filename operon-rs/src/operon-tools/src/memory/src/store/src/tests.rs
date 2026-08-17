@@ -323,3 +323,68 @@ async fn test_search_after_edit_indexes_new_content() {
     let tea_results = store.search("tea", 10).await.unwrap();
     assert_eq!(tea_results.len(), 1, "FTS index should return updated content");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Windows path regression — nested absolute paths
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[async_test]
+async fn test_connect_with_nested_directory_path() {
+    // Regression test: MemoryStore::connect() must correctly handle absolute paths
+    // with multiple nested directory levels, including on Windows where the path
+    // contains a drive letter and backslashes (e.g. "C:\Users\x\.operon\memory\memory.db").
+    // Using a URI string constructed via format!("sqlite://{}", path) breaks on such
+    // paths — this test would have caught that regression.
+    let tmp = tempfile::tempdir().expect("failed to create temp dir");
+    let nested_path = tmp.path()
+        .join("deeply")
+        .join("nested")
+        .join("dir")
+        .join("memory.db");
+
+    // connect() must create the parent dirs and open the SQLite file without panicking.
+    let store = MemoryStore::connect(&nested_path)
+        .await
+        .expect("connect should succeed with a nested absolute path");
+
+    // Verify the store actually works end-to-end at this path — not just that connect() didn't error.
+    let memory = store.add("test content".to_string(), vec![]).await.unwrap();
+    let fetched = store.get(&memory.id).await.unwrap();
+    assert!(fetched.is_some(), "should be able to read back what was written");
+
+    // Confirm the file was actually created at the expected nested path.
+    assert!(nested_path.exists(), "db file should exist at the nested path");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Real home-directory integration test (explicit run only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[async_test]
+#[ignore] // run explicitly with `cargo test -p operon-tools-memory-store -- --ignored`
+async fn test_connect_default_against_real_home_directory() {
+    // This test intentionally touches the REAL ~/.operon/memory/memory.db.
+    // It is #[ignore]'d by default so normal test runs stay isolated (per the
+    // module doc comment's guarantee), but can be run explicitly to confirm
+    // connect_default() actually works end-to-end on the current machine/OS.
+    let store = MemoryStore::connect_default()
+        .await
+        .expect("connect_default should succeed against the real home directory");
+
+    let count_before = store.count().await.expect("count should succeed");
+
+    // Write a memory tagged so it's easy to identify and clean up.
+    let memory = store
+        .add(
+            "regression test memory — safe to delete".to_string(),
+            vec!["test".to_string()],
+        )
+        .await
+        .unwrap();
+
+    let count_after = store.count().await.expect("count should succeed");
+    assert_eq!(count_after, count_before + 1);
+
+    // Clean up — don't leave test data in the real store.
+    store.delete(&memory.id).await.expect("cleanup delete should succeed");
+}

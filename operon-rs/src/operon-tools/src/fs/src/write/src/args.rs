@@ -31,6 +31,7 @@ pub struct WriteArgs {
     #[serde(
         alias = "text",
         alias = "body",
+        alias = "__body__",
         alias = "file_content",
         alias = "fileContent",
         alias = "contents",

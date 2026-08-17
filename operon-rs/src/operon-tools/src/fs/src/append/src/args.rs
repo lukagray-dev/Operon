@@ -31,6 +31,7 @@ pub struct AppendArgs {
     #[serde(
         alias = "text",
         alias = "body",
+        alias = "__body__",
         alias = "append_text",
         alias = "appendText",
         alias = "data"
