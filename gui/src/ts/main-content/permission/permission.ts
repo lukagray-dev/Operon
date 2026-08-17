@@ -1,10 +1,10 @@
-// Interactive Permission Dialog Controller & View Coordinator
-// Replicates the Slint floating permission panel 1:1 with zero emojis and industrial design.
-
-import { approvePermissionIpc, denyPermissionIpc } from '../messages/ipc.js';
+import { listenIpcEvent } from '../../shared/ipc.js';
+import { sidebarState } from '../../left-sidebar/state.js';
+import { approvePermissionIpc, denyPermissionIpc, getPendingPermissionsIpc, type ChannelPermissionRequest } from '../messages/ipc.js';
 import type { PendingPermission } from './types.js';
 
 let currentPendingPermission: PendingPermission | null = null;
+const pendingPermissionsBySession = new Map<string, PendingPermission>();
 
 /**
  * Resolves user-friendly action verb and target name from tool and arguments.
@@ -107,7 +107,8 @@ export function showPermissionDialog(
   tool: string,
   path: string | null,
   reason: string,
-  argsJson: string
+  argsJson: string,
+  sessionId?: string | null
 ): void {
   const { displayAction, displayTarget } = getPermissionDisplayInfo(tool, path, argsJson);
 
@@ -120,6 +121,12 @@ export function showPermissionDialog(
     displayAction,
     displayTarget,
   };
+
+  const targetSessionId = sessionId || sidebarState.getActiveSessionId();
+  if (targetSessionId) {
+    pendingPermissionsBySession.set(targetSessionId, currentPendingPermission);
+    notifyPendingPermissionChange();
+  }
 
   const container = document.getElementById('floating-permission-panel');
   if (!container) return;
@@ -162,6 +169,11 @@ export function showPermissionDialog(
   // Wire Deny button
   container.querySelector('#btn-perm-deny')?.addEventListener('click', async () => {
     const permId = currentPendingPermission?.id;
+    const activeSess = sidebarState.getActiveSessionId();
+    if (activeSess) {
+      pendingPermissionsBySession.delete(activeSess);
+      notifyPendingPermissionChange();
+    }
     hidePermissionDialog();
     if (permId) {
       try {
@@ -175,6 +187,11 @@ export function showPermissionDialog(
   // Wire Allow button
   container.querySelector('#btn-perm-allow')?.addEventListener('click', async () => {
     const permId = currentPendingPermission?.id;
+    const activeSess = sidebarState.getActiveSessionId();
+    if (activeSess) {
+      pendingPermissionsBySession.delete(activeSess);
+      notifyPendingPermissionChange();
+    }
     hidePermissionDialog();
     if (permId) {
       try {
@@ -198,6 +215,122 @@ export function hidePermissionDialog(): void {
     container.style.display = 'none';
     container.innerHTML = '';
   }
+}
+
+/**
+ * Checks if a specific session currently has an active pending permission request.
+ */
+export function hasPendingPermission(sessionId: string): boolean {
+  return pendingPermissionsBySession.has(sessionId);
+}
+
+/**
+ * Checks if any session in the given list currently has an active pending permission request.
+ */
+export function hasAnyPendingPermission(sessionIds: string[]): boolean {
+  return sessionIds.some((id) => pendingPermissionsBySession.has(id));
+}
+
+type PendingPermissionListener = () => void;
+const permListeners: PendingPermissionListener[] = [];
+
+/**
+ * Subscribes to changes in pending permissions across all sessions.
+ */
+export function onPendingPermissionsChange(listener: PendingPermissionListener): () => void {
+  permListeners.push(listener);
+  return () => {
+    const idx = permListeners.indexOf(listener);
+    if (idx !== -1) permListeners.splice(idx, 1);
+  };
+}
+
+function notifyPendingPermissionChange(): void {
+  permListeners.forEach((l) => {
+    try {
+      l();
+    } catch (e) {
+      console.error('[Permission] Listener notification error:', e);
+    }
+  });
+}
+
+/**
+ * Synchronizes permission dialog display when the user switches sessions in the sidebar.
+ */
+export function syncPendingPermissionForActiveSession(sessionId: string | null): void {
+  if (!sessionId) {
+    hidePermissionDialog();
+    return;
+  }
+
+  const pending = pendingPermissionsBySession.get(sessionId);
+  if (pending) {
+    showPermissionDialog(
+      pending.id,
+      pending.tool,
+      pending.path,
+      pending.reason,
+      pending.args_json,
+      sessionId
+    );
+  } else {
+    hidePermissionDialog();
+  }
+}
+
+/**
+ * Initializes listeners for channel background permission requests and initial state synchronization.
+ */
+export async function initPermissionManager(): Promise<void> {
+  // 1. Initial sync of existing pending permissions from backend
+  try {
+    const existing = await getPendingPermissionsIpc();
+    existing.forEach((req: ChannelPermissionRequest) => {
+      const { displayAction, displayTarget } = getPermissionDisplayInfo(req.tool, req.path, req.args_json);
+      pendingPermissionsBySession.set(req.session_id, {
+        id: req.id,
+        tool: req.tool,
+        path: req.path || null,
+        reason: req.reason,
+        args_json: req.args_json,
+        displayAction,
+        displayTarget,
+      });
+    });
+    notifyPendingPermissionChange();
+    syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
+  } catch (err) {
+    console.warn('[Permission] Failed to fetch initial pending permissions:', err);
+  }
+
+  // 2. Listen to live channel permission requests
+  await listenIpcEvent<ChannelPermissionRequest>('channel-permission-request', (req) => {
+    const { displayAction, displayTarget } = getPermissionDisplayInfo(req.tool, req.path, req.args_json);
+    pendingPermissionsBySession.set(req.session_id, {
+      id: req.id,
+      tool: req.tool,
+      path: req.path || null,
+      reason: req.reason,
+      args_json: req.args_json,
+      displayAction,
+      displayTarget,
+    });
+    notifyPendingPermissionChange();
+
+    if (sidebarState.getActiveSessionId() === req.session_id) {
+      showPermissionDialog(req.id, req.tool, req.path || null, req.reason, req.args_json, req.session_id);
+    }
+  });
+
+  // 3. Listen to live channel permission resolutions
+  await listenIpcEvent<string>('channel-permission-resolved', (sessionId) => {
+    pendingPermissionsBySession.delete(sessionId);
+    notifyPendingPermissionChange();
+    if (sidebarState.getActiveSessionId() === sessionId) {
+      hidePermissionDialog();
+    }
+  });
 }
 
 function escapeHtml(str: string): string {

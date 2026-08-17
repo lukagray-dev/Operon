@@ -146,7 +146,7 @@ pub async fn submit_prompt(
 
     // Save cmd_tx so user can cancel prompt
     if let Ok(mut lock) = ACTIVE_CMD_TX.lock() {
-        *lock = Some(cmd_tx);
+        *lock = Some(cmd_tx.clone());
     }
 
     let mut runner = operon_rs::session::SessionRunner::new(config, event_tx, cmd_rx)
@@ -170,15 +170,17 @@ pub async fn submit_prompt(
     }
 
     let run_id = active_id.clone();
-    let app_handle_events = app_handle.clone();
     let app_handle_done = app_handle.clone();
     let prompt_text = prompt.clone();
+    let cmd_tx_events = cmd_tx.clone();
+    let run_id_events = run_id.clone();
 
-    // Spawn background task for streaming events to webview
+    // Spawn background task for streaming events to webview & registering permissions
     tokio::spawn(async move {
         let events_task = tokio::spawn(async move {
+            let hook = crate::shared::channels_manager::create_channel_event_hook();
             while let Some(event) = event_rx.recv().await {
-                let _ = app_handle_events.emit("agent-event", &event);
+                hook(&run_id_events, &event, &cmd_tx_events);
             }
         });
 
@@ -220,9 +222,13 @@ pub async fn cancel_prompt() -> Result<(), String> {
     Ok(())
 }
 
-/// Approves a pending tool permission request.
+/// Approves a pending tool permission request across GUI sessions or background channel sessions.
 #[tauri::command]
 pub async fn approve_permission(permission_id: String) -> Result<(), String> {
+    if let Ok(true) = crate::shared::channels_manager::dispatch_permission_decision(&permission_id, true).await {
+        return Ok(());
+    }
+
     let cmd_tx_opt = if let Ok(lock) = ACTIVE_CMD_TX.lock() {
         lock.clone()
     } else {
@@ -239,9 +245,13 @@ pub async fn approve_permission(permission_id: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Denies a pending tool permission request.
+/// Denies a pending tool permission request across GUI sessions or background channel sessions.
 #[tauri::command]
 pub async fn deny_permission(permission_id: String) -> Result<(), String> {
+    if let Ok(true) = crate::shared::channels_manager::dispatch_permission_decision(&permission_id, false).await {
+        return Ok(());
+    }
+
     let cmd_tx_opt = if let Ok(lock) = ACTIVE_CMD_TX.lock() {
         lock.clone()
     } else {
@@ -328,7 +338,7 @@ pub async fn edit_and_submit_prompt(
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::channel::<operon_rs::SessionCommand>(20);
 
     if let Ok(mut lock) = ACTIVE_CMD_TX.lock() {
-        *lock = Some(cmd_tx);
+        *lock = Some(cmd_tx.clone());
     }
 
     let mut runner = operon_rs::session::SessionRunner::new(config, event_tx, cmd_rx)
@@ -345,15 +355,17 @@ pub async fn edit_and_submit_prompt(
     }
 
     let run_id = session_id.clone();
-    let app_handle_events = app_handle.clone();
     let app_handle_done = app_handle.clone();
     let prompt_text = prompt.clone();
+    let cmd_tx_events = cmd_tx.clone();
+    let run_id_events = run_id.clone();
 
-    // 5. Spawn background task for streaming events to webview
+    // 5. Spawn background task for streaming events to webview & registering permissions
     tokio::spawn(async move {
         let events_task = tokio::spawn(async move {
+            let hook = crate::shared::channels_manager::create_channel_event_hook();
             while let Some(event) = event_rx.recv().await {
-                let _ = app_handle_events.emit("agent-event", &event);
+                hook(&run_id_events, &event, &cmd_tx_events);
             }
         });
 

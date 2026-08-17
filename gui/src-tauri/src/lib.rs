@@ -78,6 +78,7 @@ pub fn run() {
 
             // 3. Initialize background filesystem sessions watcher
             shared::watcher::init_sessions_watcher(app.handle().clone());
+            shared::channels_manager::set_app_handle(app.handle().clone());
 
             // 4. Auto-start WhatsApp and Telegram background services if configured
             shared::channels_manager::auto_start_channels_on_launch();
@@ -115,11 +116,11 @@ pub fn run() {
             titlebar::exit_application,
             // Left Sidebar actions
             left_sidebar::query_sidebar_data,
+            left_sidebar::create_new_session,
+            left_sidebar::set_active_session,
             left_sidebar::delete_session,
             left_sidebar::delete_project,
             left_sidebar::open_project_picker,
-            left_sidebar::create_new_session,
-            left_sidebar::set_active_session,
             left_sidebar::rename_session,
             left_sidebar::fork_session,
             left_sidebar::move_session,
@@ -141,6 +142,7 @@ pub fn run() {
             main_content::messages::cancel_prompt,
             main_content::messages::approve_permission,
             main_content::messages::deny_permission,
+            main_content::messages::get_pending_permissions,
             // Main Content Markdown actions
             main_content::markdown::render_markdown,
             main_content::markdown::render_markdown_batch,

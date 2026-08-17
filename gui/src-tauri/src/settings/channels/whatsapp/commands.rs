@@ -183,7 +183,8 @@ pub async fn start_whatsapp_qr_pairing() -> Result<String, String> {
         if let Err(e) = client_clone.connect().await {
             eprintln!("[operon-gui][whatsapp-qr] Connect error: {}", e);
         } else if let Ok(app_config) = operon_rs::load() {
-            let service = WhatsAppService::new(client_clone, wa_config_clone, app_config);
+            let hook = crate::shared::channels_manager::create_channel_event_hook();
+            let service = WhatsAppService::with_event_hook(client_clone, wa_config_clone, app_config, hook);
             let _ = service.run().await;
         }
     });
@@ -254,7 +255,8 @@ pub async fn start_whatsapp_code_pairing(phone_number: String) -> Result<String,
         if let Err(e) = client_clone.connect().await {
             eprintln!("[operon-gui][whatsapp-code] Connect error: {}", e);
         } else if let Ok(app_config) = operon_rs::load() {
-            let service = WhatsAppService::new(client_clone, wa_config_clone, app_config);
+            let hook = crate::shared::channels_manager::create_channel_event_hook();
+            let service = WhatsAppService::with_event_hook(client_clone, wa_config_clone, app_config, hook);
             let _ = service.run().await;
         }
     });

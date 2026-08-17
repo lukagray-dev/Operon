@@ -78,6 +78,46 @@ impl TelegramService {
         )
     }
 
+    /// Creates a new `TelegramService` with an external `SessionEventHook`.
+    pub fn with_event_hook(
+        client: Arc<TelegramClient>,
+        tg_config: TelegramConfig,
+        app_config: AppConfig,
+        event_hook: crate::runner_bridge::SessionEventHook,
+    ) -> Self {
+        tg_config.check_policy_coverage(&app_config.policy);
+
+        let router = Arc::new(TelegramRouter::new(tg_config.clone()));
+        let base_sessions_dir = dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".operon")
+            .join("sessions")
+            .join("telegram");
+        let workspace_manager = TelegramWorkspaceManager::with_paths(
+            tg_config.resolved_workspace_dir(),
+            base_sessions_dir,
+        );
+        let (bridge_tx, bridge_rx) = mpsc::channel::<TelegramOutboundMessage>(64);
+        let (client_tx, client_rx) = mpsc::channel::<TelegramOutboundMessage>(64);
+        let outbound_queue = Arc::new(OutboundQueue::new(client_tx));
+        let bridge = Arc::new(SessionRunnerBridge::with_router_and_hook(
+            app_config,
+            workspace_manager,
+            bridge_tx,
+            router.clone(),
+            Some(event_hook),
+        ));
+
+        Self::with_components_and_receivers(
+            client,
+            router,
+            bridge,
+            outbound_queue,
+            bridge_rx,
+            client_rx,
+        )
+    }
+
     /// Creates a `TelegramService` with explicit pre-built components and channels.
     pub fn with_components_and_receivers(
         client: Arc<TelegramClient>,

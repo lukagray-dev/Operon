@@ -6,6 +6,7 @@ import { initInputPanel } from './main-content/input/input.js';
 import { initMessages } from './main-content/messages/messages.js';
 import { initTerminal } from './main-content/terminal/terminal.js';
 import { initTopbar } from './main-content/topbar/topbar.js';
+import { initPermissionManager } from './main-content/permission/permission.js';
 import { initRightSidebar } from './right-sidebar/right-sidebar.js';
 import { openSettingsWindowIpc } from './settings/ipc.js';
 import { initTitlebar } from './titlebar/titlebar.js';
@@ -32,6 +33,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initialize Main Content Input Panel
   initInputPanel();
 
+  // Initialize Live Permission Manager
+  initPermissionManager();
+
   // Initialize Right Sidebar (Source Control & Git Diff)
   initRightSidebar();
 
@@ -43,7 +47,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Re-sync appearance settings on window focus
+  // Re-sync appearance settings and active permission state on window focus
   window.addEventListener('focus', async () => {
     try {
       const { getAppearanceSettingsIpc } = await import('./settings/appearance/ipc.js');
@@ -52,6 +56,14 @@ window.addEventListener('DOMContentLoaded', () => {
       applyGlobalFontsAndTheme(settings);
     } catch {
       // Ignored if settings window not ready
+    }
+
+    try {
+      const { syncPendingPermissionForActiveSession } = await import('./main-content/permission/permission.js');
+      const { sidebarState } = await import('./left-sidebar/state.js');
+      syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
+    } catch {
+      // Ignore
     }
   });
 

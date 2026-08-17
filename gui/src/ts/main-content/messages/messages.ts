@@ -19,7 +19,11 @@ import {
   postProcessMarkdownElement,
   renderMarkdownToHtml,
 } from '../markdown/markdown.js';
-import { hidePermissionDialog, showPermissionDialog } from '../permission/permission.js';
+import {
+  hidePermissionDialog,
+  showPermissionDialog,
+  syncPendingPermissionForActiveSession,
+} from '../permission/permission.js';
 import { approvePermissionIpc } from './ipc.js';
 import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
@@ -136,6 +140,7 @@ export function initMessages(): void {
     previousActiveSessionId = activeSessionId;
 
     liveMarkdownRenderer.clearAll();
+    syncPendingPermissionForActiveSession(activeSessionId);
     if (activeSessionId) {
       await refreshMessages(activeSessionId);
     } else {
@@ -255,10 +260,16 @@ export function initMessages(): void {
     inputState.setIsResponding(false);
   });
 
-  // 10. Listen to notify filesystem watcher for real-time external session updates (WhatsApp/Telegram/CLI)
+  // 10. Listen to notify filesystem watcher for real-time external channel session updates (WhatsApp/Telegram)
   listenIpcEvent<string[]>('sessions-changed', async (changedIds) => {
     const activeSessionId = sidebarState.getActiveSessionId();
     if (!activeSessionId) return;
+
+    // Only channel sessions are hot-reloaded from notify watcher!
+    // General chats and project sessions are managed directly by GUI in-memory state.
+    if (!isChannelSession(activeSessionId)) {
+      return;
+    }
 
     // CRITICAL: NEVER reload while prompt execution is generating in the GUI to prevent flickering!
     const isResponding = inputState.getIsResponding() || messagesState.getStreamingMessageId() !== null;
@@ -341,13 +352,13 @@ function cleanupActiveOrb(): void {
 export async function refreshMessages(sessionId: string): Promise<void> {
   messagesState.setIsLoading(true);
   cleanupActiveOrb();
-  hidePermissionDialog();
   try {
     const list = await loadSessionMessagesIpc(sessionId);
     messagesState.setMessages(list);
     setEmptyStateVisible(list.length === 0);
   } finally {
     messagesState.setIsLoading(false);
+    syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
   }
 }
 
@@ -388,29 +399,23 @@ function handleAgentEvent(event: Record<string, unknown>): void {
       };
     }).ApprovalRequired;
     if (req) {
+      const activeSess = sidebarState.getActiveSessionId();
       if (inputState.isAutoApproveEnabled()) {
         // Auto-approve mode active: immediately approve without prompting
         approvePermissionIpc(req.id).catch((err: unknown) => {
           console.error('[Messages] Auto-approve permission failed:', err);
         });
       } else {
-        showPermissionDialog(req.id, req.tool, req.path || null, req.reason, req.args_json);
+        showPermissionDialog(req.id, req.tool, req.path || null, req.reason, req.args_json, activeSess);
         triggerPermissionNotification(req.tool, req.path);
         smartAutoScroll();
       }
     }
-  } else if ('ApprovalGranted' in event) {
-    hidePermissionDialog();
-  } else if ('PermissionDenied' in event) {
-    hidePermissionDialog();
-  } else if ('Done' in event) {
+  } else if ('ApprovalGranted' in event || 'PermissionDenied' in event) {
+    syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
+  } else if ('Done' in event || 'Error' in event) {
     cleanupActiveOrb();
-    hidePermissionDialog();
-    messagesState.finishStreaming();
-    inputState.setIsResponding(false);
-  } else if ('Error' in event) {
-    cleanupActiveOrb();
-    hidePermissionDialog();
+    syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   } else if ('ContextUsageUpdated' in event) {

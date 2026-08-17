@@ -375,3 +375,9 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
 
     Ok(result)
 }
+
+/// Retrieves all currently pending permission requests across all active sessions.
+#[tauri::command]
+pub async fn get_pending_permissions() -> Result<Vec<crate::shared::channels_manager::ChannelPermissionRequestDto>, String> {
+    Ok(crate::shared::channels_manager::get_all_pending_permissions())
+}

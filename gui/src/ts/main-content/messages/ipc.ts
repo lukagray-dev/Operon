@@ -65,6 +65,20 @@ export async function listenAgentFinished(
   return await listenIpcEvent<string>('agent-finished', handler);
 }
 
+export interface ChannelPermissionRequest {
+  session_id: string;
+  id: string;
+  tool: string;
+  path?: string | null;
+  reason: string;
+  args_json: string;
+}
+
+export async function getPendingPermissionsIpc(): Promise<ChannelPermissionRequest[]> {
+  const res = await invokeIpc<ChannelPermissionRequest[]>('get_pending_permissions');
+  return res || [];
+}
+
 export async function listenAgentError(
   handler: (errorMessage: string) => void
 ): Promise<() => void> {

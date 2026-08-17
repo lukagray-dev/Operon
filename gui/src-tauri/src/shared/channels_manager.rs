@@ -4,10 +4,15 @@
 //! - Auto-reconnect on application launch if credentials/tokens exist on disk.
 //! - Running live background message processing loops for incoming channel chats.
 //! - Restarting services when settings change.
+//! - Global permission registry and event streaming hook.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::Emitter;
+use tokio::sync::mpsc;
 
+use operon_rs::{SessionCommand, SessionEvent};
 use operon_rs::channels::telegram::client::TelegramClient;
 use operon_rs::channels::telegram::config::TelegramConfig;
 use operon_rs::channels::telegram::service::TelegramService;
@@ -122,6 +127,155 @@ pub fn save_telegram_saved_config(cfg: &TelegramSavedConfig) -> Result<(), Strin
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ChannelPermissionRequestDto {
+    pub session_id: String,
+    pub id: String,
+    pub tool: String,
+    pub path: Option<String>,
+    pub reason: String,
+    pub args_json: String,
+}
+
+pub struct PendingPermissionEntry {
+    pub session_id: String,
+    pub request: ChannelPermissionRequestDto,
+    pub cmd_tx: mpsc::Sender<SessionCommand>,
+}
+
+/// Thread-safe registry mapping permission_id -> PendingPermissionEntry.
+pub static GLOBAL_PERMISSION_REGISTRY: std::sync::Mutex<Option<HashMap<String, PendingPermissionEntry>>> =
+    std::sync::Mutex::new(None);
+
+/// Global AppHandle storage for emitting events across channel threads to webviews.
+pub static GLOBAL_APP_HANDLE: std::sync::Mutex<Option<tauri::AppHandle>> =
+    std::sync::Mutex::new(None);
+
+pub fn set_app_handle(handle: tauri::AppHandle) {
+    if let Ok(mut lock) = GLOBAL_APP_HANDLE.lock() {
+        *lock = Some(handle);
+    }
+}
+
+pub fn get_app_handle() -> Option<tauri::AppHandle> {
+    if let Ok(lock) = GLOBAL_APP_HANDLE.lock() {
+        lock.clone()
+    } else {
+        None
+    }
+}
+
+/// Creates a unified event hook that streams live channel events to the Tauri webview and registers permission requests.
+pub fn create_channel_event_hook() -> Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync> {
+    Arc::new(|session_id: &str, event: &SessionEvent, cmd_tx: &mpsc::Sender<SessionCommand>| {
+        let app_handle = get_app_handle();
+
+        match event {
+            SessionEvent::ApprovalRequired {
+                id,
+                tool,
+                path,
+                reason,
+                args_json,
+            } => {
+                let req_dto = ChannelPermissionRequestDto {
+                    session_id: session_id.to_string(),
+                    id: id.clone(),
+                    tool: tool.clone(),
+                    path: path.clone(),
+                    reason: reason.clone(),
+                    args_json: args_json.clone(),
+                };
+
+                // Register into global registry so approve_permission / deny_permission can find it
+                if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+                    let map = lock.get_or_insert_with(HashMap::new);
+                    map.insert(
+                        id.clone(),
+                        PendingPermissionEntry {
+                            session_id: session_id.to_string(),
+                            request: req_dto.clone(),
+                            cmd_tx: cmd_tx.clone(),
+                        },
+                    );
+                }
+
+                // Emit event to frontend
+                if let Some(app) = app_handle {
+                    let _ = app.emit("channel-permission-request", &req_dto);
+                    let _ = app.emit("agent-event", event);
+                }
+            }
+            SessionEvent::ApprovalGranted { .. } | SessionEvent::PermissionDenied { .. } => {
+                if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+                    if let Some(ref mut map) = *lock {
+                        map.retain(|_, entry| entry.session_id != session_id);
+                    }
+                }
+                if let Some(app) = app_handle {
+                    let _ = app.emit("channel-permission-resolved", session_id);
+                    let _ = app.emit("agent-event", event);
+                }
+            }
+            SessionEvent::Done | SessionEvent::Error { .. } => {
+                if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+                    if let Some(ref mut map) = *lock {
+                        map.retain(|_, entry| entry.session_id != session_id);
+                    }
+                }
+                if let Some(app) = app_handle {
+                    let _ = app.emit("channel-permission-resolved", session_id);
+                    let _ = app.emit("agent-event", event);
+                }
+            }
+            _ => {
+                if let Some(app) = app_handle {
+                    let _ = app.emit("agent-event", event);
+                }
+            }
+        }
+    })
+}
+
+/// Dispatches an approval or denial decision to the pending permission command sender.
+pub async fn dispatch_permission_decision(permission_id: &str, is_approve: bool) -> Result<bool, String> {
+    let mut sender_opt = None;
+
+    if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+        if let Some(ref mut map) = *lock {
+            if let Some(entry) = map.remove(permission_id) {
+                sender_opt = Some(entry.cmd_tx);
+            }
+        }
+    }
+
+    if let Some(cmd_tx) = sender_opt {
+        let cmd = if is_approve {
+            SessionCommand::Approve {
+                id: permission_id.to_string(),
+            }
+        } else {
+            SessionCommand::Deny {
+                id: permission_id.to_string(),
+            }
+        };
+        cmd_tx.send(cmd).await.map_err(|e| e.to_string())?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// Retrieves all currently pending permission requests across all channels.
+pub fn get_all_pending_permissions() -> Vec<ChannelPermissionRequestDto> {
+    if let Ok(lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+        if let Some(ref map) = *lock {
+            return map.values().map(|entry| entry.request.clone()).collect();
+        }
+    }
+    Vec::new()
+}
+
 /// Spawns background services on application launch if configured.
 pub fn auto_start_channels_on_launch() {
     tauri::async_runtime::spawn(async move {
@@ -191,7 +345,8 @@ pub async fn start_whatsapp_channel_if_configured() {
         }
     };
 
-    let service = WhatsAppService::new(client, wa_config, app_config);
+    let event_hook = create_channel_event_hook();
+    let service = WhatsAppService::with_event_hook(client, wa_config, app_config, event_hook);
     tauri::async_runtime::spawn(async move {
         if let Err(e) = service.run().await {
             eprintln!("[operon-gui][whatsapp-auto] WhatsAppService exited: {}", e);
@@ -251,7 +406,8 @@ pub async fn start_telegram_channel_if_configured() {
         }
     };
 
-    let service = TelegramService::new(client, tg_config, app_config);
+    let event_hook = create_channel_event_hook();
+    let service = TelegramService::with_event_hook(client, tg_config, app_config, event_hook);
     tauri::async_runtime::spawn(async move {
         if let Err(e) = service.run().await {
             eprintln!("[operon-gui][telegram-auto] TelegramService exited: {}", e);

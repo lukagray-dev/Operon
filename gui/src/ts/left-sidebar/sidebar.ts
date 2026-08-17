@@ -1,6 +1,7 @@
 import { openSettingsWindowIpc } from '../settings/ipc.js';
 import { listenIpcEvent } from '../shared/ipc.js';
 import { appState } from '../shared/state.js';
+import { hasPendingPermission, onPendingPermissionsChange } from '../main-content/permission/permission.js';
 import {
   createNewSessionIpc,
   deleteProjectIpc,
@@ -43,10 +44,23 @@ export function initSidebar(): void {
     renderSidebarContent();
   });
 
-  // Hot-reload sidebar lists when notify watcher detects session changes on disk
-  listenIpcEvent<string[]>('sessions-changed', async () => {
-    await refreshSidebarContent();
+  // Re-render when permission status changes on any session
+  onPendingPermissionsChange(() => {
+    renderSidebarContent();
   });
+
+  // Hot-reload only channel contact lists when notify watcher detects channel session changes on disk
+  listenIpcEvent<string[]>('sessions-changed', async () => {
+    await refreshChannelContactsOnly();
+  });
+}
+
+export async function refreshChannelContactsOnly(): Promise<void> {
+  const [whatsapp, telegram] = await Promise.all([
+    queryWhatsAppContactsIpc(),
+    queryTelegramContactsIpc(),
+  ]);
+  sidebarState.setChannelContacts(whatsapp, telegram);
 }
 
 export function dismissContextMenu(): void {
@@ -229,6 +243,7 @@ function renderProjectsSection(): void {
     card.className = `project-card ${isCollapsed ? 'collapsed' : ''}`;
 
     const isProjectActive = sidebarState.getActiveProjectPath() === proj.workspace;
+    const hasChildPerm = proj.conversations.some((c) => hasPendingPermission(c.id));
 
     const header = document.createElement('div');
     header.className = `project-header ${isProjectActive ? 'active' : ''}`;
@@ -237,6 +252,7 @@ function renderProjectsSection(): void {
         <span class="ui-icon icon-sidebar-chevron-down chevron-icon proj-chevron"></span>
         <span class="ui-icon icon-sidebar-folder"></span>
         <span class="session-title-text" title="${proj.workspace}">${proj.name}</span>
+        ${hasChildPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
       </div>
       <div class="project-header-actions">
         <button class="section-action-btn btn-proj-new-chat" title="New Chat in Project">
@@ -280,10 +296,12 @@ function renderProjectsSection(): void {
       proj.conversations.forEach((conv) => {
         const item = document.createElement('div');
         const isActive = sidebarState.getActiveSessionId() === conv.id;
+        const hasPerm = hasPendingPermission(conv.id);
         item.className = `session-item ${isActive ? 'active' : ''}`;
         item.innerHTML = `
           <div class="session-item-left">
             <span class="session-title-text" title="${conv.title}">${conv.title}</span>
+            ${hasPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
           </div>
           <button class="item-more-btn" title="Options">
             <span class="ui-icon icon-sidebar-more-vertical"></span>
@@ -331,11 +349,13 @@ function renderChatsSection(): void {
   chats.forEach((chat) => {
     const item = document.createElement('div');
     const isActive = sidebarState.getActiveSessionId() === chat.id;
+    const hasPerm = hasPendingPermission(chat.id);
     item.className = `session-item ${isActive ? 'active' : ''}`;
     item.innerHTML = `
       <div class="session-item-left">
         <span class="ui-icon icon-sidebar-chats"></span>
         <span class="session-title-text" title="${chat.title}">${chat.title}</span>
+        ${hasPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
       </div>
       <button class="item-more-btn" title="Options">
         <span class="ui-icon icon-sidebar-more-vertical"></span>
@@ -379,14 +399,16 @@ function renderWhatsAppSection(): void {
     card.className = `project-card ${isCollapsed ? 'collapsed' : ''}`;
 
     const isContactActive = sidebarState.getActiveProjectPath() === contact.workspace;
+    const hasChildPerm = contact.conversations.some((c) => hasPendingPermission(c.id));
 
     const header = document.createElement('div');
     header.className = `project-header ${isContactActive ? 'active' : ''}`;
     header.innerHTML = `
       <div class="session-item-left">
         <span class="ui-icon icon-sidebar-chevron-down chevron-icon proj-chevron"></span>
-        <span class="ui-icon icon-sidebar-whatsapp"></span>
+        <span class="ui-icon icon-sidebar-user"></span>
         <span class="session-title-text" title="${contact.workspace}">${contact.name}</span>
+        ${hasChildPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
       </div>
     `;
 
@@ -403,10 +425,12 @@ function renderWhatsAppSection(): void {
       contact.conversations.forEach((conv) => {
         const item = document.createElement('div');
         const isActive = sidebarState.getActiveSessionId() === conv.id;
+        const hasPerm = hasPendingPermission(conv.id);
         item.className = `session-item ${isActive ? 'active' : ''}`;
         item.innerHTML = `
           <div class="session-item-left">
             <span class="session-title-text" title="${conv.title}">${conv.title}</span>
+            ${hasPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
           </div>
           <button class="item-more-btn" title="Options">
             <span class="ui-icon icon-sidebar-more-vertical"></span>
@@ -456,14 +480,16 @@ function renderTelegramSection(): void {
     card.className = `project-card ${isCollapsed ? 'collapsed' : ''}`;
 
     const isContactActive = sidebarState.getActiveProjectPath() === contact.workspace;
+    const hasChildPerm = contact.conversations.some((c) => hasPendingPermission(c.id));
 
     const header = document.createElement('div');
     header.className = `project-header ${isContactActive ? 'active' : ''}`;
     header.innerHTML = `
       <div class="session-item-left">
         <span class="ui-icon icon-sidebar-chevron-down chevron-icon proj-chevron"></span>
-        <span class="ui-icon icon-sidebar-telegram"></span>
+        <span class="ui-icon icon-sidebar-user"></span>
         <span class="session-title-text" title="${contact.workspace}">${contact.name}</span>
+        ${hasChildPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
       </div>
     `;
 
@@ -480,10 +506,12 @@ function renderTelegramSection(): void {
       contact.conversations.forEach((conv) => {
         const item = document.createElement('div');
         const isActive = sidebarState.getActiveSessionId() === conv.id;
+        const hasPerm = hasPendingPermission(conv.id);
         item.className = `session-item ${isActive ? 'active' : ''}`;
         item.innerHTML = `
           <div class="session-item-left">
             <span class="session-title-text" title="${conv.title}">${conv.title}</span>
+            ${hasPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
           </div>
           <button class="item-more-btn" title="Options">
             <span class="ui-icon icon-sidebar-more-vertical"></span>

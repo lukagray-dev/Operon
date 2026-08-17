@@ -32,12 +32,16 @@ use crate::router::TelegramRouter;
 use crate::types::ChatId;
 use crate::workspace::TelegramWorkspaceManager;
 
+/// Hook signature for external consumers (e.g. GUI) listening to live channel session events and commands.
+pub type SessionEventHook = Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync>;
+
 /// Bridge that drives `SessionRunner` for a specific Telegram chat and sends output over Telegram outbound queue.
 pub struct SessionRunnerBridge {
     app_config: AppConfig,
     workspace_manager: TelegramWorkspaceManager,
     outbound_tx: mpsc::Sender<TelegramOutboundMessage>,
     router: Option<Arc<TelegramRouter>>,
+    event_hook: Option<SessionEventHook>,
 }
 
 impl SessionRunnerBridge {
@@ -52,6 +56,7 @@ impl SessionRunnerBridge {
             workspace_manager,
             outbound_tx,
             router: None,
+            event_hook: None,
         }
     }
 
@@ -67,6 +72,24 @@ impl SessionRunnerBridge {
             workspace_manager,
             outbound_tx,
             router: Some(router),
+            event_hook: None,
+        }
+    }
+
+    /// Creates a new `SessionRunnerBridge` wired with `TelegramRouter` and an external `SessionEventHook`.
+    pub fn with_router_and_hook(
+        app_config: AppConfig,
+        workspace_manager: TelegramWorkspaceManager,
+        outbound_tx: mpsc::Sender<TelegramOutboundMessage>,
+        router: Arc<TelegramRouter>,
+        event_hook: Option<SessionEventHook>,
+    ) -> Self {
+        Self {
+            app_config,
+            workspace_manager,
+            outbound_tx,
+            router: Some(router),
+            event_hook,
         }
     }
 
@@ -183,7 +206,7 @@ impl SessionRunnerBridge {
 
         // Wire cmd_tx to the router so /new can cancel in-flight turns!
         if let Some(ref router) = self.router {
-            router.register_cmd_tx(chat, session_id, cmd_tx).await;
+            router.register_cmd_tx(chat, session_id, cmd_tx.clone()).await;
         }
 
         // ── 6. Instantiate SessionRunner and restore history ────────────────
@@ -200,7 +223,15 @@ impl SessionRunnerBridge {
             tokio::spawn(async move { runner.run(user_message, vec![], vec![]).await });
 
         // ── 8. Event consumer loop — forward tool progress & final text ─────
-        forward_session_events_to_outbound(chat, &self.outbound_tx, &mut event_rx).await;
+        forward_session_events_to_outbound(
+            chat,
+            session_id,
+            &cmd_tx,
+            self.event_hook.as_ref(),
+            &self.outbound_tx,
+            &mut event_rx,
+        )
+        .await;
 
         // Unregister cmd_tx from router upon turn completion
         if let Some(ref router) = self.router {
@@ -221,6 +252,9 @@ impl SessionRunnerBridge {
 
 async fn forward_session_events_to_outbound(
     chat: &ChatId,
+    session_id: &str,
+    cmd_tx: &mpsc::Sender<SessionCommand>,
+    event_hook: Option<&SessionEventHook>,
     outbound_tx: &mpsc::Sender<TelegramOutboundMessage>,
     event_rx: &mut mpsc::Receiver<SessionEvent>,
 ) {
@@ -228,7 +262,16 @@ async fn forward_session_events_to_outbound(
     let mut terminal_event_seen = false;
 
     while let Some(event) = event_rx.recv().await {
+        if let Some(hook) = event_hook {
+            hook(session_id, &event, cmd_tx);
+        }
+
         match event {
+            SessionEvent::ApprovalRequired { ref tool, .. } => {
+                let msg = format!("⚠️ *Permission Required:* Operon wants to run `{}`. Please allow or deny in the Operon Desktop GUI.", tool);
+                let out = TelegramOutboundMessage::new(chat.as_i64(), &msg);
+                let _ = outbound_tx.send(out).await;
+            }
             SessionEvent::ToolCallStart { name, .. } => {
                 let progress_msg = format!("⚡ *Executing:* `{}`", name);
                 let out = TelegramOutboundMessage::new(chat.as_i64(), &progress_msg);
