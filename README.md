@@ -57,10 +57,7 @@ So in early 2026, I started building **Operon**. 🎉
    - Connect Operon to WhatsApp, Telegram, Gmail, and other external channels.
    - Your agent stays reachable and operational even when you're away from your desk.
 
-6. 🌐 **Multi-Format Patch Engine**
-   - Supports Codex patches, unified diffs, and SEARCH/REPLACE blocks for broad compatibility across model providers.
-
-7. 📋 **Tasks & Memory**
+6. 📋 **Tasks & Memory**
    - Operon maintains structured memory across sessions, tracks ongoing tasks, supports scheduled actions, and surfaces relevant context automatically — so nothing gets lost between conversations.
 
 </details>
@@ -69,21 +66,102 @@ So in early 2026, I started building **Operon**. 🎉
 
 ## ⚡ Performance
 
-Operon is built with Rust and Slint. No Electron, no V8 heap, and no garbage collection.
+Operon is built with Rust and Tauri v2. The backend runtime is pure Rust — no Node.js, no V8 heap in the core agent loop, and no garbage collection in critical paths.
 
 | | Operon | Claude Code | Codex | OpenClaw |
 |---|---|---|---|---|
-| **Runtime** | Rust + Slint | Node.js + Electron | Node.js + Electron | Node.js |
-| **Idle RAM** | **~70 MB** | ~300 MB | ~1 GB | ~512 MB |
+| **Runtime** | Rust + Tauri v2 | Node.js + Electron | Node.js + Electron | Node.js |
+| **Idle RAM** | **~65 MB** | ~300 MB | ~1 GB | ~512 MB |
 | **Under load** | **< 90 MB** | 500 MB – 2+ GB | 2+ GB | 512 MB – 7 GB |
 
-Electron-based apps require a full Chromium renderer and Node.js runtime.  
-Operon compiles down to a single, truly native binary utilizing Slint's direct-to-GPU graphics rendering (no WebViews or browser engines). The entire application (GUI + session runner + tool dispatcher) runs in a single lightweight process.
+**Architecture Comparison:**
 
-#### Why Slint?
+<table>
+<tr>
+<td width="50%" valign="top">
 
-> We migrated from web-based frameworks (like Tauri) to [`Slint`](https://github.com/SlintSDK/slint) to achieve true native performance. Slint compiles directly to machine code and draws UI elements directly using the GPU (via Skia/FemtoVG), entirely bypassing browser engines, WebViews, or Node.js runtimes.  
-> This results in instant startup (<50ms) and keeps the total memory footprint under 90 MB.
+**❌ Electron-Based Apps**
+```
+┌─────────────────────────┐
+│   Your Application      │
+├─────────────────────────┤
+│   Full Chromium         │  ← Entire browser
+│   (80+ MB base)         │     engine bundled
+├─────────────────────────┤
+│   Node.js Runtime       │  ← JavaScript VM
+│   (V8 + GC overhead)    │     for backend
+└─────────────────────────┘
+   Result: 300MB+ idle
+```
+
+</td>
+<td width="50%" valign="top">
+
+**✅ Operon (Tauri v2)**
+```
+┌─────────────────────────┐
+│   TypeScript Frontend   │  ← Static HTML/CSS/JS
+│   (Compiled bundle)     │
+├─────────────────────────┤
+│   System WebView        │  ← Uses OS-native
+│   (WebView2/WKWebView)  │     renderer (0 MB cost)
+├─────────────────────────┤
+│   Rust Backend          │  ← Pure native code
+│   (Agent Runtime)       │     Zero-cost abstractions
+└─────────────────────────┘
+   Result: ~80MB idle
+```
+
+</td>
+</tr>
+</table>
+
+#### 🎯 Why Tauri v2?
+
+<details open>
+<summary><b>Native WebView Embedding</b></summary>
+
+Instead of shipping Chromium (like Electron), Tauri uses the WebView already installed on your system:
+- **Windows**: WebView2 (Edge-based, auto-updated by Microsoft)
+- **macOS**: WKWebView (Safari engine, part of the OS)
+- **Linux**: WebKitGTK (system package)
+
+**Impact**: The entire browser engine contributes **0 bytes** to the app bundle size.
+
+</details>
+
+<details open>
+<summary><b>Process Separation</b></summary>
+
+The Rust backend runs as a **separate native process** from the WebView frontend:
+
+```
+Frontend Process          Backend Process
+┌──────────────┐          ┌────────────────────┐
+│  TypeScript  │  IPC     │  Rust Agent Loop   │
+│  UI Layer    │◄────────►│  • Session Manager │
+│  (Rendering) │          │  • Tool Dispatcher │
+│              │          │  • HTTP Streaming  │
+│              │          │  • Context Pipeline│
+└──────────────┘          └────────────────────┘
+  Lightweight              Compute-Heavy Tasks
+```
+
+**Impact**: UI remains responsive even during heavy LLM streaming or tool execution.
+
+</details>
+
+<details open>
+<summary><b>Zero Garbage Collection in Critical Paths</b></summary>
+
+- **Session orchestration**: Pure Rust (no GC pauses)
+- **Tool execution**: Native syscalls via Rust std::process
+- **HTTP streaming**: Tokio async runtime (no stop-the-world GC)
+- **Context compaction**: Manual memory management
+
+**Impact**: Predictable latency, no random 50-200ms GC stalls during agent loops.
+
+</details>
 
 ## 🛡️ Permission Model
 
@@ -117,6 +195,134 @@ Operon is built for deployment. Without a clear permission boundary, opening you
 Operon prevents this by enforcing role separation at the permission layer itself. External users get zero access by default. You define exactly what they can reach, in which directories, using which tools, and whether confirmation is required.
 
 > **Access is segmented by design. Not by hope.**
+
+---
+
+## 📦 Monorepo Layout
+
+Operon is organized as a Cargo workspace with clearly separated frontend, backend, and tooling layers.
+
+```mermaid
+graph TD
+    subgraph "Frontends"
+        GUI[gui/<br/>Tauri v2 GUI<br/>TypeScript + Rust Backend]
+        TUI[tui/<br/>Terminal UI<br/>Ratatui + Crossterm]
+    end
+
+    subgraph "Backend Runtime"
+        OPERON_RS[operon-rs/<br/>Facade Crate<br/>Public API Surface]
+        
+        subgraph "Core Subsystems"
+            SESSION[operon-session<br/>Agent Loop, HTTP, Tool Dispatch]
+            CONTEXT[operon-context<br/>Context Pipeline<br/>Token Tracking, Compaction, Normalization]
+            TOOLS[operon-tools<br/>Tool Registry<br/>fs, shell, web, memory, todo, ask, load]
+            POLICY[operon-policy<br/>Permission Enforcement<br/>Owner vs External Role Gating]
+        end
+        
+        subgraph "Foundation Layer"
+            PROVIDERS[operon-providers<br/>LLM Provider Configs<br/>OpenAI, Anthropic, etc.]
+            CONFIG[operon-config<br/>config.toml Loading<br/>Path Resolution, Env Overrides]
+            EVENTS[operon-events<br/>Event Bus<br/>Pure Types, Zero Async]
+            TERMINAL[operon-terminal<br/>PTY Management<br/>Process Spawning, I/O Capture]
+        end
+        
+        CHANNELS[operon-channels<br/>WhatsApp, Telegram<br/>External Connectivity]
+    end
+
+    subgraph "Tooling & Infra"
+        SCRIPTS[scripts/<br/>run-gui.bat, run-tui.bat<br/>Development Launchers]
+        DOCS[docs/<br/>Architecture Notes<br/>GUI-IPC, Permissions, Typography]
+        ASSETS[assets/<br/>Logo, Lucide Icons<br/>Static Resources]
+        GITHUB[.github/workflows/<br/>CI/CD<br/>pre-release.yml, stable-release.yml]
+    end
+
+    GUI --> OPERON_RS
+    TUI --> OPERON_RS
+    
+    OPERON_RS --> SESSION
+    OPERON_RS --> CONTEXT
+    OPERON_RS --> TOOLS
+    OPERON_RS --> CHANNELS
+    
+    SESSION --> POLICY
+    SESSION --> CONFIG
+    SESSION --> EVENTS
+    SESSION --> PROVIDERS
+    SESSION --> TERMINAL
+    
+    TOOLS --> EVENTS
+    POLICY --> CONFIG
+
+    style GUI fill:#4A90E2,stroke:#2E5C8A,color:#fff
+    style TUI fill:#4A90E2,stroke:#2E5C8A,color:#fff
+    style OPERON_RS fill:#50C878,stroke:#2E7D4E,color:#fff
+    style SESSION fill:#F39C12,stroke:#C87A0A,color:#fff
+    style CONTEXT fill:#F39C12,stroke:#C87A0A,color:#fff
+    style TOOLS fill:#F39C12,stroke:#C87A0A,color:#fff
+    style POLICY fill:#F39C12,stroke:#C87A0A,color:#fff
+    style PROVIDERS fill:#9B59B6,stroke:#6C3483,color:#fff
+    style CONFIG fill:#9B59B6,stroke:#6C3483,color:#fff
+    style EVENTS fill:#9B59B6,stroke:#6C3483,color:#fff
+    style TERMINAL fill:#9B59B6,stroke:#6C3483,color:#fff
+    style CHANNELS fill:#E74C3C,stroke:#A93226,color:#fff
+```
+
+### Directory Structure
+
+```
+Operon/
+├── gui/                      # Tauri v2 Desktop GUI
+│   ├── src/                  # TypeScript frontend (HTML/CSS/JS)
+│   ├── src-tauri/            # Rust backend (IPC handlers, state management)
+│   │   ├── src/              # Tauri app entry point
+│   │   ├── Cargo.toml        # operon-gui crate
+│   │   └── tauri.conf.json   # Tauri configuration
+│   ├── package.json          # TypeScript build config
+│   └── tsconfig.json
+│
+├── tui/                      # Terminal UI (Ratatui)
+│   ├── src/                  # TUI rendering, input handling
+│   └── Cargo.toml            # operon-tui crate
+│
+├── operon-rs/                # Backend Runtime (Rust)
+│   ├── src/
+│   │   ├── operon-session/   # Agent loop, HTTP clients, tool dispatch
+│   │   ├── operon-context/   # Context pipeline (normalization, compaction)
+│   │   ├── operon-tools/     # Tool implementations (fs, shell, web, memory, etc.)
+│   │   ├── operon-policy/    # Permission enforcement (Owner/External roles)
+│   │   ├── operon-providers/ # LLM provider configs (OpenAI, Anthropic, etc.)
+│   │   ├── operon-config/    # config.toml loading, env var overrides
+│   │   ├── operon-events/    # Event bus (pure types, zero async)
+│   │   ├── operon-terminal/  # PTY management, process spawning
+│   │   ├── operon-channels/  # WhatsApp, Telegram connectivity
+│   │   └── operon-diff/      # Diff generation utilities
+│   ├── Cargo.toml            # operon-rs facade crate
+│   └── README.md             # Backend architecture documentation
+│
+├── docs/                     # Architecture documentation
+│   ├── GUI-IPC-and-State-Architecture.md
+│   ├── Permission.md
+│   └── Typography-and-Fonts.md
+│
+├── scripts/                  # Development launchers
+│   ├── run-gui.bat           # Start GUI in dev mode
+│   ├── run-gui-release.bat   # Start GUI in release mode
+│   ├── run-tui.bat           # Start TUI in dev mode
+│   └── run-tui-release.bat   # Start TUI in release mode
+│
+├── assets/                   # Static resources (logo, icons)
+├── .github/workflows/        # CI/CD pipelines
+├── Cargo.toml                # Workspace root (defines all members)
+└── README.md                 # This file
+```
+
+### Key Design Decisions
+
+1. **Frontends are Thin Clients**: Both GUI and TUI depend on `operon-rs` as a facade. All agent logic lives in the backend.
+2. **Separation of Concerns**: The backend is decomposed into single-responsibility crates (session, tools, policy, providers, config, events).
+3. **Permission Enforcement at the Core**: `operon-policy` sits between `operon-session` and `operon-tools`, enforcing Owner/External role separation before tool execution.
+4. **Shared Runtime**: TUI and GUI share the exact same Rust backend. No code duplication.
+5. **Mobile-Ready Architecture**: The layered design anticipates iOS/Android frontends using the same `operon-rs` core via FFI.
 
 ---
 
@@ -164,24 +370,3 @@ Built by **Luka Gray (aka Soumo Mukherjee)** • West Bengal, India • 2026
 <br/>
 
 </div>
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User
-    participant App as Operon Client
-    participant Phone as WhatsApp Phone App
-    participant WAServer as WhatsApp Web Server (wss://web.whatsapp.com)
-
-    User->>App: 1. Input Owner Phone Number (+1 555-019-2834)
-    User->>App: 2. Click "Generate Pair Code"
-    App->>WAServer: 3. requestPairingCode("+15550192834") via WebSocket
-    WAServer->>WAServer: 4. Register session & generate 8-char code
-    WAServer-->>App: 5. Emits pair code "K8P2-9X4L"
-    App->>User: 6. Displays "K8P2-9X4L" in popup
-    User->>Phone: 7. Enter "K8P2-9X4L" under Linked Devices
-    Phone->>WAServer: 8. Send phone auth token for "K8P2-9X4L"
-    WAServer->>WAServer: 9. Match code to active WebSocket session
-    WAServer-->>App: 10. Handshake complete & emit session keys
-    App->>App: 11. Save creds.json & auto-close popup -> Connected
-```
