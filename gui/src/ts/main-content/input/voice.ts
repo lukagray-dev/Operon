@@ -2,8 +2,10 @@
 //
 // This module provides speech recognition capabilities inside the main chat prompt input.
 // It leverages the standard Web Speech API (SpeechRecognition / webkitSpeechRecognition)
-// built natively into the Chromium / Webview2 engine on Windows.
+// built natively into the Chromium / Webview2 engine on Windows, protected by Operon's
+// custom permission dialogs and alert dialogs.
 
+import { showAlertDialog, showPermissionDialog } from '../../shared/dialog.js';
 import { inputState } from './state.js';
 import type { ISpeechRecognition, SpeechRecognitionErrorEvent, SpeechRecognitionEvent } from './types.js';
 
@@ -28,7 +30,7 @@ export function isVoiceSupported(): boolean {
 /**
  * Toggles voice recording on/off when the user clicks the microphone button.
  */
-export function toggleVoiceRecording(): void {
+export async function toggleVoiceRecording(): Promise<void> {
   // If the conversation is currently read-only, do not allow recording
   if (inputState.getIsReadOnly()) {
     return;
@@ -38,14 +40,14 @@ export function toggleVoiceRecording(): void {
   if (inputState.getIsVoiceRecording()) {
     stopVoiceRecording();
   } else {
-    startVoiceRecording();
+    await startVoiceRecording();
   }
 }
 
 /**
  * Starts speech recognition and streams live transcripts into the prompt textarea.
  */
-export function startVoiceRecording(): void {
+export async function startVoiceRecording(): Promise<void> {
   const win = window as unknown as {
     SpeechRecognition?: new () => ISpeechRecognition;
     webkitSpeechRecognition?: new () => ISpeechRecognition;
@@ -55,8 +57,49 @@ export function startVoiceRecording(): void {
 
   if (!SpeechRecognitionClass) {
     console.error('[Voice] Speech recognition is not supported in this webview environment.');
-    alert('Speech recognition is not supported in this browser environment. Please check your system microphone permissions.');
+    await showAlertDialog({
+      title: 'Voice Input Unsupported',
+      message: 'Speech recognition is not supported in this environment. Please check your system microphone permissions.',
+      buttonText: 'Ok',
+      icon: 'warning',
+    });
     return;
+  }
+
+  // 1. Permission check: ensure we prompt the user with our custom dialog first
+  const hasGranted = localStorage.getItem('operon_mic_permission_granted') === 'true';
+  if (!hasGranted) {
+    const userAllowed = await showPermissionDialog({
+      title: 'Microphone Permission',
+      message: 'Operon needs access to your microphone for real-time speech-to-text typing.',
+      allowText: 'Ok',
+      denyText: 'Cancel',
+      icon: 'mic',
+    });
+
+    if (!userAllowed) {
+      console.debug('[Voice] User denied microphone access in custom dialog.');
+      return;
+    }
+
+    // Request actual browser/webview media device access to permanently unlock mic
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Release audio track immediately now that permission is unlocked
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      localStorage.setItem('operon_mic_permission_granted', 'true');
+    } catch (permErr) {
+      console.warn('[Voice] Media devices permission request error:', permErr);
+      await showAlertDialog({
+        title: 'Microphone Access Denied',
+        message: 'Could not access the microphone. Please check your Windows microphone privacy settings.',
+        buttonText: 'Ok',
+        icon: 'danger',
+      });
+      return;
+    }
   }
 
   const textarea = document.getElementById('chat-input-textarea') as HTMLTextAreaElement | null;
@@ -116,12 +159,17 @@ export function startVoiceRecording(): void {
       };
 
       // 3. When an error occurs during audio capture or transcription
-      recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognitionInstance.onerror = async (event: SpeechRecognitionErrorEvent) => {
         console.warn('[Voice] Speech recognition error:', event.error);
 
         // Handle blocked permission scenarios specifically
         if (event.error === 'not-allowed') {
-          alert('Microphone access was denied. Please grant microphone permissions to Operon in your Windows settings.');
+          await showAlertDialog({
+            title: 'Microphone Access Denied',
+            message: 'Microphone access was denied. Please grant microphone permissions to Operon in your Windows settings.',
+            buttonText: 'Ok',
+            icon: 'danger',
+          });
         } else if (event.error !== 'no-speech') {
           // Suppress alert for simple silence / no-speech timeouts
           console.error(`[Voice] Transcription error: ${event.error}`);
@@ -137,7 +185,12 @@ export function startVoiceRecording(): void {
       };
     } catch (err) {
       console.error('[Voice] Failed to initialize SpeechRecognition:', err);
-      alert('Could not configure voice interface.');
+      await showAlertDialog({
+        title: 'Voice Configuration Error',
+        message: 'Could not configure the voice speech recognition interface.',
+        buttonText: 'Ok',
+        icon: 'danger',
+      });
       return;
     }
   }

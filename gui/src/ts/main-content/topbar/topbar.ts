@@ -4,6 +4,7 @@ import { renameSessionIpc } from '../../left-sidebar/ipc.js';
 import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { rightSidebarState } from '../../right-sidebar/state.js';
+import { showPromptDialog } from '../../shared/dialog.js';
 import { getTopbarInfoIpc } from './ipc.js';
 import { topbarState } from './state.js';
 
@@ -68,7 +69,16 @@ function setupInlineTitleRename(): void {
     if (!activeSessionId) return;
 
     const currentTitle = topbarState.getTitle();
-    const newTitle = prompt('Rename conversation:', currentTitle);
+    const newTitle = await showPromptDialog({
+      title: 'Rename Conversation',
+      message: 'Enter a new title for this conversation:',
+      defaultValue: currentTitle,
+      placeholder: 'Conversation title',
+      confirmText: 'Ok',
+      cancelText: 'Cancel',
+      icon: 'pencil',
+    });
+
     if (newTitle && newTitle.trim().length > 0 && newTitle.trim() !== currentTitle) {
       await renameSessionIpc(activeSessionId, newTitle.trim());
       topbarState.setTitle(newTitle.trim());

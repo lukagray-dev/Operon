@@ -1,6 +1,7 @@
 /* Global Application Reset & Canvas Layout */
 @import './tokens.css';
 @import './scrollbar.css';
+@import './dialog.css';
 
 * {
   box-sizing: border-box;

@@ -14,6 +14,7 @@ import {
   queryWhatsAppContactsIpc,
   renameSessionIpc,
 } from './ipc.js';
+import { showConfirmDialog, showPromptDialog } from '../shared/dialog.js';
 import { sidebarState } from './state.js';
 import type { SidebarConversation } from './types.js';
 
@@ -278,7 +279,15 @@ function renderProjectsSection(): void {
 
     header.querySelector('.btn-proj-delete')?.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm(`Are you sure you want to delete project "${proj.name}"?`)) {
+      const confirmed = await showConfirmDialog({
+        title: 'Delete Project',
+        message: `Are you sure you want to remove project "${proj.name}" from your workspace?`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        isDanger: true,
+        icon: 'trash',
+      });
+      if (confirmed) {
         await deleteProjectIpc(proj.workspace);
         if (sidebarState.getActiveProjectPath() === proj.workspace) {
           sidebarState.selectSession(null, null);
@@ -445,7 +454,15 @@ function renderWhatsAppSection(): void {
         const deleteBtn = item.querySelector<HTMLButtonElement>('.item-delete-btn');
         deleteBtn?.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (confirm(`Are you sure you want to delete conversation "${conv.title}"?`)) {
+          const confirmed = await showConfirmDialog({
+            title: 'Delete Conversation',
+            message: `Are you sure you want to delete conversation "${conv.title}"?`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            isDanger: true,
+            icon: 'trash',
+          });
+          if (confirmed) {
             await deleteSessionIpc(conv.id);
             if (sidebarState.getActiveSessionId() === conv.id) {
               sidebarState.selectSession(null, null);
@@ -533,7 +550,15 @@ function renderTelegramSection(): void {
         const deleteBtn = item.querySelector<HTMLButtonElement>('.item-delete-btn');
         deleteBtn?.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (confirm(`Are you sure you want to delete conversation "${conv.title}"?`)) {
+          const confirmed = await showConfirmDialog({
+            title: 'Delete Conversation',
+            message: `Are you sure you want to delete conversation "${conv.title}"?`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            isDanger: true,
+            icon: 'trash',
+          });
+          if (confirmed) {
             await deleteSessionIpc(conv.id);
             if (sidebarState.getActiveSessionId() === conv.id) {
               sidebarState.selectSession(null, null);
@@ -614,7 +639,15 @@ function showConversationContextMenu(
   menu.querySelector('#ctx-rename')?.addEventListener('click', async (evt) => {
     evt.stopPropagation();
     dismissContextMenu();
-    const newTitle = prompt('Rename conversation:', conv.title);
+    const newTitle = await showPromptDialog({
+      title: 'Rename Conversation',
+      message: 'Enter a new title for this conversation:',
+      defaultValue: conv.title,
+      placeholder: 'Conversation title',
+      confirmText: 'Ok',
+      cancelText: 'Cancel',
+      icon: 'pencil',
+    });
     if (newTitle && newTitle.trim().length > 0) {
       await renameSessionIpc(conv.id, newTitle.trim());
       await refreshSidebarContent();
@@ -628,10 +661,14 @@ function showConversationContextMenu(
 
     const projects = sidebarState.getProjects();
     const options = ['[Standalone Chat]', ...projects.map((p) => p.name)];
-    const choice = prompt(
-      `Move conversation to:\n${options.map((opt, idx) => `${idx + 1}. ${opt}`).join('\n')}`,
-      '1'
-    );
+    const choice = await showPromptDialog({
+      title: 'Move Conversation',
+      message: `Move conversation to:\n${options.map((opt, idx) => `${idx + 1}. ${opt}`).join('\n')}`,
+      defaultValue: '1',
+      placeholder: 'Enter choice number',
+      confirmText: 'Ok',
+      cancelText: 'Cancel',
+    });
 
     if (choice) {
       const idx = parseInt(choice.trim(), 10) - 1;
@@ -667,7 +704,15 @@ function showConversationContextMenu(
   menu.querySelector('#ctx-delete')?.addEventListener('click', async (evt) => {
     evt.stopPropagation();
     dismissContextMenu();
-    if (confirm(`Delete conversation "${conv.title}"?`)) {
+    const confirmed = await showConfirmDialog({
+      title: 'Delete Conversation',
+      message: `Are you sure you want to delete conversation "${conv.title}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDanger: true,
+      icon: 'trash',
+    });
+    if (confirmed) {
       await deleteSessionIpc(conv.id);
       if (sidebarState.getActiveSessionId() === conv.id) {
         sidebarState.selectSession(null, null);

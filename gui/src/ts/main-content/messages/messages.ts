@@ -11,6 +11,7 @@ import { refreshSidebarContent } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { getGeneralSettingsIpc } from '../../settings/general/ipc.js';
 import type { GeneralSettings } from '../../settings/general/types.js';
+import { showConfirmDialog } from '../../shared/dialog.js';
 import { listenIpcEvent } from '../../shared/ipc.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
 import { inputState } from '../input/state.js';
@@ -882,7 +883,13 @@ function createAssistantActionBar(msg: ChatMessage, showSeparator = true): HTMLE
     const currentSessionId = sidebarState.getActiveSessionId();
     if (!currentSessionId) return;
 
-    const confirmed = confirm('Fork conversation from this turn into a new chat?');
+    const confirmed = await showConfirmDialog({
+      title: 'Fork Conversation',
+      message: 'Fork this conversation from this turn into a new chat?',
+      confirmText: 'Ok',
+      cancelText: 'Cancel',
+      icon: 'help',
+    });
     if (!confirmed) return;
 
     try {

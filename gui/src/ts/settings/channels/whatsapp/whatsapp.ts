@@ -14,6 +14,7 @@ import {
   startWhatsAppCodePairingIpc,
   startWhatsAppQrPairingIpc,
 } from './ipc.js';
+import { showAlertDialog } from '../../../shared/dialog.js';
 import type { WhatsAppState } from './types.js';
 
 let waState: WhatsAppState | null = null;
@@ -176,7 +177,12 @@ function setupWhatsAppModals(): void {
     const phone = ownerInput ? ownerInput.value.trim() : '';
 
     if (!phone) {
-      alert('Please enter your mobile phone number first.');
+      await showAlertDialog({
+        title: 'Phone Number Required',
+        message: 'Please enter your mobile phone number first.',
+        buttonText: 'Ok',
+        icon: 'warning',
+      });
       return;
     }
 
