@@ -151,10 +151,6 @@ pub fn render_help_screen(frame: &mut Frame, area: Rect, state: &mut AppState) {
             Span::styled("      - Manage extensions", STYLE_MUTED),
         ]),
         Line::from(vec![
-            Span::styled("  Channels", STYLE_NORMAL),
-            Span::styled("        - Communication channels", STYLE_MUTED),
-        ]),
-        Line::from(vec![
             Span::styled("  Help", STYLE_NORMAL),
             Span::styled("            - This screen", STYLE_MUTED),
         ]),

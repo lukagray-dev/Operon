@@ -63,7 +63,6 @@ pub fn map_key(
         ActiveScreen::Permissions => map_permissions_keys(key, state),
         ActiveScreen::Skills => map_skills_keys(key),
         ActiveScreen::Extensions => map_extensions_keys(key),
-        ActiveScreen::Channels => map_channels_keys(key),
         ActiveScreen::Help => map_help_keys(key),
     }
 }
@@ -215,15 +214,6 @@ fn map_skills_keys(key: KeyEvent) -> Option<Action> {
 /// Extensions screen keybinds
 /// - Esc: Back to Chat screen
 fn map_extensions_keys(key: KeyEvent) -> Option<Action> {
-    match key.code {
-        KeyCode::Esc => Some(Action::Back),
-        _ => None,
-    }
-}
-
-/// Channels screen keybinds
-/// - Esc: Back to Chat screen
-fn map_channels_keys(key: KeyEvent) -> Option<Action> {
     match key.code {
         KeyCode::Esc => Some(Action::Back),
         _ => None,

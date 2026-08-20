@@ -23,9 +23,6 @@ pub enum ActiveScreen {
     /// Extensions manager — install/remove/configure extensions
     Extensions,
 
-    /// Channels configuration — WhatsApp, Telegram, Discord, etc.
-    Channels,
-
     /// Help screen — keybind reference, searchable
     Help,
 }
@@ -39,7 +36,6 @@ impl fmt::Display for ActiveScreen {
             ActiveScreen::Permissions => write!(f, "Permissions"),
             ActiveScreen::Skills => write!(f, "Skills"),
             ActiveScreen::Extensions => write!(f, "Extensions"),
-            ActiveScreen::Channels => write!(f, "Channels"),
             ActiveScreen::Help => write!(f, "Help"),
         }
     }
@@ -55,7 +51,6 @@ impl ActiveScreen {
             ActiveScreen::Permissions,
             ActiveScreen::Skills,
             ActiveScreen::Extensions,
-            ActiveScreen::Channels,
             ActiveScreen::Help,
         ]
     }
