@@ -3,11 +3,13 @@
 // This is pure UI state — no business logic, no config loading
 // Business state lives in operon-rs backend and is accessed via AgentBridge
 
+pub mod resume;
 pub mod screen;
 pub mod session;
 
 use crate::ui::screens::models::state::ModelsState;
 use crate::ui::screens::permissions::state::PermissionsState;
+use resume::ResumeState;
 use screen::ActiveScreen;
 use session::SessionContext;
 use tui_textarea::TextArea;
@@ -73,6 +75,9 @@ pub struct AppState {
     /// Selection end position when Ctrl+Shift+drag
     selection_end: Option<(u16, u16)>,
 
+    /// Resume screen state (session history for current workspace)
+    pub resume: ResumeState,
+
     /// Models screen state (provider selection, form inputs, fetched models)
     pub models: ModelsState,
 
@@ -109,6 +114,7 @@ impl AppState {
             ctrl_shift_held: false,
             selection_start: None,
             selection_end: None,
+            resume: ResumeState::new(),
             models: ModelsState::new(),
             permissions: PermissionsState::new(),
         }
@@ -121,6 +127,9 @@ impl AppState {
 
     /// Switch to a different screen
     pub fn set_active_screen(&mut self, screen: ActiveScreen) {
+        if screen == ActiveScreen::Resume {
+            self.resume.refresh_sessions();
+        }
         self.active_screen = screen;
     }
 
@@ -228,6 +237,130 @@ impl AppState {
         self.chat_scroll = 0;
     }
 
+    /// Loads conversation messages from a persisted session JSON file into the active chat message list.
+    pub fn load_session_history(&mut self, session_id: &str) -> anyhow::Result<()> {
+        let paths = operon_rs::OperonPaths::resolve()?;
+        let session_file = paths.sessions_dir.join(format!("{}.json", session_id));
+        if !session_file.exists() {
+            anyhow::bail!("Session file not found: {:?}", session_file);
+        }
+
+        let content = std::fs::read_to_string(&session_file)?;
+        let val: serde_json::Value = serde_json::from_str(&content)?;
+
+        let mut loaded_messages = Vec::new();
+
+        if let Some(turns) = val.get("turns").and_then(|t| t.as_array()) {
+            for turn in turns {
+                if let Some(messages) = turn.get("messages").and_then(|m| m.as_array()) {
+                    for msg in messages {
+                        let role_str = msg.get("role").and_then(|r| r.as_str()).unwrap_or("user");
+                        let role = if role_str.eq_ignore_ascii_case("user") {
+                            "User".to_string()
+                        } else {
+                            "Operon".to_string()
+                        };
+
+                        let mut text_acc = String::new();
+                        if let Some(content) = msg.get("content") {
+                            if let Some(s) = content.as_str() {
+                                text_acc.push_str(s);
+                            } else if let Some(arr) = content.as_array() {
+                                for block in arr {
+                                    if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
+                                        if !text_acc.is_empty() {
+                                            text_acc.push('\n');
+                                        }
+                                        text_acc.push_str(text);
+                                    }
+                                }
+                            }
+                        }
+
+                        if !text_acc.trim().is_empty() {
+                            loaded_messages.push(ChatMessage {
+                                role,
+                                content: text_acc,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        self.messages = loaded_messages;
+        self.chat_scroll = 0;
+        Ok(())
+    }
+
+    /// Appends streaming text delta to the current assistant message.
+    /// If no assistant message is currently open for the turn, creates one.
+    pub fn append_assistant_delta(&mut self, text: &str) {
+        if let Some(last) = self.messages.last_mut() {
+            if last.role == "Operon" {
+                last.content.push_str(text);
+                self.chat_scroll = 0;
+                return;
+            }
+        }
+        self.messages.push(ChatMessage {
+            role: "Operon".to_string(),
+            content: text.to_string(),
+        });
+        self.chat_scroll = 0;
+    }
+
+    /// Appends a thinking delta (or reasoning update)
+    pub fn append_thinking_delta(&mut self, _text: &str) {
+        self.agent_thinking = true;
+    }
+
+    /// Cancels in-flight prompt generation and appends a cancellation note.
+    pub fn cancel_in_flight_generation(&mut self) {
+        if self.agent_thinking {
+            self.agent_thinking = false;
+            if let Some(last) = self.messages.last_mut() {
+                if last.role == "Operon" {
+                    last.content.push_str(" [Cancelled]");
+                } else {
+                    self.messages.push(ChatMessage {
+                        role: "Operon".to_string(),
+                        content: "[Generation cancelled]".to_string(),
+                    });
+                }
+            } else {
+                self.messages.push(ChatMessage {
+                    role: "Operon".to_string(),
+                    content: "[Generation cancelled]".to_string(),
+                });
+            }
+            self.chat_scroll = 0;
+        }
+    }
+
+    /// Updates dynamic context window token consumption in the session state.
+    pub fn update_context_usage(&mut self, current: usize, total: usize) {
+        self.session.context_used = current;
+        if total > 0 {
+            self.session.context_max = total;
+        }
+    }
+
+    /// Check if agent is currently generating/thinking
+    pub fn agent_thinking(&self) -> bool {
+        self.agent_thinking
+    }
+
+    /// Check if agent is currently generating/thinking (alias)
+    pub fn is_agent_thinking(&self) -> bool {
+        self.agent_thinking
+    }
+
+    /// Set agent generating/thinking state
+    pub fn set_agent_thinking(&mut self, thinking: bool) {
+        self.agent_thinking = thinking;
+    }
+
     /// Get chat scroll position
     pub fn chat_scroll(&self) -> u16 {
         self.chat_scroll
@@ -262,16 +395,6 @@ impl AppState {
     /// Scroll help screen down (towards bottom)
     pub fn scroll_help_down(&mut self, amount: u16, max: u16) {
         self.help_scroll = (self.help_scroll + amount).min(max);
-    }
-
-    /// Check if the agent is currently generating a response
-    pub fn is_agent_thinking(&self) -> bool {
-        self.agent_thinking
-    }
-
-    /// Mark agent as thinking (called when a message is sent)
-    pub fn set_agent_thinking(&mut self, thinking: bool) {
-        self.agent_thinking = thinking;
     }
 
     /// Check if mouse capture is enabled

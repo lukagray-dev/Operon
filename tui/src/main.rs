@@ -17,7 +17,7 @@ mod events;
 mod state;
 mod ui;
 
-use agent::{mock::MockAgent, AgentBridge};
+use agent::{AgentBridge, OperonAgent};
 use events::{action::Action, EventHandler};
 use state::AppState;
 
@@ -29,8 +29,8 @@ async fn main() -> Result<()> {
     // Initialize terminal with crossterm backend
     let mut terminal = app::terminal::init()?;
 
-    // Initialize application state with mock agent
-    let agent: Arc<Mutex<Box<dyn AgentBridge>>> = Arc::new(Mutex::new(Box::new(MockAgent::new())));
+    // Initialize application state with real Operon agent bridge
+    let agent: Arc<Mutex<Box<dyn AgentBridge>>> = Arc::new(Mutex::new(Box::new(OperonAgent::new())));
     let mut app_state = AppState::new();
 
     // Create event handler channel

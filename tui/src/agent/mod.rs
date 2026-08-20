@@ -1,36 +1,28 @@
 // AgentBridge trait
-// The TUI's only contact point with operon-rs backend
-// All business logic, config loading, and agent execution happens through this trait
-// MockAgent in mock.rs provides a fake implementation for UI-only development
+// The TUI's primary contact point with operon-rs backend
+// All agent execution, prompt streaming, and cancellation happens through this trait
 
-pub mod mock;
+pub mod operon;
+
+pub use operon::OperonAgent;
 
 use anyhow::Result;
+use tokio::sync::mpsc;
+use crate::events::action::Action;
 
-/// AgentBridge is the interface between TUI and operon-rs backend
-#[allow(dead_code)]
-/// The TUI never directly accesses business logic — everything goes through this trait
-/// This allows the TUI to be developed and tested independently of the backend
-///
-/// Future methods to add when backend is ready:
-/// - async fn load_config() -> Result<Config>
-/// - async fn list_models() -> Result<Vec<ModelInfo>>
-/// - async fn set_active_model(model_id: &str) -> Result<()>
-/// - async fn get_permissions() -> Result<PermissionRules>
-/// - async fn set_permission(rule: PermissionRule) -> Result<()>
-/// - async fn list_skills() -> Result<Vec<SkillInfo>>
-/// - async fn toggle_skill(skill_id: &str, enabled: bool) -> Result<()>
-/// - async fn execute_command(cmd: &str) -> Result<CommandOutput>
+/// Interface between TUI and operon-rs backend session executor.
 #[async_trait::async_trait]
 pub trait AgentBridge: Send + Sync {
-    /// Send a message to the agent and receive a response
-    /// This is the primary interaction method for the chat interface
-    ///
-    /// # Arguments
-    /// * `msg` - The user's message text
-    ///
-    /// # Returns
-    /// * `Ok(String)` - The agent's response text
-    /// * `Err(...)` - If the agent failed to process the message
-    async fn send_message(&self, msg: &str) -> Result<String>;
+    /// Executes a user prompt through the agent loop and streams output events to `action_tx`.
+    async fn execute_prompt(&self, prompt: String, action_tx: mpsc::Sender<Action>) -> Result<()>;
+
+    /// Cancels the currently active prompt execution turn.
+    async fn cancel(&self) -> Result<()>;
+
+    /// Sets or clears the active session ID for turn persistence and resumption.
+    fn set_session_id(&mut self, session_id: Option<String>);
+
+    /// Returns the currently active session ID (if one is loaded).
+    #[allow(dead_code)]
+    fn session_id(&self) -> Option<String>;
 }

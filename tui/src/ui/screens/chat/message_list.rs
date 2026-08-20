@@ -50,7 +50,7 @@ pub fn render_message_list(frame: &mut Frame, area: Rect, state: &AppState) {
     if state.messages().is_empty() {
         // No messages yet — show hint text below the banner
         lines.push(Line::from(Span::styled(
-            "Type a message and press Ctrl+Enter to send.",
+            "Type a message and press Enter to send (Shift+Enter for newline).",
             STYLE_MUTED,
         )));
         lines.push(Line::from(Span::styled(

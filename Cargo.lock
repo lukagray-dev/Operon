@@ -4791,6 +4791,7 @@ dependencies = [
  "operon-rs",
  "ratatui",
  "serde",
+ "serde_json",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
  "tui-textarea",

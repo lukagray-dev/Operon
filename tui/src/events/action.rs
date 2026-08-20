@@ -55,6 +55,12 @@ pub enum Action {
     /// is Ctrl+R (Emacs), but we want the standard Ctrl+Shift+Z convention.
     InputRedo,
 
+    /// Paste text directly into the active focused input field
+    Paste(String),
+
+    /// Paste text from the system clipboard into the active focused input field (Ctrl+V)
+    PasteClipboard,
+
     /// Forward a raw key event directly to the tui-textarea input widget.
     /// This is the primary path for all chat input:
     /// - Regular characters and Shift+characters
@@ -90,12 +96,46 @@ pub enum Action {
     #[allow(dead_code)]
     ScrollChatDown(u16),
 
-    /// Agent response received from backend
+    /// Agent full response received from backend (legacy or batch fallback)
+    #[allow(dead_code)]
     AgentResponse(String),
+
+    /// Streaming text delta chunk from active agent turn
+    AgentTextDelta(String),
+
+    /// Streaming thinking/reasoning chunk from active agent turn
+    AgentThinkingDelta(String),
+
+    /// Live context-window token usage update from agent
+    AgentContextUpdate {
+        /// Current context tokens in use
+        current_tokens: usize,
+        /// Total window size for active model
+        total_window: usize,
+    },
+
+    /// Agent turn completed execution naturally
+    AgentDone,
+
+    /// Agent execution encountered an error
+    AgentError(String),
+
+    /// User cancelled prompt execution
+    CancelPrompt,
 
     /// Periodic tick for animations (spinner, etc.)
     /// Sent by EventHandler every ~100ms
     Tick,
+
+    // ===== Resume Screen Actions =====
+    /// Move cursor up in resume screen
+    ResumeUp,
+
+    /// Move cursor down in resume screen
+    ResumeDown,
+
+    /// Confirm and load selected session
+    ResumeConfirm,
 
     // ===== Models Screen Actions =====
     /// Move cursor up in models screen (provider list, model list, or textarea)

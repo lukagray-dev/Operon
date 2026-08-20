@@ -46,9 +46,17 @@ pub async fn handle(
         }
         Action::InputRedo => {
             // Ctrl+Shift+Z — call tui-textarea's redo() directly.
-            // tui-textarea's native key for redo is Ctrl+R (Emacs-style),
-            // so we bypass key forwarding and call the method directly.
             state.message_input_mut().redo();
+        }
+        Action::Paste(text) => {
+            handle_paste_text(&text, state);
+        }
+        Action::PasteClipboard => {
+            if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                if let Ok(text) = clipboard.get_text() {
+                    handle_paste_text(&text, state);
+                }
+            }
         }
         Action::SendMessage => {
             // Send message to agent
@@ -61,21 +69,16 @@ pub async fn handle(
                 // Mark agent as thinking — triggers spinner in status bar
                 state.set_agent_thinking(true);
 
-                // Send to agent asynchronously
-                // Clone Arc and tx for the spawned task
+                // Execute prompt through real AgentBridge
                 let agent_clone = Arc::clone(agent);
                 let action_tx_clone = tx.clone();
                 tokio::spawn(async move {
                     let agent_lock = agent_clone.lock().await;
-                    match agent_lock.send_message(&message).await {
-                        Ok(response) => {
-                            let _ = action_tx_clone.send(Action::AgentResponse(response)).await;
-                        }
-                        Err(e) => {
-                            let _ = action_tx_clone
-                                .send(Action::AgentResponse(format!("Error: {}", e)))
-                                .await;
-                        }
+                    if let Err(e) = agent_lock.execute_prompt(message, action_tx_clone.clone()).await {
+                        let _ = action_tx_clone
+                            .send(Action::AgentError(format!("Prompt execution failed: {}", e)))
+                            .await;
+                        let _ = action_tx_clone.send(Action::AgentDone).await;
                     }
                 });
             }
@@ -86,4 +89,43 @@ pub async fn handle(
     }
 
     Ok(())
+}
+
+/// Routes pasted text to the currently focused input field across all active screens.
+pub fn handle_paste_text(text: &str, state: &mut AppState) {
+    use crate::state::screen::ActiveScreen;
+    use crate::ui::screens::models::state::{ModelsStep, SetupField};
+
+    match state.active_screen() {
+        ActiveScreen::Models => {
+            if state.models.step == ModelsStep::Setup {
+                let single_line = text.trim_matches(|c| c == '\r' || c == '\n').to_string();
+                match state.models.focused_field {
+                    SetupField::ApiKey => {
+                        let clean = single_line.trim().to_string();
+                        state.models.api_key_input.insert_str(&clean);
+                    }
+                    SetupField::BaseUrl => {
+                        let clean = single_line.trim().to_string();
+                        state.models.base_url_input.insert_str(&clean);
+                    }
+                    SetupField::CustomModel => {
+                        let clean = single_line.trim().to_string();
+                        state.models.custom_model_input.insert_str(&clean);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        ActiveScreen::Permissions => {
+            if state.permissions.add_dir.open {
+                let clean = text.trim_matches(|c| c == '\r' || c == '\n').trim().to_string();
+                state.permissions.add_dir.input.insert_str(&clean);
+            }
+        }
+        ActiveScreen::Chat => {
+            state.message_input_mut().insert_str(text);
+        }
+        _ => {}
+    }
 }

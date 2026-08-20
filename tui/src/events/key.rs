@@ -43,17 +43,45 @@ pub fn map_key(
             return Some(Action::InputRedo);
         }
 
+        // Paste from clipboard (Ctrl+V, Ctrl+Shift+V, Shift+Insert)
+        (KeyCode::Char('v'), KeyModifiers::CONTROL) => return Some(Action::PasteClipboard),
+        (KeyCode::Char('V'), m) if m == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+            return Some(Action::PasteClipboard);
+        }
+        (KeyCode::Insert, KeyModifiers::SHIFT) => return Some(Action::PasteClipboard),
+
         _ => {}
     }
 
     // Screen-specific keybinds
     match active_screen {
-        ActiveScreen::Chat => map_chat_keys(key),
+        ActiveScreen::Chat => map_chat_keys(key, state),
+        ActiveScreen::Resume => map_resume_keys(key),
         ActiveScreen::Models => map_models_keys(key),
         ActiveScreen::Permissions => map_permissions_keys(key, state),
         ActiveScreen::Skills => map_skills_keys(key),
         ActiveScreen::Extensions => map_extensions_keys(key),
         ActiveScreen::Help => map_help_keys(key),
+    }
+}
+
+/// Resume screen keybinds
+/// - Up/Down (or j/k): Navigate previous conversations
+/// - Enter: Select and load conversation
+/// - Esc: Return to chat
+/// - /: Open screen selector
+fn map_resume_keys(key: KeyEvent) -> Option<Action> {
+    match (key.code, key.modifiers) {
+        (KeyCode::Up, KeyModifiers::NONE) | (KeyCode::Char('k'), KeyModifiers::NONE) => {
+            Some(Action::ResumeUp)
+        }
+        (KeyCode::Down, KeyModifiers::NONE) | (KeyCode::Char('j'), KeyModifiers::NONE) => {
+            Some(Action::ResumeDown)
+        }
+        (KeyCode::Enter, KeyModifiers::NONE) => Some(Action::ResumeConfirm),
+        (KeyCode::Esc, _) => Some(Action::Back),
+        (KeyCode::Char('/'), KeyModifiers::NONE) => Some(Action::InputChar('/')),
+        _ => None,
     }
 }
 
@@ -69,27 +97,38 @@ pub fn map_screen_selector_keys(key: KeyEvent) -> Option<Action> {
     }
 }
 
-/// Chat screen keybinds
-/// Keys that need app-level handling are mapped to Actions.
-/// All other keys (including Ctrl+Z undo, Ctrl+Y redo, word-jump, etc.)
-/// are forwarded raw to tui-textarea via Action::ForwardKeyToInput.
-fn map_chat_keys(key: KeyEvent) -> Option<Action> {
+/// Chat screen keybinds:
+/// - Esc (when thinking): Cancel prompt generation
+/// - Enter / Ctrl+Enter: Send message
+/// - Shift+Enter: Insert newline
+/// - /: Screen selector (when input empty)
+/// - All other keys forwarded to tui-textarea
+fn map_chat_keys(key: KeyEvent, state: &crate::state::AppState) -> Option<Action> {
+    // If agent is actively running/thinking, Esc or Ctrl+C triggers cancellation
+    if state.agent_thinking() {
+        if key.code == KeyCode::Esc
+            || (key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL)
+        {
+            return Some(Action::CancelPrompt);
+        }
+    }
+
     match (key.code, key.modifiers) {
-        // Send message (Ctrl+Enter)
-        (KeyCode::Enter, KeyModifiers::CONTROL) => Some(Action::SendMessage),
+        // Send message (Ctrl+Enter or Enter)
+        (KeyCode::Enter, KeyModifiers::CONTROL) | (KeyCode::Enter, KeyModifiers::NONE) => {
+            Some(Action::SendMessage)
+        }
+
+        // Shift+Enter inserts newline into input textarea
+        (KeyCode::Enter, KeyModifiers::SHIFT) => Some(Action::ForwardKeyToInput(key)),
 
         // Back / close screen selector (Esc)
         (KeyCode::Esc, _) => Some(Action::Back),
 
         // '/' as the very first character opens the screen selector.
-        // We handle this in main.rs after checking is_input_empty(), so
-        // we still need to route it through InputChar so that check runs.
         (KeyCode::Char('/'), KeyModifiers::NONE) => Some(Action::InputChar('/')),
 
-        // Everything else — including Ctrl+Z (undo), Ctrl+Y (redo),
-        // Shift+Enter (newline), arrows, Home, End, Backspace, Delete,
-        // regular characters, word-jump (Ctrl+Left/Right), etc. —
-        // is forwarded directly to tui-textarea which handles them natively.
+        // Everything else forwarded directly to tui-textarea
         _ => Some(Action::ForwardKeyToInput(key)),
     }
 }

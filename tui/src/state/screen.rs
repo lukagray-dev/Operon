@@ -11,6 +11,9 @@ pub enum ActiveScreen {
     /// Chat interface — message history + input box
     Chat,
 
+    /// Resume previous conversations from workspace history
+    Resume,
+
     /// Model provider configuration — OpenAI, Anthropic, local, custom
     Models,
 
@@ -32,6 +35,7 @@ impl fmt::Display for ActiveScreen {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ActiveScreen::Chat => write!(f, "Chat"),
+            ActiveScreen::Resume => write!(f, "Resume"),
             ActiveScreen::Models => write!(f, "Models"),
             ActiveScreen::Permissions => write!(f, "Permissions"),
             ActiveScreen::Skills => write!(f, "Skills"),
@@ -47,6 +51,7 @@ impl ActiveScreen {
     pub fn all() -> &'static [ActiveScreen] {
         &[
             ActiveScreen::Chat,
+            ActiveScreen::Resume,
             ActiveScreen::Models,
             ActiveScreen::Permissions,
             ActiveScreen::Skills,

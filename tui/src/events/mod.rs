@@ -64,6 +64,11 @@ impl EventHandler {
                                     break;
                                 }
                             }
+                            Event::Paste(text) => {
+                                if self.action_tx.send(Action::Paste(text)).await.is_err() {
+                                    break;
+                                }
+                            }
                             // TODO: Handle terminal resize events
                             Event::Resize(_, _) => {}
                             _ => {}
