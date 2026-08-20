@@ -1,436 +1,324 @@
-// Permissions screen state
-// Manages all UI state for the permissions configuration screen
-// This is pure UI state — no business logic, no persistence
-// Real permission data will be loaded/saved via AgentBridge in the future
+// state.rs — Permissions screen state management for Operon TUI.
+//
+// DESIGN PHILOSOPHY:
+// 1. Zero Business Logic in Frontend:
+//    - The TUI permissions screen is a presentation layer over `operon-rs` policy engine.
+//    - All permissions (group/tool hierarchy, owner vs external modes, default bases, overrides)
+//      are loaded directly via `operon_rs::get_permission_rows` and `operon_rs::get_allowed_directories_list`.
+//    - Updates are persisted directly to `~/.operon/config.toml` via `operon_rs::update_permission`.
+// 2. Real-Time Dynamic Synchronization:
+//    - Seamlessly supports adding, removing, and switching between allowed directory scopes.
+//    - Accurately tracks group expand/collapse states and explicit configuration override badges.
 
-use std::path::PathBuf;
+use std::collections::HashSet;
 use tui_textarea::TextArea;
 
-// ============================================================================
-// ENUMS
-// ============================================================================
+/// Cleans raw Windows UNC path prefixes (e.g. `\\?\UNC\` or `\\?\`).
+pub fn clean_windows_path(path: &str) -> String {
+    if let Some(stripped) = path.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{}", stripped)
+    } else if let Some(stripped) = path.strip_prefix(r"\\?\") {
+        stripped.to_string()
+    } else {
+        path.to_string()
+    }
+}
 
-/// Which top-level section is currently active in the permissions screen
+/// Compares two filesystem paths in a cross-platform, slash-normalized, case-insensitive way.
+pub fn is_same_path(a: &str, b: &str) -> bool {
+    let clean_a = clean_windows_path(a).replace('/', "\\").to_lowercase();
+    let clean_b = clean_windows_path(b).replace('/', "\\").to_lowercase();
+    clean_a.trim_end_matches('\\') == clean_b.trim_end_matches('\\')
+}
+
+/// Top-level section active in the permissions screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PermissionsSection {
-    /// Global tools section (full-width table)
+    /// Global tools section (network, subagents, etc.).
     Global,
-    /// Directory-scoped tools section (split layout: dir list + tool table)
+    /// Directory-scoped tools section (filesystem, bash execution).
     Directory,
 }
 
-/// Permission mode for a single tool/group × role cell
-/// Determines what happens when the tool is invoked
+/// Permission mode for a tool or group under a specific caller role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PermissionMode {
-    /// Tool can be executed without prompting
+    /// Tool can be executed without prompting.
     Allow,
-    /// User will be prompted before tool execution
+    /// Tool execution requires user confirmation.
     Ask,
-    /// Tool execution is blocked
+    /// Tool execution is completely blocked.
     Deny,
+    /// Group has heterogeneous permissions across child tools.
+    Custom,
 }
 
 impl PermissionMode {
-    /// Get the display label for this permission mode
+    /// Parse permission mode from backend string identifier.
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "allow" => PermissionMode::Allow,
+            "ask" => PermissionMode::Ask,
+            "deny" => PermissionMode::Deny,
+            "custom" => PermissionMode::Custom,
+            _ => PermissionMode::Deny,
+        }
+    }
+
+    /// Convert mode to canonical backend string representation.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PermissionMode::Allow => "allow",
+            PermissionMode::Ask => "ask",
+            PermissionMode::Deny => "deny",
+            PermissionMode::Custom => "custom",
+        }
+    }
+
+    /// User-facing display label for tables and badges.
     pub fn label(&self) -> &'static str {
         match self {
             PermissionMode::Allow => "Allow",
             PermissionMode::Ask => "Ask",
             PermissionMode::Deny => "Deny",
+            PermissionMode::Custom => "Custom",
         }
     }
 
-    /// Get the ratatui style for this permission mode
-    /// Uses theme constants for consistent coloring
+    /// Style corresponding to this permission mode.
     pub fn style(&self) -> ratatui::style::Style {
-        use crate::ui::theme::{COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING};
+        use crate::ui::theme::{COLOR_ACCENT, COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING};
         use ratatui::style::Style;
 
         match self {
             PermissionMode::Allow => Style::default().fg(COLOR_SUCCESS),
             PermissionMode::Ask => Style::default().fg(COLOR_WARNING),
             PermissionMode::Deny => Style::default().fg(COLOR_ERROR),
+            PermissionMode::Custom => Style::default().fg(COLOR_ACCENT),
         }
     }
 
-    /// Cycle to the next permission mode (for quick toggle with Space)
-    /// Allow → Ask → Deny → Allow
+    /// Cycle to next permission mode for quick toggle shortcut (Allow → Ask → Deny → Allow).
+    #[allow(dead_code)]
     pub fn cycle(&self) -> Self {
         match self {
             PermissionMode::Allow => PermissionMode::Ask,
             PermissionMode::Ask => PermissionMode::Deny,
             PermissionMode::Deny => PermissionMode::Allow,
+            PermissionMode::Custom => PermissionMode::Allow,
         }
     }
 }
 
-/// Which column is being edited in the rule editor modal
+/// Caller role being edited in the rule editor modal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)] // External variant will be used when implementing column selection
 pub enum EditRole {
-    /// Editing the Owner column
+    /// Owner role (trusted user / operator).
     Owner,
-    /// Editing the External column
+    /// External role (untrusted callers / messaging channels).
     External,
 }
 
 impl EditRole {
-    /// Get the display label for this role
-    #[allow(dead_code)] // Reserved for future use
+    /// User-facing display label for the role.
+    #[allow(dead_code)]
     pub fn label(&self) -> &'static str {
         match self {
             EditRole::Owner => "Owner",
             EditRole::External => "External",
         }
     }
+
+    /// Backend scope identifier.
+    pub fn as_scope_str(&self) -> &'static str {
+        match self {
+            EditRole::Owner => "owner",
+            EditRole::External => "external",
+        }
+    }
 }
 
-/// Which panel has focus in the Directory section
+/// Focused panel within the Directory section.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusedPanel {
-    /// Directory list (left panel)
+    /// Directory list (left panel).
     DirList,
-    /// Tool table (right panel)
+    /// Tool permission table (right panel).
     ToolTable,
 }
 
-// ============================================================================
-// TOOL DATA STRUCTURES
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool & Table Data Structures
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// A single tool (leaf node in the tool tree)
-/// Represents an individual tool like "read_file" or "web_search"
+/// A single tool leaf node in the permission tree.
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // id field reserved for future use (e.g., persistence, lookup)
 pub struct ToolEntry {
-    /// Unique identifier for this tool (e.g., "read_file")
-    pub id: &'static str,
-    /// Display label for this tool (e.g., "read_file")
-    pub label: &'static str,
-    /// Permission mode for Owner role
-    pub owner: PermissionMode,
-    /// Permission mode for External role
-    pub external: PermissionMode,
+    /// Canonical tool identifier (e.g. "fs_read", "web_search").
+    pub key: String,
+    /// Human-friendly display label (e.g. "File Read", "Web Search").
+    pub label: String,
+    /// Parent group key (e.g. "fs", "web").
+    #[allow(dead_code)]
+    pub group_key: String,
+
+    /// Effective permission mode for Owner role.
+    pub owner_mode: PermissionMode,
+    /// Default base permission mode for Owner role.
+    pub owner_base: PermissionMode,
+    /// Whether this tool has an explicit configuration override for Owner.
+    pub owner_explicit: bool,
+
+    /// Effective permission mode for External role.
+    pub external_mode: PermissionMode,
+    /// Default base permission mode for External role.
+    pub external_base: PermissionMode,
+    /// Whether this tool has an explicit configuration override for External.
+    pub external_explicit: bool,
 }
 
-impl ToolEntry {
-    /// Create a new tool entry with the given permissions
-    pub fn new(
-        id: &'static str,
-        label: &'static str,
-        owner: PermissionMode,
-        external: PermissionMode,
-    ) -> Self {
-        Self {
-            id,
-            label,
-            owner,
-            external,
-        }
-    }
-}
-
-/// A tool group (parent node in the tool tree)
-/// Represents a category of tools like "File System" or "Web"
-/// Can be expanded to show individual ToolEntry children
+/// A tool category group node in the permission tree.
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // id field reserved for future use (e.g., persistence, lookup)
 pub struct ToolGroup {
-    /// Unique identifier for this group (e.g., "file_system")
-    pub id: &'static str,
-    /// Display label for this group (e.g., "File System")
-    pub label: &'static str,
-    /// Child tools in this group
+    /// Canonical group identifier (e.g. "fs", "bash", "web").
+    pub key: String,
+    /// Human-friendly display label (e.g. "Filesystem", "Shell Execution", "Web").
+    pub label: String,
+    /// Child tools belonging to this group.
     pub tools: Vec<ToolEntry>,
-    /// Whether this group is currently expanded to show children
+    /// Whether this group is expanded in the table view to show child tools.
     pub expanded: bool,
-    /// Derived permission mode for Owner role
-    /// If all children have the same mode, shows that mode
-    /// If children differ, this is used to display "Custom" in the UI
-    pub owner: PermissionMode,
-    /// Derived permission mode for External role
-    /// If all children have the same mode, shows that mode
-    /// If children differ, this is used to display "Custom" in the UI
-    pub external: PermissionMode,
+
+    /// Effective permission mode for Owner role.
+    pub owner_mode: PermissionMode,
+    /// Default base permission mode for Owner role.
+    pub owner_base: PermissionMode,
+    /// Whether this group has an explicit configuration override for Owner.
+    pub owner_explicit: bool,
+
+    /// Effective permission mode for External role.
+    pub external_mode: PermissionMode,
+    /// Default base permission mode for External role.
+    pub external_base: PermissionMode,
+    /// Whether this group has an explicit configuration override for External.
+    pub external_explicit: bool,
 }
 
-impl ToolGroup {
-    /// Create a new tool group with the given tools
-    /// Automatically syncs owner/external from children
-    pub fn new(id: &'static str, label: &'static str, tools: Vec<ToolEntry>) -> Self {
-        let mut group = Self {
-            id,
-            label,
-            tools,
-            expanded: false,
-            owner: PermissionMode::Allow,
-            external: PermissionMode::Deny,
-        };
-        group.sync_from_children();
-        group
-    }
-
-    /// Recompute owner/external modes from children
-    /// Call this after editing any child tool's permissions
-    /// Sets the group mode to the common mode if all children match,
-    /// otherwise leaves it as-is (UI will display "Custom")
-    pub fn sync_from_children(&mut self) {
-        if self.tools.is_empty() {
-            return;
-        }
-
-        // Check if all children have the same owner mode
-        let first_owner = self.tools[0].owner;
-        let all_owner_same = self.tools.iter().all(|t| t.owner == first_owner);
-        if all_owner_same {
-            self.owner = first_owner;
-        }
-        // If not all same, leave self.owner as-is (will display as "Custom")
-
-        // Check if all children have the same external mode
-        let first_external = self.tools[0].external;
-        let all_external_same = self.tools.iter().all(|t| t.external == first_external);
-        if all_external_same {
-            self.external = first_external;
-        }
-        // If not all same, leave self.external as-is (will display as "Custom")
-    }
-
-    /// Check if all children have the same owner mode
-    pub fn is_owner_uniform(&self) -> bool {
-        if self.tools.is_empty() {
-            return true;
-        }
-        let first = self.tools[0].owner;
-        self.tools.iter().all(|t| t.owner == first)
-    }
-
-    /// Check if all children have the same external mode
-    pub fn is_external_uniform(&self) -> bool {
-        if self.tools.is_empty() {
-            return true;
-        }
-        let first = self.tools[0].external;
-        self.tools.iter().all(|t| t.external == first)
-    }
-
-    /// Set all children to the given owner mode
-    /// Used when editing the group as a whole
-    pub fn set_all_owner(&mut self, mode: PermissionMode) {
-        for tool in &mut self.tools {
-            tool.owner = mode;
-        }
-        self.owner = mode;
-    }
-
-    /// Set all children to the given external mode
-    /// Used when editing the group as a whole
-    pub fn set_all_external(&mut self, mode: PermissionMode) {
-        for tool in &mut self.tools {
-            tool.external = mode;
-        }
-        self.external = mode;
-    }
-}
-
-/// Full permissions state for one directory (or global)
-/// Contains all tool groups and their current permission settings
-#[derive(Debug, Clone)]
+/// Table container holding groups and tools for a single scope (Global or Directory).
+#[derive(Debug, Clone, Default)]
 pub struct ToolTableData {
-    /// All tool groups in this table
+    /// All tool groups belonging to this table.
     pub groups: Vec<ToolGroup>,
 }
 
 impl ToolTableData {
-    /// Create a new empty tool table
-    pub fn new(groups: Vec<ToolGroup>) -> Self {
+    /// Constructs a `ToolTableData` from backend `PermissionRow` data for Owner and External roles.
+    pub fn from_backend_rows(
+        owner_rows: Vec<operon_rs::PermissionRow>,
+        external_rows: Vec<operon_rs::PermissionRow>,
+        expanded_groups: &HashSet<String>,
+    ) -> Self {
+        let mut groups = Vec::new();
+
+        // Extract groups
+        let owner_groups: Vec<_> = owner_rows.iter().filter(|r| r.kind == "group").collect();
+        let owner_tools: Vec<_> = owner_rows.iter().filter(|r| r.kind == "tool").collect();
+
+        for g in owner_groups {
+            let ext_g = external_rows
+                .iter()
+                .find(|r| r.kind == "group" && r.key == g.key);
+
+            let ext_mode = ext_g.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.mode));
+            let ext_base = ext_g.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.base_mode));
+            let ext_explicit = ext_g.map_or(false, |r| r.is_explicit);
+
+            let mut group_tools = Vec::new();
+            for t in owner_tools.iter().filter(|t| t.group_key == g.key) {
+                let ext_t = external_rows
+                    .iter()
+                    .find(|r| r.kind == "tool" && r.key == t.key);
+
+                let t_ext_mode = ext_t.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.mode));
+                let t_ext_base = ext_t.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.base_mode));
+                let t_ext_explicit = ext_t.map_or(false, |r| r.is_explicit);
+
+                group_tools.push(ToolEntry {
+                    key: t.key.clone(),
+                    label: t.label.clone(),
+                    group_key: t.group_key.clone(),
+                    owner_mode: PermissionMode::from_str(&t.mode),
+                    owner_base: PermissionMode::from_str(&t.base_mode),
+                    owner_explicit: t.is_explicit,
+                    external_mode: t_ext_mode,
+                    external_base: t_ext_base,
+                    external_explicit: t_ext_explicit,
+                });
+            }
+
+            let is_expanded = expanded_groups.contains(&g.key);
+
+            groups.push(ToolGroup {
+                key: g.key.clone(),
+                label: g.label.clone(),
+                tools: group_tools,
+                expanded: is_expanded,
+                owner_mode: PermissionMode::from_str(&g.mode),
+                owner_base: PermissionMode::from_str(&g.base_mode),
+                owner_explicit: g.is_explicit,
+                external_mode: ext_mode,
+                external_base: ext_base,
+                external_explicit: ext_explicit,
+            });
+        }
+
         Self { groups }
-    }
-
-    /// Create the default global tools table
-    /// Contains: Web, Sub-agents, Ask Question, Task Management, Load Tools
-    /// Default: Owner=Allow, External=Deny for all
-    pub fn default_global() -> Self {
-        Self::new(vec![
-            ToolGroup::new(
-                "web",
-                "Web",
-                vec![
-                    ToolEntry::new(
-                        "web_search",
-                        "web_search",
-                        PermissionMode::Allow,
-                        PermissionMode::Deny,
-                    ),
-                    ToolEntry::new(
-                        "web_fetch",
-                        "web_fetch",
-                        PermissionMode::Allow,
-                        PermissionMode::Deny,
-                    ),
-                ],
-            ),
-            ToolGroup::new(
-                "sub_agents",
-                "Sub-agents",
-                vec![ToolEntry::new(
-                    "invoke_sub_agent",
-                    "invoke_sub_agent",
-                    PermissionMode::Allow,
-                    PermissionMode::Deny,
-                )],
-            ),
-            ToolGroup::new(
-                "ask_question",
-                "Ask Question",
-                vec![ToolEntry::new(
-                    "ask_user",
-                    "ask_user",
-                    PermissionMode::Allow,
-                    PermissionMode::Deny,
-                )],
-            ),
-            ToolGroup::new(
-                "task_management",
-                "Task Management",
-                vec![
-                    ToolEntry::new(
-                        "create_task",
-                        "create_task",
-                        PermissionMode::Allow,
-                        PermissionMode::Ask,
-                    ),
-                    ToolEntry::new(
-                        "update_task",
-                        "update_task",
-                        PermissionMode::Allow,
-                        PermissionMode::Ask,
-                    ),
-                ],
-            ),
-            ToolGroup::new(
-                "load_tools",
-                "Load Tools",
-                vec![ToolEntry::new(
-                    "load_mcp_tools",
-                    "load_mcp_tools",
-                    PermissionMode::Allow,
-                    PermissionMode::Allow,
-                )],
-            ),
-        ])
-    }
-
-    /// Create the default directory-scoped tools table
-    /// Contains: File System, Shell
-    /// Default: Owner=Allow, External=Ask for File System; Owner=Allow, External=Deny for Shell
-    pub fn default_directory() -> Self {
-        Self::new(vec![
-            ToolGroup::new(
-                "file_system",
-                "File System",
-                vec![
-                    ToolEntry::new(
-                        "read_file",
-                        "read_file",
-                        PermissionMode::Allow,
-                        PermissionMode::Ask,
-                    ),
-                    ToolEntry::new(
-                        "write_file",
-                        "write_file",
-                        PermissionMode::Allow,
-                        PermissionMode::Ask,
-                    ),
-                    ToolEntry::new(
-                        "list_dir",
-                        "list_dir",
-                        PermissionMode::Allow,
-                        PermissionMode::Ask,
-                    ),
-                    ToolEntry::new(
-                        "create_dir",
-                        "create_dir",
-                        PermissionMode::Allow,
-                        PermissionMode::Ask,
-                    ),
-                    ToolEntry::new(
-                        "delete_file",
-                        "delete_file",
-                        PermissionMode::Ask,
-                        PermissionMode::Deny,
-                    ),
-                ],
-            ),
-            ToolGroup::new(
-                "shell",
-                "Shell",
-                vec![
-                    ToolEntry::new(
-                        "run_command",
-                        "run_command",
-                        PermissionMode::Allow,
-                        PermissionMode::Deny,
-                    ),
-                    ToolEntry::new(
-                        "run_script",
-                        "run_script",
-                        PermissionMode::Allow,
-                        PermissionMode::Deny,
-                    ),
-                ],
-            ),
-        ])
     }
 }
 
-// ============================================================================
-// DIRECTORY ENTRY
-// ============================================================================
-
-/// A directory entry in the directory list
-/// Each directory has its own set of tool permissions
+/// Directory item representing an allowed directory scope.
 #[derive(Debug, Clone)]
 pub struct DirectoryEntry {
-    /// Path to this directory
-    pub path: PathBuf,
-    /// Tool permissions for this directory
+    /// Canonical directory path string.
+    pub path: String,
+    /// Whether this entry is the primary workspace directory.
+    pub is_workspace: bool,
+    /// Permission table associated with this directory.
     pub tools: ToolTableData,
 }
 
 impl DirectoryEntry {
-    /// Create a new directory entry with default permissions
-    pub fn new(path: PathBuf) -> Self {
+    /// Create a new directory entry with loaded permissions.
+    pub fn new(path: String, is_workspace: bool, tools: ToolTableData) -> Self {
         Self {
             path,
-            tools: ToolTableData::default_directory(),
+            is_workspace,
+            tools,
         }
     }
 }
 
-// ============================================================================
-// MODAL STATES
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// Modal State Containers
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// State for the rule editor modal
-/// Allows editing a single permission cell (tool × role)
+/// State for the Rule Editor popup modal.
 #[derive(Debug, Clone)]
 pub struct RuleEditorState {
-    /// Whether the modal is currently open
+    /// Whether the editor modal is open.
     pub open: bool,
-    /// Index of the group being edited
+    /// Index of the target group in the active table.
     pub group_idx: usize,
-    /// Index of the tool within the group (None = editing group itself)
+    /// Index of the target tool (None if editing group).
     pub tool_idx: Option<usize>,
-    /// Which role column is being edited (Owner or External)
+    /// Target caller role (Owner or External).
     pub role: EditRole,
-    /// Currently selected permission mode in the modal
+    /// Selected permission mode (Allow, Ask, Deny).
     pub selected_mode: PermissionMode,
 }
 
 impl RuleEditorState {
-    /// Create a new closed rule editor
+    /// Create a new closed rule editor state.
     pub fn new() -> Self {
         Self {
             open: false,
@@ -441,64 +329,47 @@ impl RuleEditorState {
         }
     }
 
-    /// Open the editor for a specific tool/group × role cell
+    /// Open editor modal with initial parameters.
     pub fn open(
         &mut self,
         group_idx: usize,
         tool_idx: Option<usize>,
         role: EditRole,
-        current_mode: PermissionMode,
+        initial_mode: PermissionMode,
     ) {
         self.open = true;
         self.group_idx = group_idx;
         self.tool_idx = tool_idx;
         self.role = role;
-        self.selected_mode = current_mode;
+        self.selected_mode = if initial_mode == PermissionMode::Custom {
+            PermissionMode::Allow
+        } else {
+            initial_mode
+        };
     }
 
-    /// Close the editor without saving
+    /// Close editor modal.
     pub fn close(&mut self) {
         self.open = false;
     }
 
-    /// Move selection up in the modal (Allow ← Ask ← Deny)
+    /// Move selection up in mode radio list.
     pub fn move_up(&mut self) {
         self.selected_mode = match self.selected_mode {
             PermissionMode::Allow => PermissionMode::Deny,
             PermissionMode::Ask => PermissionMode::Allow,
             PermissionMode::Deny => PermissionMode::Ask,
+            PermissionMode::Custom => PermissionMode::Allow,
         };
     }
 
-    /// Move selection down in the modal (Allow → Ask → Deny)
+    /// Move selection down in mode radio list.
     pub fn move_down(&mut self) {
-        self.selected_mode = self.selected_mode.cycle();
-    }
-
-    /// Switch between Owner and External roles
-    /// Reloads the current mode for the new role
-    #[allow(dead_code)] // Alternative implementation kept for API completeness
-    pub fn switch_role(&mut self, tools: &ToolTableData) {
-        // Toggle the role
-        self.role = match self.role {
-            EditRole::Owner => EditRole::External,
-            EditRole::External => EditRole::Owner,
-        };
-
-        // Update selected_mode to reflect the current permission for the new role
-        let group = &tools.groups[self.group_idx];
-        self.selected_mode = if let Some(tool_idx) = self.tool_idx {
-            // Editing a specific tool
-            match self.role {
-                EditRole::Owner => group.tools[tool_idx].owner,
-                EditRole::External => group.tools[tool_idx].external,
-            }
-        } else {
-            // Editing a group
-            match self.role {
-                EditRole::Owner => group.owner,
-                EditRole::External => group.external,
-            }
+        self.selected_mode = match self.selected_mode {
+            PermissionMode::Allow => PermissionMode::Ask,
+            PermissionMode::Ask => PermissionMode::Deny,
+            PermissionMode::Deny => PermissionMode::Allow,
+            PermissionMode::Custom => PermissionMode::Allow,
         };
     }
 }
@@ -509,103 +380,168 @@ impl Default for RuleEditorState {
     }
 }
 
-/// State for the add directory modal
-/// Allows user to input a new directory path
-#[derive(Debug)]
-pub struct AddDirState {
-    /// Whether the modal is currently open
+/// State for the Add Directory popup modal.
+pub struct AddDirectoryState {
+    /// Whether the add directory modal is open.
     pub open: bool,
-    /// Text input widget for the directory path
+    /// Text input widget for typing the path.
     pub input: TextArea<'static>,
 }
 
-impl AddDirState {
-    /// Create a new closed add directory modal
+impl AddDirectoryState {
+    /// Create a new closed add directory state.
     pub fn new() -> Self {
-        let mut input = TextArea::default();
-        input.set_placeholder_text("~/");
-        Self { open: false, input }
+        Self {
+            open: false,
+            input: TextArea::default(),
+        }
     }
 
-    /// Open the modal and reset the input
+    /// Open the add directory modal and clear input.
     pub fn open(&mut self) {
         self.open = true;
         self.input = TextArea::default();
-        self.input.set_placeholder_text("~/");
     }
 
-    /// Close the modal without saving
+    /// Close the add directory modal.
     pub fn close(&mut self) {
         self.open = false;
+        self.input = TextArea::default();
     }
 
-    /// Get the current input text
+    /// Retrieve the trimmed path string from the text area.
     pub fn get_path(&self) -> String {
-        self.input.lines().join("")
+        self.input.lines().join("").trim().to_string()
     }
 }
 
-impl Default for AddDirState {
+impl Default for AddDirectoryState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-// ============================================================================
-// MAIN PERMISSIONS SCREEN STATE
-// ============================================================================
+// ─────────────────────────────────────────────────────────────────────────────
+// PermissionsScreen State Container
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// Full state for the permissions screen
-/// Manages all UI state including section selection, scroll, modals, etc.
-#[derive(Debug)]
-pub struct PermissionsScreenState {
-    /// Which top-level section is active (Global or Directory)
+/// Complete state container for the Permissions TUI screen.
+pub struct PermissionsState {
+    /// Currently active top-level section (Global or Directory).
     pub section: PermissionsSection,
-    /// Global tools table (full-width, no directory scope)
-    pub global_tools: ToolTableData,
-    /// List of directories with their own tool permissions
-    pub directories: Vec<DirectoryEntry>,
-    /// Selected directory index in the directory list
-    pub selected_dir: usize,
-    /// Which panel has focus in Directory section (DirList or ToolTable)
+
+    /// Which panel is focused in the Directory section.
     pub focused_panel: FocusedPanel,
-    /// Selected row index in the currently focused panel
+
+    /// Global tools table loaded from operon-rs.
+    pub global_tools: ToolTableData,
+
+    /// List of allowed directories loaded from operon-rs.
+    pub directories: Vec<DirectoryEntry>,
+
+    /// Selected directory index in the directory list.
+    pub selected_dir: usize,
+
+    /// Selected row index in the active tool table (groups + visible children).
     pub selected_row: usize,
-    /// Scroll offset for the directory list
+
+    /// Vertical scroll offset for the directory list panel.
     pub dir_list_scroll: usize,
-    /// Scroll offset for the tool table
+
+    /// Vertical scroll offset for the tool table panel.
     pub tool_table_scroll: usize,
-    /// Rule editor modal state
+
+    /// State for the Rule Editor popup modal.
     pub rule_editor: RuleEditorState,
-    /// Add directory modal state
-    pub add_dir: AddDirState,
+
+    /// State for the Add Directory popup modal.
+    pub add_dir: AddDirectoryState,
+
+    /// Set of expanded group keys to preserve accordion states across refreshes.
+    expanded_groups: HashSet<String>,
 }
 
-impl PermissionsScreenState {
-    /// Create a new permissions screen state with default values
-    /// Starts in Global section with empty directory list
+impl PermissionsState {
+    /// Constructs a new `PermissionsState` and loads all real permissions from operon-rs.
     pub fn new() -> Self {
-        Self {
+        let mut state = Self {
             section: PermissionsSection::Global,
-            global_tools: ToolTableData::default_global(),
+            focused_panel: FocusedPanel::DirList,
+            global_tools: ToolTableData::default(),
             directories: Vec::new(),
             selected_dir: 0,
-            focused_panel: FocusedPanel::DirList,
-            selected_row: 0, // Start at first group row (row 0 in current_row counter, header is separate)
+            selected_row: 0,
             dir_list_scroll: 0,
             tool_table_scroll: 0,
             rule_editor: RuleEditorState::new(),
-            add_dir: AddDirState::new(),
+            add_dir: AddDirectoryState::new(),
+            expanded_groups: HashSet::new(),
+        };
+
+        state.refresh_from_backend();
+        state
+    }
+
+    /// Queries `operon_rs` policy and config functions to refresh all permission tables.
+    pub fn refresh_from_backend(&mut self) {
+        // 1. Refresh Global tools
+        let owner_global = operon_rs::get_permission_rows("owner", None).unwrap_or_default();
+        let external_global = operon_rs::get_permission_rows("external", None).unwrap_or_default();
+        self.global_tools = ToolTableData::from_backend_rows(
+            owner_global,
+            external_global,
+            &self.expanded_groups,
+        );
+
+        // 2. Refresh Allowed Directories
+        let (dirs_list, workspace_dir) = operon_rs::get_allowed_directories_list()
+            .unwrap_or_else(|_| (Vec::new(), String::new()));
+
+        let cleaned_workspace = clean_windows_path(&workspace_dir);
+
+        let mut combined_dirs: Vec<String> = Vec::new();
+        for d in dirs_list {
+            let cleaned = clean_windows_path(&d);
+            if !combined_dirs.iter().any(|existing| is_same_path(existing, &cleaned)) {
+                combined_dirs.push(cleaned);
+            }
+        }
+
+        if !cleaned_workspace.is_empty()
+            && !combined_dirs.iter().any(|existing| is_same_path(existing, &cleaned_workspace))
+        {
+            combined_dirs.insert(0, cleaned_workspace.clone());
+        }
+
+        self.directories = combined_dirs
+            .into_iter()
+            .map(|dir_path| {
+                let is_workspace = is_same_path(&dir_path, &cleaned_workspace)
+                    || dir_path == "~/.operon/workspace"
+                    || dir_path == "~\\.operon\\workspace";
+
+                let owner_dir = operon_rs::get_permission_rows("owner", Some(&dir_path)).unwrap_or_default();
+                let external_dir = operon_rs::get_permission_rows("external", Some(&dir_path)).unwrap_or_default();
+                let tools = ToolTableData::from_backend_rows(
+                    owner_dir,
+                    external_dir,
+                    &self.expanded_groups,
+                );
+                DirectoryEntry::new(dir_path, is_workspace, tools)
+            })
+            .collect();
+
+        if self.selected_dir >= self.directories.len() && !self.directories.is_empty() {
+            self.selected_dir = self.directories.len() - 1;
         }
     }
 
-    /// Get the currently active tool table based on section and selected directory
+    /// Returns a reference to the active tool table (Global or selected Directory).
     pub fn active_tools(&self) -> &ToolTableData {
         match self.section {
             PermissionsSection::Global => &self.global_tools,
             PermissionsSection::Directory => {
                 if self.directories.is_empty() {
-                    // Return global as fallback (shouldn't happen in normal use)
                     &self.global_tools
                 } else {
                     &self.directories[self.selected_dir].tools
@@ -614,13 +550,12 @@ impl PermissionsScreenState {
         }
     }
 
-    /// Get the currently active tool table (mutable) based on section and selected directory
+    /// Returns a mutable reference to the active tool table.
     pub fn active_tools_mut(&mut self) -> &mut ToolTableData {
         match self.section {
             PermissionsSection::Global => &mut self.global_tools,
             PermissionsSection::Directory => {
                 if self.directories.is_empty() {
-                    // Return global as fallback (shouldn't happen in normal use)
                     &mut self.global_tools
                 } else {
                     &mut self.directories[self.selected_dir].tools
@@ -629,33 +564,120 @@ impl PermissionsScreenState {
         }
     }
 
-    /// Get the current scroll offset based on section and focused panel
-    #[allow(dead_code)] // Reserved for future scroll management features
-    pub fn active_scroll(&self) -> usize {
-        match self.section {
-            PermissionsSection::Global => self.tool_table_scroll,
-            PermissionsSection::Directory => match self.focused_panel {
-                FocusedPanel::DirList => self.dir_list_scroll,
-                FocusedPanel::ToolTable => self.tool_table_scroll,
-            },
-        }
-    }
+    /// Toggles expansion of a group and updates the persisted expansion set.
+    pub fn toggle_group_expansion(&mut self, group_key: &str) {
+        let is_expanded = if self.expanded_groups.contains(group_key) {
+            self.expanded_groups.remove(group_key);
+            false
+        } else {
+            self.expanded_groups.insert(group_key.to_string());
+            true
+        };
 
-    /// Set the scroll offset for the currently active panel
-    #[allow(dead_code)] // Reserved for future scroll management features
-    pub fn set_active_scroll(&mut self, offset: usize) {
-        match self.section {
-            PermissionsSection::Global => self.tool_table_scroll = offset,
-            PermissionsSection::Directory => match self.focused_panel {
-                FocusedPanel::DirList => self.dir_list_scroll = offset,
-                FocusedPanel::ToolTable => self.tool_table_scroll = offset,
-            },
+        let tools = self.active_tools_mut();
+        if let Some(g) = tools.groups.iter_mut().find(|g| g.key == group_key) {
+            g.expanded = is_expanded;
         }
     }
 }
 
-impl Default for PermissionsScreenState {
+impl Default for PermissionsState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clean_windows_path_unc() {
+        assert_eq!(clean_windows_path(r"\\?\C:\Users\test"), r"C:\Users\test");
+        assert_eq!(clean_windows_path(r"\\?\UNC\server\share"), r"\\server\share");
+        assert_eq!(clean_windows_path("C:/Users/test"), "C:/Users/test");
+    }
+
+    #[test]
+    fn test_is_same_path_deduplication() {
+        assert!(is_same_path(r"\\?\C:\Users\test\.operon\workspace", r"C:\Users\test\.operon\workspace"));
+        assert!(is_same_path("C:/Users/test/.operon/workspace", r"C:\Users\test\.operon\workspace"));
+        assert!(is_same_path(r"C:\Users\Test\.operon\workspace\", r"c:\users\test\.operon\workspace"));
+        assert!(!is_same_path(r"C:\Users\test\other", r"C:\Users\test\workspace"));
+    }
+
+    #[test]
+    fn test_permission_mode_from_str_and_as_str() {
+        assert_eq!(PermissionMode::from_str("allow"), PermissionMode::Allow);
+        assert_eq!(PermissionMode::from_str("ASK"), PermissionMode::Ask);
+        assert_eq!(PermissionMode::from_str("deny"), PermissionMode::Deny);
+        assert_eq!(PermissionMode::from_str("custom"), PermissionMode::Custom);
+        assert_eq!(PermissionMode::from_str("unknown"), PermissionMode::Deny);
+
+        assert_eq!(PermissionMode::Allow.as_str(), "allow");
+        assert_eq!(PermissionMode::Ask.as_str(), "ask");
+        assert_eq!(PermissionMode::Deny.as_str(), "deny");
+        assert_eq!(PermissionMode::Custom.as_str(), "custom");
+    }
+
+    #[test]
+    fn test_tool_table_data_from_backend_rows() {
+        let owner_rows = vec![
+            operon_rs::PermissionRow {
+                key: "fs".to_string(),
+                label: "Filesystem".to_string(),
+                mode: "allow".to_string(),
+                base_mode: "allow".to_string(),
+                is_explicit: false,
+                kind: "group".to_string(),
+                group_key: "".to_string(),
+            },
+            operon_rs::PermissionRow {
+                key: "fs_read".to_string(),
+                label: "File Read".to_string(),
+                mode: "allow".to_string(),
+                base_mode: "allow".to_string(),
+                is_explicit: false,
+                kind: "tool".to_string(),
+                group_key: "fs".to_string(),
+            },
+        ];
+
+        let external_rows = vec![
+            operon_rs::PermissionRow {
+                key: "fs".to_string(),
+                label: "Filesystem".to_string(),
+                mode: "deny".to_string(),
+                base_mode: "deny".to_string(),
+                is_explicit: false,
+                kind: "group".to_string(),
+                group_key: "".to_string(),
+            },
+            operon_rs::PermissionRow {
+                key: "fs_read".to_string(),
+                label: "File Read".to_string(),
+                mode: "deny".to_string(),
+                base_mode: "deny".to_string(),
+                is_explicit: false,
+                kind: "tool".to_string(),
+                group_key: "fs".to_string(),
+            },
+        ];
+
+        let expanded = HashSet::new();
+        let table = ToolTableData::from_backend_rows(owner_rows, external_rows, &expanded);
+
+        assert_eq!(table.groups.len(), 1);
+        assert_eq!(table.groups[0].key, "fs");
+        assert_eq!(table.groups[0].owner_mode, PermissionMode::Allow);
+        assert_eq!(table.groups[0].external_mode, PermissionMode::Deny);
+        assert_eq!(table.groups[0].tools.len(), 1);
+        assert_eq!(table.groups[0].tools[0].key, "fs_read");
+        assert_eq!(table.groups[0].tools[0].owner_mode, PermissionMode::Allow);
+        assert_eq!(table.groups[0].tools[0].external_mode, PermissionMode::Deny);
     }
 }

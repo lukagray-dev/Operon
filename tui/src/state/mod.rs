@@ -8,7 +8,7 @@ pub mod session;
 
 use crate::ui::chrome::right_sidebar::panel_state::RightPanelContent;
 use crate::ui::screens::models::state::ModelsState;
-use crate::ui::screens::permissions::state::PermissionsScreenState;
+use crate::ui::screens::permissions::state::PermissionsState;
 use screen::ActiveScreen;
 use session::SessionContext;
 use tui_textarea::TextArea;
@@ -86,7 +86,7 @@ pub struct AppState {
     pub models: ModelsState,
 
     /// Permissions screen state (tool permissions, directory list, modals)
-    pub permissions: PermissionsScreenState,
+    pub permissions: PermissionsState,
 }
 
 /// A single chat message
@@ -122,7 +122,7 @@ impl AppState {
             selection_start: None,
             selection_end: None,
             models: ModelsState::new(),
-            permissions: PermissionsScreenState::new(),
+            permissions: PermissionsState::new(),
         }
     }
 

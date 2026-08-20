@@ -1,8 +1,9 @@
-// Permission rule editor modal
-// Modal dialog for editing a single permission cell (tool × role)
-// Allows user to select Allow, Ask, or Deny for a specific tool and role
+// rule_editor.rs — Permission rule editor modal component for Operon TUI.
+//
+// Modal dialog for editing a single permission cell (tool/group × role).
+// Allows selecting Allow, Ask, or Deny for Owner or External roles.
 
-use crate::ui::screens::permissions::state::{PermissionMode, RuleEditorState, ToolTableData};
+use crate::ui::screens::permissions::state::{EditRole, PermissionMode, RuleEditorState, ToolTableData};
 use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -11,19 +12,14 @@ use ratatui::{
     Frame,
 };
 
-/// Render the rule editor modal centered over the screen
-/// Shows radio buttons for Allow, Ask, Deny
-/// User can navigate with Up/Down and confirm with Enter or cancel with Esc
+/// Renders the rule editor modal centered over the screen.
 pub fn render_rule_editor_modal(
     frame: &mut Frame,
     area: Rect,
     state: &RuleEditorState,
     tools: &ToolTableData,
 ) {
-    // Calculate centered modal position
-    // Modal width: 50% of screen width, min 40 cols
-    // Modal height: 12 rows (fixed)
-    let modal_width = (area.width / 2).max(40);
+    let modal_width = (area.width / 2).max(44);
     let modal_height = 12;
 
     let modal_area = Rect {
@@ -33,18 +29,15 @@ pub fn render_rule_editor_modal(
         height: modal_height,
     };
 
-    // Clear the area behind the modal
     frame.render_widget(Clear, modal_area);
 
-    // Render modal block
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(STYLE_ACTIVE_BORDER)
-        .title("Edit Permission");
+        .title(" Edit Tool Permission ");
 
     frame.render_widget(block, modal_area);
 
-    // Split modal into sections
     let inner = modal_area.inner(ratatui::layout::Margin {
         vertical: 1,
         horizontal: 2,
@@ -65,30 +58,35 @@ pub fn render_rule_editor_modal(
         ])
         .split(inner);
 
-    // Get tool and role names for display
+    if state.group_idx >= tools.groups.len() {
+        return;
+    }
+
     let group = &tools.groups[state.group_idx];
     let tool_name = if let Some(tool_idx) = state.tool_idx {
-        format!("{} → {}", group.label, group.tools[tool_idx].label)
+        if tool_idx < group.tools.len() {
+            format!("{} → {}", group.label, group.tools[tool_idx].label)
+        } else {
+            group.label.clone()
+        }
     } else {
-        group.label.to_string()
+        group.label.clone()
     };
 
-    // Render tool label
     let tool_label = Paragraph::new(Line::from(vec![
-        Span::styled("Tool:  ", STYLE_MUTED),
+        Span::styled("Target: ", STYLE_MUTED),
         Span::styled(tool_name, STYLE_NORMAL),
     ]));
     frame.render_widget(tool_label, chunks[0]);
 
-    // Render role tabs (Owner • External) with active highlighting
     let (owner_style, external_style) = match state.role {
-        crate::ui::screens::permissions::state::EditRole::Owner => (
+        EditRole::Owner => (
             ratatui::style::Style::default()
                 .fg(crate::ui::theme::COLOR_ACCENT)
                 .add_modifier(ratatui::style::Modifier::BOLD),
             STYLE_MUTED,
         ),
-        crate::ui::screens::permissions::state::EditRole::External => (
+        EditRole::External => (
             STYLE_MUTED,
             ratatui::style::Style::default()
                 .fg(crate::ui::theme::COLOR_ACCENT)
@@ -97,14 +95,14 @@ pub fn render_rule_editor_modal(
     };
 
     let role_tabs = Paragraph::new(Line::from(vec![
-        Span::styled("Role:  ", STYLE_MUTED),
-        Span::styled("Owner", owner_style),
+        Span::styled("Role:   ", STYLE_MUTED),
+        Span::styled("[Owner]", owner_style),
         Span::styled(" • ", STYLE_MUTED),
-        Span::styled("External", external_style),
+        Span::styled("[External]", external_style),
+        Span::styled("  (Press Tab to switch)", STYLE_MUTED),
     ]));
     frame.render_widget(role_tabs, chunks[2]);
 
-    // Render radio buttons for each permission mode
     let modes = [
         PermissionMode::Allow,
         PermissionMode::Ask,
@@ -113,12 +111,11 @@ pub fn render_rule_editor_modal(
 
     for (idx, mode) in modes.iter().enumerate() {
         let is_selected = *mode == state.selected_mode;
-        let radio = if is_selected { "(*)" } else { "( )" };
+        let radio = if is_selected { "(•) " } else { "( ) " };
         let label = mode.label();
 
         let line = Line::from(vec![
             Span::styled(radio, STYLE_NORMAL),
-            Span::styled(" ", STYLE_NORMAL),
             Span::styled(label, mode.style()),
         ]);
 
@@ -131,12 +128,13 @@ pub fn render_rule_editor_modal(
         frame.render_widget(paragraph, chunks[4 + idx]);
     }
 
-    // Render help text
     let help = Paragraph::new(Line::from(vec![
+        Span::styled("[↑/↓]", STYLE_NORMAL),
+        Span::styled(" Mode  ", STYLE_MUTED),
         Span::styled("[Tab]", STYLE_NORMAL),
-        Span::styled(" Switch role   ", STYLE_MUTED),
+        Span::styled(" Role  ", STYLE_MUTED),
         Span::styled("[Enter]", STYLE_NORMAL),
-        Span::styled(" Save   ", STYLE_MUTED),
+        Span::styled(" Save  ", STYLE_MUTED),
         Span::styled("[Esc]", STYLE_NORMAL),
         Span::styled(" Cancel", STYLE_MUTED),
     ]))
