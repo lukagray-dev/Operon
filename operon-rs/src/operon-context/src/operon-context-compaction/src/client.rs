@@ -207,9 +207,16 @@ impl CompactionClient for OpenAICompactionClient {
             ]
         });
 
+        // Ensure endpoint includes path /chat/completions (handling raw base URLs safely)
+        let endpoint_url = if self.endpoint.ends_with("/chat/completions") || self.endpoint.ends_with("/chat") {
+            self.endpoint.clone()
+        } else {
+            format!("{}/chat/completions", self.endpoint.trim_end_matches('/'))
+        };
+
         let mut req = self
             .http
-            .post(&self.endpoint)
+            .post(&endpoint_url)
             .header("content-type", "application/json");
 
         if !self.api_key.is_empty() {
@@ -286,9 +293,21 @@ impl CompactionClient for GeminiCompactionClient {
             ]
         });
 
+        // Ensure endpoint includes models/<id>:generateContent
+        let clean_id = self.model_id.strip_prefix("models/").unwrap_or(&self.model_id);
+        let endpoint_url = if self.endpoint.contains(":generateContent") {
+            self.endpoint.clone()
+        } else {
+            format!(
+                "{}/models/{}:generateContent",
+                self.endpoint.trim_end_matches('/'),
+                clean_id
+            )
+        };
+
         let mut req = self
             .http
-            .post(&self.endpoint)
+            .post(&endpoint_url)
             .header("content-type", "application/json");
 
         if !self.api_key.is_empty() {

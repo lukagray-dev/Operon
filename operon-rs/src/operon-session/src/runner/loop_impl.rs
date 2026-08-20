@@ -50,7 +50,7 @@ impl SessionRunner {
         }
         self.lifecycle = LifecycleState::Running;
 
-        let turn_start_len = self.messages.len();
+        let mut turn_start_len = self.messages.len();
 
         // Push the user's message into the conversation history.
         let user_blocks = build_user_message(&user_message, image_blocks, &file_paths);
@@ -72,7 +72,11 @@ impl SessionRunner {
                     .await;
 
                 match self.run_compaction().await {
-                    Ok(()) => {}
+                    Ok(()) => {
+                        // Compaction rebuilt self.messages into [system, summary, preserved..., in_flight_user_msg].
+                        // Reset turn_start_len to the index of the in-flight user message so slice indexing is always valid.
+                        turn_start_len = self.messages.len().saturating_sub(1);
+                    }
                     Err(SessionError::Compaction(
                         operon_context::CompactionError::ThresholdNotReached,
                     )) => {
@@ -305,7 +309,11 @@ impl SessionRunner {
 
             // ── 8. Persist turn and todos ───────────────────────────────────
             if let Some(store) = &self.store {
-                let turn_messages = &self.messages[turn_start_len..];
+                let turn_messages = if turn_start_len < self.messages.len() {
+                    &self.messages[turn_start_len..]
+                } else {
+                    &self.messages[..]
+                };
                 store
                     .save_turn(
                         &self.session_id,

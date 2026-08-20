@@ -28,7 +28,16 @@ impl SessionRunner {
             .expose()
             .to_string();
         let model_id = self.config.provider_config.model_id().to_string();
-        let endpoint = self.config.provider_config.effective_base_url().to_string();
+        let base_url = self.config.provider_config.effective_base_url();
+        let endpoint = match &self.config.provider_config.provider {
+            Provider::Anthropic => format!("{}/messages", base_url.trim_end_matches('/')),
+            Provider::Gemini => {
+                let clean_id = model_id.strip_prefix("models/").unwrap_or(&model_id);
+                format!("{}/models/{}:generateContent", base_url.trim_end_matches('/'), clean_id)
+            }
+            Provider::Cohere => format!("{}/chat", base_url.trim_end_matches('/')),
+            _ => format!("{}/chat/completions", base_url.trim_end_matches('/')),
+        };
 
         let client: Box<dyn CompactionClient> = match &self.config.provider_config.provider {
             Provider::Anthropic => Box::new(AnthropicCompactionClient {
