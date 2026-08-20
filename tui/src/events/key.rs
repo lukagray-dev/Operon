@@ -120,22 +120,34 @@ fn map_models_keys(key: KeyEvent) -> Option<Action> {
     use crate::events::action::Action;
 
     match (key.code, key.modifiers) {
-        // Enter and Esc are always handled specially
+        // Confirm / Select (Enter)
         (KeyCode::Enter, KeyModifiers::NONE) => Some(Action::ModelsConfirm),
+
+        // Back to previous screen / provider list (Esc)
         (KeyCode::Esc, KeyModifiers::NONE) => Some(Action::Back),
 
-        // Tab for field navigation
+        // Field navigation: Tab = next, BackTab / Shift+Tab = previous
         (KeyCode::Tab, KeyModifiers::NONE) => Some(Action::ModelsNextField),
+        (KeyCode::BackTab, _) | (KeyCode::Tab, KeyModifiers::SHIFT) => Some(Action::ModelsPrevField),
 
-        // Up/Down - will be handled contextually (navigation vs text input)
+        // Model discovery trigger (Ctrl+F)
+        (KeyCode::Char('f'), KeyModifiers::CONTROL) => Some(Action::ModelsFetchModels),
+
+        // Save and activate provider (Ctrl+S)
+        (KeyCode::Char('s'), KeyModifiers::CONTROL) => Some(Action::ModelsSaveProvider),
+
+        // Toggle API key visibility (F2)
+        (KeyCode::F(2), _) => Some(Action::ModelsToggleKeyVisibility),
+
+        // Up/Down navigation (contextual in handler)
         (KeyCode::Up, KeyModifiers::NONE) => Some(Action::ModelsUp),
         (KeyCode::Down, KeyModifiers::NONE) => Some(Action::ModelsDown),
 
-        // Left/Right - will be handled contextually (compat toggle vs text input)
+        // Left/Right cursor movement
         (KeyCode::Left, KeyModifiers::NONE) => Some(Action::ModelsLeft),
         (KeyCode::Right, KeyModifiers::NONE) => Some(Action::ModelsRight),
 
-        // Forward all other keys to TextArea for text input
+        // Forward all other character/editing keystrokes to the focused TextArea
         _ => Some(Action::ModelsForwardKeyToInput(key)),
     }
 }

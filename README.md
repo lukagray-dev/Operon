@@ -4,199 +4,53 @@
 
 # **Operon**
 
-***The autonomous AI agent built for everyone — not just developers.***
-
-<br/>
-
-> *Claude Code, Codex, and OpenClaw are powerful — but they're built for engineers who live in a terminal.*  
-> ***Operon is built for everyone.***
+[![Rust](https://img.shields.io/badge/Rust-2021-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-green?style=flat-square)](../LICENSE)
 
 </div>
 
-## What is Operon?
+## **What is Operon?**
 
-Operon is a **consumer-first** AI agent similar to OpenClaw but with a clean GUI. It does everything that OpenClaw does — but without requiring you to know what a terminal is.
+Operon is an autonomous AI agent platform built around a Rust-native agent harness. It provides tool execution, memory, tasks, permissions, multi-provider LLM support, and remote channels such as WhatsApp and Telegram, with a shared core runtime designed to support multiple user-facing frontends.
 
-> **You open Operon → type what you need.** *That's it. ✓*
+## **Why Operon?**
 
-- Underneath, *Operon* runs a production-grade Rust agent runtime similar to Codex/OpenClaw.
-- The difference is the surface: instead of a terminal or an IDE, Operon gives you a familiar chat interface.
+Hi, I'm **Luka Gray**.
 
-> Think ChatGPT app, but with the full autonomous capability of an agent.
+I started building **Operon** in early 2026 after using autonomous agents like OpenClaw. The technology was powerful, but I noticed some fundamental problems.
 
-## 🐦‍🔥 Back Story
+These systems aren't really chatbots. They're autonomous system operators (like Claude Code) with access to files, shells, networks, services, and external channels.  
+That power created a different class of problems. Setup and configuration became complex, long-running sessions accumulated enormous amounts of context, tool execution became difficult to reason about, and giving an autonomous agent access to your machine created significant security and permission-management challenges.
 
-Hi, I'm **Luka Gray** (aka Soumo Mukherjee).
+OpenClaw's own [security documentation](https://docs.openclaw.ai/gateway/security) reflects this tradeoff: *its Gateway assumes one trusted operator boundary and is not designed to provide hostile multi-tenant isolation within a shared Gateway.*
 
-When I first used OpenClaw, one thing became obvious: the intelligence was impressive, the user experience was... a crime scene.
+So I started building **Operon** around a different idea: keep the autonomy and depth of an agent, but make the underlying runtime lightweight, permission-aware, and accessible through interfaces that don't require users to understand the machinery underneath.
 
-So in early 2026, I started building **Operon**. 🎉
-
-**The mission is simple**: Build powerful AI agents that our *granny* can use, while keeping the depth developers expect.
-
-> ***Built for normal people, because software has ignored them for long enough.***
-
-<details>
-<summary><span style="font-size: 1.5em;">⚡ Features</span></summary>
-<br>
-
-1. 🗣️ **Chat-First Interface**
-   - Operon's primary interface is a clean, familiar chat UI — because billions of people already know how messaging works.
-   - Will be available in **TUI**, **VS Code** (in development), **JetBrains** (in development), and **Mobile** soon.
-
-2. ⚡ **Lightweight by Design**
-   - The backend is written in Rust, delivering a small memory footprint and fast startup without sacrificing reliability.
-
-3. 📱 **Mobile-Ready Architecture**
-   - Built to run beyond desktops, with a shared core runtime and portable frontends designed for mobile from the ground up.
-
-4. 🔌 **Multi-Provider LLM Support**
-   - Use OpenAI, Anthropic, local models, OpenAI-compatible APIs, and more — without changing how you work.
-
-5. 📡 **Connector Channels**
-   - Connect Operon to WhatsApp, Telegram, Gmail, and other external channels.
-   - Your agent stays reachable and operational even when you're away from your desk.
-
-6. 📋 **Tasks & Memory**
-   - Operon maintains structured memory across sessions, tracks ongoing tasks, supports scheduled actions, and surfaces relevant context automatically — so nothing gets lost between conversations.
-
-</details>
-
----
-
-## ⚡ Performance
-
-Operon is built with Rust and Tauri v2. The backend runtime is pure Rust — no Node.js, no V8 heap in the core agent loop, and no garbage collection in critical paths.
-
-| | Operon | Claude Code | Codex | OpenClaw |
-|---|---|---|---|---|
-| **Runtime** | Rust + Tauri v2 | Node.js + Electron | Node.js + Electron | Node.js |
-| **Idle RAM** | **~65 MB** | ~300 MB | ~1 GB | ~512 MB |
-| **Under load** | **< 90 MB** | 500 MB – 2+ GB | 2+ GB | 512 MB – 7 GB |
-
-**Architecture Comparison:**
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-**❌ Electron-Based Apps**
-```
-┌─────────────────────────┐
-│   Your Application      │
-├─────────────────────────┤
-│   Full Chromium         │  ← Entire browser
-│   (80+ MB base)         │     engine bundled
-├─────────────────────────┤
-│   Node.js Runtime       │  ← JavaScript VM
-│   (V8 + GC overhead)    │     for backend
-└─────────────────────────┘
-   Result: 300MB+ idle
-```
-
-</td>
-<td width="50%" valign="top">
-
-**✅ Operon (Tauri v2)**
-```
-┌─────────────────────────┐
-│   TypeScript Frontend   │  ← Static HTML/CSS/JS
-│   (Compiled bundle)     │
-├─────────────────────────┤
-│   System WebView        │  ← Uses OS-native
-│   (WebView2/WKWebView)  │     renderer (0 MB cost)
-├─────────────────────────┤
-│   Rust Backend          │  ← Pure native code
-│   (Agent Runtime)       │     Zero-cost abstractions
-└─────────────────────────┘
-   Result: ~80MB idle
-```
-
-</td>
-</tr>
-</table>
-
-#### 🎯 Why Tauri v2?
-
-<details open>
-<summary><b>Native WebView Embedding</b></summary>
-
-Instead of shipping Chromium (like Electron), Tauri uses the WebView already installed on your system:
-- **Windows**: WebView2 (Edge-based, auto-updated by Microsoft)
-- **macOS**: WKWebView (Safari engine, part of the OS)
-- **Linux**: WebKitGTK (system package)
-
-**Impact**: The entire browser engine contributes **0 bytes** to the app bundle size.
-
-</details>
-
-<details open>
-<summary><b>Process Separation</b></summary>
-
-The Rust backend runs as a **separate native process** from the WebView frontend:
-
-```
-Frontend Process          Backend Process
-┌──────────────┐          ┌────────────────────┐
-│  TypeScript  │  IPC     │  Rust Agent Loop   │
-│  UI Layer    │◄────────►│  • Session Manager │
-│  (Rendering) │          │  • Tool Dispatcher │
-│              │          │  • HTTP Streaming  │
-│              │          │  • Context Pipeline│
-└──────────────┘          └────────────────────┘
-  Lightweight              Compute-Heavy Tasks
-```
-
-**Impact**: UI remains responsive even during heavy LLM streaming or tool execution.
-
-</details>
-
-<details open>
-<summary><b>Zero Garbage Collection in Critical Paths</b></summary>
-
-- **Session orchestration**: Pure Rust (no GC pauses)
-- **Tool execution**: Native syscalls via Rust std::process
-- **HTTP streaming**: Tokio async runtime (no stop-the-world GC)
-- **Context compaction**: Manual memory management
-
-**Impact**: Predictable latency, no random 50-200ms GC stalls during agent loops.
-
-</details>
+> I started as a personal experiment and gradually evolved into a complete **Rust-native agent harness**.
 
 ## 🛡️ Permission Model
 
-Operon is built to talk to anyone — your customers on WhatsApp, your team on Telegram, or just you from your own device. That openness is the whole point. But it immediately raises a question:
+Autonomous agents become significantly harder to secure when they can be reached by people other than their owner.
 
-> ***If anyone can message Operon, what can Operon do on their behalf?***  
-> The answer is: exactly what you decided in advance. Nothing more.
+Operon treats **identity, permissions, and tool access as separate boundaries**. Every incoming request is associated with a role, and that role determines what the agent is allowed to access and execute.
 
-### Two Roles, One Clear Boundary
+### Two Roles
 
-Every sender is classified as one of two roles:
+- **Owner**: the agent's owner and explicitly trusted users.
+- **External**: everyone else, including customers, leads, and public users.
 
-- **Owner** — you, your staff, and people you explicitly trust.
-- **External** — customers, leads, patients, the public. Anyone else.
+External access is **deny-by-default**. A user's role does not grant access to the agent's capabilities by itself; permissions must explicitly allow the requested operation.
 
-This classification happens at the channel level. A message from your own device is Owner. A message arriving through a public WhatsApp number is External — unless you've explicitly marked that contact as trusted.
+Permissions are scoped by:
 
-Once the role is known, Operon checks what it's permitted to do for that role. If the permission isn't explicitly granted, the answer is no.
+- **Tools**: what the agent is allowed to execute.
+- **Directories**: which parts of the filesystem it can access.
+- **Channels**: where the agent can be reached and by whom.
 
-### Why This Matters
+If an external user attempts a prompt injection to make the agent perform an unauthorized action, the model may still generate the request, but the **runtime permission layer will block the corresponding tool execution**. The model does not get to grant itself additional privileges.
 
-Most agent tools were built for a single user — the developer running them locally. Permissions weren't a design consideration because there was only one person involved.
-
-Operon is built for deployment. Without a clear permission boundary, opening your agent to external users creates real risk:
-
-- **Prompt injection** — users attempt to manipulate the agent into bypassing its instructions.
-- **Data exposure** — internal files, notes, or customer data become reachable by accident.
-- **Tool abuse** — external users trigger actions they were never meant to initiate.
-- **Operational damage** — broad permissions turn a single bad prompt into an expensive problem.
-
-Operon prevents this by enforcing role separation at the permission layer itself. External users get zero access by default. You define exactly what they can reach, in which directories, using which tools, and whether confirmation is required.
-
-> **Access is segmented by design. Not by hope.**
-
----
+> *This boundary is enforced by the runtime rather than relying on the model to follow instructions.*  
+> **The model decides what to do. The permission layer decides what it is allowed to do.**
 
 ## 📦 Monorepo Layout
 
@@ -269,7 +123,7 @@ graph TD
 
 ### Directory Structure
 
-```
+```text
 Operon/
 ├── gui/                      # Tauri v2 Desktop GUI
 │   ├── src/                  # TypeScript frontend (HTML/CSS/JS)
@@ -283,6 +137,12 @@ Operon/
 ├── tui/                      # Terminal UI (Ratatui)
 │   ├── src/                  # TUI rendering, input handling
 │   └── Cargo.toml            # operon-tui crate
+│
+├── vscode/                   # VS Code Extension
+│   ├── bridge/               # Bridge between VS Code and Operon backend
+│   │   ├── src/              # Bridge entry point
+│   │   └── Cargo.toml        # operon-bridge crate
+│   └── extension/            # VS Code extension
 │
 ├── operon-rs/                # Backend Runtime (Rust)
 │   ├── src/
@@ -318,41 +178,49 @@ Operon/
 
 ### Key Design Decisions
 
-1. **Frontends are Thin Clients**: Both GUI and TUI depend on `operon-rs` as a facade. All agent logic lives in the backend.
+1. **Frontends are Thin Clients**: GUI, TUI, and VS Code extension depend on `operon-rs` as a facade. All agent logic lives in the backend.
 2. **Separation of Concerns**: The backend is decomposed into single-responsibility crates (session, tools, policy, providers, config, events).
 3. **Permission Enforcement at the Core**: `operon-policy` sits between `operon-session` and `operon-tools`, enforcing Owner/External role separation before tool execution.
-4. **Shared Runtime**: TUI and GUI share the exact same Rust backend. No code duplication.
-5. **Mobile-Ready Architecture**: The layered design anticipates iOS/Android frontends using the same `operon-rs` core via FFI.
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
-> *Operon is currently in active development.*  
-> **Pre-built binaries are available in the releases page.**
+### For Users
+
+> Don't want to build Operon yourself? Download the latest pre-built release and start using it **[→ Download Operon](https://github.com/lukagray-dev/Operon/releases)**
+
+### For Developers
+
+Want to build Operon from source or contribute to the project?
+
+First, clone the repository:
+
+```bash
+git clone https://github.com/lukagray-dev/Operon.git
+cd Operon
+```
+
+Then use the development launchers from the repository root:
+
+```text
+scripts/
+├── run-gui.bat          # Run the Tauri GUI in development mode
+├── run-gui-release.bat  # Run the GUI in release mode
+├── run-tui.bat          # Run the TUI in development mode
+└── run-tui-release.bat  # Run the TUI in release mode
+```
+
+On Windows, run the appropriate `.bat` script directly from the repository root.
+
+> For backend architecture and development details, see [`operon-rs/README.md`](operon-rs/README.md).
 
 ---
 
-## Contributing
+## License & Contributing
 
-Contributions are welcome. If you're planning a large feature or architectural change, open an issue first to align before implementation begins.
-
-For bug reports, please include:
-
-- OS / distro
-- Rust version
-- Operon version / commit hash
-- Model provider used
-- Logs or error output
-- Minimal reproduction steps
-
-The more precise the report, the faster the fix.
-
----
-
-## License
-
-Operon is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**. See [LICENSE](./LICENSE) for full terms.
+Operon is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**. See [LICENSE](./LICENSE) for full terms.  
+Contributions are welcome. If you're planning a large feature or architectural change, open an issue first to align before implementation begins. See [CONTRIBUTING](./CONTRIBUTING) for more information.
 
 ---
 

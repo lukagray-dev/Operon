@@ -14,8 +14,15 @@ pub fn handle(action: Action, state: &mut AppState) {
             state.set_active_screen(screen);
         }
         Action::Back => {
-            // Go back to Chat screen
-            state.set_active_screen(crate::state::screen::ActiveScreen::Chat);
+            // If on Models Setup screen, go back to ProviderList
+            if state.active_screen() == &crate::state::screen::ActiveScreen::Models
+                && state.models.step == crate::ui::screens::models::state::ModelsStep::Setup
+            {
+                state.models.back_to_provider_list();
+            } else {
+                // Otherwise return to Chat screen
+                state.set_active_screen(crate::state::screen::ActiveScreen::Chat);
+            }
         }
         Action::CloseScreenSelector => {
             // Close screen selector popup

@@ -4788,6 +4788,7 @@ dependencies = [
  "async-trait",
  "crossterm 0.29.0",
  "dirs 6.0.0",
+ "operon-rs",
  "ratatui",
  "serde",
  "tokio",

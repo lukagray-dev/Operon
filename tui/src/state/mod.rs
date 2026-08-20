@@ -161,6 +161,11 @@ impl AppState {
         &self.session
     }
 
+    /// Get mutable session context data
+    pub fn session_mut(&mut self) -> &mut SessionContext {
+        &mut self.session
+    }
+
     /// Get current tick count for animations
     #[allow(dead_code)]
     pub fn get_tick(&self) -> u64 {

@@ -1,330 +1,314 @@
-// Models screen action handlers
-// Handles: All Action::Models* variants
-// These actions manage the models configuration screen (provider selection, setup form, model fetching)
+// models.rs — Models & AI Providers screen action handlers for Operon TUI.
+//
+// ZERO BUSINESS LOGIC IN FRONTEND:
+// The TUI is strictly a presentation shell over `operon-rs`.
+// - Model auto-discovery is dispatched to `operon_rs::discover_models(...)`.
+// - Configuration persistence is executed via `operon_rs::save_provider(...)`.
+// - Active session state in AppState is synchronized immediately after saving.
 
 use crate::events::action::Action;
 use crate::state::AppState;
+use crate::ui::screens::models::state::{FetchStatus, ModelsStep, SaveStatus, SetupField};
 use anyhow::Result;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
 
-/// Handle models screen actions
-/// Processes provider navigation, form input, model fetching, and configuration
+/// Processes all Models-related actions triggered by keyboard events or background tasks.
 pub async fn handle(action: Action, state: &mut AppState, tx: &mpsc::Sender<Action>) -> Result<()> {
     match action {
-        Action::ModelsUp => {
-            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
-            match state.models.step {
-                ModelsStep::ProviderList => {
-                    // Navigate provider list
-                    state.models.move_provider_up();
-                }
-                ModelsStep::Setup => {
-                    // If models are fetched, prioritize model list navigation
-                    if matches!(state.models.fetch_status, FetchStatus::Success)
-                        && !state.models.fetched_models.is_empty()
-                    {
-                        // Navigate model list
-                        state.models.move_model_up();
-                    } else {
-                        // Check if we're in a text input field - if so, forward to TextArea
-                        let is_in_text_field = match state.models.selected_provider {
-                            Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                state.models.focused_field == 0 // API key field
-                            }
-                            Some(Provider::Custom) => {
-                                state.models.focused_field == 0 || state.models.focused_field == 2
-                                // URL or API key
-                            }
-                            None => false,
-                        };
-
-                        if is_in_text_field {
-                            // Forward to TextArea (though Up/Down don't do much in single-line fields)
-                            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                            let key_event = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
-                            match state.models.selected_provider {
-                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                    let _ = state.models.api_key_input.input(key_event);
-                                }
-                                Some(Provider::Custom) => {
-                                    if state.models.focused_field == 0 {
-                                        let _ = state.models.base_url_input.input(key_event);
-                                    } else {
-                                        let _ = state.models.api_key_input.input(key_event);
-                                    }
-                                }
-                                None => {}
-                            }
-                        }
-                    }
-                }
+        // ─────────────────────────────────────────────────────────────────────
+        // Navigation: Up
+        // ─────────────────────────────────────────────────────────────────────
+        Action::ModelsUp => match state.models.step {
+            ModelsStep::ProviderList => {
+                state.models.move_provider_up();
             }
-        }
-        Action::ModelsDown => {
-            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
-            match state.models.step {
-                ModelsStep::ProviderList => {
-                    // Navigate provider list
-                    state.models.move_provider_down();
+            ModelsStep::Setup => match state.models.focused_field {
+                SetupField::DiscoveredModelList => {
+                    state.models.move_model_up();
                 }
-                ModelsStep::Setup => {
-                    // If models are fetched, prioritize model list navigation
-                    if matches!(state.models.fetch_status, FetchStatus::Success)
-                        && !state.models.fetched_models.is_empty()
-                    {
-                        // Navigate model list
-                        state.models.move_model_down();
-                    } else {
-                        // Check if we're in a text input field - if so, forward to TextArea
-                        let is_in_text_field = match state.models.selected_provider {
-                            Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                state.models.focused_field == 0 // API key field
-                            }
-                            Some(Provider::Custom) => {
-                                state.models.focused_field == 0 || state.models.focused_field == 2
-                                // URL or API key
-                            }
-                            None => false,
-                        };
+                SetupField::BaseUrl => {
+                    let key = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+                    let _ = state.models.base_url_input.input(key);
+                }
+                SetupField::ApiKey => {
+                    let key = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+                    let _ = state.models.api_key_input.input(key);
+                }
+                SetupField::CustomModel => {
+                    let key = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+                    let _ = state.models.custom_model_input.input(key);
+                }
+                _ => {}
+            },
+        },
 
-                        if is_in_text_field {
-                            // Forward to TextArea (though Up/Down don't do much in single-line fields)
-                            use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                            let key_event = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
-                            match state.models.selected_provider {
-                                Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                                    let _ = state.models.api_key_input.input(key_event);
-                                }
-                                Some(Provider::Custom) => {
-                                    if state.models.focused_field == 0 {
-                                        let _ = state.models.base_url_input.input(key_event);
-                                    } else {
-                                        let _ = state.models.api_key_input.input(key_event);
-                                    }
-                                }
-                                None => {}
-                            }
-                        }
-                    }
-                }
+        // ─────────────────────────────────────────────────────────────────────
+        // Navigation: Down
+        // ─────────────────────────────────────────────────────────────────────
+        Action::ModelsDown => match state.models.step {
+            ModelsStep::ProviderList => {
+                state.models.move_provider_down();
             }
-        }
+            ModelsStep::Setup => match state.models.focused_field {
+                SetupField::DiscoveredModelList => {
+                    state.models.move_model_down();
+                }
+                SetupField::BaseUrl => {
+                    let key = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+                    let _ = state.models.base_url_input.input(key);
+                }
+                SetupField::ApiKey => {
+                    let key = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+                    let _ = state.models.api_key_input.input(key);
+                }
+                SetupField::CustomModel => {
+                    let key = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+                    let _ = state.models.custom_model_input.input(key);
+                }
+                _ => {}
+            },
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Cursor movement: Left
+        // ─────────────────────────────────────────────────────────────────────
         Action::ModelsLeft => {
-            use crate::ui::screens::models::state::{ModelsStep, Provider};
-            if matches!(state.models.step, ModelsStep::Setup) {
-                // Check if we're on compat field - if so, toggle
-                if matches!(state.models.selected_provider, Some(Provider::Custom))
-                    && state.models.focused_field == 1
-                {
-                    state.models.toggle_compat_mode();
-                } else {
-                    // Otherwise, forward to TextArea for cursor movement
-                    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                    let key_event = KeyEvent::new(KeyCode::Left, KeyModifiers::NONE);
-                    match state.models.selected_provider {
-                        Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                            let _ = state.models.api_key_input.input(key_event);
-                        }
-                        Some(Provider::Custom) => {
-                            if state.models.focused_field == 0 {
-                                let _ = state.models.base_url_input.input(key_event);
-                            } else if state.models.focused_field == 2 {
-                                let _ = state.models.api_key_input.input(key_event);
-                            }
-                        }
-                        None => {}
+            if state.models.step == ModelsStep::Setup {
+                let key = KeyEvent::new(KeyCode::Left, KeyModifiers::NONE);
+                match state.models.focused_field {
+                    SetupField::BaseUrl => {
+                        let _ = state.models.base_url_input.input(key);
                     }
+                    SetupField::ApiKey => {
+                        let _ = state.models.api_key_input.input(key);
+                    }
+                    SetupField::CustomModel => {
+                        let _ = state.models.custom_model_input.input(key);
+                    }
+                    _ => {}
                 }
             }
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Cursor movement: Right
+        // ─────────────────────────────────────────────────────────────────────
         Action::ModelsRight => {
-            use crate::ui::screens::models::state::{ModelsStep, Provider};
-            if matches!(state.models.step, ModelsStep::Setup) {
-                // Check if we're on compat field - if so, toggle
-                if matches!(state.models.selected_provider, Some(Provider::Custom))
-                    && state.models.focused_field == 1
-                {
-                    state.models.toggle_compat_mode();
-                } else {
-                    // Otherwise, forward to TextArea for cursor movement
-                    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-                    let key_event = KeyEvent::new(KeyCode::Right, KeyModifiers::NONE);
-                    match state.models.selected_provider {
-                        Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                            let _ = state.models.api_key_input.input(key_event);
-                        }
-                        Some(Provider::Custom) => {
-                            if state.models.focused_field == 0 {
-                                let _ = state.models.base_url_input.input(key_event);
-                            } else if state.models.focused_field == 2 {
-                                let _ = state.models.api_key_input.input(key_event);
-                            }
-                        }
-                        None => {}
+            if state.models.step == ModelsStep::Setup {
+                let key = KeyEvent::new(KeyCode::Right, KeyModifiers::NONE);
+                match state.models.focused_field {
+                    SetupField::BaseUrl => {
+                        let _ = state.models.base_url_input.input(key);
                     }
+                    SetupField::ApiKey => {
+                        let _ = state.models.api_key_input.input(key);
+                    }
+                    SetupField::CustomModel => {
+                        let _ = state.models.custom_model_input.input(key);
+                    }
+                    _ => {}
                 }
             }
         }
-        Action::ModelsConfirm => {
-            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
-            match state.models.step {
-                ModelsStep::ProviderList => {
-                    // Confirm provider selection and move to setup
-                    state.models.confirm_provider();
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Confirmation / Selection (Enter)
+        // ─────────────────────────────────────────────────────────────────────
+        Action::ModelsConfirm => match state.models.step {
+            ModelsStep::ProviderList => {
+                state.models.confirm_provider();
+            }
+            ModelsStep::Setup => match state.models.focused_field {
+                SetupField::FetchButton => {
+                    trigger_fetch_models(state, tx).await;
                 }
-                ModelsStep::Setup => {
-                    // Check if we're on the API key field - if so, trigger fetch
-                    let is_on_api_key_field = match state.models.selected_provider {
-                        Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                            // Only one field (API key), always field 0
-                            state.models.focused_field == 0
-                        }
-                        Some(Provider::Custom) => {
-                            // API key is field 2 (0=URL, 1=compat, 2=API key)
-                            state.models.focused_field == 2
-                        }
-                        None => false,
-                    };
-
-                    if is_on_api_key_field
-                        && !matches!(state.models.fetch_status, FetchStatus::Fetching)
-                    {
-                        // Trigger fetch
-                        state.models.start_fetch();
-
-                        // Spawn async mock fetch task
-                        let provider = state.models.selected_provider;
-                        let action_tx_clone = tx.clone();
-                        tokio::spawn(async move {
-                            tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
-
-                            let models = match provider {
-                                Some(Provider::Anthropic) => vec![
-                                    "claude-opus-4-5".to_string(),
-                                    "claude-sonnet-4-5".to_string(),
-                                    "claude-haiku-4-5".to_string(),
-                                ],
-                                Some(Provider::OpenAI) => vec![
-                                    "gpt-4o".to_string(),
-                                    "gpt-4o-mini".to_string(),
-                                    "gpt-4-turbo".to_string(),
-                                    "o1".to_string(),
-                                    "o1-mini".to_string(),
-                                ],
-                                Some(Provider::Custom) => vec![
-                                    "model-1".to_string(),
-                                    "model-2".to_string(),
-                                    "model-3".to_string(),
-                                ],
-                                None => vec![],
-                            };
-
-                            let _ = action_tx_clone
-                                .send(Action::ModelsFetchComplete(models))
-                                .await;
-                        });
-                    } else if matches!(state.models.fetch_status, FetchStatus::Success) {
-                        // If models are already fetched, Enter confirms the selected model
-                        // TODO: Save configuration and return to Chat
-                        state.set_active_screen(crate::state::screen::ActiveScreen::Chat);
+                SetupField::DiscoveredModelList => {
+                    state.models.select_discovered_model();
+                }
+                SetupField::SaveButton => {
+                    trigger_save_provider(state, tx).await;
+                }
+                SetupField::ApiKey => {
+                    // Enter on API Key triggers model discovery if not yet fetched
+                    if matches!(state.models.fetch_status, FetchStatus::Idle) {
+                        trigger_fetch_models(state, tx).await;
+                    } else {
+                        state.models.next_field();
                     }
                 }
-            }
-        }
+                SetupField::CustomModel => {
+                    // Enter on Custom Model triggers save
+                    trigger_save_provider(state, tx).await;
+                }
+                SetupField::BaseUrl => {
+                    state.models.next_field();
+                }
+            },
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Field Navigation (Tab / Shift+Tab)
+        // ─────────────────────────────────────────────────────────────────────
         Action::ModelsNextField => {
-            use crate::ui::screens::models::state::ModelsStep;
-            if matches!(state.models.step, ModelsStep::Setup) {
+            if state.models.step == ModelsStep::Setup {
                 state.models.next_field();
             }
         }
+        Action::ModelsPrevField => {
+            if state.models.step == ModelsStep::Setup {
+                state.models.prev_field();
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // API Key Visibility Toggle (F2)
+        // ─────────────────────────────────────────────────────────────────────
+        Action::ModelsToggleKeyVisibility => {
+            if state.models.step == ModelsStep::Setup {
+                state.models.toggle_api_key_visibility();
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Real-Time Model Discovery
+        // ─────────────────────────────────────────────────────────────────────
         Action::ModelsFetchModels => {
-            use crate::ui::screens::models::state::{FetchStatus, ModelsStep, Provider};
-            // Only fetch if on setup screen and not already fetching
-            if matches!(state.models.step, ModelsStep::Setup)
-                && !matches!(state.models.fetch_status, FetchStatus::Fetching)
-            {
-                state.models.start_fetch();
-
-                // Spawn async mock fetch task
-                let provider = state.models.selected_provider;
-                let action_tx_clone = tx.clone();
-                tokio::spawn(async move {
-                    // Mock delay (800ms)
-                    tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
-
-                    // Generate mock model list based on provider
-                    let models = match provider {
-                        Some(Provider::Anthropic) => vec![
-                            "claude-opus-4-5".to_string(),
-                            "claude-sonnet-4-5".to_string(),
-                            "claude-haiku-4-5".to_string(),
-                        ],
-                        Some(Provider::OpenAI) => vec![
-                            "gpt-4o".to_string(),
-                            "gpt-4o-mini".to_string(),
-                            "gpt-4-turbo".to_string(),
-                            "o1".to_string(),
-                            "o1-mini".to_string(),
-                        ],
-                        Some(Provider::Custom) => vec![
-                            "model-1".to_string(),
-                            "model-2".to_string(),
-                            "model-3".to_string(),
-                        ],
-                        None => vec![],
-                    };
-
-                    // Send completion action
-                    let _ = action_tx_clone
-                        .send(Action::ModelsFetchComplete(models))
-                        .await;
-                });
+            if state.models.step == ModelsStep::Setup {
+                trigger_fetch_models(state, tx).await;
             }
         }
-        Action::ModelsFetchComplete(models) => {
-            // Complete the fetch operation with results
-            state.models.complete_fetch(models);
-        }
-        Action::ModelsToggleCompat => {
-            use crate::ui::screens::models::state::{ModelsStep, Provider};
-            // Only toggle if on Custom provider setup and compat field is focused
-            // Otherwise, Left/Right do nothing (they're not text input)
-            if matches!(state.models.step, ModelsStep::Setup)
-                && matches!(state.models.selected_provider, Some(Provider::Custom))
-                && state.models.focused_field == 1
-            {
-                state.models.toggle_compat_mode();
+        Action::ModelsFetchComplete(result) => match result {
+            Ok(models) => {
+                state.models.complete_fetch(models);
+            }
+            Err(err) => {
+                state.models.fail_fetch(err);
+            }
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Configuration Persistence
+        // ─────────────────────────────────────────────────────────────────────
+        Action::ModelsSaveProvider => {
+            if state.models.step == ModelsStep::Setup {
+                trigger_save_provider(state, tx).await;
             }
         }
+        Action::ModelsSaveComplete(result) => match result {
+            Ok(()) => {
+                state.models.save_status = SaveStatus::Success;
+
+                // Refresh backend state in models screen and session context
+                state.models.refresh_from_backend();
+                state.session_mut().refresh_from_backend();
+            }
+            Err(err) => {
+                state.models.save_status = SaveStatus::Error(err);
+            }
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Forward Keystrokes to Focused TextArea
+        // ─────────────────────────────────────────────────────────────────────
         Action::ModelsForwardKeyToInput(key_event) => {
-            use crate::ui::screens::models::state::{ModelsStep, Provider};
-            if matches!(state.models.step, ModelsStep::Setup) {
-                // Forward key to the appropriate TextArea based on focused field
-                match state.models.selected_provider {
-                    Some(Provider::Anthropic) | Some(Provider::OpenAI) => {
-                        // Only API key field (always focused)
+            if state.models.step == ModelsStep::Setup {
+                match state.models.focused_field {
+                    SetupField::BaseUrl => {
+                        let _ = state.models.base_url_input.input(key_event);
+                    }
+                    SetupField::ApiKey => {
                         let _ = state.models.api_key_input.input(key_event);
                     }
-                    Some(Provider::Custom) => {
-                        match state.models.focused_field {
-                            0 => {
-                                let _ = state.models.base_url_input.input(key_event);
-                            } // Base URL field
-                            1 => {} // Compat mode field (not text input)
-                            2 => {
-                                let _ = state.models.api_key_input.input(key_event);
-                            } // API key field
-                            _ => {}
-                        }
+                    SetupField::CustomModel => {
+                        let _ = state.models.custom_model_input.input(key_event);
                     }
-                    None => {}
+                    _ => {}
                 }
             }
         }
-        _ => {
-            // Catch-all for safety (should never hit due to dispatch routing)
-        }
+
+        _ => {}
     }
 
     Ok(())
+}
+
+/// Helper to trigger asynchronous model discovery via operon_rs::discover_models.
+async fn trigger_fetch_models(state: &mut AppState, tx: &mpsc::Sender<Action>) {
+    let provider = match state.models.selected_provider {
+        Some(p) => p,
+        None => return,
+    };
+
+    if matches!(state.models.fetch_status, FetchStatus::Fetching) {
+        return;
+    }
+
+    state.models.start_fetch();
+
+    let api_key = state.models.api_key_input.lines().join("").trim().to_string();
+    let base_url = state.models.base_url_input.lines().join("").trim().to_string();
+
+    let base_override = if base_url.is_empty() {
+        None
+    } else {
+        Some(base_url)
+    };
+
+    let action_tx = tx.clone();
+
+    tokio::spawn(async move {
+        let result = operon_rs::discover_models(
+            provider,
+            &api_key,
+            base_override.as_deref(),
+        )
+        .await;
+
+        let mapped = match result {
+            Ok(discovery) => Ok(discovery.models),
+            Err(err) => Err(format!("{:#}", err)),
+        };
+
+        let _ = action_tx.send(Action::ModelsFetchComplete(mapped)).await;
+    });
+}
+
+/// Helper to trigger asynchronous configuration save via operon_rs::save_provider.
+async fn trigger_save_provider(state: &mut AppState, tx: &mpsc::Sender<Action>) {
+    let provider = match state.models.selected_provider {
+        Some(p) => p,
+        None => return,
+    };
+
+    state.models.save_status = SaveStatus::Saving;
+
+    let api_key = state.models.api_key_input.lines().join("").trim().to_string();
+    let base_url = state.models.base_url_input.lines().join("").trim().to_string();
+    let model_config = state.models.resolve_model_config(provider);
+
+    let credentials = if !api_key.is_empty() {
+        operon_rs::ApiCredentials::with_key(api_key.as_str())
+    } else {
+        operon_rs::ApiCredentials::unauthenticated()
+    };
+
+    let provider_config = operon_rs::ProviderConfig {
+        provider,
+        credentials,
+        model: model_config,
+        base_url_override: if base_url.is_empty() {
+            None
+        } else {
+            Some(base_url)
+        },
+    };
+
+    let action_tx = tx.clone();
+
+    tokio::spawn(async move {
+        let res = operon_rs::save_provider(&provider_config).map_err(|e| e.to_string());
+        let _ = action_tx.send(Action::ModelsSaveComplete(res)).await;
+    });
 }

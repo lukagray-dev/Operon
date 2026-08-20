@@ -70,16 +70,19 @@ pub async fn dispatch(
         | Action::ScrollChatDown(_)
         | Action::Tick => chat::handle(action, state),
 
-        // Models screen actions: provider selection, form input, model fetching
+        // Models screen actions: provider selection, form input, model fetching, and saving
         Action::ModelsUp
         | Action::ModelsDown
         | Action::ModelsLeft
         | Action::ModelsRight
         | Action::ModelsConfirm
         | Action::ModelsNextField
+        | Action::ModelsPrevField
         | Action::ModelsFetchModels
         | Action::ModelsFetchComplete(_)
-        | Action::ModelsToggleCompat
+        | Action::ModelsSaveProvider
+        | Action::ModelsSaveComplete(_)
+        | Action::ModelsToggleKeyVisibility
         | Action::ModelsForwardKeyToInput(_) => models::handle(action, state, tx).await?,
 
         // Permissions screen actions: section switching, navigation, modals, permission editing

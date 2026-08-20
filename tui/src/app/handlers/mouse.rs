@@ -216,8 +216,10 @@ pub async fn handle(
                     | Action::ModelsRight
                     | Action::ModelsConfirm
                     | Action::ModelsNextField
+                    | Action::ModelsPrevField
                     | Action::ModelsFetchModels
-                    | Action::ModelsToggleCompat
+                    | Action::ModelsSaveProvider
+                    | Action::ModelsToggleKeyVisibility
                     | Action::ModelsForwardKeyToInput(_)) => {
                         // Re-send to outer handler
                         let _ = tx.send(action).await;

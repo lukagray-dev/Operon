@@ -118,36 +118,43 @@ pub enum Action {
     Tick,
 
     // ===== Models Screen Actions =====
-    /// Move cursor up in models screen (provider list or model list)
+    /// Move cursor up in models screen (provider list, model list, or textarea)
     ModelsUp,
 
-    /// Move cursor down in models screen (provider list or model list)
+    /// Move cursor down in models screen (provider list, model list, or textarea)
     ModelsDown,
 
-    /// Confirm selection in models screen (select provider or model)
+    /// Confirm selection in models screen (select provider, choose model, or save)
     ModelsConfirm,
 
     /// Move to next field in setup form (Tab key)
     ModelsNextField,
 
-    /// Start fetching models from provider (mock operation)
-    #[allow(dead_code)]
+    /// Move to previous field in setup form (Shift+Tab key)
+    ModelsPrevField,
+
+    /// Start fetching models from provider via operon_rs::discover_models
     ModelsFetchModels,
 
-    /// Models fetch completed with results
-    ModelsFetchComplete(Vec<String>),
+    /// Models fetch completed with results (Ok(models) or Err(message))
+    ModelsFetchComplete(Result<Vec<operon_rs::DiscoveredModel>, String>),
 
-    /// Toggle compatibility mode in custom provider form
-    #[allow(dead_code)]
-    ModelsToggleCompat,
+    /// Save configured provider credentials and model to ~/.operon/config.toml
+    ModelsSaveProvider,
 
-    /// Left arrow key in models screen (compat toggle or text cursor movement)
+    /// Provider save completed with result (Ok(()) or Err(message))
+    ModelsSaveComplete(Result<(), String>),
+
+    /// Toggle API key visibility (F2 key)
+    ModelsToggleKeyVisibility,
+
+    /// Left arrow key in models screen
     ModelsLeft,
 
-    /// Right arrow key in models screen (compat toggle or text cursor movement)
+    /// Right arrow key in models screen
     ModelsRight,
 
-    /// Forward key event to TextArea widget in models setup form
+    /// Forward key event to active TextArea widget in models setup form
     ModelsForwardKeyToInput(crossterm::event::KeyEvent),
 
     // ===== Permissions Screen Actions =====
