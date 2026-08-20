@@ -20,6 +20,15 @@ pub struct AskQuestionDto {
     pub is_answered: bool,
 }
 
+/// Represents an expandable context compaction event record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompactionDto {
+    pub tokens_before: usize,
+    pub tokens_after: usize,
+    pub summary: String,
+    pub is_expanded: bool,
+}
+
 /// A block within a consolidated assistant message.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -27,6 +36,10 @@ pub enum MessageBlockDto {
     /// Progress work group containing thinking steps or tool calls.
     WorkGroup {
         data: crate::main_content::work_group::WorkGroupDto,
+    },
+    /// Expandable context compaction pill.
+    Compaction {
+        data: CompactionDto,
     },
     /// Text response content block.
     Text {

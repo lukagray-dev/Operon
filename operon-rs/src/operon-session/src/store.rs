@@ -211,6 +211,56 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Apply compaction to the persisted session turns.
+    ///
+    /// When context compaction runs, older turns are summarized into a fresh system snapshot
+    /// and summary message while preserving recent turns. This method resets `session.turns`
+    /// to the compacted baseline (turn 0) so that subsequent turns and future sessions
+    /// reload only the compacted context rather than uncompacted older messages.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read/write or JSON serialization failure.
+    pub async fn apply_compaction(
+        &self,
+        session_id: &str,
+        compacted_baseline: &[ConversationMessage],
+        token_count: Option<usize>,
+    ) -> Result<(), SessionError> {
+        let mut session = if self.path.exists() {
+            let file_content = std::fs::read_to_string(&self.path)
+                .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+            serde_json::from_str::<SessionJson>(&file_content)
+                .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?
+        } else {
+            SessionJson {
+                id: session_id.to_string(),
+                created_at: unix_timestamp_secs() as i64,
+                workspace: String::new(),
+                model_id: String::new(),
+                provider: String::new(),
+                turns: Vec::new(),
+                todos: Vec::new(),
+            }
+        };
+
+        let baseline_turn = TurnJson {
+            turn_index: 0,
+            messages: compacted_baseline.to_vec(),
+            token_count,
+            created_at: unix_timestamp_secs() as i64,
+        };
+
+        session.turns = vec![baseline_turn];
+
+        let json_str = serde_json::to_string_pretty(&session)
+            .map_err(|e| SessionError::Store(format!("Failed to serialize session: {e}")))?;
+        std::fs::write(&self.path, json_str)
+            .map_err(|e| SessionError::Store(format!("Failed to write session file: {e}")))?;
+
+        Ok(())
+    }
+
     /// Save the current list of session todos to the session JSON file.
     ///
     /// Hey friend! Whenever the model creates, updates, or deletes todo items,

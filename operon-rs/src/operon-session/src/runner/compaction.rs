@@ -81,6 +81,19 @@ impl SessionRunner {
         }
         self.dispatcher.notify_compaction();
 
+        // Persist the compacted history baseline to disk so subsequent turns and session restarts
+        // continue from the compacted snapshot + summary rather than reloading uncompacted history.
+        if let Some(store) = &self.store {
+            let baseline_len = self.messages.len().saturating_sub(1);
+            let compacted_baseline = &self.messages[..baseline_len];
+            let _ = store
+                .apply_compaction(&self.session_id, compacted_baseline, Some(result.tokens_after))
+                .await;
+        }
+
+        // Reset turn index to 1 (turn 0 is the compacted baseline, current turn will be turn 1)
+        self.turn_index = 1;
+
         let _ = self
             .event_tx
             .send(SessionEvent::CompactionOccurred {

@@ -257,7 +257,16 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                             }
                             operon_rs::context::ContentBlock::Text(text) => {
                                 let trimmed_start = text.trim_start_matches(|c| c == '\r' || c == '\n');
-                                if !trimmed_start.trim().is_empty() {
+                                if let Some(summary_content) = trimmed_start.strip_prefix("— Previous session summary —\n\n") {
+                                    blocks.push(MessageBlockDto::Compaction {
+                                        data: super::types::CompactionDto {
+                                            tokens_before: 0,
+                                            tokens_after: 0,
+                                            summary: summary_content.to_string(),
+                                            is_expanded: false,
+                                        },
+                                    });
+                                } else if !trimmed_start.trim().is_empty() {
                                     all_assistant_text_parts.push(trimmed_start.to_string());
                                     if let Some(MessageBlockDto::Text { text: existing }) = blocks.last_mut() {
                                         existing.push_str("\n\n");

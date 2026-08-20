@@ -44,9 +44,13 @@ export function renderCompactionElement(
   const textSpan = document.createElement('span');
   textSpan.className = 'compaction-pill-text';
 
-  const beforeStr = formatTokenCount(data.tokens_before);
-  const afterStr = formatTokenCount(data.tokens_after);
-  textSpan.textContent = `Context compacted • ${beforeStr} → ${afterStr}`;
+  if (data.tokens_before > 0 && data.tokens_after > 0) {
+    const beforeStr = formatTokenCount(data.tokens_before);
+    const afterStr = formatTokenCount(data.tokens_after);
+    textSpan.textContent = `Context compacted • ${beforeStr} → ${afterStr}`;
+  } else {
+    textSpan.textContent = 'Context compacted';
+  }
 
   // 1.3 Percentage Saved Badge
   const savedTokens = Math.max(0, data.tokens_before - data.tokens_after);
