@@ -241,6 +241,9 @@ impl SessionRunner {
             dispatcher.attach_memory_store(memory_store);
         }
 
+        let mut config = config;
+        config.compaction.context_window = config.provider_config.context_window();
+
         // Build the token budget from the provider config's context window size.
         let token_budget = TokenBudget::with_window(config.provider_config.context_window())
             .map_err(|e| SessionError::Stream(e.to_string()))?;

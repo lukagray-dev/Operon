@@ -32,6 +32,7 @@ import { respondToAskIpc } from './ask-card/ipc.js';
 import { refreshTopbar } from '../topbar/topbar.js';
 import type { ThinkingOrbRenderer } from '../work-group/orb.js';
 import { renderWorkGroupElement, syncWorkGroupElement } from '../work-group/work-group.js';
+import { renderCompactionElement, syncCompactionElement } from './compaction-pill.js';
 import {
   editAndSubmitPromptIpc,
   listenAgentError,
@@ -236,6 +237,24 @@ export function initMessages(): void {
       });
       insertBlockInRow(row, askCardEl, blockIdx);
       smartAutoScroll(true);
+    }
+  });
+
+  // 6b. Stream Compaction handler: renders expandable compaction pill in message row
+  messagesState.onStreamCompaction((msgId, blockIdx, data) => {
+    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    if (row) {
+      const existingEl = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].compaction-pill-container`);
+      if (existingEl) {
+        syncCompactionElement(existingEl, data);
+      } else {
+        const compactionEl = renderCompactionElement(data, () =>
+          messagesState.toggleCompactionExpanded(msgId, blockIdx)
+        );
+        compactionEl.setAttribute('data-block-index', String(blockIdx));
+        insertBlockInRow(row, compactionEl, blockIdx);
+      }
+      smartAutoScroll();
     }
   });
 
@@ -459,6 +478,18 @@ function handleAgentEvent(event: Record<string, unknown>): void {
     }
   } else if ('ApprovalGranted' in event || 'PermissionDenied' in event) {
     syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
+  } else if ('CompactionOccurred' in event) {
+    const comp = (event as {
+      CompactionOccurred: {
+        tokens_before: number;
+        tokens_after: number;
+        summary: string;
+      };
+    }).CompactionOccurred;
+    if (comp) {
+      messagesState.addCompactionBlock(comp.tokens_before, comp.tokens_after, comp.summary);
+      smartAutoScroll(true);
+    }
   } else if ('Done' in event || 'Error' in event) {
     cleanupActiveOrb();
     syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
@@ -859,6 +890,12 @@ function createAssistantMessageElement(msg: ChatMessage, showSeparator = true): 
           renderMarkdownBody(body, block.text);
           row.appendChild(body);
         }
+      } else if (block.kind === 'compaction') {
+        const compactionEl = renderCompactionElement(block.data, () =>
+          messagesState.toggleCompactionExpanded(msg.id, blockIdx)
+        );
+        compactionEl.setAttribute('data-block-index', String(blockIdx));
+        row.appendChild(compactionEl);
       } else if (block.kind === 'ask') {
         const askCardEl = createAskCardElement(block.data, async (answer) => {
           await respondToAskIpc(block.data.id, answer);

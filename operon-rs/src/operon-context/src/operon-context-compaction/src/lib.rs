@@ -41,12 +41,23 @@ pub struct CompactionConfig {
     pub context_window: usize,
 }
 
-impl Default for CompactionConfig {
+impl CompactionConfig {
+    /// Create a compaction configuration for a specific model context window.
+    pub fn with_context_window(context_window: usize) -> Self {
+        Self {
+            preserved_turns: 2,
+            threshold_pct: 0.90,
+            context_window,
+        }
+    }
+}
+
+impl Default for CompactionConfig {      //For tests only!
     fn default() -> Self {
         Self {
             preserved_turns: 2,
             threshold_pct: 0.90,
-            context_window: 200_000,
+            context_window: 128_000,
         }
     }
 }
@@ -74,6 +85,6 @@ mod tests {
 
         assert_eq!(config.preserved_turns, 2);
         assert!((config.threshold_pct - 0.90).abs() < f32::EPSILON);
-        assert_eq!(config.context_window, 200_000);
+        assert_eq!(config.context_window, 128_000);
     }
 }

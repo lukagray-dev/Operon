@@ -110,7 +110,7 @@ impl AgentBridge for OperonAgent {
             workspace_root: paths.workspace_dir.clone(),
             role: operon_rs::context::Role::Owner,
             tool_groups: operon_rs::session::SessionConfig::default_tool_groups(),
-            compaction: operon_rs::context::CompactionConfig::default(),
+            compaction: operon_rs::context::CompactionConfig::with_context_window(app_config.provider.context_window()),
             store_path: Some(store_path.clone()),
             channel_instructions: None,
         };

@@ -4,13 +4,14 @@
 // interleaved WorkGroup and Text blocks.
 
 import { getToolFriendlyTitle } from '../work-group/work-group.js';
-import type { ChatMessage, MessageBlock } from './types.js';
+import type { ChatMessage, CompactionData, MessageBlock } from './types.js';
 import type { AskQuestionData } from './ask-card/types.js';
 
 type MessagesChangeListener = () => void;
 type StreamTextListener = (messageId: string, blockIndex: number, fullBlockText: string, chunk: string) => void;
 type StreamWorkGroupListener = (messageId: string, blockIndex: number) => void;
 type StreamAskQuestionListener = (messageId: string, blockIndex: number, data: AskQuestionData) => void;
+type StreamCompactionListener = (messageId: string, blockIndex: number, data: CompactionData) => void;
 type StreamFinishedListener = (messageId: string) => void;
 
 class MessagesStateManager {
@@ -23,6 +24,7 @@ class MessagesStateManager {
   private streamTextListeners: Set<StreamTextListener> = new Set();
   private streamWorkGroupListeners: Set<StreamWorkGroupListener> = new Set();
   private streamAskQuestionListeners: Set<StreamAskQuestionListener> = new Set();
+  private streamCompactionListeners: Set<StreamCompactionListener> = new Set();
   private streamFinishedListeners: Set<StreamFinishedListener> = new Set();
   private fullResetListeners: Set<() => void> = new Set();
 
@@ -528,9 +530,64 @@ class MessagesStateManager {
     }
   }
 
+  public addCompactionBlock(tokensBefore: number, tokensAfter: number, summary: string): void {
+    if (!this.streamingMessageId) return;
+    const msg = this.messages.find((m) => m.id === this.streamingMessageId);
+    if (!msg) return;
+
+    if (!msg.blocks) {
+      msg.blocks = [];
+    }
+
+    // Finalize any active workgroup
+    const lastBlock = msg.blocks[msg.blocks.length - 1];
+    if (lastBlock && lastBlock.kind === 'work_group') {
+      lastBlock.data.is_active = false;
+    }
+
+    const compactionData: CompactionData = {
+      tokens_before: tokensBefore,
+      tokens_after: tokensAfter,
+      summary,
+      is_expanded: false,
+    };
+
+    const compactionBlock: MessageBlock = {
+      kind: 'compaction',
+      data: compactionData,
+    };
+
+    msg.blocks.push(compactionBlock);
+    const blockIdx = msg.blocks.length - 1;
+
+    for (const l of this.streamCompactionListeners) {
+      l(this.streamingMessageId, blockIdx, compactionData);
+    }
+
+    this.notify();
+  }
+
+  public toggleCompactionExpanded(messageId: string, blockIndex: number): void {
+    const msg = this.messages.find((m) => m.id === messageId);
+    if (!msg || !msg.blocks) return;
+    const block = msg.blocks[blockIndex];
+    if (block && block.kind === 'compaction') {
+      block.data.is_expanded = !block.data.is_expanded;
+      for (const l of this.streamCompactionListeners) {
+        l(messageId, blockIndex, block.data);
+      }
+      this.notify();
+    }
+  }
+
   public onStreamAskQuestion(listener: StreamAskQuestionListener): () => void {
     this.streamAskQuestionListeners.add(listener);
     return () => this.streamAskQuestionListeners.delete(listener);
+  }
+
+  public onStreamCompaction(listener: StreamCompactionListener): () => void {
+    this.streamCompactionListeners.add(listener);
+    return () => this.streamCompactionListeners.delete(listener);
   }
 
   public onStreamFinished(listener: StreamFinishedListener): () => void {

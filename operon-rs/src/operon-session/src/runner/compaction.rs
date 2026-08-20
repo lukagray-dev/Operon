@@ -51,17 +51,25 @@ impl SessionRunner {
             }),
         };
 
+        // Ensure compaction config uses the real model context window from provider_config
+        let mut compaction_cfg = self.config.compaction.clone();
+        compaction_cfg.context_window = self.config.provider_config.context_window();
+
         let result = compact(
             self.messages.clone(),
             &snapshot,
             client.as_ref(),
-            &self.config.compaction,
+            &compaction_cfg,
             tokens_before,
         )
         .await?;
 
         self.messages = result.messages;
         self.token_state.reset();
+        if result.tokens_after > 0 {
+            self.token_state
+                .apply_estimate(result.tokens_after, operon_context::EstimationTier::Exact);
+        }
         self.dispatcher.notify_compaction();
 
         let _ = self
@@ -69,6 +77,7 @@ impl SessionRunner {
             .send(SessionEvent::CompactionOccurred {
                 tokens_before,
                 tokens_after: result.tokens_after,
+                summary: result.summary,
             })
             .await;
 

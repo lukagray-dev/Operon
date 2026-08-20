@@ -3,8 +3,16 @@
 import type { WorkGroupData } from '../work-group/types.js';
 import type { AskQuestionData } from './ask-card/types.js';
 
+export interface CompactionData {
+  tokens_before: number;
+  tokens_after: number;
+  summary: string;
+  is_expanded?: boolean;
+}
+
 export type MessageBlock =
   | { kind: 'work_group'; data: WorkGroupData }
+  | { kind: 'compaction'; data: CompactionData }
   | { kind: 'text'; text: string }
   | { kind: 'ask'; data: AskQuestionData };
 

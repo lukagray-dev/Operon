@@ -252,6 +252,8 @@ pub enum SessionEvent {
         tokens_before: usize,
         /// Heuristic token estimate for the rebuilt condensed history.
         tokens_after: usize,
+        /// The generated summary text of the compacted history.
+        summary: String,
     },
 
     // ── Terminal events ───────────────────────────────────────────────────────

@@ -1,0 +1,142 @@
+/* Compaction Pill Component Styling */
+@import '../../shared/tokens.css';
+
+.compaction-pill-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 6px 0;
+  background: transparent;
+}
+
+/* Header Pill Bar */
+.compaction-pill-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  width: fit-content;
+  max-width: 100%;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.compaction-pill-header:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.compaction-pill-container.expanded .compaction-pill-header {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Icon */
+.compaction-pill-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a0a0a0;
+  flex-shrink: 0;
+  transition: color 150ms ease;
+}
+
+.compaction-pill-header:hover .compaction-pill-icon {
+  color: #ffffff;
+}
+
+/* Label text */
+.compaction-pill-text {
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 500;
+  color: #b0b0b0;
+  white-space: nowrap;
+  transition: color 150ms ease;
+}
+
+.compaction-pill-header:hover .compaction-pill-text {
+  color: #ffffff;
+}
+
+/* Saved percentage badge */
+.compaction-saved-badge {
+  font-family: var(--font-family);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #81c784;
+  background: rgba(129, 199, 132, 0.12);
+  border: 1px solid rgba(129, 199, 132, 0.25);
+  border-radius: 6px;
+  padding: 1px 5px;
+  letter-spacing: 0.2px;
+}
+
+/* Trailing Chevron */
+.compaction-pill-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888888;
+  transition: transform 180ms ease, color 150ms ease;
+}
+
+.compaction-pill-chevron.expanded {
+  transform: rotate(180deg);
+  color: #ffffff;
+}
+
+.compaction-pill-header:hover .compaction-pill-chevron {
+  color: #cccccc;
+}
+
+/* Expandable Card Body */
+.compaction-pill-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease, margin 200ms ease;
+}
+
+.compaction-pill-body.expanded {
+  max-height: 800px;
+  opacity: 1;
+  margin-top: 8px;
+  overflow-y: auto;
+}
+
+/* Summary Card */
+.compaction-summary-card {
+  background: rgba(22, 24, 29, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 12px 14px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.compaction-summary-header {
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #888888;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 6px;
+}
+
+.compaction-summary-content {
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #d0d0d0;
+}

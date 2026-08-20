@@ -178,7 +178,7 @@ impl SessionRunnerBridge {
             workspace_root: workspace_root.clone(),
             role: context_role,
             tool_groups: SessionConfig::default_tool_groups(),
-            compaction: operon_context::CompactionConfig::default(),
+            compaction: operon_context::CompactionConfig::with_context_window(self.app_config.provider.context_window()),
             store_path: Some(store_path.clone()),
             channel_instructions: Some(channel_instructions),
         };
