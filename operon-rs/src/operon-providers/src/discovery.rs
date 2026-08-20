@@ -15,6 +15,10 @@ pub struct DiscoveredModel {
     pub max_tokens: usize,
     #[serde(default)]
     pub description: String,
+    /// Available reasoning effort / thinking levels for this model (e.g. "Low", "Medium", "High", "Max", "Disabled").
+    /// If the provider does not provide reasoning capabilities for this model, this is empty.
+    #[serde(default)]
+    pub reasoning_levels: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +27,8 @@ pub struct DiscoveryResult {
     #[serde(skip)]
     pub provider: Option<Provider>,
 }
+
+use crate::reasoning::detect_model_reasoning_levels;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Response Types for Different Providers
@@ -181,6 +187,7 @@ async fn discover_anthropic(api_key: &str, base_url: &str) -> Result<DiscoveryRe
                 .max_tokens
                 .or(m.max_output_tokens)
                 .unwrap_or_else(|| std::cmp::min(4_096, context_window));
+            let reasoning_levels = detect_model_reasoning_levels(Provider::Anthropic, &m.id, None);
             Ok(DiscoveredModel {
                 model_id: m.id.clone(),
                 context_window,
@@ -190,6 +197,7 @@ async fn discover_anthropic(api_key: &str, base_url: &str) -> Result<DiscoveryRe
                 } else {
                     m.display_name
                 },
+                reasoning_levels,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -244,11 +252,13 @@ async fn discover_openai_compatible(
                 .max_tokens
                 .or(m.max_output_tokens)
                 .unwrap_or_else(|| std::cmp::min(4_096, context_window));
+            let reasoning_levels = detect_model_reasoning_levels(provider, &m.id, None);
             Ok(DiscoveredModel {
                 model_id: m.id.clone(),
                 context_window,
                 max_tokens,
                 description: m.owned_by,
+                reasoning_levels,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -292,11 +302,13 @@ async fn discover_gemini(api_key: &str, base_url: &str) -> Result<DiscoveryResul
             let model_id = m.name.strip_prefix("models/")?.to_string();
             let context_window = m.input_token_limit?;
             let max_tokens = m.output_token_limit?;
+            let reasoning_levels = detect_model_reasoning_levels(Provider::Gemini, &model_id, None);
             Some(DiscoveredModel {
                 model_id,
                 context_window,
                 max_tokens,
                 description: m.description,
+                reasoning_levels,
             })
         })
         .collect();
@@ -352,11 +364,13 @@ async fn discover_ollama(base_url: &str) -> Result<DiscoveryResult, String> {
 
                     if let Some(ctx) = context_window {
                         let max_tokens = std::cmp::min(4_096, ctx);
+                        let reasoning_levels = detect_model_reasoning_levels(Provider::Ollama, &m.name, None);
                         models.push(DiscoveredModel {
                             model_id: m.name.clone(),
                             context_window: ctx,
                             max_tokens,
                             description: format!("Size: {} GB", m.size / 1_000_000_000),
+                            reasoning_levels,
                         });
                     }
                 }
@@ -407,6 +421,7 @@ async fn discover_openrouter(api_key: &str, base_url: &str) -> Result<DiscoveryR
         .filter_map(|m| {
             let context_window = m.context_length?;
             let max_tokens = std::cmp::min(4_096, context_window);
+            let reasoning_levels = detect_model_reasoning_levels(Provider::OpenRouter, &m.id, None);
             Some(DiscoveredModel {
                 model_id: m.id,
                 context_window,
@@ -416,6 +431,7 @@ async fn discover_openrouter(api_key: &str, base_url: &str) -> Result<DiscoveryR
                 } else {
                     m.description
                 },
+                reasoning_levels,
             })
         })
         .collect();
@@ -424,4 +440,99 @@ async fn discover_openrouter(api_key: &str, base_url: &str) -> Result<DiscoveryR
         models,
         provider: Some(Provider::OpenRouter),
     })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_reasoning_levels_from_direct_array() {
+        let payload = serde_json::json!({
+            "reasoning_levels": ["Low", "Medium", "High", "Max"]
+        });
+        let levels = detect_model_reasoning_levels(
+            Provider::Anthropic,
+            "claude-3-7-sonnet",
+            Some(&payload),
+        );
+        assert_eq!(levels, vec!["Low", "Medium", "High", "Max"]);
+    }
+
+    #[test]
+    fn test_extract_reasoning_levels_from_nested_object() {
+        let payload = serde_json::json!({
+            "reasoning": {
+                "levels": ["Low", "Mid", "High", "xHigh"]
+            }
+        });
+        let levels = detect_model_reasoning_levels(
+            Provider::OpenRouter,
+            "some-model",
+            Some(&payload),
+        );
+        assert_eq!(levels, vec!["Low", "Mid", "High", "xHigh"]);
+    }
+
+    #[test]
+    fn test_model_without_reasoning_metadata_returns_empty() {
+        let payload = serde_json::json!({
+            "id": "gpt-4o",
+            "owned_by": "openai"
+        });
+        let levels = detect_model_reasoning_levels(
+            Provider::OpenAI,
+            "gpt-4o",
+            Some(&payload),
+        );
+        assert!(levels.is_empty());
+    }
+
+    #[test]
+    fn test_none_payload_returns_empty() {
+        let levels = detect_model_reasoning_levels(
+            Provider::Anthropic,
+            "claude-3-5-sonnet",
+            None,
+        );
+        assert!(levels.is_empty());
+    }
+
+    #[test]
+    fn test_gemini_37_and_thinking_models() {
+        let levels_37 = detect_model_reasoning_levels(
+            Provider::Gemini,
+            "gemini-3.7-flash",
+            None,
+        );
+        assert_eq!(levels_37, vec!["Low", "Medium", "High", "Disabled"]);
+
+        let levels_25 = detect_model_reasoning_levels(
+            Provider::Gemini,
+            "gemini-2.5-pro",
+            None,
+        );
+        assert_eq!(levels_25, vec!["Low", "Medium", "High", "Disabled"]);
+
+        let levels_tts = detect_model_reasoning_levels(
+            Provider::Gemini,
+            "gemini-2.5-flash-preview-tts",
+            None,
+        );
+        assert!(levels_tts.is_empty());
+    }
+
+    #[test]
+    fn test_claude_37_sonnet() {
+        let levels = detect_model_reasoning_levels(
+            Provider::Anthropic,
+            "claude-3-7-sonnet-20250219",
+            None,
+        );
+        assert_eq!(levels, vec!["Low", "Medium", "High", "Max", "Disabled"]);
+    }
 }

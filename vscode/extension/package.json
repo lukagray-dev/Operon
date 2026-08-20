@@ -1,0 +1,105 @@
+{
+  "name": "operon-vscode",
+  "displayName": "Operon",
+  "description": "Operon AI agent — autonomous coding assistant powered by the Operon runtime.",
+  "version": "0.1.0",
+  "publisher": "lukagray-dev",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lukagray-dev/Operon"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "operon",
+    "anthropic",
+    "openai",
+    "autonomous"
+  ],
+  "icon": "assets/icon.png",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "operon.openChat",
+        "title": "Operon: Open Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "operon.newSession",
+        "title": "Operon: New Session"
+      },
+      {
+        "command": "operon.cancelPrompt",
+        "title": "Operon: Cancel"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "operon-sidebar",
+          "title": "Operon",
+          "icon": "assets/icon-mono.svg"
+        }
+      ]
+    },
+    "views": {
+      "operon-sidebar": [
+        {
+          "type": "webview",
+          "id": "operon.chatView",
+          "name": "Chat",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "operon.openChat",
+        "key": "ctrl+shift+o",
+        "mac": "cmd+shift+o"
+      }
+    ],
+    "configuration": {
+      "title": "Operon",
+      "properties": {
+        "operon.bridgePath": {
+          "type": "string",
+          "default": "",
+          "description": "Override path to the operon-vscode-bridge binary. Leave empty to use the bundled binary."
+        },
+        "operon.logLevel": {
+          "type": "string",
+          "enum": ["error", "warn", "info", "debug"],
+          "default": "info",
+          "description": "Log verbosity for the Operon bridge process."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build:prod",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build:prod": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.21.0",
+    "typescript": "^5.4.0"
+  }
+}

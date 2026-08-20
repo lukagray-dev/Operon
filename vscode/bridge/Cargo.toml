@@ -1,0 +1,25 @@
+[package]
+name        = "operon-vscode-bridge"
+description = "stdio JSON-RPC sidecar that drives the operon-rs agent loop for the VS Code extension"
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+# Produces a single native binary bundled inside the .vsix under bin/
+[[bin]]
+name = "operon-vscode-bridge"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime — same one used everywhere else in the workspace
+tokio      = { workspace = true }
+# JSON serialization for the stdio RPC protocol
+serde      = { workspace = true }
+serde_json = { workspace = true }
+# Structured logging — writes to stderr so it doesn't pollute the stdout RPC pipe
+tracing              = { workspace = true }
+tracing-subscriber   = { version = "0.3", features = ["env-filter"] }
+# The entire operon backend — all agent logic comes from here
+operon-rs  = { workspace = true }

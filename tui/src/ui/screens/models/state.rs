@@ -419,6 +419,7 @@ impl ModelsState {
                     model_id: disc.model_id.clone(),
                     context_window: disc.context_window,
                     max_tokens: disc.max_tokens,
+                    reasoning_effort: None,
                 };
             }
         }
@@ -436,6 +437,7 @@ impl ModelsState {
             model_id,
             context_window,
             max_tokens,
+            reasoning_effort: None,
         }
     }
 }

@@ -152,6 +152,7 @@ mod tests {
                 model_id: "claude-sonnet-4-20250514".to_string(),
                 context_window: 200_000,
                 max_tokens: 16_000,
+                reasoning_effort: None,
             },
             base_url_override: None,
         }
@@ -165,6 +166,7 @@ mod tests {
                 model_id: "llama3.2".to_string(),
                 context_window: 128_000,
                 max_tokens: 8_192,
+                reasoning_effort: None,
             },
             base_url_override: None,
         }
@@ -214,6 +216,7 @@ mod tests {
                 model_id: "gpt-4o".to_string(),
                 context_window: 128_000,
                 max_tokens: 16_384,
+                reasoning_effort: None,
             },
             base_url_override: None,
         };
@@ -248,6 +251,7 @@ mod tests {
                 model_id: "gpt-4o".to_string(),
                 context_window: 128_000,
                 max_tokens: 16_384,
+                reasoning_effort: None,
             },
             base_url_override: None,
         };

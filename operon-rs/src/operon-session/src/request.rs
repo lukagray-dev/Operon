@@ -95,10 +95,27 @@ pub fn build_request(
             b
         }
 
+        // Google Gemini GenerateContent API expects { "contents": [...], "system_instruction": ... }
+        Provider::Gemini => {
+            let mut b = json!({
+                "contents": messages_arr,
+                "generationConfig": {
+                    "maxOutputTokens": max_tokens
+                }
+            });
+            if !system_val.is_null() {
+                b["system_instruction"] = json!({
+                    "parts": [{ "text": system_val }]
+                });
+            }
+            if !wire_tools.is_empty() {
+                b["tools"] = Value::Array(wire_tools);
+            }
+            b
+        }
+
         // OpenAI-family providers (OpenAI, DeepSeek, OpenRouter, Groq, Mistral,
-        // XAI, Ollama, NVIDIA NIM): the system message is already embedded inside messages_arr
-        // by denormalize_messages. Gemini and Cohere also follow this fallthrough
-        // with their own denormalization shapes.
+        // XAI, Ollama, NVIDIA NIM, Cohere): system message is embedded inside messages_arr.
         _ => {
             let mut b = json!({
                 "model":      model_id,

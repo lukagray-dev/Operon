@@ -266,6 +266,28 @@
   color: var(--text-primary);
 }
 
+.btn-unified-model {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+/* Model Reasoning Badge inside Unified Selector */
+.model-reasoning-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: rgba(96, 197, 255, 0.12);
+  border: 1px solid rgba(96, 197, 255, 0.3);
+  color: #60c5ff;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+}
+
 /* Voice Input Button */
 .btn-voice {
   width: 28px;
@@ -339,26 +361,132 @@
   position: absolute;
   bottom: 40px;
   right: 0;
-  background: var(--dropdown-surface);
-  border: 1px solid var(--dropdown-border);
-  border-radius: var(--dropdown-radius);
-  box-shadow: var(--dropdown-shadow);
-  padding: 4px;
+  background: rgba(18, 20, 24, 0.95);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  min-width: 290px;
+  max-width: 440px;
+  z-index: 100;
+  animation: dropdown-pop-in 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.popover-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 8px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 4px;
+}
+
+.popover-header-icon {
+  width: 12px;
+  height: 12px;
+  background-color: var(--text-muted);
+}
+
+.popover-header-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.popover-items-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 240px;
-  max-width: 400px;
-  max-height: 260px;
+  max-height: 280px;
   overflow-y: auto;
-  z-index: 100;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.popover-items-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.popover-items-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.popover-items-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.popover-items-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.input-sub-dropdown {
+  position: fixed;
+  background: rgba(18, 20, 24, 0.96);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  max-width: 220px;
+  z-index: 105;
+  animation: dropdown-pop-in 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sub-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.sub-dropdown-header-icon {
+  width: 11px;
+  height: 11px;
+  background-color: var(--text-muted);
+}
+
+.sub-dropdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@keyframes dropdown-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .popover-item {
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 4px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
   font-size: 12px;
+  font-weight: 450;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -370,25 +498,86 @@
   width: 100%;
   text-align: left;
   font-family: var(--font-family);
-  transition: background-color 0.1s ease, color 0.1s ease;
+  transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.popover-item-main {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .popover-item-label {
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.popover-item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.popover-context-chip {
+  font-size: 9.5px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  font-family: monospace;
+  line-height: 1.2;
+}
+
+.popover-thinking-chip {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(167, 139, 250, 0.14);
+  color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+}
+
+.popover-active-check {
+  font-size: 11px;
+  font-weight: bold;
+  opacity: 0.95;
+  color: #60c5ff;
+}
+
+.popover-submenu-arrow {
+  width: 10px;
+  height: 10px;
+  background-color: var(--text-muted);
+  opacity: 0.55;
+  transition: all 0.12s ease;
+}
+
 .popover-item:hover {
-  background-color: var(--dropdown-surface-hover);
+  background-color: rgba(255, 255, 255, 0.07);
   color: var(--text-primary);
 }
 
+.popover-item:hover .popover-submenu-arrow {
+  opacity: 1;
+  background-color: var(--text-primary);
+  transform: translateX(1.5px);
+}
+
 .popover-item.active {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  font-weight: 500;
+  background-color: rgba(96, 197, 255, 0.1);
+  color: #ffffff;
+  font-weight: 550;
+  border-left: 2px solid #60c5ff;
 }
 
 /* Centered Warning Disclaimer Text */
@@ -453,4 +642,9 @@
 .icon-input-chevron-down {
   -webkit-mask-image: url('../../../assets/icons/main-content/input/chevron-down.svg');
   mask-image: url('../../../assets/icons/main-content/input/chevron-down.svg');
+}
+
+.icon-sidebar-chevron-right {
+  -webkit-mask-image: url('../../../assets/icons/sidebar/chevron-right.svg');
+  mask-image: url('../../../assets/icons/sidebar/chevron-right.svg');
 }

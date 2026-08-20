@@ -364,6 +364,7 @@ mod tests {
                 model_id: "openai/gpt-oss-120b".to_string(),
                 context_window: 128_000,
                 max_tokens: 4_096,
+                reasoning_effort: None,
             },
             base_url_override: None,
         };
@@ -623,6 +624,11 @@ fn save_provider_at_paths(
         value(provider_config.model.context_window as i64),
     );
     provider.insert("max_tokens", value(provider_config.model.max_tokens as i64));
+    if let Some(effort) = &provider_config.model.reasoning_effort {
+        provider.insert("reasoning_effort", value(effort.clone()));
+    } else {
+        provider.remove("reasoning_effort");
+    }
 
     let credentials = doc.get_mut("credentials").unwrap().as_table_mut().unwrap();
     credentials.insert(

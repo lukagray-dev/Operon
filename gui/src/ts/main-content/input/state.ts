@@ -87,11 +87,22 @@ class InputStateManager {
     return this.availableModels;
   }
 
+  public getActiveModelOption(): ModelOption | undefined {
+    return this.availableModels.find((m) => m.id === this.selectedModel) || this.availableModels.find((m) => m.is_active);
+  }
+
   public setAvailableModels(models: ModelOption[]): void {
     this.availableModels = models;
     const active = models.find((m) => m.is_active);
     if (active) {
       this.selectedModel = active.id;
+      if (active.selected_reasoning) {
+        this.selectedReasoning = active.selected_reasoning;
+      } else if (active.reasoning_levels && active.reasoning_levels.length > 0) {
+        this.selectedReasoning = active.reasoning_levels[0];
+      } else {
+        this.selectedReasoning = '';
+      }
     }
     this.notify();
   }

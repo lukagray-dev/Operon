@@ -12,17 +12,17 @@ import {
   toggleAutoApproveIpc,
 } from './ipc.js';
 import { inputState } from './state.js';
-import type { ReasoningLevel } from './types.js';
 import { stopVoiceRecording, toggleVoiceRecording } from './voice.js';
 
 let activePopover: HTMLElement | null = null;
+let activeSubDropdown: HTMLElement | null = null;
+let subDropdownHoverTimeout: number | null = null;
 
 export function initInputPanel(): void {
   setupTextarea();
   setupAttachButton();
   setupAutoApproveButton();
   setupModelSelector();
-  setupReasoningSelector();
   setupVoiceButton();
   setupSendButton();
   setupOutsideClickListener();
@@ -50,7 +50,19 @@ export function initInputPanel(): void {
   });
 }
 
+export function dismissSubDropdown(): void {
+  if (subDropdownHoverTimeout !== null) {
+    window.clearTimeout(subDropdownHoverTimeout);
+    subDropdownHoverTimeout = null;
+  }
+  if (activeSubDropdown) {
+    activeSubDropdown.remove();
+    activeSubDropdown = null;
+  }
+}
+
 export function dismissPopover(): void {
+  dismissSubDropdown();
   if (activePopover) {
     activePopover.remove();
     activePopover = null;
@@ -128,6 +140,18 @@ function setupModelSelector(): void {
   });
 }
 
+function formatContextWindow(tokens: number): string {
+  if (!tokens || tokens <= 0) return '';
+  if (tokens >= 1_000_000) {
+    const m = tokens / 1_000_000;
+    return `${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+  }
+  if (tokens >= 1_000) {
+    return `${Math.round(tokens / 1_000)}k`;
+  }
+  return `${tokens}`;
+}
+
 function toggleModelPopover(trigger: HTMLElement): void {
   if (activePopover && activePopover.dataset.type === 'model') {
     dismissPopover();
@@ -136,83 +160,187 @@ function toggleModelPopover(trigger: HTMLElement): void {
   dismissPopover();
 
   const models = inputState.getAvailableModels();
-  const current = inputState.getSelectedModel();
+  const currentModel = inputState.getSelectedModel();
+  const currentReasoning = inputState.getSelectedReasoning();
 
   const popover = document.createElement('div');
   popover.className = 'input-popover-dropdown';
   popover.dataset.type = 'model';
 
+  // Header for the model popover
+  const header = document.createElement('div');
+  header.className = 'popover-dropdown-header';
+  header.innerHTML = `
+    <span class="ui-icon icon-input-model popover-header-icon"></span>
+    <span class="popover-header-title">Select Model</span>
+  `;
+  popover.appendChild(header);
+
+  const listContainer = document.createElement('div');
+  listContainer.className = 'popover-items-list';
+
   models.forEach((m) => {
-    const item = document.createElement('button');
-    item.className = `popover-item ${m.id === current ? 'active' : ''}`;
-    item.innerHTML = `
-      <span class="popover-item-label" title="${m.id}">${m.name}</span>
-      ${m.id === current ? '<span style="font-size: 11px; opacity: 0.7;">✓</span>' : ''}
-    `;
+    const hasReasoning = Array.isArray(m.reasoning_levels) && m.reasoning_levels.length > 0;
+    const isModelActive = m.id === currentModel;
+    const ctxText = formatContextWindow(m.context_window);
 
-    item.addEventListener('click', async (evt) => {
-      evt.stopPropagation();
-      dismissPopover();
-      await selectModelIpc(m.id);
-      inputState.setSelectedModel(m.id);
-    });
+    const item = document.createElement('div');
+    item.className = `popover-item ${isModelActive ? 'active' : ''} ${hasReasoning ? 'has-submenu' : ''}`;
 
-    popover.appendChild(item);
+    if (hasReasoning) {
+      item.innerHTML = `
+        <div class="popover-item-main">
+          <span class="popover-item-label" title="${m.id}">${m.name}</span>
+        </div>
+        <div class="popover-item-right">
+          ${ctxText ? `<span class="popover-context-chip" title="Context capacity: ${m.context_window} tokens">${ctxText}</span>` : ''}
+          <span class="popover-thinking-chip">Thinking</span>
+          ${isModelActive ? '<span class="popover-active-check">✓</span>' : ''}
+          <span class="ui-icon icon-sidebar-chevron-right popover-submenu-arrow"></span>
+        </div>
+      `;
+
+      // Hover handler to open the dynamic reasoning level sub-dropdown
+      item.addEventListener('mouseenter', () => {
+        if (subDropdownHoverTimeout !== null) {
+          window.clearTimeout(subDropdownHoverTimeout);
+          subDropdownHoverTimeout = null;
+        }
+        openReasoningSubDropdown(item, m, currentModel, currentReasoning);
+      });
+
+      item.addEventListener('mouseleave', () => {
+        subDropdownHoverTimeout = window.setTimeout(() => {
+          if (activeSubDropdown && !activeSubDropdown.matches(':hover') && !item.matches(':hover')) {
+            dismissSubDropdown();
+          }
+        }, 150);
+      });
+
+      // Direct click on the model item selects the model with its active or default reasoning level
+      item.addEventListener('click', async (evt) => {
+        evt.stopPropagation();
+        dismissPopover();
+        const chosenReasoning = isModelActive && currentReasoning ? currentReasoning : m.reasoning_levels[0];
+        await selectModelIpc(m.id, chosenReasoning);
+        inputState.setSelectedModel(m.id);
+        inputState.setSelectedReasoning(chosenReasoning);
+      });
+    } else {
+      item.innerHTML = `
+        <div class="popover-item-main">
+          <span class="popover-item-label" title="${m.id}">${m.name}</span>
+        </div>
+        <div class="popover-item-right">
+          ${ctxText ? `<span class="popover-context-chip" title="Context capacity: ${m.context_window} tokens">${ctxText}</span>` : ''}
+          ${isModelActive ? '<span class="popover-active-check">✓</span>' : ''}
+        </div>
+      `;
+
+      item.addEventListener('mouseenter', () => {
+        dismissSubDropdown();
+      });
+
+      item.addEventListener('click', async (evt) => {
+        evt.stopPropagation();
+        dismissPopover();
+        await selectModelIpc(m.id);
+        inputState.setSelectedModel(m.id);
+        inputState.setSelectedReasoning('');
+      });
+    }
+
+    listContainer.appendChild(item);
   });
 
+  popover.appendChild(listContainer);
+
   const rect = trigger.getBoundingClientRect();
-  popover.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+  popover.style.bottom = `${window.innerHeight - rect.top + 6}px`;
   popover.style.right = `${window.innerWidth - rect.right}px`;
 
   document.body.appendChild(popover);
   activePopover = popover;
 }
 
-function setupReasoningSelector(): void {
-  const btn = document.getElementById('btn-select-reasoning');
-  btn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleReasoningPopover(btn);
-  });
-}
+function openReasoningSubDropdown(
+  parentItem: HTMLElement,
+  model: { id: string; name: string; reasoning_levels: string[] },
+  currentModel: string,
+  currentReasoning: string
+): void {
+  dismissSubDropdown();
 
-function toggleReasoningPopover(trigger: HTMLElement): void {
-  if (activePopover && activePopover.dataset.type === 'reasoning') {
-    dismissPopover();
-    return;
+  const subDropdown = document.createElement('div');
+  subDropdown.className = 'input-sub-dropdown';
+
+  const header = document.createElement('div');
+  header.className = 'sub-dropdown-header';
+  header.innerHTML = `
+    <span class="ui-icon icon-input-reasoning sub-dropdown-header-icon"></span>
+    <span>Reasoning Effort</span>
+  `;
+  subDropdown.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'sub-dropdown-list';
+
+  model.reasoning_levels.forEach((level) => {
+    const isLevelActive = model.id === currentModel && level === currentReasoning;
+    const subItem = document.createElement('button');
+    subItem.className = `popover-item sub-popover-item ${isLevelActive ? 'active' : ''}`;
+    subItem.innerHTML = `
+      <span class="popover-item-label">${level}</span>
+      ${isLevelActive ? '<span class="popover-active-check">✓</span>' : ''}
+    `;
+
+    subItem.addEventListener('click', async (evt) => {
+      evt.stopPropagation();
+      dismissPopover();
+      await selectModelIpc(model.id, level);
+      inputState.setSelectedModel(model.id);
+      inputState.setSelectedReasoning(level);
+    });
+
+    list.appendChild(subItem);
+  });
+
+  subDropdown.appendChild(list);
+
+  subDropdown.addEventListener('mouseenter', () => {
+    if (subDropdownHoverTimeout !== null) {
+      window.clearTimeout(subDropdownHoverTimeout);
+      subDropdownHoverTimeout = null;
+    }
+  });
+
+  subDropdown.addEventListener('mouseleave', () => {
+    subDropdownHoverTimeout = window.setTimeout(() => {
+      if (!parentItem.matches(':hover') && !subDropdown.matches(':hover')) {
+        dismissSubDropdown();
+      }
+    }, 150);
+  });
+
+  document.body.appendChild(subDropdown);
+
+  // Position sub-dropdown adjacent to parent item
+  const itemRect = parentItem.getBoundingClientRect();
+  const subRect = subDropdown.getBoundingClientRect();
+
+  // If there is enough room to the right of the main popover
+  const spaceOnRight = window.innerWidth - itemRect.right;
+  if (spaceOnRight >= subRect.width + 10) {
+    subDropdown.style.left = `${itemRect.right + 6}px`;
+  } else {
+    subDropdown.style.right = `${window.innerWidth - itemRect.left + 6}px`;
   }
-  dismissPopover();
 
-  const levels: ReasoningLevel[] = ['Low', 'Medium', 'High', 'Disabled'];
-  const current = inputState.getSelectedReasoning();
+  const desiredTop = itemRect.top - 6;
+  const maxTop = window.innerHeight - subRect.height - 12;
+  subDropdown.style.top = `${Math.max(12, Math.min(desiredTop, maxTop))}px`;
 
-  const popover = document.createElement('div');
-  popover.className = 'input-popover-dropdown';
-  popover.dataset.type = 'reasoning';
-
-  levels.forEach((lvl) => {
-    const item = document.createElement('button');
-    item.className = `popover-item ${lvl === current ? 'active' : ''}`;
-    item.innerHTML = `
-      <span>${lvl}</span>
-      ${lvl === current ? '<span style="font-size: 11px; opacity: 0.7;">✓</span>' : ''}
-    `;
-
-    item.addEventListener('click', (evt) => {
-      evt.stopPropagation();
-      dismissPopover();
-      inputState.setSelectedReasoning(lvl);
-    });
-
-    popover.appendChild(item);
-  });
-
-  const rect = trigger.getBoundingClientRect();
-  popover.style.bottom = `${window.innerHeight - rect.top + 4}px`;
-  popover.style.right = `${window.innerWidth - rect.right}px`;
-
-  document.body.appendChild(popover);
-  activePopover = popover;
+  activeSubDropdown = subDropdown;
 }
 
 function setupVoiceButton(): void {
@@ -375,19 +503,28 @@ function renderInputState(): void {
     }
   }
 
-  // 3. Model selector button text
+  // 3. Model & Reasoning selector unified pill text
   const modelText = document.getElementById('selected-model-text');
   if (modelText) {
     modelText.textContent = inputState.getSelectedModel();
   }
 
-  // 4. Reasoning selector button text
-  const reasoningText = document.getElementById('selected-reasoning-text');
-  if (reasoningText) {
-    reasoningText.textContent = inputState.getSelectedReasoning();
+  const reasoningBadge = document.getElementById('selected-reasoning-badge');
+  if (reasoningBadge) {
+    const activeModel = inputState.getActiveModelOption();
+    const currentReasoning = inputState.getSelectedReasoning();
+    const hasReasoning = activeModel && Array.isArray(activeModel.reasoning_levels) && activeModel.reasoning_levels.length > 0;
+
+    if (hasReasoning && currentReasoning && currentReasoning !== 'Disabled') {
+      reasoningBadge.textContent = currentReasoning;
+      reasoningBadge.style.display = 'inline-flex';
+    } else {
+      reasoningBadge.style.display = 'none';
+      reasoningBadge.textContent = '';
+    }
   }
 
-  // 5. Context indicator
+  // 4. Context indicator
   const contextText = document.getElementById('context-usage-text');
   if (contextText) {
     contextText.textContent = inputState.getContextUsage().formatted;

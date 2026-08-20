@@ -3,19 +3,17 @@ use tauri::{AppHandle, Emitter, State};
 use super::types::{ContextUsageDto, ModelOptionDto, PendingAttachmentDto};
 use crate::shared::AppState;
 
-/// Retrieves the active configured model and queries dynamically discovered models from the provider.
+/// Retrieves the active configured model and queries dynamically discovered models from the provider,
+/// including their supported reasoning levels as fetched from the provider API.
 #[tauri::command]
 pub async fn get_available_models() -> Result<Vec<ModelOptionDto>, String> {
     let app_config = operon_rs::load().map_err(|e| e.to_string())?;
     let active_model_id = app_config.provider.model.model_id.clone();
     let context_window = app_config.provider.model.context_window;
+    let selected_reasoning = app_config.provider.model.reasoning_effort.clone();
 
-    let mut models = vec![ModelOptionDto {
-        id: active_model_id.clone(),
-        name: active_model_id.clone(),
-        is_active: true,
-        context_window,
-    }];
+    let mut models = Vec::new();
+    let mut active_reasoning_levels = Vec::new();
 
     let provider_enum = app_config.provider.provider;
     let api_key = app_config.provider.credentials.api_key.clone();
@@ -27,26 +25,44 @@ pub async fn get_available_models() -> Result<Vec<ModelOptionDto>, String> {
     if has_key || is_ollama {
         if let Ok(result) = operon_rs::discover_models(provider_enum, api_key.expose(), api_base.as_deref()).await {
             for discovered in result.models {
-                if discovered.model_id != active_model_id {
+                if discovered.model_id == active_model_id {
+                    active_reasoning_levels = discovered.reasoning_levels.clone();
+                } else {
                     models.push(ModelOptionDto {
                         id: discovered.model_id.clone(),
                         name: discovered.model_id.clone(),
                         is_active: false,
                         context_window: discovered.context_window,
+                        reasoning_levels: discovered.reasoning_levels,
+                        selected_reasoning: None,
                     });
                 }
             }
         }
     }
 
+    // Insert active model at the very front of the list
+    models.insert(
+        0,
+        ModelOptionDto {
+            id: active_model_id.clone(),
+            name: active_model_id.clone(),
+            is_active: true,
+            context_window,
+            reasoning_levels: active_reasoning_levels,
+            selected_reasoning,
+        },
+    );
+
     Ok(models)
 }
 
-/// Sets the active model ID in configuration and saves provider config.
+/// Sets the active model ID and optional reasoning level in configuration and saves provider config.
 #[tauri::command]
-pub async fn select_model(model_id: String) -> Result<(), String> {
+pub async fn select_model(model_id: String, reasoning: Option<String>) -> Result<(), String> {
     let mut app_config = operon_rs::load().map_err(|e| e.to_string())?;
     app_config.provider.model.model_id = model_id;
+    app_config.provider.model.reasoning_effort = reasoning.filter(|r| !r.trim().is_empty() && r != "Disabled");
     let _ = operon_rs::config::save_provider(&app_config.provider);
     Ok(())
 }

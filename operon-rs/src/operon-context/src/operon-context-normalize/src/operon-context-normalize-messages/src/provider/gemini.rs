@@ -180,17 +180,6 @@ pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
                 let mut obj = serde_json::Map::new();
                 obj.insert("role".to_string(), Value::String(role.to_string()));
                 obj.insert("parts".to_string(), Value::Array(parts));
-                if msg.role == MessageRole::Assistant {
-                    if let Some(stop) = &msg.stop_reason {
-                        obj.insert(
-                            "finishReason".to_string(),
-                            Value::String(
-                                denormalize_stop_reason(stop, &crate::provider::Provider::Gemini)
-                                    .to_string(),
-                            ),
-                        );
-                    }
-                }
                 contents.push(Value::Object(obj));
             }
         }

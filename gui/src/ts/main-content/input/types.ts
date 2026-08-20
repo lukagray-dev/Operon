@@ -12,6 +12,8 @@ export interface ModelOption {
   name: string;
   is_active: boolean;
   context_window: number;
+  reasoning_levels: string[];
+  selected_reasoning?: string;
 }
 
 export interface ContextUsage {
@@ -21,7 +23,7 @@ export interface ContextUsage {
   formatted: string;
 }
 
-export type ReasoningLevel = 'Low' | 'Medium' | 'High' | 'Disabled';
+export type ReasoningLevel = string;
 
 // Web Speech Recognition API Types
 export interface SpeechRecognitionAlternative {

@@ -84,6 +84,13 @@ fn build_headers(provider: &Provider, api_key: &str) -> reqwest::header::HeaderM
             // of future Anthropic API changes.
             headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
         }
+        Provider::Gemini => {
+            // Google Gemini uses x-goog-api-key header for API key authentication.
+            headers.insert(
+                "x-goog-api-key",
+                HeaderValue::from_str(api_key).expect("API key must be a valid header value"),
+            );
+        }
         _ => {
             // OpenAI-family and all other providers use Bearer token auth.
             let bearer = format!("Bearer {api_key}");

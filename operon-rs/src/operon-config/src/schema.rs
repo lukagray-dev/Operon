@@ -106,6 +106,10 @@ pub(crate) struct ProviderToml {
     /// Maximum output tokens per turn.
     #[serde(default = "default_max_tokens")]
     pub(crate) max_tokens: usize,
+
+    /// Optional reasoning effort / level setting for reasoning models.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) reasoning_effort: Option<String>,
 }
 
 impl Default for ProviderToml {
@@ -115,6 +119,7 @@ impl Default for ProviderToml {
             model_id: default_model_id(),
             context_window: default_context_window(),
             max_tokens: default_max_tokens(),
+            reasoning_effort: None,
         }
     }
 }
@@ -388,6 +393,7 @@ pub(crate) fn build_provider_config(
         model_id: model_id.to_string(),
         context_window: toml.context_window,
         max_tokens: toml.max_tokens,
+        reasoning_effort: toml.reasoning_effort.clone(),
     };
 
     Ok(ProviderConfig {

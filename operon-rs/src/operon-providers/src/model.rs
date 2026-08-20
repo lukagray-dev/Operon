@@ -62,6 +62,15 @@ pub struct ModelConfig {
     /// Typical values: 4,096–32,768. Higher values allow longer responses but
     /// increase cost and latency.
     pub max_tokens: usize,
+
+    /// Optional reasoning effort / level setting for reasoning models.
+    ///
+    /// Hey friend! Some advanced models (like Claude 3.7, OpenAI o1/o3-mini, Gemini 2.5) support
+    /// different levels of thinking or reasoning effort (for example "Low", "Medium", "High", "Max",
+    /// or "Disabled"). If the user picked a specific reasoning level from the dropdown, we store
+    /// it here so the session runner can pass it in the API request!
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,11 +87,21 @@ mod tests {
             model_id: "claude-3-5-sonnet-latest".to_string(),
             context_window: 200_000,
             max_tokens: 8_192,
+            reasoning_effort: Some("High".to_string()),
         };
         let json = serde_json::to_string(&original).unwrap();
         let restored: ModelConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(original.model_id, restored.model_id);
         assert_eq!(original.context_window, restored.context_window);
         assert_eq!(original.max_tokens, restored.max_tokens);
+        assert_eq!(original.reasoning_effort, restored.reasoning_effort);
+    }
+
+    #[test]
+    fn test_model_config_backward_compatibility() {
+        // Test that JSON without reasoning_effort deserializes cleanly with None
+        let legacy_json = r#"{"model_id":"gpt-4o","context_window":128000,"max_tokens":4096}"#;
+        let config: ModelConfig = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(config.reasoning_effort, None);
     }
 }

@@ -200,7 +200,15 @@ impl SessionRunner {
             let provider = &self.config.provider_config.provider;
             let endpoint = match provider {
                 Provider::Anthropic => format!("{}/messages", base_url.trim_end_matches('/')),
-                Provider::Gemini => format!("{}/models", base_url.trim_end_matches('/')),
+                Provider::Gemini => {
+                    let model_id = self.config.provider_config.model_id();
+                    let clean_id = model_id.strip_prefix("models/").unwrap_or(model_id);
+                    format!(
+                        "{}/models/{}:streamGenerateContent?alt=sse",
+                        base_url.trim_end_matches('/'),
+                        clean_id
+                    )
+                }
                 Provider::Cohere => format!("{}/chat", base_url.trim_end_matches('/')),
                 _ => format!("{}/chat/completions", base_url.trim_end_matches('/')),
             };

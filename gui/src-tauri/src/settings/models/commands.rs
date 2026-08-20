@@ -205,6 +205,7 @@ pub async fn save_provider_config(request: SaveProviderRequestDto) -> Result<(),
         model_id: request.selected_model,
         context_window: 128_000,
         max_tokens: 4_096,
+        reasoning_effort: None,
     };
 
     let provider_config = operon_rs::ProviderConfig {

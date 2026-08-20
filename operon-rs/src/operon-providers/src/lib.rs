@@ -78,6 +78,7 @@ pub mod credentials;
 pub mod discovery;
 pub mod model;
 pub mod provider;
+pub mod reasoning;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public re-exports
@@ -96,5 +97,6 @@ pub use model::ModelConfig;
 // Assembled runtime config — what the session runner consumes.
 pub use config::ProviderConfig;
 
-// Model discovery.
+// Model discovery and reasoning capability detection.
 pub use discovery::{discover_models, DiscoveredModel, DiscoveryResult};
+pub use reasoning::detect_model_reasoning_levels;
