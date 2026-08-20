@@ -96,12 +96,5 @@ fn parse_native_value(raw: Value) -> Result<Vec<StreamEvent>> {
         }
     }
 
-    if events.is_empty() {
-        return Err(StreamNormalizeError::UnknownEventType {
-            event_type: "Ollama chunk contained no supported stream fields".to_string(),
-            provider: PROVIDER,
-        });
-    }
-
     Ok(events)
 }

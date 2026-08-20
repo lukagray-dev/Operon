@@ -32,13 +32,16 @@ pub fn parse_value_with_provider(raw: Value, provider: &'static str) -> Result<V
                 .cloned()
                 .unwrap_or_default();
 
-            if let Some(reasoning) = delta
+            let reasoning = delta
                 .get("reasoning_content")
+                .or_else(|| delta.get("reasoning"))
+                .or_else(|| delta.get("thought"))
                 .and_then(Value::as_str)
-                .filter(|value| !value.is_empty())
-            {
+                .filter(|value| !value.is_empty());
+
+            if let Some(text) = reasoning {
                 events.push(StreamEvent::ReasoningDelta {
-                    text: reasoning.to_string(),
+                    text: text.to_string(),
                 });
             }
 
@@ -53,13 +56,12 @@ pub fn parse_value_with_provider(raw: Value, provider: &'static str) -> Result<V
             }
 
             if let Some(tool_calls) = delta.get("tool_calls").and_then(Value::as_array) {
-                for tool_call in tool_calls {
-                    let index = tool_call.get("index").and_then(Value::as_u64).ok_or(
-                        StreamNormalizeError::MissingField {
-                            field: "choices[].delta.tool_calls[].index",
-                            provider,
-                        },
-                    )? as usize;
+                for (array_idx, tool_call) in tool_calls.iter().enumerate() {
+                    let index = tool_call
+                        .get("index")
+                        .and_then(Value::as_u64)
+                        .map(|v| v as usize)
+                        .unwrap_or(array_idx);
 
                     let id = tool_call
                         .get("id")

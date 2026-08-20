@@ -219,11 +219,11 @@ pub async fn send_streaming(
                         let line = line_buf.trim().to_string();
                         line_buf.clear();
 
-                        // SSE protocol: lines not starting with "data: " are either
+                        // SSE protocol: lines not starting with "data:" are either
                         // event type lines ("event: ..."), keepalive pings (":"), or
                         // empty separators. We only care about data lines.
-                        let payload = match line.strip_prefix("data: ") {
-                            Some(p) => p,
+                        let payload = match line.strip_prefix("data:") {
+                            Some(p) => p.trim_start(),
                             None => continue,
                         };
 

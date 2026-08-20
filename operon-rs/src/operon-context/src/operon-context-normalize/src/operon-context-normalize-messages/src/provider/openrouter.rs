@@ -13,10 +13,17 @@ use super::{anthropic, openai};
 
 const PROVIDER: &str = "OpenRouter";
 
+use operon_context_normalize_reasoning::Provider as ReasoningProvider;
+
 /// Normalize an OpenRouter wire payload by shape detection.
 pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     if looks_like_openai_shape(&raw) {
-        return openai::normalize_message_with_provider(raw, PROVIDER);
+        return openai::normalize_message_with_provider_and_reasoning(
+            raw,
+            PROVIDER,
+            Some("reasoning_content"),
+            Some(ReasoningProvider::OpenRouter),
+        );
     }
     if looks_like_anthropic_shape(&raw) {
         return anthropic::normalize_message(raw);
@@ -38,10 +45,14 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
 
 /// Denormalize canonical messages into OpenRouter bundle.
 ///
-/// OpenRouter accepts OpenAI-style message payloads, so this always delegates
-/// to the OpenAI encoder.
+/// OpenRouter accepts OpenAI-style message payloads with reasoning_content support.
 pub fn denormalize_messages(msgs: &[ConversationMessage]) -> Result<Value> {
-    openai::denormalize_messages_with_provider(msgs, PROVIDER)
+    openai::denormalize_messages_with_provider_and_reasoning(
+        msgs,
+        PROVIDER,
+        Some("reasoning_content"),
+        Some(ReasoningProvider::OpenRouter),
+    )
 }
 
 fn looks_like_openai_shape(raw: &Value) -> bool {

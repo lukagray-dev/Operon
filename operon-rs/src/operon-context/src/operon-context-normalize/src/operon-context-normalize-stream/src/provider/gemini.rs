@@ -50,13 +50,6 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
         events.push(StreamEvent::UsageMeta { raw: usage.clone() });
     }
 
-    if events.is_empty() {
-        return Err(StreamNormalizeError::UnknownEventType {
-            event_type: "Gemini chunk contained no supported stream fields".to_string(),
-            provider: PROVIDER,
-        });
-    }
-
     Ok(events)
 }
 
@@ -97,9 +90,25 @@ fn parse_parts(parts: &[Value], events: &mut Vec<StreamEvent>) -> Result<()> {
                 .cloned()
                 .unwrap_or_else(|| Value::Object(Default::default()));
 
+            // Hey friend! Google Gemini does not provide a call ID in its REST wire format.
+            // We synthesize a unique ID for each tool call so that the GUI / TUI frontend
+            // can create a separate workgroup card for each tool call rather than colliding
+            // all tool executions into a single card.
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            use std::hash::{Hash, Hasher};
+            name.hash(&mut hasher);
+            arguments.to_string().hash(&mut hasher);
+            index.hash(&mut hasher);
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or_default()
+                .hash(&mut hasher);
+            let id = format!("gemini-call-{:016x}", hasher.finish());
+
             events.push(StreamEvent::ToolCallComplete {
                 index,
-                id: None,
+                id: Some(id),
                 name: name.to_string(),
                 arguments,
             });

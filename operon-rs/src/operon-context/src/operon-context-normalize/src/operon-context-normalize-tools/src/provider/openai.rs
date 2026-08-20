@@ -132,14 +132,21 @@ pub fn to_wire_tool_definition_with_provider(
     def: &ToolDefinition,
     _provider_name: &'static str,
 ) -> Result<Value, ToolNormalizeError> {
+    let mut params = def.parameters.clone();
+    if let Some(map) = params.as_object_mut() {
+        if !map.contains_key("type") {
+            map.insert("type".to_string(), Value::String("object".to_string()));
+        }
+    }
+
     // Wrap the definition inside the OpenAI "type: function" envelope
     Ok(json!({
         "type": "function",
         "function": {
             "name": def.name,
             "description": def.description,
-            // The JSON Schema parameters object goes in directly — no transformation needed
-            "parameters": def.parameters,
+            // The JSON Schema parameters object goes in directly
+            "parameters": params,
         }
     }))
 }

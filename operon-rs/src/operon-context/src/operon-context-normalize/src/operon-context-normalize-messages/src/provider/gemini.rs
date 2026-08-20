@@ -19,7 +19,7 @@ use operon_context_normalize_tools::{
 use serde_json::{json, Value};
 
 use crate::error::{MessageNormalizeError, Result};
-use crate::stop_reason::{denormalize_stop_reason, normalize_stop_reason};
+use crate::stop_reason::normalize_stop_reason;
 use crate::types::{ContentBlock, ConversationMessage, ImageBlock, ImageSource, MessageRole};
 
 const PROVIDER: &str = "Gemini";
@@ -85,22 +85,19 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
             continue;
         }
 
-        if part.get("inline_data").is_some() {
-            let inline = part
-                .get("inline_data")
+        let inline_opt = part.get("inlineData").or_else(|| part.get("inline_data"));
+        if let Some(inline) = inline_opt {
+            let mime_type = inline
+                .get("mimeType")
+                .or_else(|| inline.get("mime_type"))
+                .and_then(Value::as_str)
                 .ok_or(MessageNormalizeError::MissingField {
-                    field: "inline_data",
+                    field: "inlineData.mimeType",
                     provider: PROVIDER,
                 })?;
-            let mime_type = inline.get("mime_type").and_then(Value::as_str).ok_or(
-                MessageNormalizeError::MissingField {
-                    field: "inline_data.mime_type",
-                    provider: PROVIDER,
-                },
-            )?;
             let data = inline.get("data").and_then(Value::as_str).ok_or(
                 MessageNormalizeError::MissingField {
-                    field: "inline_data.data",
+                    field: "inlineData.data",
                     provider: PROVIDER,
                 },
             )?;
@@ -113,19 +110,16 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
             continue;
         }
 
-        if part.get("file_data").is_some() {
-            let file = part
-                .get("file_data")
+        let file_opt = part.get("fileData").or_else(|| part.get("file_data"));
+        if let Some(file) = file_opt {
+            let uri = file
+                .get("fileUri")
+                .or_else(|| file.get("file_uri"))
+                .and_then(Value::as_str)
                 .ok_or(MessageNormalizeError::MissingField {
-                    field: "file_data",
+                    field: "fileData.fileUri",
                     provider: PROVIDER,
                 })?;
-            let uri = file.get("file_uri").and_then(Value::as_str).ok_or(
-                MessageNormalizeError::MissingField {
-                    field: "file_data.file_uri",
-                    provider: PROVIDER,
-                },
-            )?;
             content.push(ContentBlock::Image(ImageBlock {
                 source: ImageSource::Url(uri.to_string()),
             }));
@@ -324,17 +318,17 @@ fn render_parts_for_message(msg: &ConversationMessage) -> Result<Vec<Value>> {
             ContentBlock::Image(img) => match &img.source {
                 ImageSource::Base64 { media_type, data } => {
                     parts.push(json!({
-                        "inline_data": {
-                            "mime_type": media_type,
+                        "inlineData": {
+                            "mimeType": media_type,
                             "data": data
                         }
                     }));
                 }
                 ImageSource::Url(url) => {
                     parts.push(json!({
-                        "file_data": {
-                            "mime_type": "image/*",
-                            "file_uri": url
+                        "fileData": {
+                            "mimeType": "image/*",
+                            "fileUri": url
                         }
                     }));
                 }

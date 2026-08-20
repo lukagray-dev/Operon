@@ -18,6 +18,7 @@ pub struct StreamAssembler {
     reasoning_text: String,
     reasoning_signature: Option<String>,
     stop_reason: Option<String>,
+    next_tool_call_seq: usize,
 }
 
 impl StreamAssembler {
@@ -29,6 +30,7 @@ impl StreamAssembler {
             reasoning_text: String::new(),
             reasoning_signature: None,
             stop_reason: None,
+            next_tool_call_seq: 0,
         }
     }
 
@@ -118,13 +120,18 @@ impl StreamAssembler {
             }
 
             StreamEvent::ToolCallComplete {
-                index,
+                index: _index,
                 id,
                 name,
                 arguments,
             } => {
+                let call_id = id.unwrap_or_else(|| {
+                    let seq = self.next_tool_call_seq;
+                    self.next_tool_call_seq += 1;
+                    format!("call-{seq}")
+                });
                 let call = ToolCall {
-                    id: ToolCallId(id.unwrap_or_else(|| format!("stream-call-{index}"))),
+                    id: ToolCallId(call_id),
                     name,
                     arguments,
                 };
@@ -231,8 +238,13 @@ impl StreamAssembler {
             }
         })?;
 
+        let call_id = buffer.id.unwrap_or_else(|| {
+            let seq = self.next_tool_call_seq;
+            self.next_tool_call_seq += 1;
+            format!("call-{seq}")
+        });
         let call = ToolCall {
-            id: ToolCallId(buffer.id.unwrap_or_else(|| format!("stream-call-{index}"))),
+            id: ToolCallId(call_id),
             name: buffer.name.unwrap_or_else(|| "unknown".to_string()),
             arguments,
         };

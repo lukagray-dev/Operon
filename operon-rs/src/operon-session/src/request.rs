@@ -109,7 +109,19 @@ pub fn build_request(
                 });
             }
             if !wire_tools.is_empty() {
-                b["tools"] = Value::Array(wire_tools);
+                let mut all_decls = Vec::new();
+                for t in wire_tools {
+                    if let Some(decls) = t.get("function_declarations").and_then(|v| v.as_array()) {
+                        all_decls.extend(decls.iter().cloned());
+                    } else if let Some(decls) = t.get("functionDeclarations").and_then(|v| v.as_array()) {
+                        all_decls.extend(decls.iter().cloned());
+                    } else {
+                        all_decls.push(t);
+                    }
+                }
+                b["tools"] = json!([{
+                    "function_declarations": all_decls
+                }]);
             }
             b
         }

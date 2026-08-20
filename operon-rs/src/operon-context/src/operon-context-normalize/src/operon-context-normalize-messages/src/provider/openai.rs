@@ -192,10 +192,21 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                         obj.insert(field.to_string(), raw);
                     }
                 } else if !reasoning_blocks.is_empty() {
-                    return Err(MessageNormalizeError::UnsupportedContentType {
-                        provider: provider_name,
-                        detail: "assistant reasoning blocks are not supported in OpenAI wire content without a provider-specific reasoning field".to_string(),
-                    });
+                    // Hey friend! For general OpenAI-compatible endpoints (OpenRouter, Groq, Ollama, Nvidia, etc.),
+                    // when an assistant message from a prior turn contained reasoning blocks, we serialize
+                    // the accumulated reasoning text under `reasoning_content`.
+                    // We never fail or throw an error here, so subsequent tool-result turns continue smoothly!
+                    let combined_reasoning = reasoning_blocks
+                        .iter()
+                        .map(|rb| rb.thinking.as_str())
+                        .collect::<Vec<_>>()
+                        .join("\n\n");
+                    if !combined_reasoning.is_empty() {
+                        obj.insert(
+                            "reasoning_content".to_string(),
+                            Value::String(combined_reasoning),
+                        );
+                    }
                 }
 
                 // NOTE: We do not serialize stop_reason / finish_reason back into the messages list

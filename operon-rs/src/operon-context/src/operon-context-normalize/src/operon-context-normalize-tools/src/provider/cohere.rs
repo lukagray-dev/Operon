@@ -182,10 +182,15 @@ pub fn to_wire_tool_definition(def: &ToolDefinition) -> Result<Value, ToolNormal
             .unwrap_or("");
 
         // Convert the JSON Schema type string to Cohere's type system
-        let json_type = prop_schema
-            .get("type")
-            .and_then(Value::as_str)
-            .unwrap_or("string"); // Default to string if type is missing
+        let json_type = if let Some(s) = prop_schema.get("type").and_then(Value::as_str) {
+            s
+        } else if let Some(arr) = prop_schema.get("type").and_then(Value::as_array) {
+            arr.iter()
+                .find_map(|v| v.as_str().filter(|&s| s != "null"))
+                .unwrap_or("string")
+        } else {
+            "string"
+        };
 
         let cohere_type = json_schema_type_to_cohere(json_type);
 

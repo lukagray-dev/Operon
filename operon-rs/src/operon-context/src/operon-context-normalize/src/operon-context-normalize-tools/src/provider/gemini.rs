@@ -122,9 +122,92 @@ pub fn from_wire_tool_call(raw: Value) -> Result<ToolCall, ToolNormalizeError> {
     })
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// to_wire — ToolDefinition
-// ─────────────────────────────────────────────────────────────────────────────
+/// Sanitizes and projects a standard JSON Schema into Gemini's OpenAPI-compatible dialect.
+///
+/// Hey friend! Google Gemini's tool definition parser uses strict protobuf schemas.
+/// Specifically:
+/// 1. `type` MUST be a single scalar string (e.g. `"string"` or `"integer"`). If standard JSON Schema
+///    uses an array like `["string", "null"]` for optional fields, Gemini throws:
+///    `Proto field is not repeating, cannot start list.`
+///    We convert `type: ["string", "null"]` into `type: "string", nullable: true`.
+/// 2. `properties` and `required` on non-object types are cleaned up.
+/// 3. Unsupported schema keys like `$schema`, `additionalProperties` (if false) are omitted.
+/// 4. Enum items on string properties are stringified.
+pub fn sanitize_gemini_schema(schema: &Value) -> Value {
+    match schema {
+        Value::Object(map) => {
+            let mut out = serde_json::Map::new();
+
+            for (key, val) in map {
+                // Skip unsupported meta keys that Gemini protobuf schema rejects
+                if key == "$schema" || key == "$id" || key == "additionalProperties" {
+                    continue;
+                }
+
+                if key == "type" {
+                    if let Some(arr) = val.as_array() {
+                        // Extract the primary non-null type (e.g. ["string", "null"] -> "string")
+                        let non_null_type = arr
+                            .iter()
+                            .find_map(|t| t.as_str().filter(|&s| s != "null"))
+                            .unwrap_or("string");
+                        let is_nullable = arr.iter().any(|t| t.as_str() == Some("null"));
+
+                        out.insert("type".to_string(), Value::String(non_null_type.to_string()));
+                        if is_nullable {
+                            out.insert("nullable".to_string(), Value::Bool(true));
+                        }
+                    } else if let Some(s) = val.as_str() {
+                        out.insert("type".to_string(), Value::String(s.to_string()));
+                    }
+                } else if key == "properties" {
+                    if let Some(props) = val.as_object() {
+                        let mut sanitized_props = serde_json::Map::new();
+                        for (prop_name, prop_val) in props {
+                            sanitized_props
+                                .insert(prop_name.clone(), sanitize_gemini_schema(prop_val));
+                        }
+                        out.insert("properties".to_string(), Value::Object(sanitized_props));
+                    }
+                } else if key == "items" {
+                    out.insert("items".to_string(), sanitize_gemini_schema(val));
+                } else if key == "anyOf" || key == "oneOf" || key == "allOf" {
+                    if let Some(arr) = val.as_array() {
+                        let sanitized_arr: Vec<Value> =
+                            arr.iter().map(sanitize_gemini_schema).collect();
+                        out.insert(key.clone(), Value::Array(sanitized_arr));
+                    }
+                } else if key == "enum" {
+                    if let Some(arr) = val.as_array() {
+                        let str_arr: Vec<Value> = arr
+                            .iter()
+                            .map(|v| match v {
+                                Value::String(s) => Value::String(s.clone()),
+                                other => Value::String(other.to_string()),
+                            })
+                            .collect();
+                        out.insert("enum".to_string(), Value::Array(str_arr));
+                    }
+                } else if key == "required" {
+                    if let Some(reqs) = val.as_array() {
+                        out.insert("required".to_string(), Value::Array(reqs.clone()));
+                    }
+                } else {
+                    out.insert(key.clone(), val.clone());
+                }
+            }
+
+            // Ensure object schemas have a default type = "object" if properties are present
+            if out.contains_key("properties") && !out.contains_key("type") {
+                out.insert("type".to_string(), Value::String("object".to_string()));
+            }
+
+            Value::Object(out)
+        }
+        Value::Array(arr) => Value::Array(arr.iter().map(sanitize_gemini_schema).collect()),
+        other => other.clone(),
+    }
+}
 
 /// Serialize a [`ToolDefinition`] into the Gemini wire format.
 ///
@@ -140,13 +223,13 @@ pub fn from_wire_tool_call(raw: Value) -> Result<ToolCall, ToolNormalizeError> {
 /// }
 /// ```
 pub fn to_wire_tool_definition(def: &ToolDefinition) -> Result<Value, ToolNormalizeError> {
-    // Gemini wraps the declaration inside a "function_declarations" array.
-    // The inner schema field is "parameters" (same name as JSON Schema, unlike Anthropic).
+    let sanitized_params = sanitize_gemini_schema(&def.parameters);
+
     Ok(json!({
         "function_declarations": [{
             "name": def.name,
             "description": def.description,
-            "parameters": def.parameters,
+            "parameters": sanitized_params,
         }]
     }))
 }
@@ -166,12 +249,12 @@ pub fn to_wire_tool_definition(def: &ToolDefinition) -> Result<Value, ToolNormal
 /// The `"response"` field must be a JSON object; text content is wrapped in
 /// `{ "content": "..." }` and JSON content is wrapped in `{ "content": <value> }`.
 pub fn to_wire_tool_result(result: &ToolResult) -> Result<Value, ToolNormalizeError> {
-    // Gemini's response field expects a JSON object — we standardize on { "content": ... }
+    // Gemini's response field expects a JSON object — we standardize on { "name": ..., "content": ... }
     let response_content: Value = match &result.content {
-        // Wrap plain text in an object so the response field is always an object
-        ToolContent::Text(s) => json!({ "content": s }),
-        // Wrap the JSON value directly — the model receives the structured object
-        ToolContent::Json(v) => json!({ "content": v }),
+        // Wrap plain text in an object with name and content
+        ToolContent::Text(s) => json!({ "name": result.name, "content": s }),
+        // Wrap the JSON value directly with name and content
+        ToolContent::Json(v) => json!({ "name": result.name, "content": v }),
     };
 
     Ok(json!({
@@ -182,3 +265,32 @@ pub fn to_wire_tool_result(result: &ToolResult) -> Result<Value, ToolNormalizeEr
         }
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_array_types_for_gemini() {
+        let input_schema = json!({
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": ["string", "null"],
+                    "description": "Path to file"
+                },
+                "lines": {
+                    "type": ["integer", "null"]
+                }
+            },
+            "required": ["path"]
+        });
+
+        let sanitized = sanitize_gemini_schema(&input_schema);
+        assert_eq!(sanitized["properties"]["path"]["type"], "string");
+        assert_eq!(sanitized["properties"]["path"]["nullable"], true);
+        assert_eq!(sanitized["properties"]["lines"]["type"], "integer");
+        assert_eq!(sanitized["properties"]["lines"]["nullable"], true);
+    }
+}
+

@@ -99,11 +99,18 @@ pub fn from_wire_tool_call(raw: Value) -> Result<ToolCall, ToolNormalizeError> {
 /// `"input_schema"` rather than `"parameters"`, and there is no outer
 /// `"type": "function"` envelope.
 pub fn to_wire_tool_definition(def: &ToolDefinition) -> Result<Value, ToolNormalizeError> {
+    let mut schema = def.parameters.clone();
+    if let Some(map) = schema.as_object_mut() {
+        if !map.contains_key("type") {
+            map.insert("type".to_string(), Value::String("object".to_string()));
+        }
+    }
+
     Ok(json!({
         "name": def.name,
         "description": def.description,
         // Anthropic names this field "input_schema" rather than "parameters"
-        "input_schema": def.parameters,
+        "input_schema": schema,
     }))
 }
 
