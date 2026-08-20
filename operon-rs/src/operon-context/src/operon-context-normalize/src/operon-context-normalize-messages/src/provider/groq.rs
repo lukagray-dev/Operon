@@ -1,7 +1,4 @@
-//! Groq message normalization and denormalization.
-//!
-//! Groq is OpenAI-compatible for message wire format.
-
+use operon_context_normalize_reasoning::Provider as ReasoningProvider;
 use serde_json::Value;
 
 use crate::error::Result;
@@ -13,7 +10,12 @@ const PROVIDER: &str = "Groq";
 
 /// Normalize a Groq wire message into canonical form.
 pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
-    openai::normalize_message_with_provider(raw, PROVIDER)
+    openai::normalize_message_with_provider_and_reasoning(
+        raw,
+        PROVIDER,
+        Some("reasoning_content"),
+        Some(ReasoningProvider::Groq),
+    )
 }
 
 /// Denormalize canonical messages into Groq wire message bundle.

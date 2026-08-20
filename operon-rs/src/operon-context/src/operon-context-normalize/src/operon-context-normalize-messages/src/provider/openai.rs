@@ -191,23 +191,11 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                             .map_err(|e| map_reasoning_err(e, provider_name))?;
                         obj.insert(field.to_string(), raw);
                     }
-                } else if !reasoning_blocks.is_empty() {
-                    // Hey friend! For general OpenAI-compatible endpoints (OpenRouter, Groq, Ollama, Nvidia, etc.),
-                    // when an assistant message from a prior turn contained reasoning blocks, we serialize
-                    // the accumulated reasoning text under `reasoning_content`.
-                    // We never fail or throw an error here, so subsequent tool-result turns continue smoothly!
-                    let combined_reasoning = reasoning_blocks
-                        .iter()
-                        .map(|rb| rb.thinking.as_str())
-                        .collect::<Vec<_>>()
-                        .join("\n\n");
-                    if !combined_reasoning.is_empty() {
-                        obj.insert(
-                            "reasoning_content".to_string(),
-                            Value::String(combined_reasoning),
-                        );
-                    }
                 }
+                // Hey friend! When reasoning_field is None, the target provider (e.g. Groq, OpenAI, Mistral)
+                // strictly forbids custom fields like `reasoning_content` on assistant messages in API payloads.
+                // We safely omit the field from the request payload without failing or erroring out, allowing
+                // multi-turn tool execution to succeed cleanly.
 
                 // NOTE: We do not serialize stop_reason / finish_reason back into the messages list
                 // for the API request payload because providers only accept those fields in model outputs,
