@@ -17,7 +17,6 @@ mod input;
 mod models;
 mod mouse;
 mod navigation;
-mod panels;
 mod permissions;
 
 /// Dispatch an action to the appropriate handler
@@ -56,13 +55,6 @@ pub async fn dispatch(
         | Action::SetCtrlShiftHeld(_)
         | Action::CopySelection
         | Action::ProcessKey(_) => mouse::handle(action, state, tx, terminal_height).await?,
-
-        // Panel actions: toggle terminal, sidebar, right panel
-        Action::ToggleTerminal
-        | Action::ToggleLeftSidebar
-        | Action::ToggleRightPanel(_)
-        | Action::CloseRightPanel
-        | Action::OpenFile(_) => panels::handle(action, state),
 
         // Chat actions: agent responses, scrolling, tick
         Action::AgentResponse(_)

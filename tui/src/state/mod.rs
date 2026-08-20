@@ -6,7 +6,6 @@
 pub mod screen;
 pub mod session;
 
-use crate::ui::chrome::right_sidebar::panel_state::RightPanelContent;
 use crate::ui::screens::models::state::ModelsState;
 use crate::ui::screens::permissions::state::PermissionsState;
 use screen::ActiveScreen;
@@ -16,8 +15,6 @@ use tui_textarea::TextArea;
 /// AppState holds all mutable UI state for the TUI
 /// This includes:
 /// - Which screen is currently active (Chat, Models, Permissions, etc.)
-/// - Whether the left sidebar is open or collapsed
-/// - What content (if any) is shown in the right panel
 /// - Session context data (model name, context usage, agent status)
 /// - Tick counter for animations
 /// - Message input TextArea widget (handles cursor, editing, etc.)
@@ -27,12 +24,6 @@ use tui_textarea::TextArea;
 pub struct AppState {
     /// Currently active screen in the main panel
     active_screen: ActiveScreen,
-
-    /// Whether the left sidebar (file explorer) is visible
-    left_sidebar_open: bool,
-
-    /// Content displayed in the right panel (None = hidden)
-    right_panel: Option<RightPanelContent>,
 
     /// Session context data provided by operon-rs backend
     session: SessionContext,
@@ -101,12 +92,9 @@ pub struct ChatMessage {
 
 impl AppState {
     /// Create a new AppState with default values
-    /// Starts on Chat screen with left sidebar closed and right panel hidden
     pub fn new() -> Self {
         Self {
             active_screen: ActiveScreen::Chat,
-            left_sidebar_open: false, // Start with sidebar closed
-            right_panel: None,
             session: SessionContext::default(),
             tick: 0,
             message_input: TextArea::default(),
@@ -134,26 +122,6 @@ impl AppState {
     /// Switch to a different screen
     pub fn set_active_screen(&mut self, screen: ActiveScreen) {
         self.active_screen = screen;
-    }
-
-    /// Check if left sidebar is open
-    pub fn is_left_sidebar_open(&self) -> bool {
-        self.left_sidebar_open
-    }
-
-    /// Toggle left sidebar visibility
-    pub fn toggle_left_sidebar(&mut self) {
-        self.left_sidebar_open = !self.left_sidebar_open;
-    }
-
-    /// Get current right panel content (None if hidden)
-    pub fn right_panel(&self) -> &Option<RightPanelContent> {
-        &self.right_panel
-    }
-
-    /// Set right panel content (Some = show, None = hide)
-    pub fn set_right_panel(&mut self, content: Option<RightPanelContent>) {
-        self.right_panel = content;
     }
 
     /// Get session context data

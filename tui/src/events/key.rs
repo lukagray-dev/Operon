@@ -43,16 +43,6 @@ pub fn map_key(
             return Some(Action::InputRedo);
         }
 
-        // Toggle terminal panel
-        (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
-            return Some(Action::ToggleTerminal);
-        }
-
-        // Toggle left sidebar (file explorer)
-        (KeyCode::Char('e'), KeyModifiers::CONTROL) => {
-            return Some(Action::ToggleLeftSidebar);
-        }
-
         _ => {}
     }
 

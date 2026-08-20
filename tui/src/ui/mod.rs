@@ -13,24 +13,14 @@ use ratatui::Frame;
 
 /// Main render function
 /// This is the single entry point called from main.rs event loop
-/// Computes layout, renders chrome (sidebars, status bar), and active screen
+/// Computes layout, renders active screen in main area, and draws status bar at bottom
 pub fn render(frame: &mut Frame, state: &mut AppState) {
-    // Compute layout areas based on current state
-    let areas = layout::compute_layout(frame.area(), state);
-
-    // Render left sidebar (file explorer) if open
-    if state.is_left_sidebar_open() && areas.left_sidebar.width > 0 {
-        chrome::left_sidebar::render(frame, areas.left_sidebar);
-    }
+    // Compute layout areas based on current terminal frame size
+    let areas = layout::compute_layout(frame.area());
 
     // Render main panel (active screen)
     screens::render_active_screen(frame, areas.main, state);
 
-    // Render right sidebar (file preview, diff, terminal) if visible
-    if state.right_panel().is_some() && areas.right_sidebar.width > 0 {
-        chrome::right_sidebar::render(frame, areas.right_sidebar, state);
-    }
-
-    // Render status bar (always visible)
+    // Render status bar (always visible at bottom)
     chrome::status_bar::render_status_bar(frame, areas.status_bar, state);
 }

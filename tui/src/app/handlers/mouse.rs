@@ -147,17 +147,6 @@ pub async fn handle(
                             }
                         }
                     }
-                    Action::ToggleTerminal => {
-                        use crate::ui::chrome::right_sidebar::panel_state::RightPanelContent;
-                        if let Some(RightPanelContent::Terminal) = state.right_panel() {
-                            state.set_right_panel(None);
-                        } else {
-                            state.set_right_panel(Some(RightPanelContent::Terminal));
-                        }
-                    }
-                    Action::ToggleLeftSidebar => {
-                        state.toggle_left_sidebar();
-                    }
                     Action::CloseScreenSelector => {
                         state.close_screen_selector();
                     }

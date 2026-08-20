@@ -1,7 +1,4 @@
 // Chrome module
-// Persistent UI shell components that are always rendered
-// Includes left sidebar, right sidebar, and status bar
+// Persistent UI components around the main screen
 
-pub mod left_sidebar;
-pub mod right_sidebar;
 pub mod status_bar;
