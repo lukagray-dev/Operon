@@ -248,6 +248,17 @@ impl SessionRunner {
         // Build the policy resolver from the fully validated policy config.
         let policy_resolver = PolicyResolver::new(config.policy.clone());
 
+        let mut initial_tokens = 0;
+        if let Some(ref s) = store {
+            if let Ok(Some(tokens)) = s.get_last_token_count(&session_id).await {
+                initial_tokens = tokens;
+            }
+        }
+        let mut token_state = SessionTokenState::new();
+        if initial_tokens > 0 {
+            token_state.apply_estimate(initial_tokens, operon_context::EstimationTier::Exact);
+        }
+
         // Emit SessionStarted — the UI now knows the session ID and can label panels.
         // This is the first event on the channel; it fires before any turn runs.
         let _ = event_tx
@@ -256,7 +267,7 @@ impl SessionRunner {
             })
             .await;
 
-        let _ = event_tx.send(context_usage_event(&token_budget, 0)).await;
+        let _ = event_tx.send(context_usage_event(&token_budget, initial_tokens)).await;
 
         Ok(Self {
             session_id,
@@ -264,7 +275,7 @@ impl SessionRunner {
             messages: Vec::new(),
             dispatcher,
             snapshot_builder,
-            token_state: SessionTokenState::new(),
+            token_state,
             token_budget,
             lifecycle: LifecycleState::Idle,
             http_client: Client::new(),
@@ -314,6 +325,7 @@ impl SessionRunner {
         if let Some(tokens) = last_token_count {
             self.token_state
                 .apply_estimate(tokens, operon_context::EstimationTier::Exact);
+            let _ = self.event_tx.try_send(context_usage_event(&self.token_budget, tokens));
         }
     }
 

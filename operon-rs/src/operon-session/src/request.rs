@@ -135,6 +135,10 @@ pub fn build_request(
                 "messages":   messages_arr,
                 "stream":     stream,
             });
+            // Request token usage metadata chunks during streaming
+            if stream && !matches!(provider, Provider::Cohere | Provider::Ollama) {
+                b["stream_options"] = json!({ "include_usage": true });
+            }
             if !wire_tools.is_empty() {
                 b["tools"] = Value::Array(wire_tools);
             }

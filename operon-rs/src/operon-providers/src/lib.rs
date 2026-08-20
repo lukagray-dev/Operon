@@ -65,6 +65,7 @@
 //!         model_id: "claude-3-5-sonnet-latest".to_string(),
 //!         context_window: 200_000,
 //!         max_tokens: 8_192,
+//!         reasoning_effort: None,
 //!     },
 //!     base_url_override: None,
 //! };
@@ -73,6 +74,7 @@
 //! assert_eq!(config.model_id(), "claude-3-5-sonnet-latest");
 //! ```
 
+pub mod catalog;
 pub mod config;
 pub mod credentials;
 pub mod discovery;
@@ -96,6 +98,9 @@ pub use model::ModelConfig;
 
 // Assembled runtime config — what the session runner consumes.
 pub use config::ProviderConfig;
+
+// Model catalog database and context lookups.
+pub use catalog::{lookup_context_window, lookup_max_tokens, lookup_model_spec, ModelSpec};
 
 // Model discovery and reasoning capability detection.
 pub use discovery::{discover_models, DiscoveredModel, DiscoveryResult};

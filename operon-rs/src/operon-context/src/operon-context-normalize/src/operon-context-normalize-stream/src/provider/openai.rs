@@ -101,12 +101,13 @@ pub fn parse_value_with_provider(raw: Value, provider: &'static str) -> Result<V
                 });
             }
         }
-
-        return Ok(events);
     }
 
-    if raw.get("usage").is_some() {
-        events.push(StreamEvent::UsageMeta { raw });
+    if let Some(usage) = raw.get("usage") {
+        events.push(StreamEvent::UsageMeta { raw: usage.clone() });
+    }
+
+    if !events.is_empty() {
         return Ok(events);
     }
 

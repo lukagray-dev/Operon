@@ -177,16 +177,18 @@ async fn discover_anthropic(api_key: &str, base_url: &str) -> Result<DiscoveryRe
         .data
         .into_iter()
         .map(|m| {
-            let context_window = m.context_window.or(m.context_length).ok_or_else(|| {
-                format!(
-                    "Anthropic API did not return context window/length for model {}",
-                    m.id
-                )
-            })?;
+            // Hey friend! We follow a robust 3-tier context discovery pipeline:
+            // 1. If the provider sends context window/length, use it directly.
+            // 2. If missing, look up from our embedded model catalog dataset & family patterns.
+            // 3. If completely unknown, fall back to a modern 128k default.
+            let context_window = m
+                .context_window
+                .or(m.context_length)
+                .unwrap_or_else(|| crate::catalog::lookup_context_window(&m.id));
             let max_tokens = m
                 .max_tokens
                 .or(m.max_output_tokens)
-                .unwrap_or_else(|| std::cmp::min(4_096, context_window));
+                .unwrap_or_else(|| crate::catalog::lookup_max_tokens(&m.id));
             let reasoning_levels = detect_model_reasoning_levels(Provider::Anthropic, &m.id, None);
             Ok(DiscoveredModel {
                 model_id: m.id.clone(),
@@ -243,15 +245,17 @@ async fn discover_openai_compatible(
         .data
         .into_iter()
         .map(|m| {
-            // Fall back to a sensible default context window (e.g. 8192) if the provider
-            // API doesn't expose it. Many OpenAI-compatible providers do not return
-            // metadata fields like context window or length, so we fall back rather
-            // than failing the entire discovery process.
-            let context_window = m.context_window.or(m.context_length).unwrap_or(8192);
+            // Hey friend! Many OpenAI-compatible providers (like NVIDIA NIM, DeepSeek, or
+            // Groq) do not include context window metadata in their /v1/models JSON.
+            // Our 3-tier pipeline seamlessly resolves context window from our embedded catalog!
+            let context_window = m
+                .context_window
+                .or(m.context_length)
+                .unwrap_or_else(|| crate::catalog::lookup_context_window(&m.id));
             let max_tokens = m
                 .max_tokens
                 .or(m.max_output_tokens)
-                .unwrap_or_else(|| std::cmp::min(4_096, context_window));
+                .unwrap_or_else(|| crate::catalog::lookup_max_tokens(&m.id));
             let reasoning_levels = detect_model_reasoning_levels(provider, &m.id, None);
             Ok(DiscoveredModel {
                 model_id: m.id.clone(),
@@ -298,18 +302,22 @@ async fn discover_gemini(api_key: &str, base_url: &str) -> Result<DiscoveryResul
     let models = api_response
         .models
         .into_iter()
-        .filter_map(|m| {
-            let model_id = m.name.strip_prefix("models/")?.to_string();
-            let context_window = m.input_token_limit?;
-            let max_tokens = m.output_token_limit?;
+        .map(|m| {
+            let model_id = m.name.strip_prefix("models/").unwrap_or(&m.name).to_string();
+            let context_window = m
+                .input_token_limit
+                .unwrap_or_else(|| crate::catalog::lookup_context_window(&model_id));
+            let max_tokens = m
+                .output_token_limit
+                .unwrap_or_else(|| crate::catalog::lookup_max_tokens(&model_id));
             let reasoning_levels = detect_model_reasoning_levels(Provider::Gemini, &model_id, None);
-            Some(DiscoveredModel {
+            DiscoveredModel {
                 model_id,
                 context_window,
                 max_tokens,
                 description: m.description,
                 reasoning_levels,
-            })
+            }
         })
         .collect();
 
@@ -352,30 +360,30 @@ async fn discover_ollama(base_url: &str) -> Result<DiscoveryResult, String> {
         let show_payload = serde_json::json!({ "model": m.name });
         let show_resp = client.post(&show_url).json(&show_payload).send().await;
 
+        let mut context_window = None;
         if let Ok(resp) = show_resp {
             if resp.status().is_success() {
                 if let Ok(show_data) = resp.json::<OllamaShowResponse>().await {
-                    let context_window = show_data
+                    context_window = show_data
                         .model_info
                         .iter()
                         .find(|(k, _)| k.ends_with(".context_length"))
                         .and_then(|(_, v)| v.as_u64())
                         .map(|v| v as usize);
-
-                    if let Some(ctx) = context_window {
-                        let max_tokens = std::cmp::min(4_096, ctx);
-                        let reasoning_levels = detect_model_reasoning_levels(Provider::Ollama, &m.name, None);
-                        models.push(DiscoveredModel {
-                            model_id: m.name.clone(),
-                            context_window: ctx,
-                            max_tokens,
-                            description: format!("Size: {} GB", m.size / 1_000_000_000),
-                            reasoning_levels,
-                        });
-                    }
                 }
             }
         }
+
+        let ctx = context_window.unwrap_or_else(|| crate::catalog::lookup_context_window(&m.name));
+        let max_tokens = crate::catalog::lookup_max_tokens(&m.name);
+        let reasoning_levels = detect_model_reasoning_levels(Provider::Ollama, &m.name, None);
+        models.push(DiscoveredModel {
+            model_id: m.name.clone(),
+            context_window: ctx,
+            max_tokens,
+            description: format!("Size: {} GB", m.size / 1_000_000_000),
+            reasoning_levels,
+        });
     }
 
     Ok(DiscoveryResult {
@@ -418,11 +426,13 @@ async fn discover_openrouter(api_key: &str, base_url: &str) -> Result<DiscoveryR
     let models = api_response
         .data
         .into_iter()
-        .filter_map(|m| {
-            let context_window = m.context_length?;
-            let max_tokens = std::cmp::min(4_096, context_window);
+        .map(|m| {
+            let context_window = m
+                .context_length
+                .unwrap_or_else(|| crate::catalog::lookup_context_window(&m.id));
+            let max_tokens = crate::catalog::lookup_max_tokens(&m.id);
             let reasoning_levels = detect_model_reasoning_levels(Provider::OpenRouter, &m.id, None);
-            Some(DiscoveredModel {
+            DiscoveredModel {
                 model_id: m.id,
                 context_window,
                 max_tokens,
@@ -432,7 +442,7 @@ async fn discover_openrouter(api_key: &str, base_url: &str) -> Result<DiscoveryR
                     m.description
                 },
                 reasoning_levels,
-            })
+            }
         })
         .collect();
 

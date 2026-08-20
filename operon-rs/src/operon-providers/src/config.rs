@@ -46,6 +46,7 @@ use crate::provider::{AuthHeader, Provider};
 ///         model_id: "claude-3-5-sonnet-latest".to_string(),
 ///         context_window: 200_000,
 ///         max_tokens: 8_192,
+///         reasoning_effort: None,
 ///     },
 ///     base_url_override: None,
 /// };

@@ -14,6 +14,7 @@ import type { GeneralSettings } from '../../settings/general/types.js';
 import { showConfirmDialog } from '../../shared/dialog.js';
 import { listenIpcEvent } from '../../shared/ipc.js';
 import { setEmptyStateVisible } from '../empty-state/empty-state.js';
+import { getContextUsageIpc } from '../input/ipc.js';
 import { inputState } from '../input/state.js';
 import {
   liveMarkdownRenderer,
@@ -256,13 +257,23 @@ export function initMessages(): void {
   });
 
   // 8. Listen to agent finish turn notification (turn complete without wiping DOM)
-  listenAgentFinished(async () => {
+  listenAgentFinished(async (sessionId) => {
     cleanupActiveOrb();
     hidePermissionDialog();
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
 
     triggerTurnCompleteNotification();
+
+    const activeSession = sidebarState.getActiveSessionId() || sessionId;
+    if (activeSession) {
+      try {
+        const usage = await getContextUsageIpc(activeSession);
+        inputState.setContextUsage(usage);
+      } catch (err) {
+        console.debug('[Messages] Failed to update context usage on finish:', err);
+      }
+    }
 
     await refreshSidebarContent();
     await refreshTopbar();
@@ -373,6 +384,12 @@ export async function refreshMessages(sessionId: string): Promise<void> {
     const list = await loadSessionMessagesIpc(sessionId);
     messagesState.setMessages(list);
     setEmptyStateVisible(list.length === 0);
+    try {
+      const usage = await getContextUsageIpc(sessionId);
+      inputState.setContextUsage(usage, true);
+    } catch (err) {
+      console.debug('[Messages] Failed to fetch session context usage:', err);
+    }
   } finally {
     messagesState.setIsLoading(false);
     syncPendingPermissionForActiveSession(sidebarState.getActiveSessionId());
@@ -448,16 +465,61 @@ function handleAgentEvent(event: Record<string, unknown>): void {
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
   } else if ('ContextUsageUpdated' in event) {
-    const ctx = (event as { ContextUsageUpdated: { current_context_tokens: number; context_window: number; utilization: number } }).ContextUsageUpdated;
+    const ctx = (event as {
+      ContextUsageUpdated: {
+        current_context_tokens: number;
+        context_window: number;
+        utilization: number;
+      };
+    }).ContextUsageUpdated;
     if (ctx) {
-      const formatted = ctx.current_context_tokens >= 1000
-        ? `${(ctx.current_context_tokens / 1000).toFixed(1)}k / ${Math.round(ctx.context_window / 1000)}k`
-        : `${ctx.current_context_tokens} / ${Math.round(ctx.context_window / 1000)}k`;
+      const total = ctx.context_window;
+      const totalStr =
+        total >= 1_000_000
+          ? `${Number.isInteger(total / 1_000_000) ? total / 1_000_000 : (total / 1_000_000).toFixed(1)}M`
+          : `${Math.round(total / 1000)}k`;
+      const used = ctx.current_context_tokens;
+      const formatted =
+        used >= 1_000_000
+          ? `${(used / 1_000_000).toFixed(1)}M / ${totalStr}`
+          : used >= 1000
+          ? `${(used / 1000).toFixed(1)}k / ${totalStr}`
+          : `${used} / ${totalStr}`;
 
       inputState.setContextUsage({
-        tokens_used: ctx.current_context_tokens,
-        tokens_total: ctx.context_window,
+        tokens_used: used,
+        tokens_total: total,
         percentage: ctx.utilization * 100,
+        formatted,
+      });
+    }
+  } else if ('TokenUsageUpdated' in event) {
+    const usage = (event as {
+      TokenUsageUpdated: {
+        input_tokens: number;
+        output_tokens: number;
+        context_total: number;
+      };
+    }).TokenUsageUpdated;
+    if (usage) {
+      const current = inputState.getContextUsage();
+      const total = current.tokens_total > 0 ? current.tokens_total : 128000;
+      const totalStr =
+        total >= 1_000_000
+          ? `${Number.isInteger(total / 1_000_000) ? total / 1_000_000 : (total / 1_000_000).toFixed(1)}M`
+          : `${Math.round(total / 1000)}k`;
+      const used = usage.context_total;
+      const formatted =
+        used >= 1_000_000
+          ? `${(used / 1_000_000).toFixed(1)}M / ${totalStr}`
+          : used >= 1000
+          ? `${(used / 1000).toFixed(1)}k / ${totalStr}`
+          : `${used} / ${totalStr}`;
+
+      inputState.setContextUsage({
+        tokens_used: used,
+        tokens_total: total,
+        percentage: (used / total) * 100,
         formatted,
       });
     }

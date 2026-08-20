@@ -5,7 +5,9 @@
 // request → stream → record usage → push assistant message → persist →
 // check for tool calls → dispatch (delegated to tool_dispatch.rs) → loop.
 
-use operon_context::{sanitize, ContentBlock, ConversationMessage, MessageRole, ToolContent};
+use operon_context::{
+    sanitize, ContentBlock, ConversationMessage, MessageRole, ToolContent, UsageRecord,
+};
 use operon_events::SessionEvent;
 use operon_providers::Provider;
 
@@ -238,29 +240,64 @@ impl SessionRunner {
 
             // ── 6. Record token usage + emit TokenUsageUpdated ───────────────
             // Update the session token state from the usage metadata in the stream.
-            // Emit a TokenUsageUpdated event so the TUI status bar stays current.
-            if let Some(usage_raw) = &stream_result.usage_raw {
-                if let Some(record) = extract_usage_record(
-                    usage_raw,
-                    self.config.provider_config.model_id(),
-                    &format!("{:?}", self.config.provider_config.provider),
-                ) {
-                    self.token_state.record_turn(&record);
-
-                    let _ = self
-                        .event_tx
-                        .send(SessionEvent::TokenUsageUpdated {
-                            input_tokens: record.input_tokens,
-                            output_tokens: record.output_tokens,
-                            context_total: self.token_state.current_context_tokens,
-                            cache_read_tokens: record.cache_read_tokens,
-                            cache_write_tokens: record.cache_write_tokens,
+            // If the provider omitted usage metadata, estimate token usage from message lengths as a reliable fallback.
+            let usage_record = stream_result
+                .usage_raw
+                .as_ref()
+                .and_then(|raw| {
+                    extract_usage_record(
+                        raw,
+                        self.config.provider_config.model_id(),
+                        &format!("{:?}", self.config.provider_config.provider),
+                    )
+                })
+                .unwrap_or_else(|| {
+                    let prompt_chars: usize = self
+                        .messages
+                        .iter()
+                        .map(|m| {
+                            m.content
+                                .iter()
+                                .map(|b| match b {
+                                    ContentBlock::Text(t) => t.len(),
+                                    ContentBlock::Reasoning(r) => r.thinking.len(),
+                                    _ => 100,
+                                })
+                                .sum::<usize>()
                         })
-                        .await;
+                        .sum();
+                    let output_chars = stream_result.text.len()
+                        + stream_result
+                            .reasoning
+                            .as_ref()
+                            .map(|r| r.thinking.len())
+                            .unwrap_or(0);
+                    let input_tokens = (prompt_chars / 4).max(1);
+                    let output_tokens = (output_chars / 4).max(1);
+                    UsageRecord {
+                        input_tokens,
+                        output_tokens,
+                        cache_read_tokens: None,
+                        cache_write_tokens: None,
+                        model: self.config.provider_config.model_id().to_string(),
+                        provider: format!("{:?}", self.config.provider_config.provider),
+                    }
+                });
 
-                    self.emit_context_usage_update().await;
-                }
-            }
+            self.token_state.record_turn(&usage_record);
+
+            let _ = self
+                .event_tx
+                .send(SessionEvent::TokenUsageUpdated {
+                    input_tokens: usage_record.input_tokens,
+                    output_tokens: usage_record.output_tokens,
+                    context_total: self.token_state.current_context_tokens,
+                    cache_read_tokens: usage_record.cache_read_tokens,
+                    cache_write_tokens: usage_record.cache_write_tokens,
+                })
+                .await;
+
+            self.emit_context_usage_update().await;
 
             // ── 7. Push assistant message into history ───────────────────────
             let assistant_message = build_assistant_message(&stream_result);

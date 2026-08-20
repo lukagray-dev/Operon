@@ -235,8 +235,20 @@ pub async fn send_streaming(
                         for event in events {
                             // Capture usage metadata before pushing to assembler — the
                             // assembler returns Pending for UsageMeta events.
+                            // We merge keys so multi-chunk usage (e.g. Anthropic's input_tokens on start
+                            // and output_tokens on delta) accumulates into a complete usage record.
                             if let StreamEvent::UsageMeta { raw } = &event {
-                                result.usage_raw = Some(raw.clone());
+                                if let Some(ref mut existing) = result.usage_raw {
+                                    if let (Some(tgt), Some(src)) = (existing.as_object_mut(), raw.as_object()) {
+                                        for (k, v) in src {
+                                            tgt.insert(k.clone(), v.clone());
+                                        }
+                                    } else {
+                                        result.usage_raw = Some(raw.clone());
+                                    }
+                                } else {
+                                    result.usage_raw = Some(raw.clone());
+                                }
                             }
 
                             // Feed the event into the assembler. The assembler converts

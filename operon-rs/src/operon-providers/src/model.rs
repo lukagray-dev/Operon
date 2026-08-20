@@ -35,6 +35,7 @@ use serde::{Deserialize, Serialize};
 ///     model_id: "claude-3-5-sonnet-latest".to_string(),
 ///     context_window: 200_000,
 ///     max_tokens: 8_192,
+///     reasoning_effort: None,
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]

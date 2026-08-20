@@ -96,5 +96,9 @@ fn parse_native_value(raw: Value) -> Result<Vec<StreamEvent>> {
         }
     }
 
+    if raw.get("prompt_eval_count").is_some() || raw.get("eval_count").is_some() {
+        events.push(StreamEvent::UsageMeta { raw: raw.clone() });
+    }
+
     Ok(events)
 }

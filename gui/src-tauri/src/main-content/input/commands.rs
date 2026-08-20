@@ -9,7 +9,7 @@ use crate::shared::AppState;
 pub async fn get_available_models() -> Result<Vec<ModelOptionDto>, String> {
     let app_config = operon_rs::load().map_err(|e| e.to_string())?;
     let active_model_id = app_config.provider.model.model_id.clone();
-    let context_window = app_config.provider.model.context_window;
+    let mut context_window = app_config.provider.model.context_window;
     let selected_reasoning = app_config.provider.model.reasoning_effort.clone();
 
     let mut models = Vec::new();
@@ -27,6 +27,7 @@ pub async fn get_available_models() -> Result<Vec<ModelOptionDto>, String> {
             for discovered in result.models {
                 if discovered.model_id == active_model_id {
                     active_reasoning_levels = discovered.reasoning_levels.clone();
+                    context_window = discovered.context_window;
                 } else {
                     models.push(ModelOptionDto {
                         id: discovered.model_id.clone(),
@@ -57,12 +58,25 @@ pub async fn get_available_models() -> Result<Vec<ModelOptionDto>, String> {
     Ok(models)
 }
 
-/// Sets the active model ID and optional reasoning level in configuration and saves provider config.
+/// Sets the active model ID, optional reasoning level, and context window in configuration and saves provider config.
 #[tauri::command]
-pub async fn select_model(model_id: String, reasoning: Option<String>) -> Result<(), String> {
+pub async fn select_model(
+    model_id: String,
+    reasoning: Option<String>,
+    context_window: Option<usize>,
+) -> Result<(), String> {
     let mut app_config = operon_rs::load().map_err(|e| e.to_string())?;
-    app_config.provider.model.model_id = model_id;
-    app_config.provider.model.reasoning_effort = reasoning.filter(|r| !r.trim().is_empty() && r != "Disabled");
+    app_config.provider.model.model_id = model_id.clone();
+    app_config.provider.model.reasoning_effort =
+        reasoning.filter(|r| !r.trim().is_empty() && r != "Disabled");
+
+    if let Some(cw) = context_window {
+        app_config.provider.model.context_window = cw;
+    } else {
+        let cw = operon_rs::lookup_context_window(&model_id);
+        app_config.provider.model.context_window = cw;
+    }
+
     let _ = operon_rs::config::save_provider(&app_config.provider);
     Ok(())
 }
@@ -128,14 +142,21 @@ pub async fn pick_attachments_dialog() -> Result<Vec<PendingAttachmentDto>, Stri
 
 /// Formats real token usage from session database against configured model context window.
 #[tauri::command]
-pub async fn get_context_window_info(session_id: Option<String>) -> Result<ContextUsageDto, String> {
+pub async fn get_context_window_info(
+    state: State<'_, AppState>,
+    session_id: Option<String>,
+) -> Result<ContextUsageDto, String> {
     let app_config = operon_rs::load().ok();
     let tokens_total = app_config
         .as_ref()
         .map(|c| c.provider.model.context_window)
         .unwrap_or(0);
 
-    let tokens_used = if let Some(ref sid) = session_id {
+    let resolved_session_id = session_id.or_else(|| {
+        state.state_lock.lock().ok().and_then(|s| s.active_session_id.clone())
+    });
+
+    let tokens_used = if let Some(ref sid) = resolved_session_id {
         if let Ok(paths) = operon_rs::config::OperonPaths::resolve() {
             let db_path = paths.session_db(sid);
             if db_path.exists() {
@@ -161,10 +182,25 @@ pub async fn get_context_window_info(session_id: Option<String>) -> Result<Conte
     };
 
     let formatted = if tokens_total > 0 {
-        if tokens_used >= 1_000 {
-            format!("{:.1}k / {}k", tokens_used as f32 / 1000.0, tokens_total / 1000)
+        let total_str = if tokens_total >= 1_000_000 {
+            let m = tokens_total as f32 / 1_000_000.0;
+            if m.fract() == 0.0 {
+                format!("{:.0}M", m)
+            } else {
+                format!("{:.1}M", m)
+            }
+        } else if tokens_total >= 1_000 {
+            format!("{}k", tokens_total / 1_000)
         } else {
-            format!("{} / {}k", tokens_used, tokens_total / 1000)
+            format!("{}", tokens_total)
+        };
+
+        if tokens_used >= 1_000_000 {
+            format!("{:.1}M / {}", tokens_used as f32 / 1_000_000.0, total_str)
+        } else if tokens_used >= 1_000 {
+            format!("{:.1}k / {}", tokens_used as f32 / 1000.0, total_str)
+        } else {
+            format!("{} / {}", tokens_used, total_str)
         }
     } else if tokens_used > 0 {
         format!("{}", tokens_used)

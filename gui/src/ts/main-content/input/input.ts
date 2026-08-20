@@ -12,6 +12,7 @@ import {
   toggleAutoApproveIpc,
 } from './ipc.js';
 import { inputState } from './state.js';
+import type { ModelOption } from './types.js';
 import { stopVoiceRecording, toggleVoiceRecording } from './voice.js';
 
 let activePopover: HTMLElement | null = null;
@@ -70,14 +71,17 @@ export function dismissPopover(): void {
 }
 
 async function loadInitialInputData(): Promise<void> {
+  const activeSessionId = sidebarState.getActiveSessionId();
   const [models, context, generalSettings] = await Promise.all([
     getAvailableModelsIpc(),
-    getContextUsageIpc(),
+    getContextUsageIpc(activeSessionId || undefined),
     getGeneralSettingsIpc().catch(() => null),
   ]);
 
   inputState.setAvailableModels(models);
-  inputState.setContextUsage(context);
+  if (context) {
+    inputState.setContextUsage(context);
+  }
   if (generalSettings && typeof generalSettings.global_auto_approve_default === 'boolean') {
     inputState.setAutoApproveEnabled(generalSettings.global_auto_approve_default);
   }
@@ -244,9 +248,16 @@ function toggleModelPopover(trigger: HTMLElement): void {
       item.addEventListener('click', async (evt) => {
         evt.stopPropagation();
         dismissPopover();
-        await selectModelIpc(m.id);
+        await selectModelIpc(m.id, undefined, m.context_window);
         inputState.setSelectedModel(m.id);
         inputState.setSelectedReasoning('');
+        try {
+          const updatedContext = await getContextUsageIpc();
+          inputState.setContextUsage(updatedContext);
+        } catch (err) {
+          console.error('[Input] Failed to refresh context usage:', err);
+        }
+        renderInputState();
       });
     }
 
@@ -265,7 +276,7 @@ function toggleModelPopover(trigger: HTMLElement): void {
 
 function openReasoningSubDropdown(
   parentItem: HTMLElement,
-  model: { id: string; name: string; reasoning_levels: string[] },
+  model: ModelOption,
   currentModel: string,
   currentReasoning: string
 ): void {
@@ -297,9 +308,16 @@ function openReasoningSubDropdown(
     subItem.addEventListener('click', async (evt) => {
       evt.stopPropagation();
       dismissPopover();
-      await selectModelIpc(model.id, level);
+      await selectModelIpc(model.id, level, model.context_window);
       inputState.setSelectedModel(model.id);
       inputState.setSelectedReasoning(level);
+      try {
+        const updatedContext = await getContextUsageIpc();
+        inputState.setContextUsage(updatedContext);
+      } catch (err) {
+        console.error('[Input] Failed to refresh context usage:', err);
+      }
+      renderInputState();
     });
 
     list.appendChild(subItem);

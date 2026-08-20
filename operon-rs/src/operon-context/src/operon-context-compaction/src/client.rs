@@ -178,6 +178,167 @@ impl CompactionClient for AnthropicCompactionClient {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OpenAICompactionClient — real HTTP implementation (feature = "http-client")
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Concrete OpenAI-compatible HTTP client for context compaction summarization.
+///
+/// Supports OpenAI, NVIDIA NIM, OpenRouter, Groq, DeepSeek, Mistral, xAI, Ollama, and Cohere.
+#[cfg(feature = "http-client")]
+pub struct OpenAICompactionClient {
+    /// API key — passed in `Authorization: Bearer <key>` header (optional for local Ollama).
+    pub api_key: String,
+    /// Model identifier.
+    pub model_id: String,
+    /// API endpoint URL.
+    pub endpoint: String,
+    /// Shared HTTP client.
+    pub http: reqwest::Client,
+}
+
+#[cfg(feature = "http-client")]
+#[async_trait::async_trait]
+impl CompactionClient for OpenAICompactionClient {
+    async fn summarize(&self, prompt: String) -> Result<String, CompactionError> {
+        let body = serde_json::json!({
+            "model": self.model_id,
+            "messages": [
+                { "role": "user", "content": prompt }
+            ]
+        });
+
+        let mut req = self
+            .http
+            .post(&self.endpoint)
+            .header("content-type", "application/json");
+
+        if !self.api_key.is_empty() {
+            req = req.header("authorization", format!("Bearer {}", self.api_key));
+        }
+
+        let response = req
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| CompactionError::ClientError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "<unreadable body>".to_string());
+            return Err(CompactionError::ClientError(format!(
+                "OpenAI API returned HTTP {status}: {text}"
+            )));
+        }
+
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| CompactionError::ClientError(format!("Failed to parse JSON: {e}")))?;
+
+        let text = json
+            .get("choices")
+            .and_then(|c| c.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|choice| choice.get("message"))
+            .and_then(|msg| msg.get("content"))
+            .and_then(|t| t.as_str())
+            .ok_or_else(|| {
+                CompactionError::ClientError(
+                    "OpenAI response missing choices[0].message.content".to_string(),
+                )
+            })?
+            .to_string();
+
+        Ok(text)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GeminiCompactionClient — real HTTP implementation (feature = "http-client")
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Concrete Google Gemini HTTP client for context compaction summarization.
+#[cfg(feature = "http-client")]
+pub struct GeminiCompactionClient {
+    /// Google API key — passed in `x-goog-api-key` header.
+    pub api_key: String,
+    /// Model identifier.
+    pub model_id: String,
+    /// API endpoint URL.
+    pub endpoint: String,
+    /// Shared HTTP client.
+    pub http: reqwest::Client,
+}
+
+#[cfg(feature = "http-client")]
+#[async_trait::async_trait]
+impl CompactionClient for GeminiCompactionClient {
+    async fn summarize(&self, prompt: String) -> Result<String, CompactionError> {
+        let body = serde_json::json!({
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{ "text": prompt }]
+                }
+            ]
+        });
+
+        let mut req = self
+            .http
+            .post(&self.endpoint)
+            .header("content-type", "application/json");
+
+        if !self.api_key.is_empty() {
+            req = req.header("x-goog-api-key", &self.api_key);
+        }
+
+        let response = req
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| CompactionError::ClientError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "<unreadable body>".to_string());
+            return Err(CompactionError::ClientError(format!(
+                "Gemini API returned HTTP {status}: {text}"
+            )));
+        }
+
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| CompactionError::ClientError(format!("Failed to parse JSON: {e}")))?;
+
+        let text = json
+            .get("candidates")
+            .and_then(|c| c.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|cand| cand.get("content"))
+            .and_then(|content| content.get("parts"))
+            .and_then(|parts| parts.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|part| part.get("text"))
+            .and_then(|t| t.as_str())
+            .ok_or_else(|| {
+                CompactionError::ClientError(
+                    "Gemini response missing candidates[0].content.parts[0].text".to_string(),
+                )
+            })?
+            .to_string();
+
+        Ok(text)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 

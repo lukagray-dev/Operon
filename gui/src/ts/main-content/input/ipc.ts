@@ -8,8 +8,8 @@ export async function getAvailableModelsIpc(): Promise<ModelOption[]> {
   return res || [];
 }
 
-export async function selectModelIpc(modelId: string, reasoning?: string): Promise<void> {
-  await invokeIpc('select_model', { modelId, reasoning });
+export async function selectModelIpc(modelId: string, reasoning?: string, contextWindow?: number): Promise<void> {
+  await invokeIpc('select_model', { modelId, reasoning, contextWindow });
 }
 
 export async function toggleAutoApproveIpc(enabled: boolean): Promise<boolean> {

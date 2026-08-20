@@ -75,9 +75,12 @@ pub(super) fn build_assistant_message(result: &StreamResult) -> ConversationMess
 
 /// Extract a `UsageRecord` from a raw usage metadata JSON value.
 ///
-/// Handles both Anthropic and OpenAI usage shapes:
+/// Handles all major provider token usage shapes:
 ///   - Anthropic: `{ "input_tokens": N, "output_tokens": N, "cache_read_input_tokens": N, ... }`
-///   - OpenAI:    `{ "prompt_tokens": N, "completion_tokens": N }`
+///   - OpenAI / OpenRouter / Groq / DeepSeek / Mistral / xAI: `{ "prompt_tokens": N, "completion_tokens": N, ... }`
+///   - Gemini:    `{ "promptTokenCount": N, "candidatesTokenCount": N, "cachedContentTokenCount": N }`
+///   - Ollama:    `{ "prompt_eval_count": N, "eval_count": N }`
+///   - Cohere:    `{ "billed_units": { "input_tokens": N, "output_tokens": N } }`
 ///
 /// Returns `None` if the required fields are absent.
 pub(super) fn extract_usage_record(
@@ -85,23 +88,38 @@ pub(super) fn extract_usage_record(
     model_id: &str,
     provider_name: &str,
 ) -> Option<UsageRecord> {
+    // 1. Resolve input tokens across provider schema conventions
     let input = raw
         .get("input_tokens")
         .or_else(|| raw.get("prompt_tokens"))
+        .or_else(|| raw.get("promptTokenCount"))
+        .or_else(|| raw.get("prompt_eval_count"))
+        .or_else(|| raw.get("billed_units").and_then(|b| b.get("input_tokens")))
+        .or_else(|| raw.get("tokens").and_then(|t| t.get("input_tokens")))
         .and_then(|v| v.as_u64())? as usize;
 
+    // 2. Resolve output tokens across provider schema conventions
     let output = raw
         .get("output_tokens")
         .or_else(|| raw.get("completion_tokens"))
+        .or_else(|| raw.get("candidatesTokenCount"))
+        .or_else(|| raw.get("eval_count"))
+        .or_else(|| raw.get("billed_units").and_then(|b| b.get("output_tokens")))
+        .or_else(|| raw.get("tokens").and_then(|t| t.get("output_tokens")))
         .and_then(|v| v.as_u64())? as usize;
 
+    // 3. Resolve cached tokens if present
     let cache_read = raw
         .get("cache_read_input_tokens")
+        .or_else(|| raw.get("cachedContentTokenCount"))
+        .or_else(|| raw.get("prompt_cache_hit_tokens"))
+        .or_else(|| raw.get("prompt_tokens_details").and_then(|d| d.get("cached_tokens")))
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
 
     let cache_write = raw
         .get("cache_creation_input_tokens")
+        .or_else(|| raw.get("prompt_cache_miss_tokens"))
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
 

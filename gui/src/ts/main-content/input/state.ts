@@ -103,6 +103,24 @@ class InputStateManager {
       } else {
         this.selectedReasoning = '';
       }
+
+      if (active.context_window) {
+        const total = active.context_window;
+        const totalStr = total >= 1_000_000 ? `${total / 1_000_000}M` : `${Math.round(total / 1_000)}k`;
+        const used = this.contextUsage.tokens_used;
+        const usedStr =
+          used >= 1_000_000
+            ? `${(used / 1_000_000).toFixed(1)}M`
+            : used >= 1000
+            ? `${(used / 1000).toFixed(1)}k`
+            : `${used}`;
+        this.contextUsage = {
+          tokens_used: used,
+          tokens_total: total,
+          percentage: total > 0 ? (used / total) * 100 : 0,
+          formatted: `${usedStr} / ${totalStr}`,
+        };
+      }
     }
     this.notify();
   }
@@ -160,7 +178,10 @@ class InputStateManager {
     return this.contextUsage;
   }
 
-  public setContextUsage(usage: ContextUsage): void {
+  public setContextUsage(usage: ContextUsage, force = false): void {
+    if (!force && usage.tokens_used === 0 && this.contextUsage.tokens_used > 0 && usage.tokens_total === this.contextUsage.tokens_total) {
+      return;
+    }
     this.contextUsage = usage;
     this.notify();
   }

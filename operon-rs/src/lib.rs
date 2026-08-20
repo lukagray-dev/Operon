@@ -38,8 +38,9 @@ pub use policy::{
     PolicyConfig, PolicyDecision, PolicyError, PolicyResolver,
 };
 pub use providers::{
-    detect_model_reasoning_levels, discover_models, ApiCredentials, AuthHeader, DiscoveredModel,
-    DiscoveryResult, ModelConfig, Provider, ProviderCapabilities, ProviderConfig, SecretString,
+    detect_model_reasoning_levels, discover_models, lookup_context_window, lookup_max_tokens,
+    lookup_model_spec, ApiCredentials, AuthHeader, DiscoveredModel, DiscoveryResult, ModelConfig,
+    ModelSpec, Provider, ProviderCapabilities, ProviderConfig, SecretString,
 };
 pub use session::{LifecycleState, SessionConfig, SessionError, SessionRunner};
 pub use tools::dispatcher::{DispatchOutcome, Dispatcher};

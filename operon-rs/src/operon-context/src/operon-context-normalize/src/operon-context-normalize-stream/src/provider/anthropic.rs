@@ -30,12 +30,19 @@ pub fn parse_value(raw: Value) -> Result<Vec<StreamEvent>> {
 
     match event_type {
         "message_start" => {
+            let mut events = Vec::new();
             let model = raw
                 .get("message")
                 .and_then(|message| message.get("model"))
                 .and_then(Value::as_str)
                 .map(str::to_string);
-            Ok(vec![StreamEvent::StreamStart { model }])
+            events.push(StreamEvent::StreamStart { model });
+
+            if let Some(usage) = raw.get("message").and_then(|message| message.get("usage")) {
+                events.push(StreamEvent::UsageMeta { raw: usage.clone() });
+            }
+
+            Ok(events)
         }
 
         "content_block_start" => {
