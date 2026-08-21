@@ -7,6 +7,8 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-green?style=flat-square)](../LICENSE)
 
+![Operon Demo](assets/demo.gif)
+
 </div>
 
 ## **What is Operon?**
