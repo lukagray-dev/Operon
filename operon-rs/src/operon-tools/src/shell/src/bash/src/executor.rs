@@ -75,17 +75,22 @@ pub async fn execute(call_id: ToolCallId, args: BashArgs) -> ToolResult {
     // Use `sh -c` on Unix, `cmd /C` on Windows.
     // Pipe both stdout and stderr so we can capture and merge them.
     // `.current_dir(cwd_path)` sets the working directory for the subprocess.
-    let mut child = match Command::new(if cfg!(windows) { "cmd" } else { "sh" })
-        .args(if cfg!(windows) {
-            vec!["/C", &args.command]
-        } else {
-            vec!["-c", &args.command]
-        })
-        .current_dir(cwd_path)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
+    let mut cmd = Command::new(if cfg!(windows) { "cmd" } else { "sh" });
+    cmd.args(if cfg!(windows) {
+        vec!["/C", &args.command]
+    } else {
+        vec!["-c", &args.command]
+    })
+    .current_dir(cwd_path)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+
+    // On Windows, hide the console window so executing background commands
+    // does not cause a terminal window to flash or steal focus.
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    let mut child = match cmd.spawn() {
         Ok(c) => c,
         Err(e) => {
             return make_error(call_id, &format!("failed to spawn process: {}", e));

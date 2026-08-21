@@ -1,67 +1,23 @@
 name: Stable Release
 
-# Triggers manually via workflow_dispatch with required inputs
+# Triggers manually via workflow_dispatch
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Stable version tag (e.g., v1.0.0)'
-        required: true
-        type: string
-      release_title:
-        description: 'Release title (defaults to Operon GUI {version})'
+        description: 'Stable version tag (e.g., v0.0.1-stable). Leave empty to auto-increment from latest stable release.'
         required: false
         type: string
+        default: ''
+      release_title:
+        description: 'Release title (defaults to Operon {version})'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   test:
     name: Run Workspace Tests
-    runs-on: ubuntu-latest
-    steps:
-      # Checkout the repository with submodules recursively, as required for Operon dependencies
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      # Install the stable Rust toolchain via dtolnay/rust-toolchain@stable
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      # Cache the cargo registry and build target directory using Swatinem/rust-cache@v2.
-      # To prevent cross-OS cache poisoning, we explicitly suffix the cache key with
-      # runner.os and the hash of Cargo.lock.
-      - name: Cache cargo registry + target dir
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-
-      # Install the system dependencies required to build/test Slint on Linux.
-      - name: Install system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev
-
-      # Run workspace tests excluding GUI and TUI frontend crates.
-      - name: Run cargo test
-        id: test
-        continue-on-error: true
-        run: cargo test --workspace --exclude operon-tui --exclude operon-gui
-
-      # If the tests fail, upload target/debug logs for debugging.
-      - name: Upload target/debug logs on failure
-        if: steps.test.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-logs-${{ runner.os }}
-          path: |
-            target/debug/*.log
-            target/debug/**/*.log
-          if-no-files-found: ignore
-
-  build:
-    name: Build Windows GUI Installer
-    needs: test
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -69,48 +25,171 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build GUI Frontend
+        shell: powershell
+        run: |
+          cd gui
+          npm install
+          npm run build
+          cd ..
+
+      - name: Cache cargo registry + target dir
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run cargo test
+        shell: powershell
+        run: cargo test --workspace
+
+  build:
+    name: Build Windows GUI & TUI Binaries
+    needs: test
+    runs-on: windows-latest
+    outputs:
+      release_tag: ${{ steps.bump.outputs.RELEASE_TAG }}
+      release_title: ${{ steps.bump.outputs.RELEASE_TITLE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Query GitHub API to determine next stable tag matching pattern v0.*.*-stable.
+      # If manual version input was provided, use that; otherwise auto-increment.
+      - name: Determine stable version tag
+        id: bump
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const manualVersion = '${{ inputs.version }}'.trim();
+            const manualTitle = '${{ inputs.release_title }}'.trim();
+
+            let targetTag = manualVersion;
+
+            if (!targetTag) {
+              // Fetch up to 100 recent tags from GitHub API
+              const { data: tags } = await github.rest.repos.listTags({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+
+              // Filter for stable tags matching pattern v0.*.*-stable
+              const stableRegex = /^v0\.\d+\.\d+-stable$/;
+              const stableTags = tags
+                .map(t => t.name)
+                .filter(name => stableRegex.test(name));
+
+              const parseStableVersion = (v) => {
+                const match = v.match(/^v0\.(\d+)\.(\d+)-stable$/);
+                if (!match) return [0, 0];
+                return [parseInt(match[1], 10), parseInt(match[2], 10)];
+              };
+
+              // Sort tags descending
+              stableTags.sort((a, b) => {
+                const [minorA, patchA] = parseStableVersion(a);
+                const [minorB, patchB] = parseStableVersion(b);
+                if (minorA !== minorB) return minorB - minorA;
+                return patchB - patchA;
+              });
+
+              // If no previous stable tags exist, start with v0.0.1-stable.
+              // Otherwise increment the patch number.
+              if (stableTags.length === 0) {
+                targetTag = 'v0.0.1-stable';
+              } else {
+                const [minor, patch] = parseStableVersion(stableTags[0]);
+                targetTag = `v0.${minor}.${patch + 1}-stable`;
+              }
+              console.log(`Latest stable tag found: ${stableTags[0] || 'none'}`);
+            }
+
+            const title = manualTitle || `Operon ${targetTag}`;
+
+            console.log(`Resolved stable tag: ${targetTag}`);
+            console.log(`Resolved release title: ${title}`);
+
+            core.setOutput('RELEASE_TAG', targetTag);
+            core.setOutput('RELEASE_TITLE', title);
+            core.exportVariable('RELEASE_TAG', targetTag);
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build GUI Frontend
+        shell: powershell
+        run: |
+          cd gui
+          npm install
+          npm run build
+          cd ..
+
       # Install stable Rust with MSVC target on Windows
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      # Cache cargo registry and target directory. Include shared-key "windows-release"
-      # and ensure we prevent cross-OS cache poisoning by adding runner.os and lock hash.
+      # Cache cargo registry and target directory.
       - name: Cache cargo registry + target dir
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: windows-release
           key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      # Build the production release binary using cargo for the Slint GUI.
-      - name: Build Slint App
-        run: cargo build --release -p operon-gui
+      # Build the production release binaries for both GUI and TUI
+      - name: Build Operon GUI & TUI
+        run: |
+          cargo build --release -p operon-gui
+          cargo build --release -p operon-tui
 
-      # Locate the built installer (NSIS .exe preferred, MSI as fallback),
-      # and rename it to the formatted release name: operon-gui-{version}.exe.
-      # We also save the resulting artifact path to GITHUB_ENV.
-      - name: Locate and Rename Installer Artifact
+      # Copy and rename standalone binaries to operon-gui-{TAG}.exe and operon-tui-{TAG}.exe
+      - name: Locate and Package Release Binaries
         shell: powershell
         run: |
-          $version = "${{ inputs.version }}"
-          $bin = "target/release/operon-gui.exe"
-          if (Test-Path $bin) {
-              $dest = "operon-gui-$version.exe"
-              Copy-Item $bin $dest
-              echo "ARTIFACT_PATH=$dest" >> $env:GITHUB_ENV
-              echo "Renamed standalone binary to $dest"
+          $tag = "${{ steps.bump.outputs.RELEASE_TAG }}"
+          mkdir -p artifacts
+
+          $gui_bin = "target/release/operon-gui.exe"
+          if (Test-Path $gui_bin) {
+              $gui_dest = "artifacts/operon-gui-$tag.exe"
+              Copy-Item $gui_bin $gui_dest
+              Write-Host "Packaged GUI binary to $gui_dest"
           } else {
-              Write-Error "Standalone binary not found at $bin!"
+              Write-Error "GUI binary not found at $gui_bin!"
               exit 1
           }
 
-      # Upload the renamed installer so it is accessible to the release job.
-      - name: Upload Installer Artifact
+          $tui_bin = "target/release/operon-tui.exe"
+          if (Test-Path $tui_bin) {
+              $tui_dest = "artifacts/operon-tui-$tag.exe"
+              Copy-Item $tui_bin $tui_dest
+              Write-Host "Packaged TUI binary to $tui_dest"
+          } else {
+              Write-Error "TUI binary not found at $tui_bin!"
+              exit 1
+          }
+
+      # Upload the packaged binaries for the release job
+      - name: Upload Binaries Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: operon-gui-installer
-          path: ${{ env.ARTIFACT_PATH }}
+          name: operon-stable-binaries
+          path: artifacts/*
           if-no-files-found: error
 
   release:
@@ -123,38 +202,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Download the installer compiled in the build job
+      # Download the binaries compiled in the build job
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
-          name: operon-gui-installer
+          name: operon-stable-binaries
           path: dist
 
-      # Delete any existing GitHub release and tag associated with this version.
-      # This cleans up duplicate drafts and prevents the GitHub API from throwing "already_exists".
+      # Delete any existing GitHub release and tag associated with this version if needed
       - name: Delete existing GitHub release and tag
         run: |
-          gh release delete ${{ inputs.version }} --yes --cleanup-tag || true
+          gh release delete ${{ needs.build.outputs.release_tag }} --yes --cleanup-tag || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Explicitly tag the current HEAD with the manually provided version and push to remote.
+      # Explicitly tag the current HEAD with the calculated stable version and push to remote
       - name: Create Git Tag
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git tag ${{ inputs.version }}
-          git push origin ${{ inputs.version }}
+          git tag ${{ needs.build.outputs.release_tag }}
+          git push origin ${{ needs.build.outputs.release_tag }}
 
-      # Create stable release and upload renamed installer file.
+      # Create stable release and upload both GUI and TUI binaries
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version }}
-          name: ${{ inputs.release_title || format('Operon GUI {0}', inputs.version) }}
+          tag_name: ${{ needs.build.outputs.release_tag }}
+          name: ${{ needs.build.outputs.release_title }}
           prerelease: false
           make_latest: true
           generate_release_notes: true
-          files: dist/operon-gui-${{ inputs.version }}.*
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -32,8 +32,11 @@ pub fn set_autostart(enabled: bool, start_minimized: bool) -> Result<(), String>
             };
 
             // Use Windows built-in reg.exe to add/update the startup registry value
-            let output = Command::new("reg")
-                .args(["add", REG_KEY, "/v", REG_VALUE_NAME, "/t", "REG_SZ", "/d", &cmd_val, "/f"])
+            use std::os::windows::process::CommandExt;
+            let mut cmd = Command::new("reg");
+            cmd.args(["add", REG_KEY, "/v", REG_VALUE_NAME, "/t", "REG_SZ", "/d", &cmd_val, "/f"]);
+            cmd.creation_flags(0x08000000);
+            let output = cmd
                 .output()
                 .map_err(|e| format!("Failed to execute reg.exe: {}", e))?;
 
@@ -44,8 +47,11 @@ pub fn set_autostart(enabled: bool, start_minimized: bool) -> Result<(), String>
             tracing::info!("Registered autostart: {}", cmd_val);
         } else {
             // Remove registry key if it exists
-            let output = Command::new("reg")
-                .args(["delete", REG_KEY, "/v", REG_VALUE_NAME, "/f"])
+            use std::os::windows::process::CommandExt;
+            let mut cmd = Command::new("reg");
+            cmd.args(["delete", REG_KEY, "/v", REG_VALUE_NAME, "/f"]);
+            cmd.creation_flags(0x08000000);
+            let output = cmd
                 .output()
                 .map_err(|e| format!("Failed to execute reg.exe: {}", e))?;
 
@@ -66,10 +72,11 @@ pub fn set_autostart(enabled: bool, start_minimized: bool) -> Result<(), String>
 pub fn is_autostart_registered() -> bool {
     #[cfg(target_os = "windows")]
     {
-        if let Ok(output) = Command::new("reg")
-            .args(["query", REG_KEY, "/v", REG_VALUE_NAME])
-            .output()
-        {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = Command::new("reg");
+        cmd.args(["query", REG_KEY, "/v", REG_VALUE_NAME]);
+        cmd.creation_flags(0x08000000);
+        if let Ok(output) = cmd.output() {
             output.status.success()
         } else {
             false

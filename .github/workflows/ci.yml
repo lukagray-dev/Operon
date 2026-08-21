@@ -1,6 +1,6 @@
 name: CI
 
-# Triggers on push to dev and on any Pull Request targeting main
+# Triggers on push to dev branch and on any Pull Request targeting main
 on:
   push:
     branches:
@@ -11,48 +11,37 @@ on:
 
 jobs:
   test:
-    name: Run Workspace Tests
-    runs-on: ubuntu-latest
+    name: Run Workspace Tests (Windows)
+    runs-on: windows-latest
     steps:
-      # Checkout the repository with submodules recursively, as required for Operon dependencies
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # Install the stable Rust toolchain via dtolnay/rust-toolchain@stable
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
-      # Cache the cargo registry and build target directory using Swatinem/rust-cache@v2.
-      # To prevent cross-OS cache poisoning, we explicitly suffix the cache key with
-      # runner.os and the hash of Cargo.lock.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build GUI Frontend
+        shell: powershell
+        run: |
+          cd gui
+          npm install
+          npm run build
+          cd ..
+
       - name: Cache cargo registry + target dir
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      # Install the system dependencies required to build/test Slint on Linux.
-      - name: Install system dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev
-
-      # Run workspace tests excluding the GUI and TUI frontend crates, as they require
-      # active display servers/interfaces which are not available on a headless runner.
       - name: Run cargo test
-        id: test
-        continue-on-error: true
-        run: cargo test --workspace --exclude operon-tui --exclude operon-gui
-
-      # If the tests fail, search and collect logs under the target/debug directory
-      # and upload them for debugging purposes.
-      - name: Upload target/debug logs on failure
-        if: steps.test.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-logs-${{ runner.os }}
-          path: |
-            target/debug/*.log
-            target/debug/**/*.log
-          if-no-files-found: ignore
+        shell: powershell
+        run: cargo test --workspace
