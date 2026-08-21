@@ -63,21 +63,22 @@ pub fn definition() -> TieredToolDefinition {
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute or relative path to the directory to list. Defaults to '.' (current directory)."
+                "description": "Absolute path to the directory to list."
             },
             "ignore": {
                 "type": "array",
                 "items": { "type": "string" },
                 "description": "Glob patterns matched against entry names to exclude (e.g. [\"*.lock\", \"node_modules\"])."
             }
-        }
+        },
+        "required": ["path"]
     });
 
     TieredToolDefinition {
         short: ToolDefinition {
             name: "ls".to_string(),
             description: "Lists files and directories at a given path (single level). \
-                          Pass `path` (directory path, defaults to '.'). \
+                          Pass `path` (absolute directory path). \
                           Use `ignore` to exclude entries by glob. Returns plain text list."
                 .to_string(),
             parameters: parameters.clone(),
@@ -85,20 +86,20 @@ pub fn definition() -> TieredToolDefinition {
         detailed: ToolDefinition {
             name: "ls".to_string(),
             description: "\
-Lists files and directories at a given path (single level, non-recursive). Returns plain text.
+Lists files and directories at a given absolute directory path (single level, non-recursive). Returns plain text.
 
 ## Input shapes
 
 1. Basic listing:
-   `{\"path\": \"src\"}` or `{}` (defaults to current directory '.')
+   `{\"path\": \"/absolute/path/to/dir\"}`
 
 2. With ignore glob filters:
-   `{\"path\": \"src\", \"ignore\": [\"*.lock\", \"node_modules\", \".git\"]}`
+   `{\"path\": \"/absolute/path/to/dir\", \"ignore\": [\"*.lock\", \"node_modules\", \".git\"]}`
 
 ## Response format
 
 Returns plain text list:
-=== src (3 items) ===
+=== /absolute/path/to/dir (3 items) ===
 [DIR]  subfolder/
 [FILE] main.rs (1.2 KB)
 [FILE] lib.rs (450 B)"

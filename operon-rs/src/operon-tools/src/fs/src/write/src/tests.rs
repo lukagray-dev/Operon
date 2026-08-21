@@ -264,22 +264,25 @@ async fn test_message_create_vs_overwrite() {
 // ============================================================================
 
 #[tokio::test]
-async fn test_nonexistent_parent() {
-    // Try to write to a path whose parent directory doesn't exist.
+async fn test_nonexistent_parent_auto_created() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let deep_path = temp_dir.path().join("new_dir_level").join("file.txt");
+    let path_str = deep_path.to_string_lossy().to_string();
+
     let result = execute(
         ToolCallId("test_call".to_string()),
         json!({
-            "path": "/tmp/does_not_exist_xyz_operon_test/file.txt",
+            "path": path_str,
             "content": "content"
         }),
     )
     .await
     .unwrap();
 
-    // Verify error.
-    assert!(result.is_error);
-    let error = get_error_text(&result);
-    assert!(error.contains("parent directory does not exist"));
+    assert!(!result.is_error);
+    assert!(deep_path.exists());
+    let content = fs::read_to_string(&deep_path).unwrap();
+    assert_eq!(content, "content");
 }
 
 #[tokio::test]
@@ -290,17 +293,18 @@ async fn test_nonexistent_parent_preserves_file() {
     let original_content = "original";
     fs::write(&path, original_content).unwrap();
 
-    // Try to write to a nonexistent parent (this should fail).
-    let _ = execute(
+    // Try to write with relative path (this should fail).
+    let result = execute(
         ToolCallId("test_call".to_string()),
         json!({
-            "path": "/tmp/does_not_exist_xyz_operon_test/file.txt",
+            "path": "relative/file.txt",
             "content": "new content"
         }),
     )
     .await
     .unwrap();
 
+    assert!(result.is_error);
     // Verify the original file is unchanged.
     let content = fs::read_to_string(&path).unwrap();
     assert_eq!(content, original_content);
@@ -589,4 +593,49 @@ async fn test_write_field_aliases() {
     assert!(!result.is_error);
     let file_content = fs::read_to_string(&file_path).unwrap();
     assert_eq!(file_content, "alias content");
+}
+
+#[tokio::test]
+async fn test_write_relative_path_rejected() {
+    let result = execute(
+        ToolCallId("rel_call".to_string()),
+        json!({
+            "path": "relative/path/test.txt",
+            "content": "some content"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(result.is_error);
+    let error_text = get_error_text(&result);
+    assert!(error_text.contains("Path must be an absolute path"));
+}
+
+#[tokio::test]
+async fn test_write_auto_creates_parent_directories() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let deep_file = temp_dir
+        .path()
+        .join("nested")
+        .join("subfolder")
+        .join("deep_file.txt");
+    let path = deep_file.to_string_lossy().to_string();
+
+    assert!(!deep_file.parent().unwrap().exists());
+
+    let result = execute(
+        ToolCallId("auto_mkdir_call".to_string()),
+        json!({
+            "path": path,
+            "content": "created inside nested folder"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.is_error);
+    assert!(deep_file.exists());
+    let content = fs::read_to_string(&deep_file).unwrap();
+    assert_eq!(content, "created inside nested folder");
 }

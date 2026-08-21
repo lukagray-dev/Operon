@@ -1,7 +1,7 @@
 /// Basic usage example for the read tool.
 ///
 /// This example demonstrates how to use the read tool to read files with
-/// various configurations: full-file reads, line ranges, and error handling.
+/// various configurations: full-file reads, line ranges, batch multi-file reads, and error handling.
 use operon_context_normalize_tools::ToolCallId;
 use operon_tools_fs_read::{definition, execute};
 use serde_json::json;
@@ -35,7 +35,7 @@ async fn main() {
     // Example 2: Read entire file
     println!("2. Reading entire file:");
     let args = json!({
-        "paths": [test_file.to_str().unwrap()]
+        "path": test_file.to_str().unwrap()
     });
     let result = execute(ToolCallId("call_1".to_string()), args)
         .await
@@ -45,12 +45,9 @@ async fn main() {
 
     // Example 3: Read with line range
     println!("3. Reading lines 2-4:");
+    let target_range = format!("{}:2-4", test_file.to_str().unwrap());
     let args = json!({
-        "paths": [{
-            "path": test_file.to_str().unwrap(),
-            "start_line": 2,
-            "end_line": 4
-        }]
+        "path": target_range
     });
     let result = execute(ToolCallId("call_2".to_string()), args)
         .await
@@ -78,7 +75,7 @@ async fn main() {
     // Example 5: Error handling (nonexistent file)
     println!("5. Handling nonexistent file:");
     let args = json!({
-        "paths": ["/nonexistent/file.txt"]
+        "paths": ["C:\\nonexistent\\file.txt"]
     });
     let result = execute(ToolCallId("call_4".to_string()), args)
         .await

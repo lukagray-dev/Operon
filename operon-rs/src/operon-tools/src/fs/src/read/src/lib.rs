@@ -59,17 +59,17 @@ pub fn definition() -> TieredToolDefinition {
     let parameters = json!({
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path string to read a single file, with optional inline range suffix (e.g. 'D:\\src\\main.rs:10-40', 'D:\\src\\main.rs:5-EOF', 'D:\\src\\main.rs:15', or 'D:\\src\\main.rs')."
-            },
             "paths": {
                 "type": "array",
-                "description": "Array of path strings to read in batch, each with optional inline range suffix (e.g. ['D:\\a.rs:10-40', 'D:\\b.rs:5-EOF', 'D:\\c.rs']).",
+                "description": "PREFERRED: Array of absolute file path strings to read in batch in a single call. Each path can include an optional inline range suffix (e.g. ['/path/to/a.rs:10-40', '/path/to/b.rs:5-EOF', '/path/to/c.rs']). Always prefer passing all files you need to inspect into 'paths' in a single call rather than issuing multiple separate read tool calls.",
                 "items": {
                     "type": "string",
-                    "description": "Path string with optional inline range suffix like 'D:\\src\\main.rs:10-40', 'D:\\src\\main.rs:5-EOF', or 'D:\\src\\main.rs'."
+                    "description": "Absolute file path string with optional inline range suffix like '/path/to/main.rs:10-40', '/path/to/main.rs:5-EOF', or '/path/to/main.rs'."
                 }
+            },
+            "path": {
+                "type": "string",
+                "description": "Absolute file path string when reading only a single file, with optional inline range suffix (e.g. '/path/to/main.rs:10-40', '/path/to/main.rs:5-EOF', '/path/to/main.rs:15', or '/path/to/main.rs'). For reading multiple files, always use 'paths' instead."
             }
         }
     });
@@ -77,9 +77,9 @@ pub fn definition() -> TieredToolDefinition {
     TieredToolDefinition {
         short: ToolDefinition {
             name: "read".to_string(),
-            description: "Reads one or multiple files (max 1 MB per file). \
-                          Use `path` (or `paths`) with inline ranges like `\"src/main.rs:10-40\"` or `\"src/main.rs:5-EOF\"`. \
-                          Returns raw file contents as plain text."
+            description: "Reads one or multiple files in a single call (max 1 MB per file). \
+                          Always prefer batching multiple files into `paths` (e.g. `paths: [\"/path/a.rs:10-40\", \"/path/b.rs\"]`) in ONE tool call instead of calling `read` multiple times sequentially. \
+                          Supports inline line ranges like `:10-40` or `:5-EOF`. Returns raw plain text with per-file headers."
                 .to_string(),
             parameters: parameters.clone(),
         },
@@ -88,21 +88,23 @@ pub fn definition() -> TieredToolDefinition {
             description: "\
 Reads one or multiple files in a single call. Returns raw plain text with section headers.
 
+IMPORTANT: When you need to read or inspect multiple files, ALWAYS batch them together in a single call using the `paths` array instead of making separate sequential read calls. This is significantly faster and saves context tokens.
+
 ## Input shapes
 
-1. Single file path string with optional range:
-   `{\"path\": \"src/main.rs:10-40\"}`   ← lines 10 to 40
-   `{\"path\": \"src/main.rs:5-EOF\"}`   ← line 5 to end of file
-   `{\"path\": \"src/main.rs:15\"}`      ← line 15 only
-   `{\"path\": \"src/main.rs\"}`         ← full file read
+1. Batch multi-file read (PREFERRED when reading multiple files):
+   `{\"paths\": [\"/path/to/a.rs:10-40\", \"/path/to/b.rs:5-EOF\", \"/path/to/c.rs\"]}`
 
-2. Array of path strings with optional ranges:
-   `{\"paths\": [\"src/a.rs:10-40\", \"src/b.rs:5-EOF\", \"src/c.rs\"]}`
+2. Single file read (use only when strictly inspecting one file):
+   `{\"path\": \"/path/to/main.rs:10-40\"}`   ← lines 10 to 40
+   `{\"path\": \"/path/to/main.rs:5-EOF\"}`   ← line 5 to end of file
+   `{\"path\": \"/path/to/main.rs:15\"}`      ← line 15 only
+   `{\"path\": \"/path/to/main.rs\"}`         ← full file read
 
 ## Response format
 
 Returns plain text with headers for each file:
-=== src/main.rs (lines 10-40 of 200) ===
+=== /path/to/main.rs (lines 10-40 of 200) ===
 <raw content without line number prefixes>"
                 .to_string(),
             parameters,

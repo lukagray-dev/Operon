@@ -64,6 +64,22 @@ pub async fn execute(call_id: ToolCallId, args: LsArgs) -> ToolResult {
 /// An `LsOutput` with either success + entries or failure + error message.
 async fn list_directory(args: &LsArgs) -> LsOutput {
     let path_str = args.path.clone();
+    let path = std::path::Path::new(&path_str);
+
+    // Hey friend! Operon requires all filesystem tools to receive absolute paths.
+    // This keeps the tool layer purely stateless and deterministic without relying
+    // on process-wide current working directory (CWD) state.
+    if !path.is_absolute() {
+        return LsOutput {
+            path: path_str,
+            entry_count: 0,
+            truncated: false,
+            entries: vec![],
+            error: Some(
+                "Path must be an absolute path. Relative paths are not supported.".to_string(),
+            ),
+        };
+    }
 
     // Build the glob exclusion set from the ignore patterns.
     let globset = match build_globset(&args.ignore) {

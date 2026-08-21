@@ -31,6 +31,22 @@ use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 /// # Returns
 /// A `ToolResult` containing structured `EditOutput` JSON.
 pub async fn execute(call_id: ToolCallId, args: EditArgs) -> ToolResult {
+    let path = std::path::Path::new(&args.path);
+
+    // Hey friend! Operon requires all filesystem tools to receive absolute paths.
+    // This keeps the tool layer purely stateless and deterministic without relying
+    // on process-wide current working directory (CWD) state.
+    if !path.is_absolute() {
+        return ToolResult {
+            call_id,
+            name: "edit".to_string(),
+            content: ToolContent::Text(
+                "Path must be an absolute path. Relative paths are not supported.".to_string(),
+            ),
+            is_error: true,
+        };
+    }
+
     // Step 1: Pre-validate input structure (fast-fail before touching disk).
     // An empty edits array is an invalid tool call.
     if args.edits.is_empty() {

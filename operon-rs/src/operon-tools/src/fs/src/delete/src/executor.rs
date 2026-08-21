@@ -23,11 +23,25 @@ use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 /// # Returns
 /// A `ToolResult` with either success (JSON DeleteOutput) or failure (Text error message).
 pub async fn execute(call_id: ToolCallId, args: DeleteArgs) -> ToolResult {
+    let path = std::path::Path::new(&args.path);
+
+    // Hey friend! Operon requires all filesystem tools to receive absolute paths.
+    // This keeps the tool layer purely stateless and deterministic without relying
+    // on process-wide current working directory (CWD) state.
+    if !path.is_absolute() {
+        return ToolResult {
+            call_id,
+            name: "delete".to_string(),
+            content: ToolContent::Text(
+                "Path must be an absolute path. Relative paths are not supported.".to_string(),
+            ),
+            is_error: true,
+        };
+    }
+
     // Step 1: Resolve path and determine kind (file or dir).
     // We need to verify the path exists and determine whether it's a file or directory
     // before attempting deletion.
-    let path = std::path::Path::new(&args.path);
-
     let meta = match tokio::fs::metadata(path).await {
         Ok(m) => m,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

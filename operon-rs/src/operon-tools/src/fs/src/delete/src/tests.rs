@@ -293,11 +293,12 @@ async fn test_message_format_permanent() {
 
 #[tokio::test]
 async fn test_path_not_found() {
-    // Try to delete a path that doesn't exist.
+    let temp_dir = tempfile::tempdir().unwrap();
+    let nonexistent = temp_dir.path().join("does_not_exist_file.txt");
     let result = execute(
         ToolCallId("test_call".to_string()),
         json!({
-            "path": "/tmp/does_not_exist_xyz_operon_test/file.txt",
+            "path": nonexistent.to_str().unwrap(),
             "permanent": false
         }),
     )
@@ -312,11 +313,12 @@ async fn test_path_not_found() {
 
 #[tokio::test]
 async fn test_nonexistent_nested_path() {
-    // Try to delete a nested path that doesn't exist.
+    let temp_dir = tempfile::tempdir().unwrap();
+    let nonexistent_nested = temp_dir.path().join("subdir").join("file.txt");
     let result = execute(
         ToolCallId("test_call".to_string()),
         json!({
-            "path": "/tmp/does_not_exist_xyz_operon/subdir/file.txt",
+            "path": nonexistent_nested.to_str().unwrap(),
             "permanent": false
         }),
     )
@@ -543,4 +545,23 @@ async fn test_delete_field_aliases() {
     let output = get_output(&result);
     assert!(output.permanent);
     assert!(!std::path::Path::new(&path).exists());
+}
+
+#[tokio::test]
+async fn test_delete_relative_path_rejected() {
+    let result = execute(
+        ToolCallId("rel_call".to_string()),
+        json!({
+            "path": "relative/path/test.txt"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(result.is_error);
+    let error_text = match &result.content {
+        ToolContent::Text(t) => t.clone(),
+        other => panic!("expected Text content for error, got {:?}", other),
+    };
+    assert!(error_text.contains("Path must be an absolute path"));
 }

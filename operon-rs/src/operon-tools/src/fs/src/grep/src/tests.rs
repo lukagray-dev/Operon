@@ -237,5 +237,21 @@ mod tests {
         assert!(text.contains("magic_token"));
         assert!(text.contains("1 match(es)"));
     }
+
+    #[tokio::test]
+    async fn test_grep_relative_path_rejected() {
+        let args = json!({
+            "pattern": "some_pattern",
+            "paths": ["relative/path/src"]
+        });
+
+        let result = execute(ToolCallId("rel_call".to_string()), args)
+            .await
+            .expect("execute failed");
+
+        assert!(result.is_error);
+        let text = extract_text(result);
+        assert!(text.contains("Path must be an absolute path"));
+    }
 }
 

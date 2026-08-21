@@ -24,6 +24,22 @@ use tokio::io::AsyncWriteExt;
 /// # Returns
 /// A `ToolResult` with either success (JSON AppendOutput) or failure (Text error message).
 pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
+    let path = std::path::Path::new(&args.path);
+
+    // Hey friend! Operon requires all filesystem tools to receive absolute paths.
+    // This keeps the tool layer purely stateless and deterministic without relying
+    // on process-wide current working directory (CWD) state.
+    if !path.is_absolute() {
+        return ToolResult {
+            call_id,
+            name: "append".to_string(),
+            content: ToolContent::Text(
+                "Path must be an absolute path. Relative paths are not supported.".to_string(),
+            ),
+            is_error: true,
+        };
+    }
+
     // Step 1: Reject empty content (fast fail).
     // Appending empty content is a no-op and indicates a mistake by the model.
     if args.content.is_empty() {
@@ -38,7 +54,6 @@ pub async fn execute(call_id: ToolCallId, args: AppendArgs) -> ToolResult {
     // Step 2: Check file exists and is not a directory.
     // We need to verify the file exists before attempting to append, and ensure
     // it's a regular file (or symlink), not a directory.
-    let path = std::path::Path::new(&args.path);
 
     match tokio::fs::metadata(path).await {
         Ok(meta) => {

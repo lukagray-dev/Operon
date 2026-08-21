@@ -223,25 +223,41 @@ fn gemini_parse_text_tool_call_complete_stop_reason_and_usage() {
     .to_string();
 
     let events = parse_line(&line, &Provider::Gemini).unwrap();
+    assert_eq!(events.len(), 4);
     assert_eq!(
-        events,
-        vec![
-            StreamEvent::TextDelta {
-                text: "hello".to_string(),
-            },
-            StreamEvent::ToolCallComplete {
-                index: 1,
-                id: None,
-                name: "search".to_string(),
-                arguments: json!({"q":"rust"}),
-            },
-            StreamEvent::StopReason {
-                raw: "STOP".to_string(),
-            },
-            StreamEvent::UsageMeta {
-                raw: json!({"promptTokenCount":10}),
-            },
-        ]
+        events[0],
+        StreamEvent::TextDelta {
+            text: "hello".to_string(),
+        }
+    );
+    match &events[1] {
+        StreamEvent::ToolCallComplete {
+            index,
+            id,
+            name,
+            arguments,
+        } => {
+            assert_eq!(*index, 1);
+            assert!(id
+                .as_ref()
+                .map(|s| s.starts_with("gemini-call-"))
+                .unwrap_or(false));
+            assert_eq!(name, "search");
+            assert_eq!(arguments, &json!({"q": "rust"}));
+        }
+        other => panic!("expected ToolCallComplete, got {:?}", other),
+    }
+    assert_eq!(
+        events[2],
+        StreamEvent::StopReason {
+            raw: "STOP".to_string(),
+        }
+    );
+    assert_eq!(
+        events[3],
+        StreamEvent::UsageMeta {
+            raw: json!({"promptTokenCount": 10}),
+        }
     );
 }
 
@@ -259,7 +275,7 @@ fn gemini_tool_call_complete_emits_immediate_assembler_tool_call() {
 
     match output {
         AssemblerOutput::ToolCall(call) => {
-            assert_eq!(call.id.0, "stream-call-2");
+            assert_eq!(call.id.0, "call-0");
             assert_eq!(call.name, "lookup");
             assert_eq!(call.arguments, json!({"city":"Paris"}));
         }

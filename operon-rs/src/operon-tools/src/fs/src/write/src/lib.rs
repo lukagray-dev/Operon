@@ -62,7 +62,7 @@ pub fn definition() -> TieredToolDefinition {
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to the file to create or overwrite. Parent directory must exist."
+                "description": "Absolute path to the file to create or overwrite. Parent directories are automatically created if they do not exist."
             },
             "content": {
                 "type": "string",
@@ -76,8 +76,9 @@ pub fn definition() -> TieredToolDefinition {
         short: ToolDefinition {
             name: "write".to_string(),
             description: "Creates a new file or fully overwrites an existing file with the provided content. \
+                          Automatically creates parent directories if they do not exist. \
                           Pass `path` (absolute path) and `content` (full text with normal \\n line breaks). \
-                          Parent directory must exist. Returns a plain-text confirmation header."
+                          Returns a plain-text confirmation header."
                 .to_string(),
             parameters: parameters.clone(),
         },
@@ -85,10 +86,11 @@ pub fn definition() -> TieredToolDefinition {
             name: "write".to_string(),
             description: "\
 Creates a new file or fully overwrites an existing file with complete content.
+Parent directories are automatically created if they do not exist.
 
 ## Parameters
 
-- `path` (required): Absolute path to target file. Parent directory must exist.
+- `path` (required): Absolute path to target file.
 - `content` (required): Complete text content. Provide standard text with normal \\n line breaks.
 
 ## Output format

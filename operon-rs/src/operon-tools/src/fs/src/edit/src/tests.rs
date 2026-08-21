@@ -393,10 +393,12 @@ async fn test_identical_strings() {
 
 #[tokio::test]
 async fn test_nonexistent_file() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let path = temp_dir.path().join("does_not_exist.txt");
     let result = execute(
         ToolCallId("test_call".to_string()),
         json!({
-            "path": "/nonexistent/path/to/file.txt",
+            "path": path.to_str().unwrap(),
             "edits": [
                 {
                     "old_string": "old",
@@ -808,4 +810,26 @@ async fn test_edits_array_takes_precedence_over_root_fields() {
     let content = fs::read_to_string(&path).unwrap();
     // Verify `edits` applied and root field was not applied
     assert_eq!(content, "ONE two THREE\n");
+}
+
+#[tokio::test]
+async fn test_edit_relative_path_rejected() {
+    let result = execute(
+        ToolCallId("rel_call".to_string()),
+        json!({
+            "path": "relative/file.rs",
+            "edits": [
+                {
+                    "old_string": "foo",
+                    "new_string": "bar"
+                }
+            ]
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(result.is_error);
+    let error_text = get_text_content(&result);
+    assert!(error_text.contains("Path must be an absolute path"));
 }

@@ -59,15 +59,45 @@ async fn test_ignore_patterns() {
 }
 
 #[tokio::test]
-async fn test_dir_alias_and_default() {
-    let args = json!({});
+async fn test_dir_alias_with_absolute_path() {
+    let temp_dir = TempDir::new().expect("failed to create temp dir");
+    fs::write(temp_dir.path().join("sample.txt"), "hello").expect("failed write");
+
+    let args = json!({
+        "dir": temp_dir.path().to_str().unwrap()
+    });
     let result = execute(ToolCallId("test".to_string()), args)
         .await
         .expect("execute failed");
 
     assert!(!result.is_error);
     let text = extract_text(result);
-    assert!(text.contains("==="));
+    assert!(text.contains("sample.txt"));
+}
+
+#[tokio::test]
+async fn test_relative_path_rejected() {
+    let args_dot = json!({
+        "path": "."
+    });
+    let result_dot = execute(ToolCallId("test_dot".to_string()), args_dot)
+        .await
+        .expect("execute failed");
+
+    assert!(!result_dot.is_error);
+    let text_dot = extract_text(result_dot);
+    assert!(text_dot.contains("Error: Path must be an absolute path"));
+
+    let args_rel = json!({
+        "path": "src/subdir"
+    });
+    let result_rel = execute(ToolCallId("test_rel".to_string()), args_rel)
+        .await
+        .expect("execute failed");
+
+    assert!(!result_rel.is_error);
+    let text_rel = extract_text(result_rel);
+    assert!(text_rel.contains("Error: Path must be an absolute path"));
 }
 
 #[tokio::test]
@@ -87,12 +117,18 @@ async fn test_file_path_error() {
     assert!(!result.is_error);
     let text = extract_text(result);
     assert!(text.contains("Error:"));
+    assert!(text.contains("path is a file, not a directory"));
 }
 
 #[tokio::test]
 async fn test_nonexistent_path() {
+    #[cfg(windows)]
+    let nonexistent = r"C:\nonexistent\path\that\does\not\exist";
+    #[cfg(not(windows))]
+    let nonexistent = "/nonexistent/path/that/does/not/exist";
+
     let args = json!({
-        "path": "/nonexistent/path/that/does/not/exist"
+        "path": nonexistent
     });
 
     let result = execute(ToolCallId("test".to_string()), args)
@@ -105,10 +141,14 @@ async fn test_nonexistent_path() {
 }
 
 #[tokio::test]
-async fn test_ls_empty_path_and_aliases() {
+async fn test_ls_aliases_and_patterns() {
+    let temp_dir = TempDir::new().expect("failed to create temp dir");
+    fs::write(temp_dir.path().join("keep.txt"), "keep").expect("failed write");
+    fs::write(temp_dir.path().join("ignore.log"), "log").expect("failed write");
+
     let args = json!({
-        "dir": "",
-        "patterns": ["*.nonexistent"]
+        "folder": temp_dir.path().to_str().unwrap(),
+        "patterns": ["*.log"]
     });
 
     let result = execute(ToolCallId("test".to_string()), args)
@@ -117,6 +157,7 @@ async fn test_ls_empty_path_and_aliases() {
 
     assert!(!result.is_error);
     let text = extract_text(result);
-    assert!(text.contains("=== . ==="));
+    assert!(text.contains("keep.txt"));
+    assert!(!text.contains("ignore.log"));
 }
 

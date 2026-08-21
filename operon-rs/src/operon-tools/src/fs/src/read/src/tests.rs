@@ -161,7 +161,7 @@ async fn test_binary_file_detection() {
 #[tokio::test]
 async fn test_read_defensive_aliases_and_stringified_paths() {
     let dir = setup_test_dir();
-    let path = dir.path().join("small.txt");
+    let path = dir.path().join("simple.txt");
     let path_str = path.to_str().unwrap().to_string();
 
     // 1. Test single file via filePath alias

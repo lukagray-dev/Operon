@@ -1,21 +1,18 @@
 //! Argument types for the ls tool.
 //!
 //! Hey friend! This module defines the defensive deserialization schema for the ls tool's input.
-//! The tool accepts a directory path (defaulting to "." if omitted or passed as an empty string)
-//! and optional glob patterns to exclude.
+//! The tool requires an absolute directory path and optional glob patterns to exclude.
+//! Operon strictly requires absolute paths across all filesystem tools so that tools remain
+//! stateless and deterministic without depending on process-wide current working directory state.
 
-use operon_tools_core::de::{
-    default_dot_path, deserialize_default_dir_path, deserialize_flexible_string_list_opt,
-};
+use operon_tools_core::de::deserialize_flexible_string_list_opt;
 use serde::Deserialize;
 
 /// Arguments for the ls tool.
 #[derive(Debug, Deserialize)]
 pub struct LsArgs {
-    /// Absolute or relative directory path to list. Defaults to "." if omitted or empty.
+    /// Absolute directory path to list.
     #[serde(
-        default = "default_dot_path",
-        deserialize_with = "deserialize_default_dir_path",
         alias = "dir",
         alias = "directory",
         alias = "folder",

@@ -146,6 +146,23 @@ pub async fn execute(call_id: ToolCallId, args: GrepArgs) -> ToolResult {
         };
     }
 
+    // Hey friend! Operon requires all filesystem tools to receive absolute paths.
+    // This keeps the tool layer purely stateless and deterministic without relying
+    // on process-wide current working directory (CWD) state.
+    for path_str in &paths {
+        if !Path::new(path_str).is_absolute() {
+            return ToolResult {
+                call_id,
+                name: "grep".to_string(),
+                content: ToolContent::Text(format!(
+                    "Path must be an absolute path. Relative paths are not supported: {}",
+                    path_str
+                )),
+                is_error: true,
+            };
+        }
+    }
+
     let file_paths = match collect_file_paths(&paths, args.include.as_deref()) {
         Ok(paths) => paths,
         Err(e) => {

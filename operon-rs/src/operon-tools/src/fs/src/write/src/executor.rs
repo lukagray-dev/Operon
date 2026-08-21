@@ -21,22 +21,39 @@ use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 /// # Returns
 /// A `ToolResult` with either success (JSON WriteOutput) or failure (Text error message).
 pub async fn execute(call_id: ToolCallId, args: WriteArgs) -> ToolResult {
-    // Step 1: Check that the parent directory exists.
-    // If it doesn't, return an error immediately without attempting to write.
     let path = std::path::Path::new(&args.path);
 
-    let parent = path.parent().unwrap_or(std::path::Path::new("."));
-
-    if !parent.exists() {
+    // Hey friend! Operon requires all filesystem tools to receive absolute paths.
+    // This keeps the tool layer purely stateless and deterministic without relying
+    // on process-wide current working directory (CWD) state.
+    if !path.is_absolute() {
         return ToolResult {
             call_id,
             name: "write".to_string(),
-            content: ToolContent::Text(format!(
-                "parent directory does not exist: {}",
-                parent.display()
-            )),
+            content: ToolContent::Text(
+                "Path must be an absolute path. Relative paths are not supported.".to_string(),
+            ),
             is_error: true,
         };
+    }
+
+    // Step 1: Ensure the parent directory exists, auto-creating directories recursively if needed.
+    // Hey friend! Automatically creating parent directories saves the model from
+    // having to run mkdir / bash commands beforehand, matching modern production agent standards and saving tokens.
+    let parent = path.parent().unwrap_or(std::path::Path::new("."));
+    if !parent.as_os_str().is_empty() {
+        if let Err(e) = tokio::fs::create_dir_all(parent).await {
+            return ToolResult {
+                call_id,
+                name: "write".to_string(),
+                content: ToolContent::Text(format!(
+                    "failed to create parent directory {}: {}",
+                    parent.display(),
+                    e
+                )),
+                is_error: true,
+            };
+        }
     }
 
     // Step 2: Determine if this is a create or overwrite by checking if the file exists.

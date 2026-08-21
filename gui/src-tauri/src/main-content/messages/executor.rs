@@ -51,10 +51,6 @@ pub async fn submit_prompt(
     // Ensure the workspace root directory physically exists on disk
     let _ = std::fs::create_dir_all(&workspace_root);
 
-    // Set the process CWD to workspace_root so relative paths in tools
-    // (e.g. `ls .`, shell commands) resolve against the active workspace
-    let _ = std::env::set_current_dir(&workspace_root);
-
     let store_path = app_config.paths.session_db(&active_id);
     let is_new_session = !store_path.exists();
     let store = operon_rs::session::store::SessionStore::open(&store_path)
@@ -305,7 +301,6 @@ pub async fn edit_and_submit_prompt(
     };
 
     let _ = std::fs::create_dir_all(&workspace_root);
-    let _ = std::env::set_current_dir(&workspace_root);
 
     let store_path = app_config.paths.session_db(&session_id);
     let store = operon_rs::session::store::SessionStore::open(&store_path)

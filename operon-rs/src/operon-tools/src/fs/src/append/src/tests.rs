@@ -334,11 +334,12 @@ async fn test_message_format() {
 
 #[tokio::test]
 async fn test_file_not_found() {
-    // Try to append to a file that doesn't exist.
+    let temp_dir = tempfile::tempdir().unwrap();
+    let nonexistent = temp_dir.path().join("does_not_exist_file.txt");
     let result = execute(
         ToolCallId("test_call".to_string()),
         json!({
-            "path": "/tmp/does_not_exist_xyz_operon_test/file.txt",
+            "path": nonexistent.to_str().unwrap(),
             "content": "content"
         }),
     )
@@ -605,4 +606,24 @@ async fn test_append_field_aliases() {
     assert!(!result.is_error);
     let file_content = fs::read_to_string(&path).unwrap();
     assert_eq!(file_content, "hello world");
+}
+
+#[tokio::test]
+async fn test_append_relative_path_rejected() {
+    let result = execute(
+        ToolCallId("rel_call".to_string()),
+        json!({
+            "path": "relative/path/test.txt",
+            "content": "some text"
+        }),
+    )
+    .await
+    .unwrap();
+
+    assert!(result.is_error);
+    let error_text = match &result.content {
+        ToolContent::Text(t) => t.clone(),
+        other => panic!("expected Text content for error, got {:?}", other),
+    };
+    assert!(error_text.contains("Path must be an absolute path"));
 }
