@@ -83,10 +83,7 @@ impl WhatsAppWorkspaceManager {
             std::fs::create_dir_all(&dir).map_err(|e| {
                 WhatsAppError::Workspace(format!("Failed to create workspace dir {:?}: {e}", dir))
             })?;
-            info!(
-                "Created shared workspace directory for WhatsApp: {:?}",
-                dir
-            );
+            info!("Created shared workspace directory for WhatsApp: {:?}", dir);
         }
 
         Ok(dir)

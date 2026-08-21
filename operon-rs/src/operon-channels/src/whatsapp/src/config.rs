@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use crate::types::ContactId;
 
 /// Configuration parameters for WhatsApp channel integration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WhatsAppConfig {
     /// Is the WhatsApp channel enabled.
     pub enabled: bool,
@@ -23,18 +23,6 @@ pub struct WhatsAppConfig {
     /// Custom path for shared workspace root directory for WhatsApp session tool calls.
     /// Defaults to global agent workspace (`~/.operon/workspace/`).
     pub workspace_dir: Option<PathBuf>,
-}
-
-impl Default for WhatsAppConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            owner_number: None,
-            allowlist: Vec::new(),
-            auth_dir: None,
-            workspace_dir: None,
-        }
-    }
 }
 
 impl WhatsAppConfig {
@@ -74,7 +62,8 @@ impl WhatsAppConfig {
     /// advising the user to configure policy coverage so tool calls won't silently deny.
     pub fn check_policy_coverage(&self, policy: &operon_config::PolicyConfig) -> bool {
         let resolved_ws = self.resolved_workspace_dir();
-        let canonical_ws = std::fs::canonicalize(&resolved_ws).unwrap_or_else(|_| resolved_ws.clone());
+        let canonical_ws =
+            std::fs::canonicalize(&resolved_ws).unwrap_or_else(|_| resolved_ws.clone());
         let covered = policy.any_directory_covers(&canonical_ws);
         if self.enabled && !covered {
             tracing::warn!(

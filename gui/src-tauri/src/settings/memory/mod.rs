@@ -92,11 +92,8 @@ pub async fn memory_list(limit: usize, offset: usize) -> Result<MemoryListRespon
     let effective_limit = if limit == 0 { 50 } else { limit };
 
     // Fetch the page and the total count concurrently.
-    let (memories, total) = tokio::try_join!(
-        store.list(effective_limit, offset),
-        store.count()
-    )
-    .map_err(|e| format!("Store read error: {e}"))?;
+    let (memories, total) = tokio::try_join!(store.list(effective_limit, offset), store.count())
+        .map_err(|e| format!("Store read error: {e}"))?;
 
     Ok(MemoryListResponse {
         memories: memories.into_iter().map(to_entry).collect(),

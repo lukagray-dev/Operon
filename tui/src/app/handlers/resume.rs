@@ -4,14 +4,14 @@
 // When a session is confirmed, loads the persisted turns from operon-rs into AppState
 // and registers the session ID with the agent bridge for continuous turns.
 
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use anyhow::Result;
 
 use crate::agent::AgentBridge;
 use crate::events::action::Action;
-use crate::state::AppState;
 use crate::state::screen::ActiveScreen;
+use crate::state::AppState;
 
 /// Handle actions on the Resume Conversation screen.
 pub async fn handle(

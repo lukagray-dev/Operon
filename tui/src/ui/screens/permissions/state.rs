@@ -229,9 +229,12 @@ impl ToolTableData {
                 .iter()
                 .find(|r| r.kind == "group" && r.key == g.key);
 
-            let ext_mode = ext_g.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.mode));
-            let ext_base = ext_g.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.base_mode));
-            let ext_explicit = ext_g.map_or(false, |r| r.is_explicit);
+            let ext_mode =
+                ext_g.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.mode));
+            let ext_base = ext_g.map_or(PermissionMode::Deny, |r| {
+                PermissionMode::from_str(&r.base_mode)
+            });
+            let ext_explicit = ext_g.is_some_and(|r| r.is_explicit);
 
             let mut group_tools = Vec::new();
             for t in owner_tools.iter().filter(|t| t.group_key == g.key) {
@@ -239,9 +242,12 @@ impl ToolTableData {
                     .iter()
                     .find(|r| r.kind == "tool" && r.key == t.key);
 
-                let t_ext_mode = ext_t.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.mode));
-                let t_ext_base = ext_t.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.base_mode));
-                let t_ext_explicit = ext_t.map_or(false, |r| r.is_explicit);
+                let t_ext_mode =
+                    ext_t.map_or(PermissionMode::Deny, |r| PermissionMode::from_str(&r.mode));
+                let t_ext_base = ext_t.map_or(PermissionMode::Deny, |r| {
+                    PermissionMode::from_str(&r.base_mode)
+                });
+                let t_ext_explicit = ext_t.is_some_and(|r| r.is_explicit);
 
                 group_tools.push(ToolEntry {
                     key: t.key.clone(),
@@ -487,11 +493,8 @@ impl PermissionsState {
         // 1. Refresh Global tools
         let owner_global = operon_rs::get_permission_rows("owner", None).unwrap_or_default();
         let external_global = operon_rs::get_permission_rows("external", None).unwrap_or_default();
-        self.global_tools = ToolTableData::from_backend_rows(
-            owner_global,
-            external_global,
-            &self.expanded_groups,
-        );
+        self.global_tools =
+            ToolTableData::from_backend_rows(owner_global, external_global, &self.expanded_groups);
 
         // 2. Refresh Allowed Directories
         let (dirs_list, workspace_dir) = operon_rs::get_allowed_directories_list()
@@ -502,13 +505,18 @@ impl PermissionsState {
         let mut combined_dirs: Vec<String> = Vec::new();
         for d in dirs_list {
             let cleaned = clean_windows_path(&d);
-            if !combined_dirs.iter().any(|existing| is_same_path(existing, &cleaned)) {
+            if !combined_dirs
+                .iter()
+                .any(|existing| is_same_path(existing, &cleaned))
+            {
                 combined_dirs.push(cleaned);
             }
         }
 
         if !cleaned_workspace.is_empty()
-            && !combined_dirs.iter().any(|existing| is_same_path(existing, &cleaned_workspace))
+            && !combined_dirs
+                .iter()
+                .any(|existing| is_same_path(existing, &cleaned_workspace))
         {
             combined_dirs.insert(0, cleaned_workspace.clone());
         }
@@ -520,8 +528,10 @@ impl PermissionsState {
                     || dir_path == "~/.operon/workspace"
                     || dir_path == "~\\.operon\\workspace";
 
-                let owner_dir = operon_rs::get_permission_rows("owner", Some(&dir_path)).unwrap_or_default();
-                let external_dir = operon_rs::get_permission_rows("external", Some(&dir_path)).unwrap_or_default();
+                let owner_dir =
+                    operon_rs::get_permission_rows("owner", Some(&dir_path)).unwrap_or_default();
+                let external_dir =
+                    operon_rs::get_permission_rows("external", Some(&dir_path)).unwrap_or_default();
                 let tools = ToolTableData::from_backend_rows(
                     owner_dir,
                     external_dir,
@@ -598,16 +608,31 @@ mod tests {
     #[test]
     fn test_clean_windows_path_unc() {
         assert_eq!(clean_windows_path(r"\\?\C:\Users\test"), r"C:\Users\test");
-        assert_eq!(clean_windows_path(r"\\?\UNC\server\share"), r"\\server\share");
+        assert_eq!(
+            clean_windows_path(r"\\?\UNC\server\share"),
+            r"\\server\share"
+        );
         assert_eq!(clean_windows_path("C:/Users/test"), "C:/Users/test");
     }
 
     #[test]
     fn test_is_same_path_deduplication() {
-        assert!(is_same_path(r"\\?\C:\Users\test\.operon\workspace", r"C:\Users\test\.operon\workspace"));
-        assert!(is_same_path("C:/Users/test/.operon/workspace", r"C:\Users\test\.operon\workspace"));
-        assert!(is_same_path(r"C:\Users\Test\.operon\workspace\", r"c:\users\test\.operon\workspace"));
-        assert!(!is_same_path(r"C:\Users\test\other", r"C:\Users\test\workspace"));
+        assert!(is_same_path(
+            r"\\?\C:\Users\test\.operon\workspace",
+            r"C:\Users\test\.operon\workspace"
+        ));
+        assert!(is_same_path(
+            "C:/Users/test/.operon/workspace",
+            r"C:\Users\test\.operon\workspace"
+        ));
+        assert!(is_same_path(
+            r"C:\Users\Test\.operon\workspace\",
+            r"c:\users\test\.operon\workspace"
+        ));
+        assert!(!is_same_path(
+            r"C:\Users\test\other",
+            r"C:\Users\test\workspace"
+        ));
     }
 
     #[test]

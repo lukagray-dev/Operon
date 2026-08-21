@@ -109,7 +109,6 @@ Returns plain text list:
     }
 }
 
-
 /// Deserializes `args_json` and executes the ls tool.
 ///
 /// Returns a `ToolResult` with `is_error: false` even on directory listing failures —

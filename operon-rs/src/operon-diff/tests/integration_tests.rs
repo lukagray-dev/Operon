@@ -3,9 +3,9 @@
 // Hey friend! This test suite validates all features of the `operon-diff` crate against real
 // temporary Git repositories created using `tempfile` and `libgit2`.
 
+use git2::Repository;
 use std::fs::{self, File};
 use std::io::Write;
-use git2::Repository;
 use tempfile::TempDir;
 
 use operon_diff::*;
@@ -123,7 +123,10 @@ fn test_discard_all_including_untracked() {
     discard_all_including_untracked(root).unwrap();
 
     // Verify tracked file reverted and untracked deleted
-    assert_eq!(fs::read_to_string(&tracked).unwrap().replace("\r\n", "\n"), "version 1\n");
+    assert_eq!(
+        fs::read_to_string(&tracked).unwrap().replace("\r\n", "\n"),
+        "version 1\n"
+    );
     assert!(!untracked_file.exists());
     assert!(!untracked_dir.exists());
 }
@@ -171,10 +174,18 @@ fn test_hunk_staging_new_untracked_file() {
     commit(&repo, "Base commit", false).unwrap();
 
     let new_file_path = root.join("new_untracked.txt");
-    fs::write(&new_file_path, "brand new content line 1\nbrand new content line 2\n").unwrap();
+    fs::write(
+        &new_file_path,
+        "brand new content line 1\nbrand new content line 2\n",
+    )
+    .unwrap();
 
     let details = get_diff_details(root).unwrap();
-    let untracked = details.unstaged_files.iter().find(|f| f.path == "new_untracked.txt").expect("Should find untracked file");
+    let untracked = details
+        .unstaged_files
+        .iter()
+        .find(|f| f.path == "new_untracked.txt")
+        .expect("Should find untracked file");
     assert!(untracked.status == "untracked" || untracked.status == "added");
     assert!(!untracked.hunks.is_empty());
     let hunk_header = &untracked.hunks[0].header;
@@ -202,21 +213,35 @@ fn test_hunk_unstaging_new_untracked_file() {
     fs::write(&new_file_path, "content to stage then unstage\n").unwrap();
 
     let details = get_diff_details(root).unwrap();
-    let untracked = details.unstaged_files.iter().find(|f| f.path == "new_untracked.txt").unwrap();
+    let untracked = details
+        .unstaged_files
+        .iter()
+        .find(|f| f.path == "new_untracked.txt")
+        .unwrap();
     let hunk_header = &untracked.hunks[0].header;
 
     stage_hunk(root, "new_untracked.txt", hunk_header).unwrap();
 
     let details_staged = get_diff_details(root).unwrap();
-    let staged_item = details_staged.staged_files.iter().find(|f| f.path == "new_untracked.txt").unwrap();
+    let staged_item = details_staged
+        .staged_files
+        .iter()
+        .find(|f| f.path == "new_untracked.txt")
+        .unwrap();
     let staged_hunk_header = &staged_item.hunks[0].header;
 
     // Unstage the hunk
     unstage_hunk(root, "new_untracked.txt", staged_hunk_header).unwrap();
 
     let details_after = get_diff_details(root).unwrap();
-    assert!(details_after.staged_files.iter().all(|f| f.path != "new_untracked.txt"));
-    assert!(details_after.unstaged_files.iter().any(|f| f.path == "new_untracked.txt"));
+    assert!(details_after
+        .staged_files
+        .iter()
+        .all(|f| f.path != "new_untracked.txt"));
+    assert!(details_after
+        .unstaged_files
+        .iter()
+        .any(|f| f.path == "new_untracked.txt"));
 }
 
 #[test]
@@ -233,7 +258,11 @@ fn test_hunk_staging_full_file_deletion() {
     fs::remove_file(&file_path).unwrap();
 
     let details = get_diff_details(root).unwrap();
-    let deleted_item = details.unstaged_files.iter().find(|f| f.path == "to_delete.txt").expect("Should find deleted file");
+    let deleted_item = details
+        .unstaged_files
+        .iter()
+        .find(|f| f.path == "to_delete.txt")
+        .expect("Should find deleted file");
     assert_eq!(deleted_item.status, "deleted");
     assert!(!deleted_item.hunks.is_empty());
     let hunk_header = &deleted_item.hunks[0].header;
@@ -293,12 +322,18 @@ fn test_branch_lifecycle_and_ahead_behind() {
     assert_eq!(current_renamed.name, "feature/awesome-ui");
 
     // Switch back to main and delete renamed branch
-    let main_name = if branches.iter().any(|b| b.name == "main") { "main" } else { "master" };
+    let main_name = if branches.iter().any(|b| b.name == "main") {
+        "main"
+    } else {
+        "master"
+    };
     switch_branch(&repo, main_name).unwrap();
     delete_branch(&repo, "feature/awesome-ui").unwrap();
 
     let branches_after_del = list_branches(&repo).unwrap();
-    assert!(!branches_after_del.iter().any(|b| b.name == "feature/awesome-ui"));
+    assert!(!branches_after_del
+        .iter()
+        .any(|b| b.name == "feature/awesome-ui"));
 }
 
 #[test]
@@ -364,9 +399,13 @@ async fn test_async_workspace_wrappers() {
     let file_path = root.join("async_test.txt");
     fs::write(&file_path, "async content\n").unwrap();
 
-    stage_file_async(root.clone(), "async_test.txt".to_string()).await.unwrap();
+    stage_file_async(root.clone(), "async_test.txt".to_string())
+        .await
+        .unwrap();
 
-    let commit_res = commit_async(root.clone(), "Async commit".to_string(), false).await.unwrap();
+    let commit_res = commit_async(root.clone(), "Async commit".to_string(), false)
+        .await
+        .unwrap();
     assert!(!commit_res.oid.is_empty());
 
     let stats = get_diff_stats_async(root.clone()).await.unwrap();

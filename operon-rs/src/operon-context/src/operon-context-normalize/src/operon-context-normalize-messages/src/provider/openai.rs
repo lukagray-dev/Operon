@@ -185,7 +185,7 @@ pub fn denormalize_messages_with_provider_and_reasoning(
                     obj.insert("tool_calls".to_string(), Value::Array(calls));
                 }
 
-                if let (Some(field), Some(rp)) = (reasoning_field, reasoning_provider.clone()) {
+                if let (Some(field), Some(rp)) = (reasoning_field, reasoning_provider) {
                     if !reasoning_blocks.is_empty() {
                         let raw = denormalize_reasoning(&reasoning_blocks, &rp)
                             .map_err(|e| map_reasoning_err(e, provider_name))?;

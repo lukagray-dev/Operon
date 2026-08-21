@@ -70,6 +70,7 @@ pub enum Action {
     /// - Shift+Enter (newline)
     /// - Ctrl+Z (undo), Ctrl+R (redo) — tui-textarea's native bindings
     /// - Ctrl+Left / Ctrl+Right (word-jump)
+    ///
     /// tui-textarea handles all of these natively — no need to enumerate them.
     ForwardKeyToInput(crossterm::event::KeyEvent),
 

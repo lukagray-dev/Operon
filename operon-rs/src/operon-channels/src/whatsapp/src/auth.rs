@@ -181,21 +181,22 @@ impl WhatsAppAuth {
         let user_sid_ptr = user_sid.as_ptr() as *mut _;
 
         let mut acl = ACL::from_file_path(path_str, false).map_err(|code| {
-            WhatsAppError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to load Windows ACL for path {}: error code {}", path_str, code),
-            ))
+            WhatsAppError::Io(std::io::Error::other(format!(
+                "Failed to load Windows ACL for path {}: error code {}",
+                path_str, code
+            )))
         })?;
 
         // 1. Grant full access (GENERIC_ALL | FILE_ALL_ACCESS) to the active owner user first
         const FULL_ACCESS: u32 = 0x10000000 | 0x001f01ff;
         let is_dir = path.is_dir();
-        acl.allow(user_sid_ptr, is_dir, FULL_ACCESS).map_err(|code| {
-            WhatsAppError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to grant ACL access to current user: error code {}", code),
-            ))
-        })?;
+        acl.allow(user_sid_ptr, is_dir, FULL_ACCESS)
+            .map_err(|code| {
+                WhatsAppError::Io(std::io::Error::other(format!(
+                    "Failed to grant ACL access to current user: error code {}",
+                    code
+                )))
+            })?;
 
         // 2. Collect non-owner ACEs (sid, entry_type, flags) to remove
         let mut entries_to_remove: Vec<(Vec<u16>, windows_acl::acl::AceType, u8)> = Vec::new();
@@ -224,11 +225,11 @@ impl WhatsAppAuth {
 fn get_file_owner_sid(path: &Path) -> Result<(Vec<u8>, String), WhatsAppError> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
-    use windows_acl::helper::sid_to_string;
     use winapi::shared::winerror::ERROR_SUCCESS;
     use winapi::um::accctrl::SE_FILE_OBJECT;
     use winapi::um::aclapi::GetNamedSecurityInfoW;
     use winapi::um::winnt::{OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID};
+    use windows_acl::helper::sid_to_string;
 
     let path_str = path.to_str().ok_or_else(|| {
         WhatsAppError::Io(std::io::Error::new(
@@ -265,15 +266,13 @@ fn get_file_owner_sid(path: &Path) -> Result<(Vec<u8>, String), WhatsAppError> {
         let mut sid_bytes = vec![0u8; sid_len];
         std::ptr::copy_nonoverlapping(psid_owner as *const u8, sid_bytes.as_mut_ptr(), sid_len);
         let sid_str = sid_to_string(psid_owner).map_err(|code| {
-            WhatsAppError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed sid_to_string: {}", code),
-            ))
+            WhatsAppError::Io(std::io::Error::other(format!(
+                "Failed sid_to_string: {}",
+                code
+            )))
         })?;
 
         winapi::um::winbase::LocalFree(p_sd as *mut _);
         Ok((sid_bytes, sid_str))
     }
 }
-
-

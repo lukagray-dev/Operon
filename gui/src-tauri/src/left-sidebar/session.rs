@@ -9,8 +9,8 @@ use crate::shared::AppState;
 
 /// Strips Windows UNC prefix (`\\?\`) for clean path representation.
 pub fn clean_unc_path(s: String) -> String {
-    if s.starts_with(r"\\?\") {
-        s[4..].to_string()
+    if let Some(stripped) = s.strip_prefix(r"\\?\") {
+        stripped.to_string()
     } else {
         s
     }
@@ -77,14 +77,18 @@ pub async fn query_sidebar_data(
         if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |ext| ext == "json") {
+                if path.extension().is_some_and(|ext| ext == "json") {
                     if let Ok(store) = operon_rs::session::store::SessionStore::open(&path).await {
                         if let Ok(rows) = store.list_sessions().await {
                             if let Some(row) = rows.first() {
                                 let custom_title = std::fs::read_to_string(&path)
                                     .ok()
-                                    .and_then(|c| serde_json::from_str::<serde_json::Value>(&c).ok())
-                                    .and_then(|v| v.get("title").and_then(|t| t.as_str()).map(String::from));
+                                    .and_then(|c| {
+                                        serde_json::from_str::<serde_json::Value>(&c).ok()
+                                    })
+                                    .and_then(|v| {
+                                        v.get("title").and_then(|t| t.as_str()).map(String::from)
+                                    });
 
                                 let title = match custom_title {
                                     Some(t) => t,
@@ -94,7 +98,10 @@ pub async fn query_sidebar_data(
                                             .await
                                             .ok()
                                             .flatten();
-                                        determine_session_title(first_msg.as_deref(), "Untitled Chat")
+                                        determine_session_title(
+                                            first_msg.as_deref(),
+                                            "Untitled Chat",
+                                        )
                                     }
                                 };
 
@@ -144,7 +151,7 @@ pub async fn query_sidebar_data(
     }
 
     // Sort newest first
-    sessions.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    sessions.sort_by_key(|b| std::cmp::Reverse(b.created_at));
 
     let mut standalone_chats = Vec::new();
     let mut project_chats_map: HashMap<String, Vec<SidebarConversationDto>> = HashMap::new();
@@ -223,7 +230,7 @@ pub async fn query_sidebar_data(
 #[tauri::command]
 pub async fn delete_session(session_id: String) -> Result<(), String> {
     let paths = operon_rs::config::OperonPaths::resolve().map_err(|e| e.to_string())?;
-    
+
     // 1. Direct standard session lookup: ~/.operon/sessions/<session_id>.json
     let standard_json = paths.session_db(&session_id);
     if standard_json.exists() {
@@ -253,7 +260,9 @@ pub async fn delete_session(session_id: String) -> Result<(), String> {
                                     }
                                 }
                             } else if contact_path.is_file()
-                                && contact_path.file_name().map_or(false, |f| f == target_filename.as_str())
+                                && contact_path
+                                    .file_name()
+                                    .is_some_and(|f| f == target_filename.as_str())
                             {
                                 let _ = std::fs::remove_file(&contact_path);
                             }
@@ -280,7 +289,7 @@ pub async fn delete_project(project_path: String) -> Result<(), String> {
         if let Ok(entries) = std::fs::read_dir(sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |ext| ext == "json") {
+                if path.extension().is_some_and(|ext| ext == "json") {
                     if let Ok(store) = operon_rs::session::store::SessionStore::open(&path).await {
                         if let Ok(rows) = store.list_sessions().await {
                             if let Some(row) = rows.first() {
@@ -438,7 +447,10 @@ pub async fn fork_session(
 
     if let Some(obj) = val.as_object_mut() {
         obj.insert("id".to_string(), serde_json::Value::String(new_id.clone()));
-        obj.insert("created_at".to_string(), serde_json::json!(ts as i64 / 1000));
+        obj.insert(
+            "created_at".to_string(),
+            serde_json::json!(ts as i64 / 1000),
+        );
 
         // Append (Fork) to title if present
         if let Some(orig_title) = obj.get("title").and_then(|t| t.as_str()) {
@@ -455,7 +467,7 @@ pub async fn fork_session(
                     turn_val
                         .get("turn_index")
                         .and_then(|idx| idx.as_u64())
-                        .map_or(true, |idx| idx as usize <= max_turn)
+                        .is_none_or(|idx| idx as usize <= max_turn)
                 });
             }
         }
@@ -479,7 +491,10 @@ pub async fn move_session(session_id: String, target_workspace: String) -> Resul
         let content = std::fs::read_to_string(&json_path).map_err(|e| e.to_string())?;
         if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Some(obj) = val.as_object_mut() {
-                obj.insert("workspace".to_string(), serde_json::Value::String(target_workspace));
+                obj.insert(
+                    "workspace".to_string(),
+                    serde_json::Value::String(target_workspace),
+                );
                 let formatted = serde_json::to_string_pretty(&val).map_err(|e| e.to_string())?;
                 std::fs::write(&json_path, formatted).map_err(|e| e.to_string())?;
             }

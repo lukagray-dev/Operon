@@ -44,8 +44,7 @@ pub async fn execute(call_id: ToolCallId, args: WebSearchArgs) -> ToolResult {
     let max_results = args
         .max_results
         .unwrap_or(DEFAULT_RESULTS)
-        .min(MAX_RESULTS)
-        .max(1);
+        .clamp(1, MAX_RESULTS);
 
     // Step 3: Execute DuckDuckGo lite search inside spawn_blocking.
     // The duckduckgo crate uses an embedded blocking runtime internally — it MUST be

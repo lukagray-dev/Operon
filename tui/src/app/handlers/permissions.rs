@@ -16,32 +16,30 @@ pub fn handle(action: Action, state: &mut AppState) {
         // ─────────────────────────────────────────────────────────────────────
         // Section & Panel Navigation
         // ─────────────────────────────────────────────────────────────────────
-        Action::PermSwitchSection => {
-            match state.permissions.section {
-                PermissionsSection::Global => {
-                    state.permissions.section = PermissionsSection::Directory;
-                    state.permissions.focused_panel = FocusedPanel::DirList;
+        Action::PermSwitchSection => match state.permissions.section {
+            PermissionsSection::Global => {
+                state.permissions.section = PermissionsSection::Directory;
+                state.permissions.focused_panel = FocusedPanel::DirList;
+                state.permissions.selected_row = 0;
+            }
+            PermissionsSection::Directory => {
+                if state.permissions.directories.is_empty() {
+                    state.permissions.section = PermissionsSection::Global;
                     state.permissions.selected_row = 0;
-                }
-                PermissionsSection::Directory => {
-                    if state.permissions.directories.is_empty() {
-                        state.permissions.section = PermissionsSection::Global;
-                        state.permissions.selected_row = 0;
-                    } else {
-                        match state.permissions.focused_panel {
-                            FocusedPanel::DirList => {
-                                state.permissions.focused_panel = FocusedPanel::ToolTable;
-                                state.permissions.selected_row = 0;
-                            }
-                            FocusedPanel::ToolTable => {
-                                state.permissions.section = PermissionsSection::Global;
-                                state.permissions.selected_row = 0;
-                            }
+                } else {
+                    match state.permissions.focused_panel {
+                        FocusedPanel::DirList => {
+                            state.permissions.focused_panel = FocusedPanel::ToolTable;
+                            state.permissions.selected_row = 0;
+                        }
+                        FocusedPanel::ToolTable => {
+                            state.permissions.section = PermissionsSection::Global;
+                            state.permissions.selected_row = 0;
                         }
                     }
                 }
             }
-        }
+        },
 
         // ─────────────────────────────────────────────────────────────────────
         // Up Navigation
@@ -56,32 +54,38 @@ pub fn handle(action: Action, state: &mut AppState) {
                     PermissionsSection::Global => {
                         if state.permissions.selected_row > 0 {
                             state.permissions.selected_row -= 1;
-                            if state.permissions.selected_row < state.permissions.tool_table_scroll {
-                                state.permissions.tool_table_scroll = state.permissions.selected_row;
+                            if state.permissions.selected_row < state.permissions.tool_table_scroll
+                            {
+                                state.permissions.tool_table_scroll =
+                                    state.permissions.selected_row;
                             }
                         }
                     }
-                    PermissionsSection::Directory => {
-                        match state.permissions.focused_panel {
-                            FocusedPanel::DirList => {
-                                if state.permissions.selected_dir > 0 {
-                                    state.permissions.selected_dir -= 1;
-                                    state.permissions.selected_row = 0;
-                                    if state.permissions.selected_dir < state.permissions.dir_list_scroll {
-                                        state.permissions.dir_list_scroll = state.permissions.selected_dir;
-                                    }
-                                }
-                            }
-                            FocusedPanel::ToolTable => {
-                                if state.permissions.selected_row > 0 {
-                                    state.permissions.selected_row -= 1;
-                                    if state.permissions.selected_row < state.permissions.tool_table_scroll {
-                                        state.permissions.tool_table_scroll = state.permissions.selected_row;
-                                    }
+                    PermissionsSection::Directory => match state.permissions.focused_panel {
+                        FocusedPanel::DirList => {
+                            if state.permissions.selected_dir > 0 {
+                                state.permissions.selected_dir -= 1;
+                                state.permissions.selected_row = 0;
+                                if state.permissions.selected_dir
+                                    < state.permissions.dir_list_scroll
+                                {
+                                    state.permissions.dir_list_scroll =
+                                        state.permissions.selected_dir;
                                 }
                             }
                         }
-                    }
+                        FocusedPanel::ToolTable => {
+                            if state.permissions.selected_row > 0 {
+                                state.permissions.selected_row -= 1;
+                                if state.permissions.selected_row
+                                    < state.permissions.tool_table_scroll
+                                {
+                                    state.permissions.tool_table_scroll =
+                                        state.permissions.selected_row;
+                                }
+                            }
+                        }
+                    },
                 }
             }
         }
@@ -97,11 +101,14 @@ pub fn handle(action: Action, state: &mut AppState) {
             } else {
                 match state.permissions.section {
                     PermissionsSection::Global => {
-                        let max_row = count_tool_table_rows(&state.permissions.global_tools).saturating_sub(1);
+                        let max_row = count_tool_table_rows(&state.permissions.global_tools)
+                            .saturating_sub(1);
                         if state.permissions.selected_row < max_row {
                             state.permissions.selected_row += 1;
                             let visible_height = 10;
-                            if state.permissions.selected_row >= state.permissions.tool_table_scroll + visible_height {
+                            if state.permissions.selected_row
+                                >= state.permissions.tool_table_scroll + visible_height
+                            {
                                 state.permissions.tool_table_scroll = state
                                     .permissions
                                     .selected_row
@@ -109,40 +116,44 @@ pub fn handle(action: Action, state: &mut AppState) {
                             }
                         }
                     }
-                    PermissionsSection::Directory => {
-                        match state.permissions.focused_panel {
-                            FocusedPanel::DirList => {
-                                let max_dir = state.permissions.directories.len().saturating_sub(1);
-                                if state.permissions.selected_dir < max_dir {
-                                    state.permissions.selected_dir += 1;
-                                    state.permissions.selected_row = 0;
+                    PermissionsSection::Directory => match state.permissions.focused_panel {
+                        FocusedPanel::DirList => {
+                            let max_dir = state.permissions.directories.len().saturating_sub(1);
+                            if state.permissions.selected_dir < max_dir {
+                                state.permissions.selected_dir += 1;
+                                state.permissions.selected_row = 0;
+                                let visible_height = 10;
+                                if state.permissions.selected_dir
+                                    >= state.permissions.dir_list_scroll + visible_height
+                                {
+                                    state.permissions.dir_list_scroll = state
+                                        .permissions
+                                        .selected_dir
+                                        .saturating_sub(visible_height - 1);
+                                }
+                            }
+                        }
+                        FocusedPanel::ToolTable => {
+                            if !state.permissions.directories.is_empty() {
+                                let tools = &state.permissions.directories
+                                    [state.permissions.selected_dir]
+                                    .tools;
+                                let max_row = count_tool_table_rows(tools).saturating_sub(1);
+                                if state.permissions.selected_row < max_row {
+                                    state.permissions.selected_row += 1;
                                     let visible_height = 10;
-                                    if state.permissions.selected_dir >= state.permissions.dir_list_scroll + visible_height {
-                                        state.permissions.dir_list_scroll = state
+                                    if state.permissions.selected_row
+                                        >= state.permissions.tool_table_scroll + visible_height
+                                    {
+                                        state.permissions.tool_table_scroll = state
                                             .permissions
-                                            .selected_dir
+                                            .selected_row
                                             .saturating_sub(visible_height - 1);
                                     }
                                 }
                             }
-                            FocusedPanel::ToolTable => {
-                                if !state.permissions.directories.is_empty() {
-                                    let tools = &state.permissions.directories[state.permissions.selected_dir].tools;
-                                    let max_row = count_tool_table_rows(tools).saturating_sub(1);
-                                    if state.permissions.selected_row < max_row {
-                                        state.permissions.selected_row += 1;
-                                        let visible_height = 10;
-                                        if state.permissions.selected_row >= state.permissions.tool_table_scroll + visible_height {
-                                            state.permissions.tool_table_scroll = state
-                                                .permissions
-                                                .selected_row
-                                                .saturating_sub(visible_height - 1);
-                                        }
-                                    }
-                                }
-                            }
                         }
-                    }
+                    },
                 }
             }
         }
@@ -197,7 +208,9 @@ pub fn handle(action: Action, state: &mut AppState) {
 
                 if should_open {
                     let tools = state.permissions.active_tools();
-                    if let Some((group_idx, tool_idx)) = get_row_indices(tools, state.permissions.selected_row) {
+                    if let Some((group_idx, tool_idx)) =
+                        get_row_indices(tools, state.permissions.selected_row)
+                    {
                         let current_mode = if let Some(tidx) = tool_idx {
                             tools.groups[group_idx].tools[tidx].owner_mode
                         } else {
@@ -237,7 +250,8 @@ pub fn handle(action: Action, state: &mut AppState) {
                 && matches!(state.permissions.focused_panel, FocusedPanel::DirList)
                 && !state.permissions.directories.is_empty()
             {
-                let selected_dir_entry = &state.permissions.directories[state.permissions.selected_dir];
+                let selected_dir_entry =
+                    &state.permissions.directories[state.permissions.selected_dir];
                 // Do not delete workspace directory
                 if !selected_dir_entry.is_workspace {
                     let path_to_remove = selected_dir_entry.path.clone();
@@ -340,7 +354,10 @@ pub fn handle(action: Action, state: &mut AppState) {
                             (group.key.clone(), base)
                         }
                     } else {
-                        ("".to_string(), crate::ui::screens::permissions::state::PermissionMode::Deny)
+                        (
+                            "".to_string(),
+                            crate::ui::screens::permissions::state::PermissionMode::Deny,
+                        )
                     }
                 };
 
@@ -348,7 +365,11 @@ pub fn handle(action: Action, state: &mut AppState) {
                     PermissionsSection::Global => None,
                     PermissionsSection::Directory => {
                         if state.permissions.selected_dir < state.permissions.directories.len() {
-                            Some(state.permissions.directories[state.permissions.selected_dir].path.clone())
+                            Some(
+                                state.permissions.directories[state.permissions.selected_dir]
+                                    .path
+                                    .clone(),
+                            )
                         } else {
                             None
                         }
@@ -403,10 +424,8 @@ pub fn handle(action: Action, state: &mut AppState) {
         // ─────────────────────────────────────────────────────────────────────
         // Forward Keystroke to Add Directory Input
         // ─────────────────────────────────────────────────────────────────────
-        Action::PermForwardKeyToInput(key_event) => {
-            if state.permissions.add_dir.open {
-                let _ = state.permissions.add_dir.input.input(key_event);
-            }
+        Action::PermForwardKeyToInput(key_event) if state.permissions.add_dir.open => {
+            let _ = state.permissions.add_dir.input.input(key_event);
         }
 
         _ => {}

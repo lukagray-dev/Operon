@@ -15,7 +15,9 @@ pub use error::MemoryDeleteToolError;
 pub use output::MemoryDeleteOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter};
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
+};
 use operon_tools_memory_store::MemoryStore;
 use serde_json::json;
 

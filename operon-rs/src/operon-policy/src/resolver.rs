@@ -252,16 +252,13 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
     let args = &call.arguments;
 
     let raw_str = match tool {
-        DirTool::Fs(FsTool::Read) => args
-            .get("path")
-            .and_then(|v| v.as_str())
-            .or_else(|| {
-                args.get("paths").and_then(|v| match v {
-                    serde_json::Value::String(s) => Some(s.as_str()),
-                    serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
-                    _ => None,
-                })
-            }),
+        DirTool::Fs(FsTool::Read) => args.get("path").and_then(|v| v.as_str()).or_else(|| {
+            args.get("paths").and_then(|v| match v {
+                serde_json::Value::String(s) => Some(s.as_str()),
+                serde_json::Value::Array(arr) => arr.first().and_then(|item| item.as_str()),
+                _ => None,
+            })
+        }),
 
         DirTool::Fs(FsTool::Grep) => args
             .get("path")
@@ -290,7 +287,6 @@ fn extract_path_arg(call: &ToolCall, tool: &DirTool) -> Option<PathBuf> {
 
     raw_str.map(|s| PathBuf::from(strip_range_suffix(s)))
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // mode_to_decision (private)

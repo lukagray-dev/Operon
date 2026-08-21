@@ -74,9 +74,15 @@ pub async fn handle(
                 let action_tx_clone = tx.clone();
                 tokio::spawn(async move {
                     let agent_lock = agent_clone.lock().await;
-                    if let Err(e) = agent_lock.execute_prompt(message, action_tx_clone.clone()).await {
+                    if let Err(e) = agent_lock
+                        .execute_prompt(message, action_tx_clone.clone())
+                        .await
+                    {
                         let _ = action_tx_clone
-                            .send(Action::AgentError(format!("Prompt execution failed: {}", e)))
+                            .send(Action::AgentError(format!(
+                                "Prompt execution failed: {}",
+                                e
+                            )))
                             .await;
                         let _ = action_tx_clone.send(Action::AgentDone).await;
                     }
@@ -119,7 +125,10 @@ pub fn handle_paste_text(text: &str, state: &mut AppState) {
         }
         ActiveScreen::Permissions => {
             if state.permissions.add_dir.open {
-                let clean = text.trim_matches(|c| c == '\r' || c == '\n').trim().to_string();
+                let clean = text
+                    .trim_matches(|c| c == '\r' || c == '\n')
+                    .trim()
+                    .to_string();
                 state.permissions.add_dir.input.insert_str(&clean);
             }
         }

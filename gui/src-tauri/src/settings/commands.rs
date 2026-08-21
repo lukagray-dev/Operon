@@ -18,17 +18,18 @@ pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
     // Build the standalone Settings window.
     // The initial and minimum width is set to 860.0px (height: 480.0px) to provide ample horizontal
     // space for the 210px navigation sidebar, settings cards, form controls, and multi-column theme grids.
-    let window = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("settings.html".into()))
-        .title("Settings")
-        .inner_size(860.0, 480.0)
-        .min_inner_size(860.0, 480.0)
-        .decorations(false)
-        .transparent(false)
-        .shadow(false)
-        .center()
-        .resizable(true)
-        .build()
-        .map_err(|e| e.to_string())?;
+    let window =
+        WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("settings.html".into()))
+            .title("Settings")
+            .inner_size(860.0, 480.0)
+            .min_inner_size(860.0, 480.0)
+            .decorations(false)
+            .transparent(false)
+            .shadow(false)
+            .center()
+            .resizable(true)
+            .build()
+            .map_err(|e| e.to_string())?;
 
     apply_window_dwm_styling(&window);
     let _ = window.show();

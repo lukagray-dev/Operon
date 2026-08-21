@@ -19,12 +19,14 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 use tauri::{Emitter, State, WebviewWindow};
 
+/// Type alias for the thread-safe active terminal session map.
+pub type ActiveTerminalRegistry = Arc<Mutex<HashMap<String, Arc<TerminalSession>>>>;
+
 /// Global thread-safe registry of active PTY sessions indexed by unique session ID.
-static ACTIVE_TERMINALS: OnceLock<Arc<Mutex<HashMap<String, Arc<TerminalSession>>>>> =
-    OnceLock::new();
+static ACTIVE_TERMINALS: OnceLock<ActiveTerminalRegistry> = OnceLock::new();
 
 /// Returns the singleton reference to the active terminals map.
-pub fn get_active_terminals() -> &'static Arc<Mutex<HashMap<String, Arc<TerminalSession>>>> {
+pub fn get_active_terminals() -> &'static ActiveTerminalRegistry {
     ACTIVE_TERMINALS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
 }
 
@@ -119,10 +121,7 @@ pub async fn create_terminal(
         }
     };
 
-    let resolved_workdir = resolve_terminal_workdir(
-        workdir.as_deref(),
-        active_proj.as_deref(),
-    );
+    let resolved_workdir = resolve_terminal_workdir(workdir.as_deref(), active_proj.as_deref());
 
     // 3. Setup output listener forwarding to frontend via Tauri event
     let window_output = window.clone();
@@ -153,15 +152,9 @@ pub async fn create_terminal(
     };
 
     // 5. Spawn the PTY process using operon_rs::terminal
-    let session = TerminalSession::new(
-        id.clone(),
-        resolved_workdir,
-        cols,
-        rows,
-        on_output,
-        on_exit,
-    )
-    .map_err(|e| format!("Failed to spawn shell PTY process: {}", e))?;
+    let session =
+        TerminalSession::new(id.clone(), resolved_workdir, cols, rows, on_output, on_exit)
+            .map_err(|e| format!("Failed to spawn shell PTY process: {}", e))?;
 
     // 6. Insert into global registry
     {
@@ -229,7 +222,10 @@ pub async fn close_terminal(id: String) -> Result<(), String> {
         tracing::info!("Closed terminal session '{}'", id);
         Ok(())
     } else {
-        Err(format!("Terminal session '{}' not found or already closed", id))
+        Err(format!(
+            "Terminal session '{}' not found or already closed",
+            id
+        ))
     }
 }
 
@@ -270,7 +266,10 @@ mod tests {
         // Should resolve default workspace if it exists, or None
         if let Ok(paths) = OperonPaths::resolve() {
             if paths.workspace_dir.exists() {
-                assert_eq!(res3, Some(paths.workspace_dir.to_string_lossy().to_string()));
+                assert_eq!(
+                    res3,
+                    Some(paths.workspace_dir.to_string_lossy().to_string())
+                );
             }
         }
     }

@@ -681,12 +681,21 @@ async fn test_load_tools_no_args_lists_all_registered_groups() {
                 .collect::<Vec<_>>();
 
             assert!(groups.contains(&"ask".to_string()), "must list ask group");
-            assert!(groups.contains(&"memory".to_string()), "must list memory group");
+            assert!(
+                groups.contains(&"memory".to_string()),
+                "must list memory group"
+            );
             assert!(groups.contains(&"fs".to_string()), "must list fs group");
-            assert!(groups.contains(&"shell".to_string()), "must list shell group");
+            assert!(
+                groups.contains(&"shell".to_string()),
+                "must list shell group"
+            );
             assert!(groups.contains(&"web".to_string()), "must list web group");
             assert!(groups.contains(&"todo".to_string()), "must list todo group");
-            assert!(!groups.contains(&"core".to_string()), "core group must not be listed");
+            assert!(
+                !groups.contains(&"core".to_string()),
+                "core group must not be listed"
+            );
         }
         other => panic!("expected JSON content, got {:?}", other),
     }
@@ -718,4 +727,3 @@ async fn test_lazy_loading_memory_group() {
     assert!(defs_after.iter().any(|d| d.name == "memory_retrieve"));
     assert!(defs_after.iter().any(|d| d.name == "memory_search"));
 }
-

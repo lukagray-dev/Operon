@@ -136,7 +136,10 @@ pub async fn get_permission_items(
 /// Updates permission mode (Allow, Ask, Deny) for a group or tool.
 #[tauri::command]
 pub async fn update_permission_mode(request: UpdatePermissionRequestDto) -> Result<(), String> {
-    let dir_param = request.directory.as_deref().filter(|d| !d.trim().is_empty());
+    let dir_param = request
+        .directory
+        .as_deref()
+        .filter(|d| !d.trim().is_empty());
     let mut target_mode = Some(request.mode.as_str());
 
     // Check if target matches default base mode to clear override

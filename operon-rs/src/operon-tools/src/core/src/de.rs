@@ -182,9 +182,10 @@ where
 {
     let value = serde_json::Value::deserialize(deserializer)?;
     match value {
-        serde_json::Value::Number(n) => n.as_u64().map(Some).ok_or_else(|| {
-            serde::de::Error::custom(format!("invalid positive integer: {n}"))
-        }),
+        serde_json::Value::Number(n) => n
+            .as_u64()
+            .map(Some)
+            .ok_or_else(|| serde::de::Error::custom(format!("invalid positive integer: {n}"))),
         serde_json::Value::String(s) => {
             let trimmed = s.trim();
             if trimmed.is_empty() {
@@ -210,9 +211,10 @@ where
 {
     let value = serde_json::Value::deserialize(deserializer)?;
     match value {
-        serde_json::Value::Number(n) => n.as_u64().map(|v| Some(v as usize)).ok_or_else(|| {
-            serde::de::Error::custom(format!("invalid positive integer: {n}"))
-        }),
+        serde_json::Value::Number(n) => n
+            .as_u64()
+            .map(|v| Some(v as usize))
+            .ok_or_else(|| serde::de::Error::custom(format!("invalid positive integer: {n}"))),
         serde_json::Value::String(s) => {
             let trimmed = s.trim();
             if trimmed.is_empty() {
@@ -281,7 +283,10 @@ mod tests {
 
     #[derive(Debug, PartialEq, Eq, Deserialize)]
     struct TestDirPath {
-        #[serde(default = "default_dot_path", deserialize_with = "deserialize_default_dir_path")]
+        #[serde(
+            default = "default_dot_path",
+            deserialize_with = "deserialize_default_dir_path"
+        )]
         path: String,
     }
 
@@ -296,7 +301,8 @@ mod tests {
         assert_eq!(t2.items, vec!["a", "b"]);
 
         // Markdown fenced JSON array
-        let t3: TestList = serde_json::from_value(json!({ "items": "```json\n[\"a\", \"b\"]\n```" })).unwrap();
+        let t3: TestList =
+            serde_json::from_value(json!({ "items": "```json\n[\"a\", \"b\"]\n```" })).unwrap();
         assert_eq!(t3.items, vec!["a", "b"]);
 
         // Single string item

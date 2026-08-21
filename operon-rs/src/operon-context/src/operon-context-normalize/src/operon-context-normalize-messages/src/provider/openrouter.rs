@@ -72,21 +72,19 @@ fn looks_like_openai_shape(raw: &Value) -> bool {
         if matches!(role, "system" | "tool") {
             return true;
         }
-        if role == "assistant" {
-            if raw
+        if role == "assistant"
+            && raw
                 .get("content")
                 .is_none_or(|v| v.is_string() || v.is_null() || looks_like_openai_content_array(v))
-            {
-                return true;
-            }
+        {
+            return true;
         }
-        if role == "user" {
-            if raw
+        if role == "user"
+            && raw
                 .get("content")
                 .is_some_and(|v| v.is_string() || looks_like_openai_content_array(v))
-            {
-                return true;
-            }
+        {
+            return true;
         }
     }
     false

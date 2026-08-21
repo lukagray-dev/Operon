@@ -46,8 +46,8 @@ mod tests {
     fn test_spinner_cycles() {
         // Test that spinner cycles through all frames
         let frames = SPINNER_FRAMES;
-        for i in 0..frames.len() {
-            assert_eq!(get_spinner_frame(i as u64, true), frames[i]);
+        for (i, frame) in frames.iter().enumerate() {
+            assert_eq!(get_spinner_frame(i as u64, true), *frame);
         }
         // Test wrap-around
         assert_eq!(

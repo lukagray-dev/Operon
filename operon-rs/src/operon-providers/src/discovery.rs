@@ -303,7 +303,11 @@ async fn discover_gemini(api_key: &str, base_url: &str) -> Result<DiscoveryResul
         .models
         .into_iter()
         .map(|m| {
-            let model_id = m.name.strip_prefix("models/").unwrap_or(&m.name).to_string();
+            let model_id = m
+                .name
+                .strip_prefix("models/")
+                .unwrap_or(&m.name)
+                .to_string();
             let context_window = m
                 .input_token_limit
                 .unwrap_or_else(|| crate::catalog::lookup_context_window(&model_id));
@@ -465,11 +469,8 @@ mod tests {
         let payload = serde_json::json!({
             "reasoning_levels": ["Low", "Medium", "High", "Max"]
         });
-        let levels = detect_model_reasoning_levels(
-            Provider::Anthropic,
-            "claude-3-7-sonnet",
-            Some(&payload),
-        );
+        let levels =
+            detect_model_reasoning_levels(Provider::Anthropic, "claude-3-7-sonnet", Some(&payload));
         assert_eq!(levels, vec!["Low", "Medium", "High", "Max"]);
     }
 
@@ -480,11 +481,8 @@ mod tests {
                 "levels": ["Low", "Mid", "High", "xHigh"]
             }
         });
-        let levels = detect_model_reasoning_levels(
-            Provider::OpenRouter,
-            "some-model",
-            Some(&payload),
-        );
+        let levels =
+            detect_model_reasoning_levels(Provider::OpenRouter, "some-model", Some(&payload));
         assert_eq!(levels, vec!["Low", "Mid", "High", "xHigh"]);
     }
 
@@ -494,55 +492,33 @@ mod tests {
             "id": "gpt-4o",
             "owned_by": "openai"
         });
-        let levels = detect_model_reasoning_levels(
-            Provider::OpenAI,
-            "gpt-4o",
-            Some(&payload),
-        );
+        let levels = detect_model_reasoning_levels(Provider::OpenAI, "gpt-4o", Some(&payload));
         assert!(levels.is_empty());
     }
 
     #[test]
     fn test_none_payload_returns_empty() {
-        let levels = detect_model_reasoning_levels(
-            Provider::Anthropic,
-            "claude-3-5-sonnet",
-            None,
-        );
+        let levels = detect_model_reasoning_levels(Provider::Anthropic, "claude-3-5-sonnet", None);
         assert!(levels.is_empty());
     }
 
     #[test]
     fn test_gemini_37_and_thinking_models() {
-        let levels_37 = detect_model_reasoning_levels(
-            Provider::Gemini,
-            "gemini-3.7-flash",
-            None,
-        );
+        let levels_37 = detect_model_reasoning_levels(Provider::Gemini, "gemini-3.7-flash", None);
         assert_eq!(levels_37, vec!["Low", "Medium", "High", "Disabled"]);
 
-        let levels_25 = detect_model_reasoning_levels(
-            Provider::Gemini,
-            "gemini-2.5-pro",
-            None,
-        );
+        let levels_25 = detect_model_reasoning_levels(Provider::Gemini, "gemini-2.5-pro", None);
         assert_eq!(levels_25, vec!["Low", "Medium", "High", "Disabled"]);
 
-        let levels_tts = detect_model_reasoning_levels(
-            Provider::Gemini,
-            "gemini-2.5-flash-preview-tts",
-            None,
-        );
+        let levels_tts =
+            detect_model_reasoning_levels(Provider::Gemini, "gemini-2.5-flash-preview-tts", None);
         assert!(levels_tts.is_empty());
     }
 
     #[test]
     fn test_claude_37_sonnet() {
-        let levels = detect_model_reasoning_levels(
-            Provider::Anthropic,
-            "claude-3-7-sonnet-20250219",
-            None,
-        );
+        let levels =
+            detect_model_reasoning_levels(Provider::Anthropic, "claude-3-7-sonnet-20250219", None);
         assert_eq!(levels, vec!["Low", "Medium", "High", "Max", "Disabled"]);
     }
 }

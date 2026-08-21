@@ -32,8 +32,16 @@ pub fn render_resume_screen(frame: &mut Frame, area: Rect, state: &AppState) {
 
     // ── Header Block ─────────────────────────────────────────────────────────
     let header_text = vec![
-        Span::styled("Workspace: ", Style::default().fg(COLOR_LABEL).add_modifier(Modifier::BOLD)),
-        Span::styled(&state.resume.current_workspace, Style::default().fg(COLOR_ACCENT)),
+        Span::styled(
+            "Workspace: ",
+            Style::default()
+                .fg(COLOR_LABEL)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            &state.resume.current_workspace,
+            Style::default().fg(COLOR_ACCENT),
+        ),
         Span::raw("   "),
         Span::styled(
             format!("({} conversations found)", state.resume.sessions.len()),
@@ -132,13 +140,33 @@ pub fn render_resume_screen(frame: &mut Frame, area: Rect, state: &AppState) {
 
     // ── Bottom Instructions ──────────────────────────────────────────────────
     let hints = vec![
-        Span::styled("[↑/↓] ", Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[↑/↓] ",
+            Style::default()
+                .fg(COLOR_ACCENT)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw("Navigate   "),
-        Span::styled("[Enter] ", Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[Enter] ",
+            Style::default()
+                .fg(COLOR_ACCENT)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw("Resume Selected   "),
-        Span::styled("[Esc] ", Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[Esc] ",
+            Style::default()
+                .fg(COLOR_ACCENT)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw("Cancel / Back to Chat   "),
-        Span::styled("[/] ", Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[/] ",
+            Style::default()
+                .fg(COLOR_ACCENT)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw("Switch Screens"),
     ];
     let footer = Paragraph::new(Line::from(hints)).block(

@@ -34,14 +34,14 @@ pub use operon_context_snapshot::{
 
 pub use operon_context_sanitizer::{sanitize, SanitizerError};
 
-#[cfg(feature = "http-client")]
-pub use operon_context_compaction::{
-    AnthropicCompactionClient, GeminiCompactionClient, OpenAICompactionClient,
-};
 #[cfg(any(test, feature = "test-utils"))]
 pub use operon_context_compaction::MockCompactionClient;
 pub use operon_context_compaction::{
     compact, CompactionClient, CompactionConfig, CompactionError, CompactionResult,
+};
+#[cfg(feature = "http-client")]
+pub use operon_context_compaction::{
+    AnthropicCompactionClient, GeminiCompactionClient, OpenAICompactionClient,
 };
 
 pub use operon_context_token_tracker::{

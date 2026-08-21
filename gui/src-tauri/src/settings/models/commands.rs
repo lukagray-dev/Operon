@@ -83,9 +83,7 @@ pub async fn get_providers_list() -> Result<Vec<ProviderSummaryDto>, String> {
         .iter()
         .map(|&provider| {
             let provider_id = provider_to_id(&provider);
-            let is_active = active_provider_id
-                .as_ref()
-                .map_or(false, |id| id == &provider_id);
+            let is_active = active_provider_id.as_deref() == Some(provider_id.as_str());
 
             let is_configured = if let Some(ref config) = app_config {
                 provider_to_id(&config.provider.provider) == provider_id
@@ -106,7 +104,11 @@ pub async fn get_providers_list() -> Result<Vec<ProviderSummaryDto>, String> {
                 id: provider_id,
                 label: provider.display_name().to_string(),
                 status,
-                active_model: if is_active { active_model.clone() } else { "".to_string() },
+                active_model: if is_active {
+                    active_model.clone()
+                } else {
+                    "".to_string()
+                },
                 is_active,
             }
         })
@@ -124,9 +126,9 @@ pub async fn get_provider_setup_details(
         .ok_or_else(|| format!("Unknown provider id: {}", provider_id))?;
 
     let app_config = operon_rs::load().ok();
-    let is_matching_active = app_config.as_ref().map_or(false, |c| {
-        provider_to_id(&c.provider.provider) == provider_id
-    });
+    let is_matching_active = app_config
+        .as_ref()
+        .is_some_and(|c| provider_to_id(&c.provider.provider) == provider_id);
 
     let mut saved_base = String::new();
     let mut saved_key = String::new();

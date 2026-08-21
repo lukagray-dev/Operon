@@ -38,17 +38,11 @@ pub enum MessageBlockDto {
         data: crate::main_content::work_group::WorkGroupDto,
     },
     /// Expandable context compaction pill.
-    Compaction {
-        data: CompactionDto,
-    },
+    Compaction { data: CompactionDto },
     /// Text response content block.
-    Text {
-        text: String,
-    },
+    Text { text: String },
     /// Interactive or historical ask question prompt.
-    Ask {
-        data: AskQuestionDto,
-    },
+    Ask { data: AskQuestionDto },
 }
 
 /// High-level chat message DTO passed to the GUI frontend.

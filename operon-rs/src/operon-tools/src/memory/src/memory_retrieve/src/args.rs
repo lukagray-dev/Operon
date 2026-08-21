@@ -29,4 +29,3 @@ pub struct MemoryRetrieveArgs {
     #[serde(default)]
     pub offset: Option<usize>,
 }
-

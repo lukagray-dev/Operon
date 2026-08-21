@@ -7,8 +7,8 @@
 // Every struct uses `#[serde(rename_all = "camelCase")]` to seamlessly translate snake_case Rust
 // properties into standard camelCase properties required by Slint and web/IPC serialization.
 
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 /// Represents line-by-line changes in a file patch.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

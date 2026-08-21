@@ -4,10 +4,10 @@
 // converting low-level `libgit2` delta patches into rich high-level `FileDiff`, `DiffHunk`, and `DiffLine`
 // DTOs consumable by Slint desktop UI elements.
 
-use std::path::Path;
-use git2::{Diff, Repository};
 use crate::dto::{DiffHunk, DiffLine, FileDiff};
 use crate::error::DiffError;
+use git2::{Diff, Repository};
+use std::path::Path;
 
 /// Helper: Parses a `git2::Diff` structure into a vector of detailed `FileDiff` structures.
 ///
@@ -22,21 +22,25 @@ pub fn parse_diff(_repo: &Repository, diff: &Diff) -> Result<Vec<FileDiff>, Diff
         // Build a patch for each file change
         if let Ok(Some(patch)) = git2::Patch::from_diff(diff, idx) {
             let delta = patch.delta();
-            
+
             // Extract the new path (or old path if it was deleted)
-            let path_str = delta.new_file().path()
+            let path_str = delta
+                .new_file()
+                .path()
                 .or_else(|| delta.old_file().path())
                 .map(|p| p.to_string_lossy().into_owned())
                 .unwrap_or_default();
 
             // Extract file_name and dir_path for Slint UI rendering
             let std_path = Path::new(&path_str);
-            let file_name = std_path.file_name()
+            let file_name = std_path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
                 .to_string();
-            
-            let dir_path = std_path.parent()
+
+            let dir_path = std_path
+                .parent()
                 .and_then(|p| p.to_str())
                 .unwrap_or("")
                 .to_string();
@@ -50,17 +54,19 @@ pub fn parse_diff(_repo: &Repository, diff: &Diff) -> Result<Vec<FileDiff>, Diff
                 git2::Delta::Typechange => "typechanged",
                 git2::Delta::Untracked => "untracked",
                 _ => "modified",
-            }.to_string();
+            }
+            .to_string();
 
             // Fetch insertion and deletion line statistics for this patch
-            let (insertions, deletions) = patch.line_stats()
+            let (insertions, deletions) = patch
+                .line_stats()
                 .map(|(ins, del, _)| (ins, del))
                 .unwrap_or((0, 0));
 
             // Extract hunk modifications
             let mut hunks = Vec::new();
             let num_hunks = patch.num_hunks();
-            
+
             for h_idx in 0..num_hunks {
                 let (hunk, num_lines) = patch.hunk(h_idx)?;
                 let header = String::from_utf8_lossy(hunk.header()).into_owned();

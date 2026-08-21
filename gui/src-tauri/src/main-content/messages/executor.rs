@@ -85,7 +85,10 @@ pub async fn submit_prompt(
                 .unwrap_or_default();
             map.insert("id".to_string(), serde_json::json!(active_id));
             map.insert("title".to_string(), serde_json::json!(title));
-            let _ = std::fs::write(&session_file, serde_json::to_string_pretty(&map).unwrap_or_default());
+            let _ = std::fs::write(
+                &session_file,
+                serde_json::to_string_pretty(&map).unwrap_or_default(),
+            );
         }
     } else {
         // Existing session: if the workspace context changed (session moved between
@@ -97,18 +100,13 @@ pub async fn submit_prompt(
                 if let Ok(content) = std::fs::read_to_string(&session_file) {
                     if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
                         if let Some(obj) = val.as_object_mut() {
-                            let stored_ws = obj
-                                .get("workspace")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
+                            let stored_ws =
+                                obj.get("workspace").and_then(|v| v.as_str()).unwrap_or("");
                             let current_ws = workspace_root.to_string_lossy();
 
                             // Only rewrite if the workspace actually changed
                             if stored_ws != current_ws.as_ref() {
-                                obj.insert(
-                                    "workspace".to_string(),
-                                    serde_json::json!(current_ws),
-                                );
+                                obj.insert("workspace".to_string(), serde_json::json!(current_ws));
                                 let _ = std::fs::write(
                                     &session_file,
                                     serde_json::to_string_pretty(&val).unwrap_or_default(),
@@ -132,7 +130,9 @@ pub async fn submit_prompt(
         workspace_root,
         role: operon_rs::context::Role::Owner,
         tool_groups: operon_rs::session::SessionConfig::default_tool_groups(),
-        compaction: operon_rs::context::CompactionConfig::with_context_window(app_config.provider.context_window()),
+        compaction: operon_rs::context::CompactionConfig::with_context_window(
+            app_config.provider.context_window(),
+        ),
         store_path: Some(store_path.clone()),
         channel_instructions: None,
     };
@@ -230,7 +230,9 @@ pub async fn cancel_prompt() -> Result<(), String> {
 /// Approves a pending tool permission request across GUI sessions or background channel sessions.
 #[tauri::command]
 pub async fn approve_permission(permission_id: String) -> Result<(), String> {
-    if let Ok(true) = crate::shared::channels_manager::dispatch_permission_decision(&permission_id, true).await {
+    if let Ok(true) =
+        crate::shared::channels_manager::dispatch_permission_decision(&permission_id, true).await
+    {
         return Ok(());
     }
 
@@ -242,9 +244,7 @@ pub async fn approve_permission(permission_id: String) -> Result<(), String> {
 
     if let Some(cmd_tx) = cmd_tx_opt {
         let _ = cmd_tx
-            .send(operon_rs::SessionCommand::Approve {
-                id: permission_id,
-            })
+            .send(operon_rs::SessionCommand::Approve { id: permission_id })
             .await;
     }
     Ok(())
@@ -253,7 +253,9 @@ pub async fn approve_permission(permission_id: String) -> Result<(), String> {
 /// Denies a pending tool permission request across GUI sessions or background channel sessions.
 #[tauri::command]
 pub async fn deny_permission(permission_id: String) -> Result<(), String> {
-    if let Ok(true) = crate::shared::channels_manager::dispatch_permission_decision(&permission_id, false).await {
+    if let Ok(true) =
+        crate::shared::channels_manager::dispatch_permission_decision(&permission_id, false).await
+    {
         return Ok(());
     }
 
@@ -265,9 +267,7 @@ pub async fn deny_permission(permission_id: String) -> Result<(), String> {
 
     if let Some(cmd_tx) = cmd_tx_opt {
         let _ = cmd_tx
-            .send(operon_rs::SessionCommand::Deny {
-                id: permission_id,
-            })
+            .send(operon_rs::SessionCommand::Deny { id: permission_id })
             .await;
     }
     Ok(())
@@ -333,7 +333,9 @@ pub async fn edit_and_submit_prompt(
         workspace_root,
         role: operon_rs::context::Role::Owner,
         tool_groups: operon_rs::session::SessionConfig::default_tool_groups(),
-        compaction: operon_rs::context::CompactionConfig::with_context_window(app_config.provider.context_window()),
+        compaction: operon_rs::context::CompactionConfig::with_context_window(
+            app_config.provider.context_window(),
+        ),
         store_path: Some(store_path.clone()),
         channel_instructions: None,
     };
@@ -404,4 +406,3 @@ pub async fn edit_and_submit_prompt(
 
     Ok(session_id)
 }
-

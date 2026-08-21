@@ -82,7 +82,10 @@ pub fn render_setup(frame: &mut Frame, area: Rect, state: &mut AppState) {
     };
 
     let meta_spans = vec![
-        Span::styled(format!("Provider: {}", label), Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(
+            format!("Provider: {}", label),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
         Span::styled(format!("  •  Auth: {}", auth_desc), STYLE_MUTED),
     ];
     let header_widget = Paragraph::new(Line::from(meta_spans)).alignment(Alignment::Left);
@@ -166,7 +169,10 @@ pub fn render_setup(frame: &mut Frame, area: Rect, state: &mut AppState) {
         "   [ Fetch Models (Ctrl+F) ] "
     };
 
-    let mut fetch_spans = vec![Span::styled(fetch_label, fetch_button_style), Span::raw("  ")];
+    let mut fetch_spans = vec![
+        Span::styled(fetch_label, fetch_button_style),
+        Span::raw("  "),
+    ];
 
     // Status indicator
     match &state.models.fetch_status {
@@ -180,13 +186,17 @@ pub fn render_setup(frame: &mut Frame, area: Rect, state: &mut AppState) {
             let spinner = get_spinner_frame(state.get_tick(), true);
             fetch_spans.push(Span::styled(
                 format!("{} Discovering models from provider...", spinner),
-                Style::default().fg(COLOR_WARNING).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(COLOR_WARNING)
+                    .add_modifier(Modifier::BOLD),
             ));
         }
         FetchStatus::Success(count) => {
             fetch_spans.push(Span::styled(
                 format!("✔ Discovered {} models from provider", count),
-                Style::default().fg(COLOR_SUCCESS).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(COLOR_SUCCESS)
+                    .add_modifier(Modifier::BOLD),
             ));
         }
         FetchStatus::Error(err) => {
@@ -228,7 +238,9 @@ pub fn render_setup(frame: &mut Frame, area: Rect, state: &mut AppState) {
                 let item_style = if is_sel && is_list_focused {
                     STYLE_SELECTED
                 } else if is_sel {
-                    Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(COLOR_ACCENT)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     STYLE_NORMAL
                 };
@@ -301,7 +313,9 @@ pub fn render_setup(frame: &mut Frame, area: Rect, state: &mut AppState) {
         SaveStatus::Success => {
             save_spans.push(Span::styled(
                 "✔ Saved and activated successfully!",
-                Style::default().fg(COLOR_SUCCESS).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(COLOR_SUCCESS)
+                    .add_modifier(Modifier::BOLD),
             ));
         }
         SaveStatus::Error(err) => {

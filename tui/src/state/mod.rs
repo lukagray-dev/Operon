@@ -452,17 +452,16 @@ impl AppState {
         };
 
         // Build text buffer from messages
-        let mut lines: Vec<String> = Vec::new();
-
-        // Banner
-        lines.push(String::new());
-        lines.push("    ____                               ".to_string());
-        lines.push("   / __ \\____  ___  _________  ____    ".to_string());
-        lines.push("  / / / / __ \\/ _ \\/ ___/ __ \\/ __ \\   ".to_string());
-        lines.push(" / /_/ / /_/ /  __/ /  / /_/ / / / /   ".to_string());
-        lines.push(" \\____/ .___/\\___/_/   \\____/_/ /_/    ".to_string());
-        lines.push("     /_/                               ".to_string());
-        lines.push(String::new());
+        let mut lines: Vec<String> = vec![
+            String::new(),
+            "    ____                               ".to_string(),
+            "   / __ \\____  ___  _________  ____    ".to_string(),
+            "  / / / / __ \\/ _ \\/ ___/ __ \\/ __ \\   ".to_string(),
+            " / /_/ / /_/ /  __/ /  / /_/ / / / /   ".to_string(),
+            " \\____/ .___/\\___/_/   \\____/_/ /_/    ".to_string(),
+            "     /_/                               ".to_string(),
+            String::new(),
+        ];
 
         if self.messages.is_empty() {
             lines.push("Type a message and press Ctrl+Enter to send.".to_string());

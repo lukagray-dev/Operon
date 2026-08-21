@@ -29,8 +29,14 @@ pub struct WriteOutput {
 impl WriteOutput {
     /// Formats the write output as raw plain text with a status header.
     pub fn to_plain_text(&self) -> String {
-        let status = if self.created { "created" } else { "overwritten" };
-        format!("=== {} ({}, {} bytes) ===", self.path, status, self.bytes_written)
+        let status = if self.created {
+            "created"
+        } else {
+            "overwritten"
+        };
+        format!(
+            "=== {} ({}, {} bytes) ===",
+            self.path, status, self.bytes_written
+        )
     }
 }
-

@@ -14,11 +14,7 @@ use operon_tools_memory_store::MemoryStore;
 ///
 /// # Returns
 /// A `ToolResult` with JSON `MemoryAddOutput` on success, or `is_error: true` Text on failure.
-pub async fn execute(
-    call_id: ToolCallId,
-    args: MemoryAddArgs,
-    store: &MemoryStore,
-) -> ToolResult {
+pub async fn execute(call_id: ToolCallId, args: MemoryAddArgs, store: &MemoryStore) -> ToolResult {
     // Step 1: Validate that content is non-empty after trimming.
     // An empty memory is meaningless and likely a model mistake.
     let trimmed = args.content.trim();
@@ -55,7 +51,8 @@ pub async fn execute(
         call_id,
         name: "memory_add".to_string(),
         content: ToolContent::Json(
-            serde_json::to_value(&output).unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"})),
+            serde_json::to_value(&output)
+                .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"})),
         ),
         is_error: false,
     }

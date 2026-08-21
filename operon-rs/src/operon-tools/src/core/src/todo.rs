@@ -9,41 +9,31 @@ use serde::{Deserialize, Serialize};
 /// Priority level of a todo item.
 ///
 /// Used to categorize tasks by urgency. Defaults to Medium if not specified.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TodoPriority {
     /// High priority — urgent, should be done first.
     High,
     /// Medium priority — normal, default level.
+    #[default]
     Medium,
     /// Low priority — can be deferred.
     Low,
 }
 
-impl Default for TodoPriority {
-    fn default() -> Self {
-        TodoPriority::Medium
-    }
-}
-
 /// Status of a todo item.
 ///
 /// Tracks the lifecycle of a task from creation through completion.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TodoStatus {
     /// Task has not been started yet. Default status on creation.
+    #[default]
     Pending,
     /// Task is currently being worked on.
     InProgress,
     /// Task has been completed.
     Completed,
-}
-
-impl Default for TodoStatus {
-    fn default() -> Self {
-        TodoStatus::Pending
-    }
 }
 
 /// A single todo item.

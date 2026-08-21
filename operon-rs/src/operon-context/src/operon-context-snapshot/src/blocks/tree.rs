@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn directories_are_sorted_before_files() {
-        let mut entries = vec![
+        let mut entries = [
             TreeEntry {
                 relative_path: PathBuf::from("b.txt"),
                 is_dir: false,

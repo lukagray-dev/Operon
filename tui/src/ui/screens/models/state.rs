@@ -83,23 +83,34 @@ pub enum SaveStatus {
 /// Helper to estimate/resolve a sensible context window when manually entering a model ID.
 pub fn resolve_default_context_window(provider: Provider, model_id: &str) -> usize {
     let lower = model_id.to_lowercase();
-    if lower.contains("gemini-1.5") || lower.contains("gemini-2.0") || lower.contains("gemini-2.5") {
+    if lower.contains("gemini-1.5") || lower.contains("gemini-2.0") || lower.contains("gemini-2.5")
+    {
         1_048_576
-    } else if lower.contains("claude-3") || lower.contains("claude-sonnet") || lower.contains("claude-opus") {
+    } else if lower.contains("claude-3")
+        || lower.contains("claude-sonnet")
+        || lower.contains("claude-opus")
+        || lower.contains("o1")
+        || lower.contains("o3")
+        || lower.contains("o4")
+    {
         200_000
-    } else if lower.contains("o1") || lower.contains("o3") || lower.contains("o4") {
-        200_000
-    } else if lower.contains("gpt-4") || lower.contains("gpt-3.5") {
-        128_000
-    } else if lower.contains("deepseek") {
-        128_000
-    } else if lower.contains("qwen") || lower.contains("nemotron") || lower.contains("llama-3") {
+    } else if lower.contains("gpt-4")
+        || lower.contains("gpt-3.5")
+        || lower.contains("deepseek")
+        || lower.contains("qwen")
+        || lower.contains("nemotron")
+        || lower.contains("llama-3")
+    {
         128_000
     } else {
         match provider {
             Provider::Gemini => 1_048_576,
             Provider::Anthropic => 200_000,
-            Provider::OpenAI | Provider::XAI | Provider::Groq | Provider::Mistral | Provider::NvidiaNim => 128_000,
+            Provider::OpenAI
+            | Provider::XAI
+            | Provider::Groq
+            | Provider::Mistral
+            | Provider::NvidiaNim => 128_000,
             Provider::Ollama => 32_768,
             _ => 128_000,
         }
@@ -186,7 +197,7 @@ impl ModelsState {
         self.providers = Provider::all()
             .iter()
             .map(|&provider| {
-                let is_active = active_provider.map_or(false, |p| p == provider);
+                let is_active = active_provider == Some(provider);
                 let label = provider.display_name().to_string();
 
                 let is_configured = if let Some(ref config) = app_config {
@@ -236,9 +247,7 @@ impl ModelsState {
 
     /// Moves cursor down in the provider selection list.
     pub fn move_provider_down(&mut self) {
-        if !self.providers.is_empty()
-            && self.selected_provider_index < self.providers.len() - 1
-        {
+        if !self.providers.is_empty() && self.selected_provider_index < self.providers.len() - 1 {
             self.selected_provider_index += 1;
         }
     }
@@ -260,7 +269,7 @@ impl ModelsState {
         let app_config = operon_rs::load().ok();
         let is_matching_active = app_config
             .as_ref()
-            .map_or(false, |c| c.provider.provider == provider);
+            .is_some_and(|c| c.provider.provider == provider);
 
         let default_base = provider.capabilities().default_base_url;
 

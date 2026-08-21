@@ -214,7 +214,6 @@ pub async fn execute(call_id: ToolCallId, args: GrepArgs) -> ToolResult {
     }
 }
 
-
 /// Collects all file paths to search based on the input paths and optional glob filter.
 ///
 /// For each path:
@@ -273,7 +272,7 @@ fn collect_file_paths(
                 match entry {
                     Ok(e) => {
                         // Only collect files, not directories.
-                        if e.file_type().map_or(false, |ft| ft.is_file()) {
+                        if e.file_type().is_some_and(|ft| ft.is_file()) {
                             collected.insert(e.path().to_path_buf());
                         }
                     }

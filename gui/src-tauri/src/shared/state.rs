@@ -1,8 +1,8 @@
 //! Shared application state for Operon GUI.
 
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use serde::{Deserialize, Serialize};
 
 /// Global in-memory UI preferences and state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,7 +16,8 @@ pub struct AppStateDto {
 
 impl Default for AppStateDto {
     fn default() -> Self {
-        let initial_auto_approve = crate::settings::prefs::GuiPrefs::load().global_auto_approve_default;
+        let initial_auto_approve =
+            crate::settings::prefs::GuiPrefs::load().global_auto_approve_default;
         Self {
             sidebar_open: true,
             ui_scale: 1.0,

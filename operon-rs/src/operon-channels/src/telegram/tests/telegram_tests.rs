@@ -8,7 +8,9 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 use operon_channels_telegram::config::TelegramConfig;
-use operon_channels_telegram::outbound::{format_for_telegram, OutboundQueue, TelegramOutboundMessage};
+use operon_channels_telegram::outbound::{
+    format_for_telegram, OutboundQueue, TelegramOutboundMessage,
+};
 use operon_channels_telegram::router::{RouteOutcome, TelegramRouter};
 use operon_channels_telegram::types::{ChatId, ConnectionStatus, TelegramMessage};
 use operon_channels_telegram::workspace::{

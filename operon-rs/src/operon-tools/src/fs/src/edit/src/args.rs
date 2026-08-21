@@ -157,9 +157,9 @@ impl<'de> Deserialize<'de> for EditArgs {
     {
         let raw = RawEditArgs::deserialize(deserializer)?;
 
-        let path = raw.path.ok_or_else(|| {
-            serde::de::Error::missing_field("path")
-        })?;
+        let path = raw
+            .path
+            .ok_or_else(|| serde::de::Error::missing_field("path"))?;
 
         let mut edits = raw.edits;
 

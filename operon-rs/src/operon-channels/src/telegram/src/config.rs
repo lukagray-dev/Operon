@@ -76,7 +76,8 @@ impl TelegramConfig {
     /// advising the user to configure policy coverage so tool calls won't silently deny.
     pub fn check_policy_coverage(&self, policy: &operon_config::PolicyConfig) -> bool {
         let resolved_ws = self.resolved_workspace_dir();
-        let canonical_ws = std::fs::canonicalize(&resolved_ws).unwrap_or_else(|_| resolved_ws.clone());
+        let canonical_ws =
+            std::fs::canonicalize(&resolved_ws).unwrap_or_else(|_| resolved_ws.clone());
         let covered = policy.any_directory_covers(&canonical_ws);
         if self.enabled && !covered {
             tracing::warn!(

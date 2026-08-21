@@ -68,7 +68,6 @@ impl WhatsAppRouter {
         }
     }
 
-
     /// Checks if a contact ID is considered an owner (via config or lazily resolved bot_phone).
     pub fn is_owner(&self, contact: &ContactId) -> bool {
         if self.config.is_owner(contact) {
@@ -150,7 +149,6 @@ impl WhatsAppRouter {
         // Hey newbie friend! `HashSet::insert` returns `true` if the contact was NOT previously present,
         // giving us O(1) detection and insertion in a single atomic step without linear scanning!
         let is_first_time = self.known_contacts.lock().await.insert(contact.clone());
-
 
         // ── 3. Resolve active session & pinned role ─────────────────────────
         let mut sessions = self.active_sessions.lock().await;

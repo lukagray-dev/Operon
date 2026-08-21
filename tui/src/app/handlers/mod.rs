@@ -51,9 +51,9 @@ pub async fn dispatch(
         | Action::SendMessage => input::handle(action, state, agent, tx).await?,
 
         // Mouse and selection actions
-        Action::ProcessMouse(_)
-        | Action::SetCtrlShiftHeld(_)
-        | Action::CopySelection => mouse::handle(action, state, terminal_height).await?,
+        Action::ProcessMouse(_) | Action::SetCtrlShiftHeld(_) | Action::CopySelection => {
+            mouse::handle(action, state, terminal_height).await?
+        }
 
         // Raw key event processing (maps contextually and dispatches directly without channel recursion)
         Action::ProcessKey(key_event) => {
@@ -97,9 +97,9 @@ pub async fn dispatch(
         | Action::Tick => chat::handle(action, state, agent).await?,
 
         // Resume screen actions: navigate past conversations and confirm resumption
-        Action::ResumeUp
-        | Action::ResumeDown
-        | Action::ResumeConfirm => resume::handle(action, state, agent).await?,
+        Action::ResumeUp | Action::ResumeDown | Action::ResumeConfirm => {
+            resume::handle(action, state, agent).await?
+        }
 
         // Models screen actions: provider selection, form input, model fetching, and saving
         Action::ModelsUp

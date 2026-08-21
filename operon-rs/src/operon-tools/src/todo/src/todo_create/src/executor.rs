@@ -21,7 +21,9 @@ pub async fn execute(
         return ToolResult {
             call_id,
             name: "todo_create".to_string(),
-            content: ToolContent::Text("content is empty — provide at least one task description".to_string()),
+            content: ToolContent::Text(
+                "content is empty — provide at least one task description".to_string(),
+            ),
             is_error: true,
         };
     }

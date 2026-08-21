@@ -33,5 +33,5 @@ pub fn parse_line(line: &str, provider: &Provider) -> Result<Vec<StreamEvent>> {
 
 /// Create a new stateful stream assembler for the given provider.
 pub fn new_assembler(provider: &Provider) -> StreamAssembler {
-    StreamAssembler::new(provider.clone())
+    StreamAssembler::new(*provider)
 }

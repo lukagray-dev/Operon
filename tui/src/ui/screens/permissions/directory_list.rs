@@ -56,7 +56,10 @@ pub fn render_directory_list(
             ];
 
             if dir.is_workspace {
-                spans.push(Span::styled(" (workspace)", Style::default().fg(COLOR_LABEL)));
+                spans.push(Span::styled(
+                    " (workspace)",
+                    Style::default().fg(COLOR_LABEL),
+                ));
             }
 
             let line = if is_selected {
@@ -70,7 +73,10 @@ pub fn render_directory_list(
 
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled("[+] Add directory", STYLE_MUTED)));
-        lines.push(Line::from(Span::styled("[-] Remove directory", STYLE_MUTED)));
+        lines.push(Line::from(Span::styled(
+            "[-] Remove directory",
+            STYLE_MUTED,
+        )));
     }
 
     let text_width = area.width.saturating_sub(2) as usize;

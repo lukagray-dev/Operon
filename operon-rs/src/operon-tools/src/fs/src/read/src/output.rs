@@ -83,10 +83,16 @@ impl ReadOutput {
             if file.success {
                 let header = match (&file.lines_returned, file.total_lines) {
                     (Some(range), Some(total)) => {
-                        format!("=== {} (lines {}-{} of {}) ===", file.path, range.start, range.end, total)
+                        format!(
+                            "=== {} (lines {}-{} of {}) ===",
+                            file.path, range.start, range.end, total
+                        )
                     }
                     (Some(range), None) => {
-                        format!("=== {} (lines {}-{}) ===", file.path, range.start, range.end)
+                        format!(
+                            "=== {} (lines {}-{}) ===",
+                            file.path, range.start, range.end
+                        )
                     }
                     (None, Some(total)) => {
                         format!("=== {} ({} lines) ===", file.path, total)
@@ -112,4 +118,3 @@ impl ReadOutput {
         out
     }
 }
-

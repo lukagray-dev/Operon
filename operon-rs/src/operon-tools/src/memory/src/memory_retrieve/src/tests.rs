@@ -16,13 +16,14 @@ async fn fresh_store() -> (MemoryStore, tempfile::NamedTempFile) {
 #[tokio::test]
 async fn test_retrieve_by_id_succeeds() {
     let (store, _tmp) = fresh_store().await;
-    let mem = store.add("Find me".to_string(), vec!["x".to_string()]).await.unwrap();
+    let mem = store
+        .add("Find me".to_string(), vec!["x".to_string()])
+        .await
+        .unwrap();
 
-    let result = execute(
-        ToolCallId("r1".to_string()),
-        json!({"id": mem.id}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("r1".to_string()), json!({"id": mem.id}), &store)
+        .await
+        .unwrap();
 
     assert!(!result.is_error);
     match result.content {
@@ -38,14 +39,19 @@ async fn test_retrieve_by_id_succeeds() {
 #[tokio::test]
 async fn test_retrieve_by_numeric_id() {
     let (store, _tmp) = fresh_store().await;
-    let mem = store.add("Numeric id test".to_string(), vec![]).await.unwrap();
+    let mem = store
+        .add("Numeric id test".to_string(), vec![])
+        .await
+        .unwrap();
     let numeric_id: i64 = mem.id.parse().unwrap();
 
     let result = execute(
         ToolCallId("r2".to_string()),
         json!({"id": numeric_id}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
 }
@@ -54,11 +60,9 @@ async fn test_retrieve_by_numeric_id() {
 async fn test_retrieve_not_found_returns_error() {
     let (store, _tmp) = fresh_store().await;
 
-    let result = execute(
-        ToolCallId("r3".to_string()),
-        json!({"id": "99999"}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("r3".to_string()), json!({"id": "99999"}), &store)
+        .await
+        .unwrap();
 
     assert!(result.is_error);
     match result.content {
@@ -76,11 +80,9 @@ async fn test_list_mode_no_args_returns_all() {
         store.add(format!("Memory {}", i), vec![]).await.unwrap();
     }
 
-    let result = execute(
-        ToolCallId("r4".to_string()),
-        json!({}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("r4".to_string()), json!({}), &store)
+        .await
+        .unwrap();
 
     assert!(!result.is_error);
     match result.content {
@@ -99,16 +101,17 @@ async fn test_list_mode_with_limit() {
         store.add(format!("Memory {}", i), vec![]).await.unwrap();
     }
 
-    let result = execute(
-        ToolCallId("r5".to_string()),
-        json!({"limit": 3}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("r5".to_string()), json!({"limit": 3}), &store)
+        .await
+        .unwrap();
 
     match result.content {
         ToolContent::Json(v) => {
             assert_eq!(v["memories"].as_array().unwrap().len(), 3);
-            assert_eq!(v["total"], 8, "total reflects the full count, not just this page");
+            assert_eq!(
+                v["total"], 8,
+                "total reflects the full count, not just this page"
+            );
             assert_eq!(v["limit"], 3);
         }
         _ => panic!("expected JSON"),
@@ -126,7 +129,9 @@ async fn test_list_mode_with_offset() {
         ToolCallId("r6".to_string()),
         json!({"limit": 10, "offset": 4}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     match result.content {
         ToolContent::Json(v) => {
@@ -142,11 +147,9 @@ async fn test_list_mode_with_offset() {
 async fn test_list_empty_store() {
     let (store, _tmp) = fresh_store().await;
 
-    let result = execute(
-        ToolCallId("r7".to_string()),
-        json!({}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("r7".to_string()), json!({}), &store)
+        .await
+        .unwrap();
 
     assert!(!result.is_error);
     match result.content {
@@ -164,11 +167,9 @@ async fn test_list_mode_most_recent_first() {
     let a = store.add("First added".to_string(), vec![]).await.unwrap();
     let c = store.add("Last added".to_string(), vec![]).await.unwrap();
 
-    let result = execute(
-        ToolCallId("r8".to_string()),
-        json!({}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("r8".to_string()), json!({}), &store)
+        .await
+        .unwrap();
 
     match result.content {
         ToolContent::Json(v) => {
@@ -189,7 +190,9 @@ async fn test_output_echoes_limit_and_offset() {
         ToolCallId("r9".to_string()),
         json!({"limit": 7, "offset": 3}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     match result.content {
         ToolContent::Json(v) => {
@@ -204,12 +207,9 @@ async fn test_output_echoes_limit_and_offset() {
 async fn test_execute_with_progress_works() {
     let (store, _tmp) = fresh_store().await;
 
-    let result = execute_with_progress(
-        ToolCallId("r10".to_string()),
-        json!({}),
-        &store,
-        None,
-    ).await.unwrap();
+    let result = execute_with_progress(ToolCallId("r10".to_string()), json!({}), &store, None)
+        .await
+        .unwrap();
 
     assert!(!result.is_error);
 }

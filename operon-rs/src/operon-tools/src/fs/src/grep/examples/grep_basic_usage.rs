@@ -176,7 +176,7 @@ async fn main() {
                         .as_str()
                         .unwrap()
                         .split('\\')
-                        .last()
+                        .next_back()
                         .unwrap_or(""),
                     file["match_count"]
                 );

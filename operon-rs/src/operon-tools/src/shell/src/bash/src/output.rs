@@ -90,4 +90,3 @@ impl BashOutput {
         out
     }
 }
-

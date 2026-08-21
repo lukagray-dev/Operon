@@ -160,4 +160,3 @@ async fn test_ls_aliases_and_patterns() {
     assert!(text.contains("keep.txt"));
     assert!(!text.contains("ignore.log"));
 }
-

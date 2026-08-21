@@ -38,7 +38,10 @@ pub async fn execute(
     let remaining = store.count().await.unwrap_or(0);
 
     // Step 4: Return success.
-    let output = MemoryDeleteOutput { id: args.id, remaining };
+    let output = MemoryDeleteOutput {
+        id: args.id,
+        remaining,
+    };
     ToolResult {
         call_id,
         name: "memory_delete".to_string(),

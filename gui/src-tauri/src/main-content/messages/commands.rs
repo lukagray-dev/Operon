@@ -1,5 +1,5 @@
-use crate::main_content::work_group::{WorkGroupDto, WorkGroupItemDto};
 use super::types::{ChatMessageDto, MessageBlockDto};
+use crate::main_content::work_group::{WorkGroupDto, WorkGroupItemDto};
 
 /// Formats a Unix timestamp into a relative human-friendly string.
 pub fn format_timestamp(created_at: i64) -> String {
@@ -30,9 +30,11 @@ pub fn format_timestamp(created_at: i64) -> String {
 
 /// Generates a friendly display title for a tool call.
 fn get_tool_friendly_title(name: &str, args_json: &str) -> String {
-    let parsed: serde_json::Value = serde_json::from_str(args_json).unwrap_or(serde_json::Value::Null);
+    let parsed: serde_json::Value =
+        serde_json::from_str(args_json).unwrap_or(serde_json::Value::Null);
 
-    let path_val = parsed.get("path")
+    let path_val = parsed
+        .get("path")
         .or_else(|| parsed.get("TargetFile"))
         .or_else(|| parsed.get("DirectoryPath"))
         .or_else(|| parsed.get("AbsolutePath"))
@@ -56,7 +58,11 @@ fn get_tool_friendly_title(name: &str, args_json: &str) -> String {
                 "Reading file".to_string()
             }
         }
-        "write_to_file" | "replace_file_content" | "multi_replace_file_content" | "write" | "edit" => {
+        "write_to_file"
+        | "replace_file_content"
+        | "multi_replace_file_content"
+        | "write"
+        | "edit" => {
             if !short_path.is_empty() {
                 format!("Editing {short_path}")
             } else {
@@ -171,9 +177,14 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                         match block {
                             operon_rs::context::ContentBlock::Reasoning(r) => {
                                 if !r.thinking.trim().is_empty() {
-                                    let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
+                                    let is_last_wg = matches!(
+                                        blocks.last(),
+                                        Some(MessageBlockDto::WorkGroup { .. })
+                                    );
                                     if !is_last_wg {
-                                        if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
+                                        if let Some(MessageBlockDto::Text { text: prev_text }) =
+                                            blocks.last_mut()
+                                        {
                                             *prev_text = prev_text.trim_end().to_string();
                                         }
                                         blocks.push(MessageBlockDto::WorkGroup {
@@ -186,8 +197,14 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                         });
                                     }
 
-                                    if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
-                                        if let Some(WorkGroupItemDto::Thinking { thinking_text, .. }) = data.items.last_mut() {
+                                    if let Some(MessageBlockDto::WorkGroup { data }) =
+                                        blocks.last_mut()
+                                    {
+                                        if let Some(WorkGroupItemDto::Thinking {
+                                            thinking_text,
+                                            ..
+                                        }) = data.items.last_mut()
+                                        {
                                             thinking_text.push_str(&r.thinking);
                                         } else {
                                             data.items.push(WorkGroupItemDto::Thinking {
@@ -201,15 +218,28 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                             operon_rs::context::ContentBlock::ToolCall(tc) => {
                                 if tc.name == "ask" {
                                     // Parse question and options for the interactive Ask Prompt Card
-                                    let (question, options) = if let serde_json::Value::Object(map) = &tc.arguments {
-                                        let q = map.get("question").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-                                        let opts = map.get("options").and_then(|v| v.as_array()).map(|arr| {
-                                            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<String>>()
-                                        }).unwrap_or_default();
-                                        (q, opts)
-                                    } else {
-                                        (String::new(), Vec::new())
-                                    };
+                                    let (question, options) =
+                                        if let serde_json::Value::Object(map) = &tc.arguments {
+                                            let q = map
+                                                .get("question")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or_default()
+                                                .to_string();
+                                            let opts = map
+                                                .get("options")
+                                                .and_then(|v| v.as_array())
+                                                .map(|arr| {
+                                                    arr.iter()
+                                                        .filter_map(|v| {
+                                                            v.as_str().map(|s| s.to_string())
+                                                        })
+                                                        .collect::<Vec<String>>()
+                                                })
+                                                .unwrap_or_default();
+                                            (q, opts)
+                                        } else {
+                                            (String::new(), Vec::new())
+                                        };
 
                                     blocks.push(MessageBlockDto::Ask {
                                         data: super::types::AskQuestionDto {
@@ -223,13 +253,19 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                 } else {
                                     let args_str = match &tc.arguments {
                                         serde_json::Value::String(s) => s.clone(),
-                                        other => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
+                                        other => serde_json::to_string_pretty(other)
+                                            .unwrap_or_else(|_| other.to_string()),
                                     };
                                     let title = get_tool_friendly_title(&tc.name, &args_str);
 
-                                    let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
+                                    let is_last_wg = matches!(
+                                        blocks.last(),
+                                        Some(MessageBlockDto::WorkGroup { .. })
+                                    );
                                     if !is_last_wg {
-                                        if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
+                                        if let Some(MessageBlockDto::Text { text: prev_text }) =
+                                            blocks.last_mut()
+                                        {
                                             *prev_text = prev_text.trim_end().to_string();
                                         }
                                         blocks.push(MessageBlockDto::WorkGroup {
@@ -242,7 +278,9 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                         });
                                     }
 
-                                    if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
+                                    if let Some(MessageBlockDto::WorkGroup { data }) =
+                                        blocks.last_mut()
+                                    {
                                         data.items.push(WorkGroupItemDto::Tool {
                                             call_id: tc.id.0.clone(),
                                             tool_name: tc.name,
@@ -256,8 +294,10 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                 }
                             }
                             operon_rs::context::ContentBlock::Text(text) => {
-                                let trimmed_start = text.trim_start_matches(|c| c == '\r' || c == '\n');
-                                if let Some(summary_content) = trimmed_start.strip_prefix("— Previous session summary —\n\n") {
+                                let trimmed_start = text.trim_start_matches(['\r', '\n']);
+                                if let Some(summary_content) =
+                                    trimmed_start.strip_prefix("— Previous session summary —\n\n")
+                                {
                                     blocks.push(MessageBlockDto::Compaction {
                                         data: super::types::CompactionDto {
                                             tokens_before: 0,
@@ -268,11 +308,15 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                     });
                                 } else if !trimmed_start.trim().is_empty() {
                                     all_assistant_text_parts.push(trimmed_start.to_string());
-                                    if let Some(MessageBlockDto::Text { text: existing }) = blocks.last_mut() {
+                                    if let Some(MessageBlockDto::Text { text: existing }) =
+                                        blocks.last_mut()
+                                    {
                                         existing.push_str("\n\n");
                                         existing.push_str(trimmed_start);
                                     } else {
-                                        blocks.push(MessageBlockDto::Text { text: trimmed_start.to_string() });
+                                        blocks.push(MessageBlockDto::Text {
+                                            text: trimmed_start.to_string(),
+                                        });
                                     }
                                 }
                             }
@@ -286,7 +330,8 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                             let result_text = match tr.content {
                                 operon_rs::context::ToolContent::Text(s) => s,
                                 operon_rs::context::ToolContent::Json(v) => {
-                                    serde_json::to_string_pretty(&v).unwrap_or_else(|_| v.to_string())
+                                    serde_json::to_string_pretty(&v)
+                                        .unwrap_or_else(|_| v.to_string())
                                 }
                             };
 
@@ -337,9 +382,14 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
 
                             if !paired && tr.name != "ask" {
                                 let title = format!("Result: {}", tr.name);
-                                let is_last_wg = matches!(blocks.last(), Some(MessageBlockDto::WorkGroup { .. }));
+                                let is_last_wg = matches!(
+                                    blocks.last(),
+                                    Some(MessageBlockDto::WorkGroup { .. })
+                                );
                                 if !is_last_wg {
-                                    if let Some(MessageBlockDto::Text { text: prev_text }) = blocks.last_mut() {
+                                    if let Some(MessageBlockDto::Text { text: prev_text }) =
+                                        blocks.last_mut()
+                                    {
                                         *prev_text = prev_text.trim_end().to_string();
                                     }
                                     blocks.push(MessageBlockDto::WorkGroup {
@@ -351,7 +401,8 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                         },
                                     });
                                 }
-                                if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut() {
+                                if let Some(MessageBlockDto::WorkGroup { data }) = blocks.last_mut()
+                                {
                                     data.items.push(WorkGroupItemDto::Tool {
                                         call_id: tr.call_id.0,
                                         tool_name: tr.name,
@@ -416,7 +467,11 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                 is_liked: false,
                 is_disliked: false,
                 work_group: first_work_group,
-                blocks: if !blocks.is_empty() { Some(blocks) } else { None },
+                blocks: if !blocks.is_empty() {
+                    Some(blocks)
+                } else {
+                    None
+                },
             });
         }
     }
@@ -446,7 +501,8 @@ pub async fn respond_to_ask(id: String, answer: String) -> Result<(), String> {
 
 /// Retrieves all currently pending permission requests across all active sessions.
 #[tauri::command]
-pub async fn get_pending_permissions() -> Result<Vec<crate::shared::channels_manager::ChannelPermissionRequestDto>, String> {
+pub async fn get_pending_permissions(
+) -> Result<Vec<crate::shared::channels_manager::ChannelPermissionRequestDto>, String> {
     Ok(crate::shared::channels_manager::get_all_pending_permissions())
 }
 

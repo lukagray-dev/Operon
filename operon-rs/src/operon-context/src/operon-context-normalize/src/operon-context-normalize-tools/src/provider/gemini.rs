@@ -293,4 +293,3 @@ mod tests {
         assert_eq!(sanitized["properties"]["lines"]["nullable"], true);
     }
 }
-

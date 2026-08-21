@@ -36,9 +36,7 @@ static CATALOG_CACHE: OnceLock<HashMap<String, ModelSpec>> = OnceLock::new();
 
 /// Returns the global in-memory catalog map, parsing `data/models.json` on first access.
 fn get_catalog() -> &'static HashMap<String, ModelSpec> {
-    CATALOG_CACHE.get_or_init(|| {
-        serde_json::from_str(EMBEDDED_MODELS_JSON).unwrap_or_default()
-    })
+    CATALOG_CACHE.get_or_init(|| serde_json::from_str(EMBEDDED_MODELS_JSON).unwrap_or_default())
 }
 
 /// Normalizes a model identifier for resilient matching.
@@ -118,7 +116,11 @@ fn detect_family_spec(name: &str) -> Option<ModelSpec> {
             max_output_tokens: Some(8_192),
         });
     }
-    if name.contains("gemini-2.5") || name.contains("gemini-2.0") || name.contains("gemini-1.5") || name.contains("gemini-3") {
+    if name.contains("gemini-2.5")
+        || name.contains("gemini-2.0")
+        || name.contains("gemini-1.5")
+        || name.contains("gemini-3")
+    {
         return Some(ModelSpec {
             context_window: 1_048_576,
             max_output_tokens: Some(65_536),
@@ -132,7 +134,11 @@ fn detect_family_spec(name: &str) -> Option<ModelSpec> {
             max_output_tokens: Some(128_000),
         });
     }
-    if name.contains("claude-3-5") || name.contains("claude-3.5") || name.contains("claude-3") || name.contains("claude-4") {
+    if name.contains("claude-3-5")
+        || name.contains("claude-3.5")
+        || name.contains("claude-3")
+        || name.contains("claude-4")
+    {
         return Some(ModelSpec {
             context_window: 200_000,
             max_output_tokens: Some(8_192),
@@ -205,25 +211,49 @@ mod tests {
 
     #[test]
     fn test_prefixed_model_names_like_nvidia_nim() {
-        assert_eq!(lookup_context_window("meta/llama-3.3-70b-instruct"), 128_000);
+        assert_eq!(
+            lookup_context_window("meta/llama-3.3-70b-instruct"),
+            128_000
+        );
         assert_eq!(lookup_context_window("deepseek-ai/deepseek-r1"), 128_000);
-        assert_eq!(lookup_context_window("qwen/qwen-2.5-coder-32b-instruct"), 32_768);
-        assert_eq!(lookup_context_window("nvidia/llama-3.1-nemotron-70b-instruct"), 128_000);
+        assert_eq!(
+            lookup_context_window("qwen/qwen-2.5-coder-32b-instruct"),
+            32_768
+        );
+        assert_eq!(
+            lookup_context_window("nvidia/llama-3.1-nemotron-70b-instruct"),
+            128_000
+        );
     }
 
     #[test]
     fn test_family_heuristics_for_unlisted_revisions() {
         // Unknown future sub-version of Gemini 2.5
-        assert_eq!(lookup_context_window("gemini-2.5-flash-experimental-9999"), 1_048_576);
+        assert_eq!(
+            lookup_context_window("gemini-2.5-flash-experimental-9999"),
+            1_048_576
+        );
         // Unknown future Claude 3.7 model
-        assert_eq!(lookup_context_window("anthropic/claude-3-7-sonnet-custom"), 200_000);
+        assert_eq!(
+            lookup_context_window("anthropic/claude-3-7-sonnet-custom"),
+            200_000
+        );
         // Unknown Llama 3.3 fine-tune
-        assert_eq!(lookup_context_window("unsloth/llama-3.3-70b-instruct-bnb-4bit"), 128_000);
+        assert_eq!(
+            lookup_context_window("unsloth/llama-3.3-70b-instruct-bnb-4bit"),
+            128_000
+        );
     }
 
     #[test]
     fn test_fallback_defaults_to_128k() {
-        assert_eq!(lookup_context_window("completely-unknown-custom-model-2026"), 128_000);
-        assert_eq!(lookup_max_tokens("completely-unknown-custom-model-2026"), 8_192);
+        assert_eq!(
+            lookup_context_window("completely-unknown-custom-model-2026"),
+            128_000
+        );
+        assert_eq!(
+            lookup_max_tokens("completely-unknown-custom-model-2026"),
+            8_192
+        );
     }
 }

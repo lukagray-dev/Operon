@@ -45,7 +45,6 @@ pub async fn execute(call_id: ToolCallId, args: LsArgs) -> ToolResult {
     }
 }
 
-
 /// Lists a directory and returns an LsOutput.
 ///
 /// This function handles all the logic for a single directory listing:
@@ -170,13 +169,7 @@ async fn list_directory(args: &LsArgs) -> LsOutput {
         }
 
         // Get metadata for the entry.
-        let metadata = match entry.metadata().await {
-            Ok(m) => Some(m),
-            Err(_) => {
-                // If we can't get metadata, still include the entry but with None for size/modified.
-                None
-            }
-        };
+        let metadata = entry.metadata().await.ok();
 
         // Determine the entry kind and collect metadata.
         let (kind, size_bytes, modified_unix) = if let Some(ref m) = metadata {

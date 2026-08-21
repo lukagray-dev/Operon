@@ -40,7 +40,8 @@ use crate::types::ContactId;
 use crate::workspace::WhatsAppWorkspaceManager;
 
 /// Hook signature for external consumers (e.g. GUI) listening to live channel session events and commands.
-pub type SessionEventHook = Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync>;
+pub type SessionEventHook =
+    Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync>;
 
 /// Bridge that drives `SessionRunner` for a specific contact and sends output over WhatsApp outbound channel.
 pub struct SessionRunnerBridge {
@@ -102,15 +103,13 @@ impl SessionRunnerBridge {
 
     /// Auto-sends first-time onboarding documentation message over WhatsApp.
     pub async fn send_onboarding(&self, contact: &ContactId) -> Result<(), WhatsAppError> {
-        let text = format!(
-            "👋 *Welcome to Operon!*\n\n\
+        let text = "👋 *Welcome to Operon!*\n\n\
              I am your autonomous AI assistant running locally on Operon.\n\n\
              💡 *Shortcuts & Tips:*\n\
              • Send `/new` anytime to start a fresh, clean session.\n\
              • You can ask questions, run web searches, analyze files, and manage tasks.\n\n\
-             _Starting your session now..._"
-        );
-        let msg = OutboundMessage::new(contact.as_str(), &text);
+             _Starting your session now..._";
+        let msg = OutboundMessage::new(contact.as_str(), text);
         let _ = self.outbound_tx.send(msg).await;
         Ok(())
     }
@@ -178,7 +177,9 @@ impl SessionRunnerBridge {
             workspace_root: workspace_root.clone(),
             role: context_role,
             tool_groups: SessionConfig::default_tool_groups(),
-            compaction: operon_context::CompactionConfig::with_context_window(self.app_config.provider.context_window()),
+            compaction: operon_context::CompactionConfig::with_context_window(
+                self.app_config.provider.context_window(),
+            ),
             store_path: Some(store_path.clone()),
             channel_instructions: Some(channel_instructions),
         };
@@ -245,7 +246,9 @@ impl SessionRunnerBridge {
 
         // Wire cmd_tx to the router so /new can cancel in-flight turns!
         if let Some(ref router) = self.router {
-            router.register_cmd_tx(contact, session_id, cmd_tx.clone()).await;
+            router
+                .register_cmd_tx(contact, session_id, cmd_tx.clone())
+                .await;
         }
 
         // ── 6. Instantiate SessionRunner and restore history ────────────────
@@ -338,7 +341,10 @@ async fn forward_session_events_to_outbound(
                 break;
             }
             other => {
-                tracing::debug!(?other, "SessionEvent variant intentionally ignored for WhatsApp forwarding");
+                tracing::debug!(
+                    ?other,
+                    "SessionEvent variant intentionally ignored for WhatsApp forwarding"
+                );
             }
         }
     }
@@ -390,7 +396,14 @@ mod tests {
         let (cmd_tx, _cmd_rx) = mpsc::channel::<SessionCommand>(1);
         tokio::time::timeout(
             Duration::from_secs(1),
-            forward_session_events_to_outbound(&contact, "test-session", &cmd_tx, None, &outbound_tx, &mut event_rx),
+            forward_session_events_to_outbound(
+                &contact,
+                "test-session",
+                &cmd_tx,
+                None,
+                &outbound_tx,
+                &mut event_rx,
+            ),
         )
         .await
         .expect("Done must release the WhatsApp event forwarder");

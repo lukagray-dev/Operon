@@ -211,20 +211,18 @@ pub async fn handle(action: Action, state: &mut AppState, tx: &mpsc::Sender<Acti
         // ─────────────────────────────────────────────────────────────────────
         // Forward Keystrokes to Focused TextArea
         // ─────────────────────────────────────────────────────────────────────
-        Action::ModelsForwardKeyToInput(key_event) => {
-            if state.models.step == ModelsStep::Setup {
-                match state.models.focused_field {
-                    SetupField::BaseUrl => {
-                        let _ = state.models.base_url_input.input(key_event);
-                    }
-                    SetupField::ApiKey => {
-                        let _ = state.models.api_key_input.input(key_event);
-                    }
-                    SetupField::CustomModel => {
-                        let _ = state.models.custom_model_input.input(key_event);
-                    }
-                    _ => {}
+        Action::ModelsForwardKeyToInput(key_event) if state.models.step == ModelsStep::Setup => {
+            match state.models.focused_field {
+                SetupField::BaseUrl => {
+                    let _ = state.models.base_url_input.input(key_event);
                 }
+                SetupField::ApiKey => {
+                    let _ = state.models.api_key_input.input(key_event);
+                }
+                SetupField::CustomModel => {
+                    let _ = state.models.custom_model_input.input(key_event);
+                }
+                _ => {}
             }
         }
 
@@ -247,8 +245,20 @@ async fn trigger_fetch_models(state: &mut AppState, tx: &mpsc::Sender<Action>) {
 
     state.models.start_fetch();
 
-    let api_key = state.models.api_key_input.lines().join("").trim().to_string();
-    let base_url = state.models.base_url_input.lines().join("").trim().to_string();
+    let api_key = state
+        .models
+        .api_key_input
+        .lines()
+        .join("")
+        .trim()
+        .to_string();
+    let base_url = state
+        .models
+        .base_url_input
+        .lines()
+        .join("")
+        .trim()
+        .to_string();
 
     let base_override = if base_url.is_empty() {
         None
@@ -259,12 +269,7 @@ async fn trigger_fetch_models(state: &mut AppState, tx: &mpsc::Sender<Action>) {
     let action_tx = tx.clone();
 
     tokio::spawn(async move {
-        let result = operon_rs::discover_models(
-            provider,
-            &api_key,
-            base_override.as_deref(),
-        )
-        .await;
+        let result = operon_rs::discover_models(provider, &api_key, base_override.as_deref()).await;
 
         let mapped = match result {
             Ok(discovery) => Ok(discovery.models),
@@ -284,8 +289,20 @@ async fn trigger_save_provider(state: &mut AppState, tx: &mpsc::Sender<Action>) 
 
     state.models.save_status = SaveStatus::Saving;
 
-    let api_key = state.models.api_key_input.lines().join("").trim().to_string();
-    let base_url = state.models.base_url_input.lines().join("").trim().to_string();
+    let api_key = state
+        .models
+        .api_key_input
+        .lines()
+        .join("")
+        .trim()
+        .to_string();
+    let base_url = state
+        .models
+        .base_url_input
+        .lines()
+        .join("")
+        .trim()
+        .to_string();
     let model_config = state.models.resolve_model_config(provider);
 
     let credentials = if !api_key.is_empty() {

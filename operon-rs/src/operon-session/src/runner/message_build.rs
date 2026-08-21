@@ -113,7 +113,10 @@ pub(super) fn extract_usage_record(
         .get("cache_read_input_tokens")
         .or_else(|| raw.get("cachedContentTokenCount"))
         .or_else(|| raw.get("prompt_cache_hit_tokens"))
-        .or_else(|| raw.get("prompt_tokens_details").and_then(|d| d.get("cached_tokens")))
+        .or_else(|| {
+            raw.get("prompt_tokens_details")
+                .and_then(|d| d.get("cached_tokens"))
+        })
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
 

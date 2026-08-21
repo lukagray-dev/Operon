@@ -59,21 +59,27 @@ impl ChannelRegistry {
     /// Starts a registered channel adapter by ID.
     pub async fn start_channel(&self, id: &ChannelId) -> Result<(), ChannelError> {
         let map = self.channels.read().await;
-        let channel = map.get(id).ok_or_else(|| ChannelError::NotRegistered(id.clone()))?;
+        let channel = map
+            .get(id)
+            .ok_or_else(|| ChannelError::NotRegistered(id.clone()))?;
         channel.start().await
     }
 
     /// Stops a registered channel adapter by ID.
     pub async fn stop_channel(&self, id: &ChannelId) -> Result<(), ChannelError> {
         let map = self.channels.read().await;
-        let channel = map.get(id).ok_or_else(|| ChannelError::NotRegistered(id.clone()))?;
+        let channel = map
+            .get(id)
+            .ok_or_else(|| ChannelError::NotRegistered(id.clone()))?;
         channel.stop().await
     }
 
     /// Queries the current connection status of a registered channel by ID.
     pub async fn get_status(&self, id: &ChannelId) -> Result<ChannelStatus, ChannelError> {
         let map = self.channels.read().await;
-        let channel = map.get(id).ok_or_else(|| ChannelError::NotRegistered(id.clone()))?;
+        let channel = map
+            .get(id)
+            .ok_or_else(|| ChannelError::NotRegistered(id.clone()))?;
         Ok(channel.status().await)
     }
 

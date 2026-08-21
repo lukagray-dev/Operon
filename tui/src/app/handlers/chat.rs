@@ -2,9 +2,9 @@
 // Handles: AgentResponse, AgentTextDelta, AgentThinkingDelta, AgentContextUpdate, AgentDone, AgentError, CancelPrompt, ScrollChatUp, ScrollChatDown, Tick
 // These actions manage real-time chat streaming, token tracking, prompt cancellation, and scrolling.
 
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use anyhow::Result;
 
 use crate::agent::AgentBridge;
 use crate::events::action::Action;

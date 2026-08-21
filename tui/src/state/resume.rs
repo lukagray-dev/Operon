@@ -55,7 +55,7 @@ struct RawTurnFile {
 }
 
 /// Resume screen state holding discovered previous conversations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ResumeState {
     /// List of sessions found for the active workspace, sorted newest first.
     pub sessions: Vec<SessionSummary>,
@@ -65,17 +65,6 @@ pub struct ResumeState {
     pub current_workspace: String,
     /// Error message if session discovery failed.
     pub error: Option<String>,
-}
-
-impl Default for ResumeState {
-    fn default() -> Self {
-        Self {
-            sessions: Vec::new(),
-            selected_index: 0,
-            current_workspace: String::new(),
-            error: None,
-        }
-    }
 }
 
 impl ResumeState {
@@ -113,7 +102,7 @@ impl ResumeState {
         if let Ok(entries) = std::fs::read_dir(sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |ext| ext == "json") {
+                if path.extension().is_some_and(|ext| ext == "json") {
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         if let Ok(raw) = serde_json::from_str::<RawSessionFile>(&content) {
                             // Only include sessions that match the current workspace
@@ -153,7 +142,7 @@ impl ResumeState {
         }
 
         // Sort newest sessions first
-        discovered.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        discovered.sort_by_key(|b| std::cmp::Reverse(b.created_at));
 
         self.sessions = discovered;
         self.selected_index = 0;
@@ -251,7 +240,12 @@ fn format_timestamp(timestamp: i64) -> String {
         let day_of_year = days_since_epoch % 365;
         let approx_month = (day_of_year / 30) + 1;
         let approx_day = (day_of_year % 30) + 1;
-        format!("{:04}-{:02}-{:02}", approx_year, approx_month.min(12), approx_day.min(31))
+        format!(
+            "{:04}-{:02}-{:02}",
+            approx_year,
+            approx_month.min(12),
+            approx_day.min(31)
+        )
     }
 }
 
@@ -263,10 +257,7 @@ mod tests {
     fn test_clean_prompt_snippet() {
         assert_eq!(clean_prompt_snippet(""), "Untitled Conversation");
         assert_eq!(clean_prompt_snippet("Hello World"), "Hello World");
-        assert_eq!(
-            clean_prompt_snippet("Line 1\nLine 2\nLine 3"),
-            "Line 1"
-        );
+        assert_eq!(clean_prompt_snippet("Line 1\nLine 2\nLine 3"), "Line 1");
         let long_prompt = "This is a very long prompt that contains more than sixty characters to test truncation";
         let cleaned = clean_prompt_snippet(long_prompt);
         assert!(cleaned.ends_with("..."));

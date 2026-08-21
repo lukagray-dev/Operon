@@ -56,7 +56,11 @@ async fn test_single_edit() {
     .await
     .unwrap();
 
-    assert!(!result.is_error, "edit should succeed: {:?}", result.content);
+    assert!(
+        !result.is_error,
+        "edit should succeed: {:?}",
+        result.content
+    );
     let output = get_output(&result);
     assert_eq!(output.total_hunks, 1);
     assert_eq!(output.hunks_applied, 1);
@@ -282,7 +286,11 @@ async fn test_fuzzy_unicode_dash_and_quotes() {
     .await
     .unwrap();
 
-    assert!(!result.is_error, "fuzzy Unicode matching should succeed: {:?}", result.content);
+    assert!(
+        !result.is_error,
+        "fuzzy Unicode matching should succeed: {:?}",
+        result.content
+    );
     let new_content = fs::read_to_string(&path).unwrap();
     assert!(new_content.contains("some-thing \"updated\""));
 }
@@ -309,7 +317,10 @@ async fn test_fuzzy_case_insensitive_matching() {
     .await
     .unwrap();
 
-    assert!(!result.is_error, "case-insensitive fuzzy match should succeed");
+    assert!(
+        !result.is_error,
+        "case-insensitive fuzzy match should succeed"
+    );
     let new_content = fs::read_to_string(&path).unwrap();
     assert!(new_content.contains("200"));
 }
@@ -490,12 +501,20 @@ async fn test_partial_success_writes_to_disk() {
     assert_eq!(output.failures[0].hunk_index, 1);
     assert_eq!(output.failures[0].old_string, "nonexistent text");
     assert!(output.failures[0].reason.contains("not found in file"));
-    assert!(output.message.contains("Partially applied: 2 of 3 edit(s) written"));
+    assert!(output
+        .message
+        .contains("Partially applied: 2 of 3 edit(s) written"));
 
     // Crucial check: Hunks 0 and 2 MUST be written to disk!
     let content = fs::read_to_string(&path).unwrap();
-    assert!(content.contains("line 1 modified"), "hunk 0 must be written to disk");
-    assert!(content.contains("line 3 modified"), "hunk 2 must be written to disk");
+    assert!(
+        content.contains("line 1 modified"),
+        "hunk 0 must be written to disk"
+    );
+    assert!(
+        content.contains("line 3 modified"),
+        "hunk 2 must be written to disk"
+    );
     assert!(content.contains("line 2"), "line 2 must remain unchanged");
 }
 
@@ -649,7 +668,11 @@ async fn test_stringified_json_array_edits() {
     .await
     .unwrap();
 
-    assert!(!result.is_error, "stringified JSON array should be deserialized: {:?}", result.content);
+    assert!(
+        !result.is_error,
+        "stringified JSON array should be deserialized: {:?}",
+        result.content
+    );
     let output = get_output(&result);
     assert_eq!(output.hunks_applied, 2);
 

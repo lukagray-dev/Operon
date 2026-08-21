@@ -8,11 +8,7 @@ use crate::state::AppState;
 use anyhow::Result;
 
 /// Handle mouse events, selection mode, and clipboard copy operations.
-pub async fn handle(
-    action: Action,
-    state: &mut AppState,
-    terminal_height: u16,
-) -> Result<()> {
+pub async fn handle(action: Action, state: &mut AppState, terminal_height: u16) -> Result<()> {
     match action {
         Action::ProcessMouse(mouse_event) => {
             use crossterm::event::MouseEventKind;
@@ -23,15 +19,15 @@ pub async fn handle(
             if state.is_ctrl_shift_held() {
                 // Selection mode: Ctrl+Shift + mouse drag
                 match mouse_event.kind {
-                    MouseEventKind::Down(crossterm::event::MouseButton::Left) => {
-                        if mouse_event.row < input_area_start {
-                            state.start_selection(mouse_event.row, mouse_event.column);
-                        }
+                    MouseEventKind::Down(crossterm::event::MouseButton::Left)
+                        if mouse_event.row < input_area_start =>
+                    {
+                        state.start_selection(mouse_event.row, mouse_event.column);
                     }
-                    MouseEventKind::Drag(crossterm::event::MouseButton::Left) => {
-                        if mouse_event.row < input_area_start {
-                            state.update_selection(mouse_event.row, mouse_event.column);
-                        }
+                    MouseEventKind::Drag(crossterm::event::MouseButton::Left)
+                        if mouse_event.row < input_area_start =>
+                    {
+                        state.update_selection(mouse_event.row, mouse_event.column);
                     }
                     _ => {}
                 }

@@ -11,7 +11,7 @@ pub fn format_tokens(tokens: usize) -> String {
         format!("{:.1}M", m)
     } else if tokens >= 1_000 {
         let k = tokens as f64 / 1_000.0;
-        if tokens % 1_000 == 0 {
+        if tokens.is_multiple_of(1_000) {
             format!("{:.0}K", k)
         } else {
             format!("{:.1}K", k)

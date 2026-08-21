@@ -10,7 +10,9 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use notify::{Config as NotifyConfig, Event as NotifyEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{
+    Config as NotifyConfig, Event as NotifyEvent, RecommendedWatcher, RecursiveMode, Watcher,
+};
 use tauri::{AppHandle, Emitter};
 
 /// Static storage handle for the filesystem watcher to ensure it remains active.
@@ -68,7 +70,8 @@ pub fn init_sessions_watcher(app_handle: AppHandle) {
                     // Drain any additional buffered paths
                     while let Ok(path) = rx.try_recv() {
                         let path_str = path.to_string_lossy();
-                        let is_channel = path_str.contains("whatsapp") || path_str.contains("telegram");
+                        let is_channel =
+                            path_str.contains("whatsapp") || path_str.contains("telegram");
 
                         if is_channel && path.extension().and_then(|e| e.to_str()) == Some("json") {
                             if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
@@ -89,7 +92,10 @@ pub fn init_sessions_watcher(app_handle: AppHandle) {
             });
         }
         Err(e) => {
-            eprintln!("[operon-gui][watcher] Failed to initialize channel watcher: {}", e);
+            eprintln!(
+                "[operon-gui][watcher] Failed to initialize channel watcher: {}",
+                e
+            );
         }
     }
 }

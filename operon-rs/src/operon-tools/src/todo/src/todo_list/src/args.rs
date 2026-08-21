@@ -14,18 +14,11 @@ use serde::Deserialize;
 pub struct TodoListArgs {
     /// Optional filter by status. If None, returns all todos regardless of status.
     /// Valid values: "pending", "in_progress", "completed".
-    #[serde(
-        default,
-        alias = "state"
-    )]
+    #[serde(default, alias = "state")]
     pub status: Option<TodoStatus>,
 
     /// Optional filter by priority. If None, returns all todos regardless of priority.
     /// Valid values: "high", "medium", "low".
-    #[serde(
-        default,
-        alias = "level",
-        alias = "importance"
-    )]
+    #[serde(default, alias = "level", alias = "importance")]
     pub priority: Option<TodoPriority>,
 }

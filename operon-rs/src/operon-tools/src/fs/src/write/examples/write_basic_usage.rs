@@ -38,7 +38,10 @@ async fn main() {
     if let operon_context_normalize_tools::ToolContent::Text(msg) = &result1.content {
         println!("   Message: {}", msg);
     }
-    println!("   File content on disk: {:?}", fs::read_to_string(&file1).unwrap());
+    println!(
+        "   File content on disk: {:?}",
+        fs::read_to_string(&file1).unwrap()
+    );
     println!();
 
     // 3. Auto-creating deep intermediate directories
@@ -72,7 +75,10 @@ async fn main() {
     if let operon_context_normalize_tools::ToolContent::Text(msg) = &result3.content {
         println!("   Message: {}", msg);
     }
-    println!("   New file content on disk: {:?}", fs::read_to_string(&file1).unwrap());
+    println!(
+        "   New file content on disk: {:?}",
+        fs::read_to_string(&file1).unwrap()
+    );
     println!();
 
     println!("=== Write Example Complete ===");

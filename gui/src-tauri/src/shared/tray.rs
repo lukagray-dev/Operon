@@ -30,16 +30,8 @@ pub fn setup_system_tray(app: &AppHandle) -> Result<(), String> {
     let quit_item = MenuItem::with_id(app, "tray_quit", "Quit Operon", true, None::<&str>)
         .map_err(|e| e.to_string())?;
 
-    let menu = Menu::with_items(
-        app,
-        &[
-            &open_item,
-            &settings_item,
-            &sep_item,
-            &quit_item,
-        ],
-    )
-    .map_err(|e| e.to_string())?;
+    let menu = Menu::with_items(app, &[&open_item, &settings_item, &sep_item, &quit_item])
+        .map_err(|e| e.to_string())?;
 
     // 3. Resolve Icon
     let icon = if let Some(default_icon) = app.default_window_icon() {

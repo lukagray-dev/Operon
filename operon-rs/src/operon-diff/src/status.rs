@@ -3,19 +3,19 @@
 // Hey friend! This module handles discovery of Git repository roots and calculates workspace-wide
 // diff statistics (insertion/deletion counts) as well as full staged and unstaged file trees.
 
-use std::path::Path;
-use git2::{DiffOptions, Repository};
 use crate::diff::parse_diff;
 use crate::dto::{GitDiffStats, RepositoryDiff};
 use crate::error::DiffError;
+use git2::{DiffOptions, Repository};
+use std::path::Path;
 
 /// Helper: Discovers the repository root from the given workspace folder path.
 ///
 /// Hey buddy! If the folder passed doesn't have a `.git` folder directly inside it,
 /// libgit2 will search parent directories until it finds the repository root.
 pub fn discover_repository<P: AsRef<Path>>(workspace_root: P) -> Result<Repository, DiffError> {
-    let repo = Repository::discover(workspace_root)
-        .map_err(|e| DiffError::NoRepository(e.to_string()))?;
+    let repo =
+        Repository::discover(workspace_root).map_err(|e| DiffError::NoRepository(e.to_string()))?;
     Ok(repo)
 }
 
@@ -84,7 +84,8 @@ pub fn get_diff_details<P: AsRef<Path>>(workspace_root: P) -> Result<RepositoryD
     };
 
     // Extract repository directory name
-    let repo_name = repo.workdir()
+    let repo_name = repo
+        .workdir()
         .and_then(|p| p.file_name())
         .and_then(|n| n.to_str())
         .unwrap_or("repository")

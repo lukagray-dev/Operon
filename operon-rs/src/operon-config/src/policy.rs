@@ -61,7 +61,7 @@ pub enum PolicyError {
     InvalidConfig { reason: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GlobalPolicy {
     #[serde(default)]
     pub owner: HashMap<GlobalTool, PermissionMode>,
@@ -77,15 +77,6 @@ impl GlobalPolicy {
             CallerRole::External => &self.external,
         };
         map.get(&tool).copied().unwrap_or(PermissionMode::Deny)
-    }
-}
-
-impl Default for GlobalPolicy {
-    fn default() -> Self {
-        Self {
-            owner: HashMap::new(),
-            external: HashMap::new(),
-        }
     }
 }
 

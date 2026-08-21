@@ -11,8 +11,8 @@ use std::time::Duration;
 
 use super::types::{SaveWhatsAppPayloadDto, WhatsAppStateDto};
 use crate::shared::channels_manager::{
-    load_whatsapp_saved_config, save_whatsapp_saved_config, ACTIVE_WHATSAPP_CLIENT,
-    WhatsAppSavedConfig,
+    load_whatsapp_saved_config, save_whatsapp_saved_config, WhatsAppSavedConfig,
+    ACTIVE_WHATSAPP_CLIENT,
 };
 use operon_rs::channels::whatsapp::auth::WhatsAppAuth;
 use operon_rs::channels::whatsapp::client::WhatsAppClient;
@@ -75,7 +75,8 @@ pub async fn get_whatsapp_state() -> Result<WhatsAppStateDto, String> {
         }
     }
 
-    let is_policy_covered = evaluate_wa_policy_coverage(&saved.workspace_dir, default_wa_ws.clone());
+    let is_policy_covered =
+        evaluate_wa_policy_coverage(&saved.workspace_dir, default_wa_ws.clone());
 
     Ok(WhatsAppStateDto {
         connection_status: wa_status,
@@ -184,7 +185,8 @@ pub async fn start_whatsapp_qr_pairing() -> Result<String, String> {
             eprintln!("[operon-gui][whatsapp-qr] Connect error: {}", e);
         } else if let Ok(app_config) = operon_rs::load() {
             let hook = crate::shared::channels_manager::create_channel_event_hook();
-            let service = WhatsAppService::with_event_hook(client_clone, wa_config_clone, app_config, hook);
+            let service =
+                WhatsAppService::with_event_hook(client_clone, wa_config_clone, app_config, hook);
             let _ = service.run().await;
         }
     });
@@ -256,7 +258,8 @@ pub async fn start_whatsapp_code_pairing(phone_number: String) -> Result<String,
             eprintln!("[operon-gui][whatsapp-code] Connect error: {}", e);
         } else if let Ok(app_config) = operon_rs::load() {
             let hook = crate::shared::channels_manager::create_channel_event_hook();
-            let service = WhatsAppService::with_event_hook(client_clone, wa_config_clone, app_config, hook);
+            let service =
+                WhatsAppService::with_event_hook(client_clone, wa_config_clone, app_config, hook);
             let _ = service.run().await;
         }
     });

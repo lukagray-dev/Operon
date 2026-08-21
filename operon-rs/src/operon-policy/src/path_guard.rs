@@ -125,8 +125,8 @@ impl<'a> PathGuard<'a> {
             {
                 let dir_str = dir.path.to_string_lossy();
                 // \\?\ prefix is exactly 4 chars: \, \, ?, \
-                if dir_str.starts_with(r"\\?\") {
-                    let stripped = std::path::Path::new(&dir_str[4..]);
+                if let Some(stripped_str) = dir_str.strip_prefix(r"\\?\") {
+                    let stripped = std::path::Path::new(stripped_str);
                     if canonical.starts_with(stripped) {
                         return true;
                     }

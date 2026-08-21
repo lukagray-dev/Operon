@@ -14,14 +14,22 @@ async fn fresh_store() -> (MemoryStore, tempfile::NamedTempFile) {
 #[tokio::test]
 async fn test_search_finds_matching_memory() {
     let (store, _tmp) = fresh_store().await;
-    store.add("User loves Rust programming".to_string(), vec![]).await.unwrap();
-    store.add("User prefers dark mode".to_string(), vec![]).await.unwrap();
+    store
+        .add("User loves Rust programming".to_string(), vec![])
+        .await
+        .unwrap();
+    store
+        .add("User prefers dark mode".to_string(), vec![])
+        .await
+        .unwrap();
 
     let result = execute(
         ToolCallId("s1".to_string()),
         json!({"query": "Rust"}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
     match result.content {
@@ -43,7 +51,9 @@ async fn test_search_no_results_returns_empty() {
         ToolCallId("s2".to_string()),
         json!({"query": "xylophone"}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
     match result.content {
@@ -59,11 +69,9 @@ async fn test_search_no_results_returns_empty() {
 async fn test_search_empty_query_returns_error() {
     let (store, _tmp) = fresh_store().await;
 
-    let result = execute(
-        ToolCallId("s3".to_string()),
-        json!({"query": ""}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("s3".to_string()), json!({"query": ""}), &store)
+        .await
+        .unwrap();
 
     assert!(result.is_error);
     match result.content {
@@ -80,7 +88,9 @@ async fn test_search_whitespace_query_returns_error() {
         ToolCallId("s4".to_string()),
         json!({"query": "   "}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(result.is_error);
 }
@@ -89,14 +99,19 @@ async fn test_search_whitespace_query_returns_error() {
 async fn test_search_respects_limit() {
     let (store, _tmp) = fresh_store().await;
     for i in 0..5 {
-        store.add(format!("Rust tip number {}", i), vec![]).await.unwrap();
+        store
+            .add(format!("Rust tip number {}", i), vec![])
+            .await
+            .unwrap();
     }
 
     let result = execute(
         ToolCallId("s5".to_string()),
         json!({"query": "Rust", "limit": 2}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     match result.content {
         ToolContent::Json(v) => {
@@ -110,13 +125,14 @@ async fn test_search_respects_limit() {
 #[tokio::test]
 async fn test_search_alias_q() {
     let (store, _tmp) = fresh_store().await;
-    store.add("Dark mode preference".to_string(), vec![]).await.unwrap();
+    store
+        .add("Dark mode preference".to_string(), vec![])
+        .await
+        .unwrap();
 
-    let result = execute(
-        ToolCallId("s6".to_string()),
-        json!({"q": "dark"}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("s6".to_string()), json!({"q": "dark"}), &store)
+        .await
+        .unwrap();
 
     assert!(!result.is_error, "alias 'q' should work");
 }
@@ -124,13 +140,18 @@ async fn test_search_alias_q() {
 #[tokio::test]
 async fn test_search_alias_term() {
     let (store, _tmp) = fresh_store().await;
-    store.add("Workflow automation".to_string(), vec![]).await.unwrap();
+    store
+        .add("Workflow automation".to_string(), vec![])
+        .await
+        .unwrap();
 
     let result = execute(
         ToolCallId("s7".to_string()),
         json!({"term": "Workflow"}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error, "alias 'term' should work");
 }
@@ -138,11 +159,7 @@ async fn test_search_alias_term() {
 #[tokio::test]
 async fn test_search_missing_query_returns_parse_error() {
     let (store, _tmp) = fresh_store().await;
-    let err = execute(
-        ToolCallId("s8".to_string()),
-        json!({}),
-        &store,
-    ).await;
+    let err = execute(ToolCallId("s8".to_string()), json!({}), &store).await;
     assert!(err.is_err(), "missing query should return ArgsParse error");
 }
 
@@ -155,7 +172,9 @@ async fn test_search_with_progress() {
         json!({"query": "test"}),
         &store,
         None,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // No memories, but should succeed without error
     assert!(!result.is_error);
@@ -169,7 +188,9 @@ async fn test_search_echoes_query_in_output() {
         ToolCallId("s10".to_string()),
         json!({"query": "  trimmed query  "}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     match result.content {
         ToolContent::Json(v) => {

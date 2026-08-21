@@ -7,7 +7,6 @@
 //! per-contact session history isolation (`~/.operon/sessions/whatsapp/<phone>/<session_id>.json`),
 //! `/new` session resets, onboarding documentation, and response streaming over WhatsApp.
 
-
 pub mod auth;
 pub mod client;
 pub mod config;

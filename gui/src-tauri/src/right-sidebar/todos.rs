@@ -62,7 +62,10 @@ pub async fn get_session_todos(session_id: String) -> Result<Vec<TodoItemDto>, S
         .await
         .map_err(|e| e.to_string())?;
 
-    let items = store.load_todos(&session_id).await.map_err(|e| e.to_string())?;
+    let items = store
+        .load_todos(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(items.into_iter().map(TodoItemDto::from).collect())
 }
 
@@ -84,7 +87,10 @@ pub async fn update_session_todo_status(
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut items = store.load_todos(&session_id).await.map_err(|e| e.to_string())?;
+    let mut items = store
+        .load_todos(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let new_status = match status.to_lowercase().as_str() {
         "in_progress" | "inprogress" => operon_rs::tools::TodoStatus::InProgress,
@@ -102,10 +108,15 @@ pub async fn update_session_todo_status(
     }
 
     if !found {
-        return Err(format!("Todo with ID '{todo_id}' not found in session '{session_id}'"));
+        return Err(format!(
+            "Todo with ID '{todo_id}' not found in session '{session_id}'"
+        ));
     }
 
-    store.save_todos(&session_id, &items).await.map_err(|e| e.to_string())?;
+    store
+        .save_todos(&session_id, &items)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(items.into_iter().map(TodoItemDto::from).collect())
 }
 
@@ -126,10 +137,16 @@ pub async fn delete_session_todo(
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut items = store.load_todos(&session_id).await.map_err(|e| e.to_string())?;
+    let mut items = store
+        .load_todos(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
     items.retain(|item| item.id != todo_id);
 
-    store.save_todos(&session_id, &items).await.map_err(|e| e.to_string())?;
+    store
+        .save_todos(&session_id, &items)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(items.into_iter().map(TodoItemDto::from).collect())
 }
 
@@ -156,7 +173,10 @@ pub async fn create_session_todo(
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut items = store.load_todos(&session_id).await.map_err(|e| e.to_string())?;
+    let mut items = store
+        .load_todos(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let next_id = items
         .iter()
@@ -165,7 +185,12 @@ pub async fn create_session_todo(
         .unwrap_or(0)
         + 1;
 
-    let item_priority = match priority.as_deref().unwrap_or("medium").to_lowercase().as_str() {
+    let item_priority = match priority
+        .as_deref()
+        .unwrap_or("medium")
+        .to_lowercase()
+        .as_str()
+    {
         "high" => operon_rs::tools::TodoPriority::High,
         "low" => operon_rs::tools::TodoPriority::Low,
         _ => operon_rs::tools::TodoPriority::Medium,
@@ -178,6 +203,9 @@ pub async fn create_session_todo(
         priority: item_priority,
     });
 
-    store.save_todos(&session_id, &items).await.map_err(|e| e.to_string())?;
+    store
+        .save_todos(&session_id, &items)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(items.into_iter().map(TodoItemDto::from).collect())
 }

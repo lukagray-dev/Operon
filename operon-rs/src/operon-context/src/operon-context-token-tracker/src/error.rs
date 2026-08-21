@@ -71,8 +71,10 @@ mod tests {
     #[test]
     fn result_alias_ok_path() {
         // Confirm the type alias resolves to the right Result type.
-        let r: Result<u32> = Ok(42);
-        assert_eq!(r.unwrap(), 42);
+        fn get_val() -> Result<u32> {
+            Ok(42)
+        }
+        assert_eq!(get_val().unwrap(), 42);
     }
 
     #[test]

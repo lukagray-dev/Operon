@@ -6,11 +6,7 @@ use operon_context_normalize_tools::{ToolCallId, ToolContent, ToolResult};
 use operon_tools_memory_store::MemoryStore;
 
 /// Executes the memory_edit tool: validates args, partially updates the memory, returns output.
-pub async fn execute(
-    call_id: ToolCallId,
-    args: MemoryEditArgs,
-    store: &MemoryStore,
-) -> ToolResult {
+pub async fn execute(call_id: ToolCallId, args: MemoryEditArgs, store: &MemoryStore) -> ToolResult {
     // Step 1: Require at least one field to update — a no-op edit is always a mistake.
     if args.content.is_none() && args.tags.is_none() {
         return ToolResult {

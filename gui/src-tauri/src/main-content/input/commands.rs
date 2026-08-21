@@ -23,7 +23,9 @@ pub async fn get_available_models() -> Result<Vec<ModelOptionDto>, String> {
     let is_ollama = provider_enum == operon_rs::providers::Provider::Ollama;
 
     if has_key || is_ollama {
-        if let Ok(result) = operon_rs::discover_models(provider_enum, api_key.expose(), api_base.as_deref()).await {
+        if let Ok(result) =
+            operon_rs::discover_models(provider_enum, api_key.expose(), api_base.as_deref()).await
+        {
             for discovered in result.models {
                 if discovered.model_id == active_model_id {
                     active_reasoning_levels = discovered.reasoning_levels.clone();
@@ -104,9 +106,20 @@ pub async fn toggle_auto_approve(
 pub async fn pick_attachments_dialog() -> Result<Vec<PendingAttachmentDto>, String> {
     let picked_files = rfd::FileDialog::new()
         .set_title("Attach Files or Images")
-        .add_filter("All Supported", &["png", "jpg", "jpeg", "webp", "gif", "txt", "md", "rs", "ts", "js", "py", "json", "toml", "css", "html", "pdf"])
+        .add_filter(
+            "All Supported",
+            &[
+                "png", "jpg", "jpeg", "webp", "gif", "txt", "md", "rs", "ts", "js", "py", "json",
+                "toml", "css", "html", "pdf",
+            ],
+        )
         .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif"])
-        .add_filter("Code & Text", &["txt", "md", "rs", "ts", "js", "py", "json", "toml", "css", "html"])
+        .add_filter(
+            "Code & Text",
+            &[
+                "txt", "md", "rs", "ts", "js", "py", "json", "toml", "css", "html",
+            ],
+        )
         .pick_files();
 
     let mut results = Vec::new();
@@ -153,7 +166,11 @@ pub async fn get_context_window_info(
         .unwrap_or(0);
 
     let resolved_session_id = session_id.or_else(|| {
-        state.state_lock.lock().ok().and_then(|s| s.active_session_id.clone())
+        state
+            .state_lock
+            .lock()
+            .ok()
+            .and_then(|s| s.active_session_id.clone())
     });
 
     let tokens_used = if let Some(ref sid) = resolved_session_id {
@@ -161,7 +178,12 @@ pub async fn get_context_window_info(
             let db_path = paths.session_db(sid);
             if db_path.exists() {
                 if let Ok(store) = operon_rs::session::store::SessionStore::open(&db_path).await {
-                    store.get_last_token_count(sid).await.ok().flatten().unwrap_or(0)
+                    store
+                        .get_last_token_count(sid)
+                        .await
+                        .ok()
+                        .flatten()
+                        .unwrap_or(0)
                 } else {
                     0
                 }

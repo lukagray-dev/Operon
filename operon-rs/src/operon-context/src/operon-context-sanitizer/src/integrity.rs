@@ -58,7 +58,7 @@ fn reorder_tool_results(messages: Vec<ConversationMessage>) -> Vec<ConversationM
         })
         .collect();
 
-    insertions.sort_by(|left, right| right.0.cmp(&left.0));
+    insertions.sort_by_key(|right| std::cmp::Reverse(right.0));
     for (insert_index, message) in insertions {
         reordered_messages.insert(insert_index, message);
     }

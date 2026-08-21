@@ -71,7 +71,6 @@ pub async fn execute(call_id: ToolCallId, args: ReadArgs) -> ToolResult {
     }
 }
 
-
 /// Reads a single file and returns a FileReadResult.
 ///
 /// This function handles all the logic for a single file read:
@@ -94,7 +93,9 @@ async fn read_single_file(target: ReadTarget) -> FileReadResult {
             path: path_str,
             success: false,
             content: None,
-            error: Some("Path must be an absolute path. Relative paths are not supported.".to_string()),
+            error: Some(
+                "Path must be an absolute path. Relative paths are not supported.".to_string(),
+            ),
             total_lines: None,
             lines_returned: None,
         };

@@ -9,12 +9,12 @@
 // 5. We stream text and thinking deltas into the TUI's active message history.
 // 6. We hold an active `cmd_tx` handle so the user can hit `Esc` to cleanly cancel the turn at any time.
 
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
-use anyhow::Result;
 
-use crate::events::action::Action;
 use super::AgentBridge;
+use crate::events::action::Action;
 
 /// Production agent implementation driving `operon_rs::session::SessionRunner`.
 pub struct OperonAgent {
@@ -110,27 +110,33 @@ impl AgentBridge for OperonAgent {
             workspace_root: paths.workspace_dir.clone(),
             role: operon_rs::context::Role::Owner,
             tool_groups: operon_rs::session::SessionConfig::default_tool_groups(),
-            compaction: operon_rs::context::CompactionConfig::with_context_window(app_config.provider.context_window()),
+            compaction: operon_rs::context::CompactionConfig::with_context_window(
+                app_config.provider.context_window(),
+            ),
             store_path: Some(store_path.clone()),
             channel_instructions: None,
         };
 
         // 6. Instantiate the cold SessionRunner
-        let mut runner = match operon_rs::session::SessionRunner::new(session_config, event_tx, cmd_rx).await {
-            Ok(r) => r,
-            Err(e) => {
-                // Clear active command sender
-                {
-                    let mut lock = self.active_cmd_tx.lock().await;
-                    *lock = None;
+        let mut runner =
+            match operon_rs::session::SessionRunner::new(session_config, event_tx, cmd_rx).await {
+                Ok(r) => r,
+                Err(e) => {
+                    // Clear active command sender
+                    {
+                        let mut lock = self.active_cmd_tx.lock().await;
+                        *lock = None;
+                    }
+                    let _ = action_tx
+                        .send(Action::AgentError(format!(
+                            "Failed to start agent session: {}",
+                            e
+                        )))
+                        .await;
+                    let _ = action_tx.send(Action::AgentDone).await;
+                    return Ok(());
                 }
-                let _ = action_tx
-                    .send(Action::AgentError(format!("Failed to start agent session: {}", e)))
-                    .await;
-                let _ = action_tx.send(Action::AgentDone).await;
-                return Ok(());
-            }
-        };
+            };
 
         // If resuming an existing session, load previous turn history into the runner
         if is_existing_session {
@@ -156,7 +162,9 @@ impl AgentBridge for OperonAgent {
                         let _ = action_tx_events.send(Action::AgentTextDelta(text)).await;
                     }
                     operon_rs::SessionEvent::ThinkingDelta { text } => {
-                        let _ = action_tx_events.send(Action::AgentThinkingDelta(text)).await;
+                        let _ = action_tx_events
+                            .send(Action::AgentThinkingDelta(text))
+                            .await;
                     }
                     operon_rs::SessionEvent::ContextUsageUpdated {
                         current_context_tokens,
@@ -186,7 +194,10 @@ impl AgentBridge for OperonAgent {
                     }
                     operon_rs::SessionEvent::Warning { message } => {
                         let _ = action_tx_events
-                            .send(Action::AgentTextDelta(format!("\n[Warning: {}]\n", message)))
+                            .send(Action::AgentTextDelta(format!(
+                                "\n[Warning: {}]\n",
+                                message
+                            )))
                             .await;
                     }
                     _ => {}
@@ -236,6 +247,9 @@ impl AgentBridge for OperonAgent {
 
     /// Returns the currently active session ID.
     fn session_id(&self) -> Option<String> {
-        self.active_session_id.try_lock().ok().and_then(|lock| lock.clone())
+        self.active_session_id
+            .try_lock()
+            .ok()
+            .and_then(|lock| lock.clone())
     }
 }

@@ -46,8 +46,7 @@ use tokio::sync::mpsc;
 
 use operon_config::PolicyConfig;
 use operon_context::{
-    ContentBlock, ConversationMessage, SessionTokenState, SnapshotBuilder, TokenBudget,
-    ToolContent,
+    ContentBlock, ConversationMessage, SessionTokenState, SnapshotBuilder, TokenBudget, ToolContent,
 };
 use operon_events::{SessionCommand, SessionEvent};
 use operon_policy::PolicyResolver;
@@ -222,14 +221,14 @@ impl SessionRunner {
         // Register tool groups based on the session configuration.
         for group in &config.tool_groups {
             match group.as_str() {
-                "fs"     => dispatcher.register_fs_tools(),
-                "shell"  => dispatcher.register_shell_tools(),
-                "web"    => dispatcher.register_web_tools(),
-                "todo"   => dispatcher.register_todo_tools(),
-                "ask"    => dispatcher.register_ask_tool(),
+                "fs" => dispatcher.register_fs_tools(),
+                "shell" => dispatcher.register_shell_tools(),
+                "web" => dispatcher.register_web_tools(),
+                "todo" => dispatcher.register_todo_tools(),
+                "ask" => dispatcher.register_ask_tool(),
                 // Memory tools register definitions here; the store is attached below.
                 "memory" => dispatcher.register_memory_tools(),
-                other    => tracing::warn!("Unknown tool group: {other}"),
+                other => tracing::warn!("Unknown tool group: {other}"),
             }
         }
 
@@ -270,7 +269,9 @@ impl SessionRunner {
             })
             .await;
 
-        let _ = event_tx.send(context_usage_event(&token_budget, initial_tokens)).await;
+        let _ = event_tx
+            .send(context_usage_event(&token_budget, initial_tokens))
+            .await;
 
         Ok(Self {
             session_id,
@@ -328,7 +329,9 @@ impl SessionRunner {
         if let Some(tokens) = last_token_count {
             self.token_state
                 .apply_estimate(tokens, operon_context::EstimationTier::Exact);
-            let _ = self.event_tx.try_send(context_usage_event(&self.token_budget, tokens));
+            let _ = self
+                .event_tx
+                .try_send(context_usage_event(&self.token_budget, tokens));
         }
     }
 

@@ -47,7 +47,10 @@ pub fn render_add_directory_modal(frame: &mut Frame, area: Rect, state: &mut Add
         ])
         .split(inner);
 
-    let label = Paragraph::new(Line::from(Span::styled("Directory Path (e.g. ~/projects or D:\\workspace):", STYLE_NORMAL)));
+    let label = Paragraph::new(Line::from(Span::styled(
+        "Directory Path (e.g. ~/projects or D:\\workspace):",
+        STYLE_NORMAL,
+    )));
     frame.render_widget(label, chunks[0]);
 
     let input_block = Block::default()

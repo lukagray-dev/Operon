@@ -1,7 +1,7 @@
 //! Window actions: minimize, maximize, close, drag, and sidebar toggle.
 
-use tauri::{State, WebviewWindow};
 use crate::shared::AppState;
+use tauri::{State, WebviewWindow};
 
 /// Minimizes the active window.
 #[tauri::command]
@@ -34,7 +34,8 @@ pub async fn close_window(window: WebviewWindow) -> Result<(), String> {
     if window.label() == "main" {
         let prefs = crate::settings::prefs::GuiPrefs::load();
         if prefs.minimize_to_tray_enabled
-            && prefs.close_button_action == crate::settings::prefs::CloseButtonAction::MinimizeToTray
+            && prefs.close_button_action
+                == crate::settings::prefs::CloseButtonAction::MinimizeToTray
         {
             return window.hide().map_err(|e| e.to_string());
         }

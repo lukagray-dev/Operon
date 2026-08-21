@@ -33,7 +33,8 @@ use crate::types::ChatId;
 use crate::workspace::TelegramWorkspaceManager;
 
 /// Hook signature for external consumers (e.g. GUI) listening to live channel session events and commands.
-pub type SessionEventHook = Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync>;
+pub type SessionEventHook =
+    Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync>;
 
 /// Bridge that drives `SessionRunner` for a specific Telegram chat and sends output over Telegram outbound queue.
 pub struct SessionRunnerBridge {
@@ -95,15 +96,13 @@ impl SessionRunnerBridge {
 
     /// Auto-sends first-time onboarding documentation message over Telegram.
     pub async fn send_onboarding(&self, chat: &ChatId) -> Result<(), TelegramError> {
-        let text = format!(
-            "👋 *Welcome to Operon!*\n\n\
+        let text = "👋 *Welcome to Operon!*\n\n\
              I am your autonomous AI assistant running locally on Operon.\n\n\
              💡 *Shortcuts & Tips:*\n\
              • Send `/new` anytime to start a fresh, clean session.\n\
              • You can ask questions, run web searches, analyze files, and manage tasks.\n\n\
-             _Starting your session now..._"
-        );
-        let msg = TelegramOutboundMessage::new(chat.as_i64(), &text);
+             _Starting your session now..._";
+        let msg = TelegramOutboundMessage::new(chat.as_i64(), text);
         let _ = self.outbound_tx.send(msg).await;
         Ok(())
     }
@@ -124,9 +123,7 @@ impl SessionRunnerBridge {
 
         // 1. Provision user workspace & role-specific channel instructions
         let is_owner = matches!(role, CallerRole::Owner);
-        let workspace_root = self
-            .workspace_manager
-            .provision_workspace(chat, is_owner)?;
+        let workspace_root = self.workspace_manager.provision_workspace(chat, is_owner)?;
 
         let channel_instructions = if is_owner {
             crate::workspace::generate_owner_channel_instructions(chat)
@@ -153,7 +150,9 @@ impl SessionRunnerBridge {
             workspace_root: workspace_root.clone(),
             role: context_role,
             tool_groups: SessionConfig::default_tool_groups(),
-            compaction: operon_context::CompactionConfig::with_context_window(self.app_config.provider.context_window()),
+            compaction: operon_context::CompactionConfig::with_context_window(
+                self.app_config.provider.context_window(),
+            ),
             store_path: Some(store_path.clone()),
             channel_instructions: Some(channel_instructions),
         };
@@ -206,7 +205,9 @@ impl SessionRunnerBridge {
 
         // Wire cmd_tx to the router so /new can cancel in-flight turns!
         if let Some(ref router) = self.router {
-            router.register_cmd_tx(chat, session_id, cmd_tx.clone()).await;
+            router
+                .register_cmd_tx(chat, session_id, cmd_tx.clone())
+                .await;
         }
 
         // ── 6. Instantiate SessionRunner and restore history ────────────────
@@ -296,7 +297,10 @@ async fn forward_session_events_to_outbound(
                 break;
             }
             other => {
-                tracing::debug!(?other, "SessionEvent variant intentionally ignored for Telegram forwarding");
+                tracing::debug!(
+                    ?other,
+                    "SessionEvent variant intentionally ignored for Telegram forwarding"
+                );
             }
         }
     }
@@ -351,7 +355,14 @@ mod tests {
         let (cmd_tx, _cmd_rx) = mpsc::channel::<SessionCommand>(1);
         tokio::time::timeout(
             Duration::from_secs(1),
-            forward_session_events_to_outbound(&chat, "test-session", &cmd_tx, None, &outbound_tx, &mut event_rx),
+            forward_session_events_to_outbound(
+                &chat,
+                "test-session",
+                &cmd_tx,
+                None,
+                &outbound_tx,
+                &mut event_rx,
+            ),
         )
         .await
         .expect("Done must release the Telegram event forwarder");

@@ -5,7 +5,7 @@
 //! Tags are handled with `deserialize_flexible_string_list_opt` because models
 //! often pass a single string instead of a JSON array (e.g., `"tags": "pref"`).
 
-use operon_tools_core::de::{deserialize_flexible_string_list_opt};
+use operon_tools_core::de::deserialize_flexible_string_list_opt;
 use serde::Deserialize;
 
 /// Arguments for the memory_add tool.

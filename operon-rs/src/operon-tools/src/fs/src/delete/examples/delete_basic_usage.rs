@@ -25,7 +25,10 @@ async fn main() {
     // 2. Create a temporary file to delete permanently
     let file_to_delete = temp_path.join("unwanted.tmp");
     fs::write(&file_to_delete, "temporary content").unwrap();
-    println!("2. File exists before deletion: {}", file_to_delete.exists());
+    println!(
+        "2. File exists before deletion: {}",
+        file_to_delete.exists()
+    );
 
     // 3. Delete the file permanently
     let args = json!({

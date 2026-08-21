@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 // Main entry point for Operon TUI
 // Responsibilities:
 // - Install panic hook to restore terminal on panic
@@ -30,7 +32,8 @@ async fn main() -> Result<()> {
     let mut terminal = app::terminal::init()?;
 
     // Initialize application state with real Operon agent bridge
-    let agent: Arc<Mutex<Box<dyn AgentBridge>>> = Arc::new(Mutex::new(Box::new(OperonAgent::new())));
+    let agent: Arc<Mutex<Box<dyn AgentBridge>>> =
+        Arc::new(Mutex::new(Box::new(OperonAgent::new())));
     let mut app_state = AppState::new();
 
     // Create event handler channel

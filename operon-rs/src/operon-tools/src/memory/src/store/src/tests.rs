@@ -35,13 +35,19 @@ async fn test_add_returns_memory_with_id() {
     let (store, _tmp) = fresh_store().await;
 
     let memory = store
-        .add("User prefers dark mode".to_string(), vec!["preference".to_string()])
+        .add(
+            "User prefers dark mode".to_string(),
+            vec!["preference".to_string()],
+        )
         .await
         .expect("add should succeed");
 
     // The id must be a non-empty string representing a positive integer.
     assert!(!memory.id.is_empty(), "id must be non-empty");
-    assert!(memory.id.parse::<i64>().is_ok(), "id must be a valid integer string");
+    assert!(
+        memory.id.parse::<i64>().is_ok(),
+        "id must be a valid integer string"
+    );
     assert_eq!(memory.content, "User prefers dark mode");
     assert_eq!(memory.tags, vec!["preference"]);
     // Timestamps must be valid RFC3339 — just check they're non-empty.
@@ -74,17 +80,27 @@ async fn test_add_empty_tags() {
     let (store, _tmp) = fresh_store().await;
 
     let memory = store.add("No tags here".to_string(), vec![]).await.unwrap();
-    assert_eq!(memory.tags, Vec::<String>::new(), "empty tags should deserialize to empty vec");
+    assert_eq!(
+        memory.tags,
+        Vec::<String>::new(),
+        "empty tags should deserialize to empty vec"
+    );
 }
 
 #[async_test]
 async fn test_get_existing_memory() {
     let (store, _tmp) = fresh_store().await;
 
-    let added = store.add("Lookup test".to_string(), vec!["test".to_string()]).await.unwrap();
+    let added = store
+        .add("Lookup test".to_string(), vec!["test".to_string()])
+        .await
+        .unwrap();
     let fetched = store.get(&added.id).await.unwrap();
 
-    assert!(fetched.is_some(), "get should return Some for an existing id");
+    assert!(
+        fetched.is_some(),
+        "get should return Some for an existing id"
+    );
     let fetched = fetched.unwrap();
     assert_eq!(fetched.id, added.id);
     assert_eq!(fetched.content, "Lookup test");
@@ -112,7 +128,10 @@ async fn test_get_invalid_id_returns_none() {
 async fn test_delete_returns_true_for_existing() {
     let (store, _tmp) = fresh_store().await;
 
-    let memory = store.add("Will be deleted".to_string(), vec![]).await.unwrap();
+    let memory = store
+        .add("Will be deleted".to_string(), vec![])
+        .await
+        .unwrap();
     let deleted = store.delete(&memory.id).await.unwrap();
     assert!(deleted, "delete should return true for an existing memory");
 
@@ -133,16 +152,25 @@ async fn test_delete_returns_false_for_missing() {
 async fn test_edit_content_only() {
     let (store, _tmp) = fresh_store().await;
 
-    let original = store.add("Original content".to_string(), vec!["tag1".to_string()]).await.unwrap();
+    let original = store
+        .add("Original content".to_string(), vec!["tag1".to_string()])
+        .await
+        .unwrap();
     let updated = store
         .edit(&original.id, Some("Updated content".to_string()), None)
         .await
         .unwrap();
 
     let updated = updated.expect("edit should return Some for existing id");
-    assert_eq!(updated.content, "Updated content", "content should be updated");
+    assert_eq!(
+        updated.content, "Updated content",
+        "content should be updated"
+    );
     assert_eq!(updated.tags, vec!["tag1"], "tags should be unchanged");
-    assert_eq!(updated.created_at, original.created_at, "created_at must never change");
+    assert_eq!(
+        updated.created_at, original.created_at,
+        "created_at must never change"
+    );
     // updated_at must be >= original (may be equal if the clock didn't tick, but must not regress).
     assert!(updated.updated_at >= original.updated_at);
 }
@@ -151,22 +179,39 @@ async fn test_edit_content_only() {
 async fn test_edit_tags_only() {
     let (store, _tmp) = fresh_store().await;
 
-    let original = store.add("Content stays".to_string(), vec!["old".to_string()]).await.unwrap();
+    let original = store
+        .add("Content stays".to_string(), vec!["old".to_string()])
+        .await
+        .unwrap();
     let updated = store
-        .edit(&original.id, None, Some(vec!["new1".to_string(), "new2".to_string()]))
+        .edit(
+            &original.id,
+            None,
+            Some(vec!["new1".to_string(), "new2".to_string()]),
+        )
         .await
         .unwrap()
         .unwrap();
 
-    assert_eq!(updated.content, "Content stays", "content should be unchanged");
-    assert_eq!(updated.tags, vec!["new1", "new2"], "tags should be replaced");
+    assert_eq!(
+        updated.content, "Content stays",
+        "content should be unchanged"
+    );
+    assert_eq!(
+        updated.tags,
+        vec!["new1", "new2"],
+        "tags should be replaced"
+    );
 }
 
 #[async_test]
 async fn test_edit_nonexistent_returns_none() {
     let (store, _tmp) = fresh_store().await;
 
-    let result = store.edit("99999", Some("new content".to_string()), None).await.unwrap();
+    let result = store
+        .edit("99999", Some("new content".to_string()), None)
+        .await
+        .unwrap();
     assert!(result.is_none(), "edit on unknown id should return None");
 }
 
@@ -174,7 +219,10 @@ async fn test_edit_nonexistent_returns_none() {
 async fn test_edit_invalid_id_returns_none() {
     let (store, _tmp) = fresh_store().await;
 
-    let result = store.edit("not-an-int", Some("new".to_string()), None).await.unwrap();
+    let result = store
+        .edit("not-an-int", Some("new".to_string()), None)
+        .await
+        .unwrap();
     assert!(result.is_none());
 }
 
@@ -211,7 +259,11 @@ async fn test_list_pagination_limit() {
     assert_eq!(page1.len(), 3, "limit=3 should return 3 items");
 
     let page2 = store.list(3, 3).await.unwrap();
-    assert_eq!(page2.len(), 2, "offset=3 with 5 total should return 2 items");
+    assert_eq!(
+        page2.len(),
+        2,
+        "offset=3 with 5 total should return 2 items"
+    );
 }
 
 #[async_test]
@@ -237,7 +289,10 @@ async fn test_count_increases_on_add() {
 async fn test_count_decreases_on_delete() {
     let (store, _tmp) = fresh_store().await;
 
-    let m = store.add("Will be deleted".to_string(), vec![]).await.unwrap();
+    let m = store
+        .add("Will be deleted".to_string(), vec![])
+        .await
+        .unwrap();
     assert_eq!(store.count().await.unwrap(), 1);
     store.delete(&m.id).await.unwrap();
     assert_eq!(store.count().await.unwrap(), 0);
@@ -251,9 +306,18 @@ async fn test_count_decreases_on_delete() {
 async fn test_search_finds_matching_content() {
     let (store, _tmp) = fresh_store().await;
 
-    store.add("User loves Rust programming".to_string(), vec![]).await.unwrap();
-    store.add("User prefers dark mode themes".to_string(), vec![]).await.unwrap();
-    store.add("Project uses AGPL license".to_string(), vec![]).await.unwrap();
+    store
+        .add("User loves Rust programming".to_string(), vec![])
+        .await
+        .unwrap();
+    store
+        .add("User prefers dark mode themes".to_string(), vec![])
+        .await
+        .unwrap();
+    store
+        .add("Project uses AGPL license".to_string(), vec![])
+        .await
+        .unwrap();
 
     let results = store.search("Rust", 10).await.unwrap();
     assert_eq!(results.len(), 1);
@@ -267,10 +331,16 @@ async fn test_search_empty_query_returns_empty() {
     store.add("Some memory".to_string(), vec![]).await.unwrap();
 
     let results = store.search("", 10).await.unwrap();
-    assert!(results.is_empty(), "empty query should return empty vec, not all memories");
+    assert!(
+        results.is_empty(),
+        "empty query should return empty vec, not all memories"
+    );
 
     let results = store.search("   ", 10).await.unwrap();
-    assert!(results.is_empty(), "whitespace-only query should also return empty vec");
+    assert!(
+        results.is_empty(),
+        "whitespace-only query should also return empty vec"
+    );
 }
 
 #[async_test]
@@ -278,33 +348,55 @@ async fn test_search_respects_limit() {
     let (store, _tmp) = fresh_store().await;
 
     for i in 0..5 {
-        store.add(format!("Rust tip number {}", i), vec![]).await.unwrap();
+        store
+            .add(format!("Rust tip number {}", i), vec![])
+            .await
+            .unwrap();
     }
 
     let results = store.search("Rust", 3).await.unwrap();
-    assert!(results.len() <= 3, "search should respect the limit parameter");
+    assert!(
+        results.len() <= 3,
+        "search should respect the limit parameter"
+    );
 }
 
 #[async_test]
 async fn test_search_no_results_for_unknown_term() {
     let (store, _tmp) = fresh_store().await;
 
-    store.add("I like coffee".to_string(), vec![]).await.unwrap();
+    store
+        .add("I like coffee".to_string(), vec![])
+        .await
+        .unwrap();
 
     let results = store.search("xylophone", 10).await.unwrap();
-    assert!(results.is_empty(), "search for unknown term should return empty vec");
+    assert!(
+        results.is_empty(),
+        "search for unknown term should return empty vec"
+    );
 }
 
 #[async_test]
 async fn test_search_after_delete_does_not_return_deleted() {
     let (store, _tmp) = fresh_store().await;
 
-    let m = store.add("Deleted memory about Rust".to_string(), vec![]).await.unwrap();
-    store.add("Surviving memory about Rust".to_string(), vec![]).await.unwrap();
+    let m = store
+        .add("Deleted memory about Rust".to_string(), vec![])
+        .await
+        .unwrap();
+    store
+        .add("Surviving memory about Rust".to_string(), vec![])
+        .await
+        .unwrap();
     store.delete(&m.id).await.unwrap();
 
     let results = store.search("Rust", 10).await.unwrap();
-    assert_eq!(results.len(), 1, "deleted memory should not appear in search results");
+    assert_eq!(
+        results.len(),
+        1,
+        "deleted memory should not appear in search results"
+    );
     assert_eq!(results[0].content, "Surviving memory about Rust");
 }
 
@@ -312,16 +404,29 @@ async fn test_search_after_delete_does_not_return_deleted() {
 async fn test_search_after_edit_indexes_new_content() {
     let (store, _tmp) = fresh_store().await;
 
-    let m = store.add("Old content about coffee".to_string(), vec![]).await.unwrap();
+    let m = store
+        .add("Old content about coffee".to_string(), vec![])
+        .await
+        .unwrap();
 
     // Edit to change content to tea — search for "coffee" should no longer find it.
-    store.edit(&m.id, Some("New content about tea".to_string()), None).await.unwrap();
+    store
+        .edit(&m.id, Some("New content about tea".to_string()), None)
+        .await
+        .unwrap();
 
     let coffee_results = store.search("coffee", 10).await.unwrap();
-    assert!(coffee_results.is_empty(), "FTS index should be updated after edit; old term not found");
+    assert!(
+        coffee_results.is_empty(),
+        "FTS index should be updated after edit; old term not found"
+    );
 
     let tea_results = store.search("tea", 10).await.unwrap();
-    assert_eq!(tea_results.len(), 1, "FTS index should return updated content");
+    assert_eq!(
+        tea_results.len(),
+        1,
+        "FTS index should return updated content"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -336,7 +441,8 @@ async fn test_connect_with_nested_directory_path() {
     // Using a URI string constructed via format!("sqlite://{}", path) breaks on such
     // paths — this test would have caught that regression.
     let tmp = tempfile::tempdir().expect("failed to create temp dir");
-    let nested_path = tmp.path()
+    let nested_path = tmp
+        .path()
         .join("deeply")
         .join("nested")
         .join("dir")
@@ -350,10 +456,16 @@ async fn test_connect_with_nested_directory_path() {
     // Verify the store actually works end-to-end at this path — not just that connect() didn't error.
     let memory = store.add("test content".to_string(), vec![]).await.unwrap();
     let fetched = store.get(&memory.id).await.unwrap();
-    assert!(fetched.is_some(), "should be able to read back what was written");
+    assert!(
+        fetched.is_some(),
+        "should be able to read back what was written"
+    );
 
     // Confirm the file was actually created at the expected nested path.
-    assert!(nested_path.exists(), "db file should exist at the nested path");
+    assert!(
+        nested_path.exists(),
+        "db file should exist at the nested path"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -386,5 +498,8 @@ async fn test_connect_default_against_real_home_directory() {
     assert_eq!(count_after, count_before + 1);
 
     // Clean up — don't leave test data in the real store.
-    store.delete(&memory.id).await.expect("cleanup delete should succeed");
+    store
+        .delete(&memory.id)
+        .await
+        .expect("cleanup delete should succeed");
 }

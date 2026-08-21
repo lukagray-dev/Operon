@@ -34,7 +34,17 @@ pub fn set_autostart(enabled: bool, start_minimized: bool) -> Result<(), String>
             // Use Windows built-in reg.exe to add/update the startup registry value
             use std::os::windows::process::CommandExt;
             let mut cmd = Command::new("reg");
-            cmd.args(["add", REG_KEY, "/v", REG_VALUE_NAME, "/t", "REG_SZ", "/d", &cmd_val, "/f"]);
+            cmd.args([
+                "add",
+                REG_KEY,
+                "/v",
+                REG_VALUE_NAME,
+                "/t",
+                "REG_SZ",
+                "/d",
+                &cmd_val,
+                "/f",
+            ]);
             cmd.creation_flags(0x08000000);
             let output = cmd
                 .output()

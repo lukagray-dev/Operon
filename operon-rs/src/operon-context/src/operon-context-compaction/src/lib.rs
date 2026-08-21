@@ -17,13 +17,13 @@ mod trigger;
 use operon_context_normalize_messages::ConversationMessage;
 use serde::{Deserialize, Serialize};
 
+pub use client::CompactionClient;
+#[cfg(any(test, feature = "test-utils"))]
+pub use client::MockCompactionClient;
 /// Re-export HTTP clients when the `http-client` feature is enabled.
 /// The session crate depends on this feature so it can construct the clients directly.
 #[cfg(feature = "http-client")]
 pub use client::{AnthropicCompactionClient, GeminiCompactionClient, OpenAICompactionClient};
-pub use client::CompactionClient;
-#[cfg(any(test, feature = "test-utils"))]
-pub use client::MockCompactionClient;
 pub use compactor::compact;
 pub use error::CompactionError;
 pub use prompt::build_prompt;
@@ -52,7 +52,8 @@ impl CompactionConfig {
     }
 }
 
-impl Default for CompactionConfig {      //For tests only!
+impl Default for CompactionConfig {
+    //For tests only!
     fn default() -> Self {
         Self {
             preserved_turns: 2,

@@ -237,9 +237,8 @@ impl SessionRunner {
                 &mut self.pending_commands,
             )
             .await
-            .map_err(|e| {
+            .inspect_err(|_e| {
                 self.lifecycle = LifecycleState::Failed;
-                e
             })?;
 
             // ── 6. Record token usage + emit TokenUsageUpdated ───────────────

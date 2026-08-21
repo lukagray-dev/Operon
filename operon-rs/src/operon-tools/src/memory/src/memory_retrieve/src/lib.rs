@@ -15,7 +15,9 @@ pub use error::MemoryRetrieveToolError;
 pub use output::MemoryRetrieveOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter};
+use operon_tools_core::{
+    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
+};
 use operon_tools_memory_store::MemoryStore;
 use serde_json::json;
 
@@ -102,7 +104,12 @@ pub async fn execute_with_progress(
 
     emit_tool_progress(
         progress.as_ref(),
-        ToolProgress::running(call_id.clone(), "memory_retrieve", None, "Retrieving memories"),
+        ToolProgress::running(
+            call_id.clone(),
+            "memory_retrieve",
+            None,
+            "Retrieving memories",
+        ),
     );
 
     Ok(executor::execute(call_id, args, store).await)

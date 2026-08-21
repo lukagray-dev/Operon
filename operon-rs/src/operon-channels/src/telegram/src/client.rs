@@ -125,12 +125,10 @@ impl TelegramClient {
         let get_me_url = format!("{}/getMe", base_url);
         info!("Validating Telegram bot token via getMe request...");
 
-        let res = self
-            .http
-            .get(&get_me_url)
-            .send()
-            .await
-            .map_err(|e| TelegramError::ConnectionFailed(format!("HTTP request failed: {e}")))?;
+        let res =
+            self.http.get(&get_me_url).send().await.map_err(|e| {
+                TelegramError::ConnectionFailed(format!("HTTP request failed: {e}"))
+            })?;
 
         let response_body: TelegramApiResponse<UserDto> = res.json().await.map_err(|e| {
             TelegramError::ConnectionFailed(format!("Failed to parse getMe JSON: {e}"))
@@ -199,14 +197,13 @@ impl TelegramClient {
                                         for update in updates {
                                             // Advance offset to update_id + 1 so we don't re-fetch the same update
                                             if update.update_id >= current_offset {
-                                                offset.store(update.update_id + 1, Ordering::SeqCst);
+                                                offset
+                                                    .store(update.update_id + 1, Ordering::SeqCst);
                                             }
 
                                             if let Some(msg) = update.message {
-                                                let text_content = msg
-                                                    .text
-                                                    .or(msg.caption)
-                                                    .unwrap_or_default();
+                                                let text_content =
+                                                    msg.text.or(msg.caption).unwrap_or_default();
 
                                                 let tg_msg = TelegramMessage {
                                                     update_id: update.update_id,
@@ -269,7 +266,12 @@ impl TelegramClient {
             "parse_mode": "MarkdownV2"
         });
 
-        let res = self.http.post(&send_url).json(&markdown_payload).send().await?;
+        let res = self
+            .http
+            .post(&send_url)
+            .json(&markdown_payload)
+            .send()
+            .await?;
         let status_code = res.status();
 
         if status_code.is_success() {
@@ -292,11 +294,19 @@ impl TelegramClient {
                 "text": text
             });
 
-            let retry_res = self.http.post(&send_url).json(&plain_payload).send().await?;
+            let retry_res = self
+                .http
+                .post(&send_url)
+                .json(&plain_payload)
+                .send()
+                .await?;
             if retry_res.status().is_success() {
                 let retry_body: TelegramApiResponse<MessageDto> = retry_res.json().await?;
                 if let Some(msg) = retry_body.result {
-                    info!("Successfully delivered message to chat {} using plaintext fallback!", chat_id);
+                    info!(
+                        "Successfully delivered message to chat {} using plaintext fallback!",
+                        chat_id
+                    );
                     return Ok(msg.message_id);
                 }
             } else {
@@ -312,6 +322,8 @@ impl TelegramClient {
             )));
         }
 
-        Err(TelegramError::SendFailed("Unexpected empty response payload from Telegram API".to_string()))
+        Err(TelegramError::SendFailed(
+            "Unexpected empty response payload from Telegram API".to_string(),
+        ))
     }
 }

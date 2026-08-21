@@ -67,7 +67,9 @@ pub async fn get_git_diff_stats(workspace_path: Option<String>) -> Result<GitDif
             for line in text.lines() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 3 {
-                    if let (Ok(ins), Ok(del)) = (parts[0].parse::<usize>(), parts[1].parse::<usize>()) {
+                    if let (Ok(ins), Ok(del)) =
+                        (parts[0].parse::<usize>(), parts[1].parse::<usize>())
+                    {
                         total_insertions += ins;
                         total_deletions += del;
                         files_changed += 1;
@@ -148,7 +150,8 @@ pub async fn get_topbar_info(
             if title == "New Session" {
                 let db_path = paths.session_db(sid);
                 if db_path.exists() {
-                    if let Ok(store) = operon_rs::session::store::SessionStore::open(&db_path).await {
+                    if let Ok(store) = operon_rs::session::store::SessionStore::open(&db_path).await
+                    {
                         if let Ok(Some(first_msg)) = store.get_first_user_message_text(sid).await {
                             let trimmed = first_msg.trim();
                             if !trimmed.is_empty() {
@@ -167,7 +170,9 @@ pub async fn get_topbar_info(
         }
     }
 
-    let is_project = workspace_path.as_ref().map_or(false, |w| !w.trim().is_empty());
+    let is_project = workspace_path
+        .as_ref()
+        .is_some_and(|w| !w.trim().is_empty());
     let project_name = workspace_path.as_ref().and_then(|w| {
         Path::new(w)
             .file_name()

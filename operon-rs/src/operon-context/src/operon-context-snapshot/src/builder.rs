@@ -206,11 +206,7 @@ mod tests {
     fn snapshot_builder_is_not_sync() {
         // SnapshotBuilder must NOT be Sync â€” callers must use Mutex for shared access.
         #[allow(dead_code)]
-        fn assert_not_sync<T: ?Sized>()
-        where
-            T: Sync,
-        {
-        }
+        fn assert_not_sync<T: ?Sized + Sync>() {}
         // This must NOT compile. Leave commented as documentation of intent.
         // assert_not_sync::<SnapshotBuilder>();
     }

@@ -80,7 +80,10 @@ impl LsOutput {
 
         let mut out = String::new();
         let trunc_suffix = if self.truncated { " (truncated)" } else { "" };
-        out.push_str(&format!("=== {} ({} items{}) ===\n", self.path, self.entry_count, trunc_suffix));
+        out.push_str(&format!(
+            "=== {} ({} items{}) ===\n",
+            self.path, self.entry_count, trunc_suffix
+        ));
 
         if self.entries.is_empty() {
             out.push_str("(empty directory)");
@@ -93,7 +96,10 @@ impl LsOutput {
                     out.push_str(&format!("[DIR]  {}/\n", entry.name));
                 }
                 EntryKind::File => {
-                    let size_str = entry.size_bytes.map(format_size).unwrap_or_else(|| "0 B".to_string());
+                    let size_str = entry
+                        .size_bytes
+                        .map(format_size)
+                        .unwrap_or_else(|| "0 B".to_string());
                     out.push_str(&format!("[FILE] {} ({})\n", entry.name, size_str));
                 }
                 EntryKind::Symlink => {
@@ -109,4 +115,3 @@ impl LsOutput {
         out
     }
 }
-

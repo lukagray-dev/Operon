@@ -65,6 +65,18 @@ use operon_tools_web_fetch;
 use operon_tools_web_search;
 use std::collections::{HashMap, HashSet};
 
+/// Type alias for the type-erased async tool executor function.
+pub type ToolExecutorFn = Box<
+    dyn Fn(
+            ToolCallId,
+            serde_json::Value,
+            Option<ToolProgressEmitter>,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<ToolResult, String>> + Send>,
+        > + Send
+        + Sync,
+>;
+
 /// A registered tool: its tiered definition, group tag, and async execute function.
 struct ToolEntry {
     tiered: operon_tools_core::TieredToolDefinition,
@@ -74,16 +86,7 @@ struct ToolEntry {
     /// Type-erased async execute fn.
     /// Takes (call_id, args_json, progress) → ToolResult.
     /// Malformed args must be surfaced as Err(String) describing the parse failure.
-    execute: Box<
-        dyn Fn(
-                ToolCallId,
-                serde_json::Value,
-                Option<ToolProgressEmitter>,
-            ) -> std::pin::Pin<
-                Box<dyn std::future::Future<Output = Result<ToolResult, String>> + Send>,
-            > + Send
-            + Sync,
-    >,
+    execute: ToolExecutorFn,
 }
 
 /// The result of a single tool dispatch, including metadata about side effects.
@@ -808,12 +811,12 @@ impl Dispatcher {
 
             let tool_name_str = call.name.as_str();
             let label = match tool_name_str {
-                "memory_add"      => "Storing memory",
-                "memory_edit"     => "Updating memory",
-                "memory_delete"   => "Deleting memory",
+                "memory_add" => "Storing memory",
+                "memory_edit" => "Updating memory",
+                "memory_delete" => "Deleting memory",
                 "memory_retrieve" => "Retrieving memories",
-                "memory_search"   => "Searching memories",
-                _                 => "Processing memory tool",
+                "memory_search" => "Searching memories",
+                _ => "Processing memory tool",
             };
 
             emit_tool_progress(
@@ -823,24 +826,51 @@ impl Dispatcher {
 
             let result = match call.name.as_str() {
                 "memory_add" => operon_tools_memory_add::execute_with_progress(
-                    call_id.clone(), call.arguments, &store, progress.clone(),
-                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_add", &e.to_string())),
+                    call_id.clone(),
+                    call.arguments,
+                    &store,
+                    progress.clone(),
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call_id.clone(), "memory_add", &e.to_string())),
 
                 "memory_edit" => operon_tools_memory_edit::execute_with_progress(
-                    call_id.clone(), call.arguments, &store, progress.clone(),
-                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_edit", &e.to_string())),
+                    call_id.clone(),
+                    call.arguments,
+                    &store,
+                    progress.clone(),
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call_id.clone(), "memory_edit", &e.to_string())),
 
                 "memory_delete" => operon_tools_memory_delete::execute_with_progress(
-                    call_id.clone(), call.arguments, &store, progress.clone(),
-                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_delete", &e.to_string())),
+                    call_id.clone(),
+                    call.arguments,
+                    &store,
+                    progress.clone(),
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call_id.clone(), "memory_delete", &e.to_string())),
 
                 "memory_retrieve" => operon_tools_memory_retrieve::execute_with_progress(
-                    call_id.clone(), call.arguments, &store, progress.clone(),
-                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_retrieve", &e.to_string())),
+                    call_id.clone(),
+                    call.arguments,
+                    &store,
+                    progress.clone(),
+                )
+                .await
+                .unwrap_or_else(|e| {
+                    error_result(call_id.clone(), "memory_retrieve", &e.to_string())
+                }),
 
                 "memory_search" => operon_tools_memory_search::execute_with_progress(
-                    call_id.clone(), call.arguments, &store, progress.clone(),
-                ).await.unwrap_or_else(|e| error_result(call_id.clone(), "memory_search", &e.to_string())),
+                    call_id.clone(),
+                    call.arguments,
+                    &store,
+                    progress.clone(),
+                )
+                .await
+                .unwrap_or_else(|e| error_result(call_id.clone(), "memory_search", &e.to_string())),
 
                 _ => unreachable!("matches! guard above ensures only memory tools reach here"),
             };
@@ -848,11 +878,19 @@ impl Dispatcher {
             emit_tool_progress(
                 progress.as_ref(),
                 if result.is_error {
-                    ToolProgress::failed(call_id.clone(), call.name.clone(), None,
-                        format!("{} failed", call.name))
+                    ToolProgress::failed(
+                        call_id.clone(),
+                        call.name.clone(),
+                        None,
+                        format!("{} failed", call.name),
+                    )
                 } else {
-                    ToolProgress::completed(call_id.clone(), call.name.clone(), None,
-                        format!("{} completed", call.name))
+                    ToolProgress::completed(
+                        call_id.clone(),
+                        call.name.clone(),
+                        None,
+                        format!("{} completed", call.name),
+                    )
                 },
             );
 

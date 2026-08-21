@@ -157,7 +157,10 @@ async fn test_single_string_tag() {
     )
     .await
     .unwrap();
-    assert!(!result.is_error, "single string tag should parse as a vec of one");
+    assert!(
+        !result.is_error,
+        "single string tag should parse as a vec of one"
+    );
     match result.content {
         ToolContent::Json(v) => {
             let tags = &v["memory"]["tags"];
@@ -224,7 +227,10 @@ async fn test_missing_content_returns_parse_error() {
         &store,
     )
     .await;
-    assert!(err.is_err(), "missing required content should return ArgsParse error");
+    assert!(
+        err.is_err(),
+        "missing required content should return ArgsParse error"
+    );
 }
 
 #[tokio::test]
@@ -240,8 +246,10 @@ async fn test_whitespace_is_trimmed_before_storage() {
     assert!(!result.is_error);
     match result.content {
         ToolContent::Json(v) => {
-            assert_eq!(v["memory"]["content"], "Padded content",
-                "content should be stored trimmed");
+            assert_eq!(
+                v["memory"]["content"], "Padded content",
+                "content should be stored trimmed"
+            );
         }
         _ => panic!("expected JSON"),
     }

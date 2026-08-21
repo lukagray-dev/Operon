@@ -66,7 +66,7 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
     for part in parts {
         if part.get("thought").and_then(Value::as_bool) == Some(true) {
             let blocks = normalize_reasoning(part.clone(), &ReasoningProvider::Gemini)
-                .map_err(|e| map_reasoning_err(e))?;
+                .map_err(map_reasoning_err)?;
             for rb in blocks {
                 content.push(ContentBlock::Reasoning(rb));
             }
@@ -74,8 +74,8 @@ pub fn normalize_message(raw: Value) -> Result<ConversationMessage> {
         }
 
         if part.get("functionCall").is_some() {
-            let tool_call = normalize_tool_call(part.clone(), &ToolProvider::Gemini)
-                .map_err(|e| map_tool_err(e))?;
+            let tool_call =
+                normalize_tool_call(part.clone(), &ToolProvider::Gemini).map_err(map_tool_err)?;
             content.push(ContentBlock::ToolCall(tool_call));
             continue;
         }

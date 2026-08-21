@@ -109,8 +109,6 @@ impl WhatsAppClient {
         }
     }
 
-
-
     /// Returns true if the client event loop has been started via `connect()`.
     pub fn is_running(&self) -> bool {
         self.bot_handle.lock().is_some()
@@ -412,7 +410,7 @@ impl WhatsAppClient {
             .client
             .lock()
             .clone()
-            .ok_or_else(|| WhatsAppError::NotConnected)?;
+            .ok_or(WhatsAppError::NotConnected)?;
 
         let remembered_target = if recipient.contains('@') {
             None
@@ -511,25 +509,12 @@ mod tests {
         let lid_jid: Jid = "23888123456789@lid".parse().unwrap();
 
         // 1. Standard phone JID (@s.whatsapp.net) accepted directly without mapping
-        let resolved = resolve_contact_phone(
-            &phone_jid,
-            &phone_jid,
-            None,
-            None,
-            false,
-            None,
-        );
+        let resolved = resolve_contact_phone(&phone_jid, &phone_jid, None, None, false, None);
         assert_eq!(resolved, "15558889999");
 
         // 2. LID JID (@lid) without mapping is rejected by direct phone branch and falls back to warning branch
-        let resolved_lid_no_map = resolve_contact_phone(
-            &lid_jid,
-            &lid_jid,
-            None,
-            None,
-            false,
-            None,
-        );
+        let resolved_lid_no_map =
+            resolve_contact_phone(&lid_jid, &lid_jid, None, None, false, None);
         assert_eq!(resolved_lid_no_map, "23888123456789");
 
         // 3. LID JID (@lid) with mapping returns mapped phone number
@@ -546,18 +531,11 @@ mod tests {
         // 4. Valid phone number starting with "23888" (e.g. Sierra Leone +232 or similar 23888 prefix)
         // Must be accepted directly because its server domain is @s.whatsapp.net, not @lid.
         let valid_23888_jid: Jid = "23888999999@s.whatsapp.net".parse().unwrap();
-        let resolved_23888 = resolve_contact_phone(
-            &valid_23888_jid,
-            &valid_23888_jid,
-            None,
-            None,
-            false,
-            None,
-        );
+        let resolved_23888 =
+            resolve_contact_phone(&valid_23888_jid, &valid_23888_jid, None, None, false, None);
         assert_eq!(
             resolved_23888, "23888999999",
             "Valid phone numbers starting with '23888' must not be rejected when server is @s.whatsapp.net"
         );
     }
 }
-

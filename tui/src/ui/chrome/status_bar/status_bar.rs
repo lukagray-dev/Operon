@@ -7,9 +7,7 @@
 // - Zero emojis, clean typography with subtle bullet delimiters.
 
 use crate::state::AppState;
-use crate::ui::theme::{
-    COLOR_ACCENT, COLOR_LABEL, COLOR_SUCCESS, STYLE_MUTED, STYLE_NORMAL,
-};
+use crate::ui::theme::{COLOR_ACCENT, COLOR_LABEL, COLOR_SUCCESS, STYLE_MUTED, STYLE_NORMAL};
 use crate::ui::widgets::spinner::get_spinner_frame;
 use ratatui::{
     layout::{Alignment, Rect},
@@ -40,7 +38,9 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     // 2. Active Model Name
     spans.push(Span::styled(
         format!("{} ", session.model_name),
-        Style::default().fg(COLOR_ACCENT).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(COLOR_ACCENT)
+            .add_modifier(Modifier::BOLD),
     ));
 
     // Separator
@@ -57,7 +57,9 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 
     // 4. Auto-Approve Indicator (TUI-local toggle)
     let auto_style = if session.auto_approve {
-        Style::default().fg(COLOR_SUCCESS).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(COLOR_SUCCESS)
+            .add_modifier(Modifier::BOLD)
     } else {
         STYLE_MUTED
     };

@@ -57,8 +57,7 @@ pub async fn execute(call_id: ToolCallId, args: WebFetchArgs) -> ToolResult {
     let timeout_ms = args
         .timeout_ms
         .unwrap_or(DEFAULT_TIMEOUT_MS)
-        .min(MAX_TIMEOUT_MS)
-        .max(1);
+        .clamp(1, MAX_TIMEOUT_MS);
     let timeout = Duration::from_millis(timeout_ms);
 
     let client = match reqwest::Client::builder()

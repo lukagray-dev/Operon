@@ -20,7 +20,9 @@ async fn test_edit_content_succeeds() {
         ToolCallId("c1".to_string()),
         json!({"id": mem.id, "content": "Updated"}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
     match result.content {
@@ -32,13 +34,18 @@ async fn test_edit_content_succeeds() {
 #[tokio::test]
 async fn test_edit_tags_only_succeeds() {
     let (store, _tmp) = fresh_store().await;
-    let mem = store.add("Content".to_string(), vec!["old".to_string()]).await.unwrap();
+    let mem = store
+        .add("Content".to_string(), vec!["old".to_string()])
+        .await
+        .unwrap();
 
     let result = execute(
         ToolCallId("c2".to_string()),
         json!({"id": mem.id, "tags": ["new1", "new2"]}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
     match result.content {
@@ -57,7 +64,9 @@ async fn test_edit_numeric_id() {
         ToolCallId("c3".to_string()),
         json!({"id": numeric_id, "content": "Numeric id works"}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
 }
@@ -67,11 +76,9 @@ async fn test_edit_no_fields_returns_error() {
     let (store, _tmp) = fresh_store().await;
     let mem = store.add("Test".to_string(), vec![]).await.unwrap();
 
-    let result = execute(
-        ToolCallId("c4".to_string()),
-        json!({"id": mem.id}),
-        &store,
-    ).await.unwrap();
+    let result = execute(ToolCallId("c4".to_string()), json!({"id": mem.id}), &store)
+        .await
+        .unwrap();
 
     assert!(result.is_error);
     match result.content {
@@ -89,7 +96,9 @@ async fn test_edit_empty_content_returns_error() {
         ToolCallId("c5".to_string()),
         json!({"id": mem.id, "content": "   "}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(result.is_error);
     match result.content {
@@ -106,7 +115,9 @@ async fn test_edit_not_found_returns_error() {
         ToolCallId("c6".to_string()),
         json!({"id": "99999", "content": "New content"}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(result.is_error);
     match result.content {
@@ -122,7 +133,8 @@ async fn test_edit_missing_id_returns_parse_error() {
         ToolCallId("c7".to_string()),
         json!({"content": "No id"}),
         &store,
-    ).await;
+    )
+    .await;
     assert!(err.is_err(), "missing id should return ArgsParse error");
 }
 
@@ -136,12 +148,16 @@ async fn test_edit_created_at_unchanged() {
         ToolCallId("c8".to_string()),
         json!({"id": mem.id, "content": "Updated content"}),
         &store,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     match result.content {
         ToolContent::Json(v) => {
-            assert_eq!(v["memory"]["created_at"], original_created,
-                "created_at must never change on edit");
+            assert_eq!(
+                v["memory"]["created_at"], original_created,
+                "created_at must never change on edit"
+            );
         }
         _ => panic!("expected JSON"),
     }
@@ -157,7 +173,9 @@ async fn test_execute_with_progress_works() {
         json!({"id": mem.id, "content": "Progress test"}),
         &store,
         None,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert!(!result.is_error);
 }

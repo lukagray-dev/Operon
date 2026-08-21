@@ -1,22 +1,22 @@
 //! # operon-terminal
-//! 
+//!
 //! Independent backend library for managing pseudo-terminal (PTY) sessions
 //! in Operon. It handles spawning shell processes (specifically PowerShell on Windows),
 //! reading outputs asynchronously in a background thread, and writing/resizing controls.
 
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 /// A handle to a running terminal process.
 /// Allows concurrent thread-safe writing and resizing.
 pub struct TerminalSession {
     /// Unique identifier for this terminal instance.
     pub id: String,
-    
+
     /// Thread-safe writer pointing to the stdin of the shell process.
     writer: Arc<Mutex<Box<dyn std::io::Write + Send>>>,
-    
+
     /// Thread-safe master PTY reference for calling resize operations.
     master: Arc<Mutex<Box<dyn portable_pty::MasterPty + Send>>>,
 }
@@ -45,7 +45,7 @@ impl TerminalSession {
     {
         // 1. Get the native PTY system implementation (ConPTY on Windows, pty on Unix)
         let pty_system = native_pty_system();
-        
+
         // 2. Open a master/slave pseudo-terminal pair with initial dimensions
         let pair = pty_system.openpty(PtySize {
             rows,
@@ -53,37 +53,37 @@ impl TerminalSession {
             pixel_width: 0,
             pixel_height: 0,
         })?;
-        
+
         let shell = if cfg!(target_os = "windows") {
             "powershell.exe"
         } else {
             "bash"
         };
-        
+
         let mut cmd = CommandBuilder::new(shell);
         if cfg!(target_os = "windows") {
             cmd.arg("-NoLogo");
         }
-        
+
         // If a workspace/project directory is specified, set the start directory
         if let Some(dir) = workdir {
             cmd.cwd(dir);
         }
-        
+
         // 4. Spawn the shell executable into the slave end of the PTY
         let mut child = pair.slave.spawn_command(cmd)?;
-        
+
         // 5. Drop the slave end in this thread, as the spawned process now holds it
         drop(pair.slave);
-        
+
         // 6. Get the writer and clone the reader from the master end
         let master = pair.master;
         let mut reader = master.try_clone_reader()?;
         let writer = master.take_writer()?;
-        
+
         let writer = Arc::new(Mutex::new(writer));
         let master = Arc::new(Mutex::new(master));
-        
+
         // 7. Spawn a background thread to continuously block-read standard output from the PTY
         let id_clone = id.clone();
         std::thread::spawn(move || {
@@ -112,34 +112,28 @@ impl TerminalSession {
             // Ensure child process is killed on reader thread exit
             let _ = child.kill();
         });
-        
-        Ok(Self {
-            id,
-            writer,
-            master,
-        })
+
+        Ok(Self { id, writer, master })
     }
-    
+
     /// Write data (keystrokes or command inputs) to the terminal stdin.
     pub fn write(&self, data: &str) -> std::io::Result<()> {
         let mut w = self.writer.lock().map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to lock terminal stdin writer: {}", e),
-            )
+            std::io::Error::other(format!("Failed to lock terminal stdin writer: {}", e))
         })?;
         w.write_all(data.as_bytes())?;
         w.flush()?;
         Ok(())
     }
-    
+
     /// Resize the layout of the pseudo-terminal window columns and rows.
-    pub fn resize(&self, cols: u16, rows: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn resize(
+        &self,
+        cols: u16,
+        rows: u16,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let m = self.master.lock().map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to lock PTY master for resize: {}", e),
-            )
+            std::io::Error::other(format!("Failed to lock PTY master for resize: {}", e))
         })?;
         m.resize(PtySize {
             rows,

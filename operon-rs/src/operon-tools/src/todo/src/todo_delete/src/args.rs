@@ -63,7 +63,10 @@ impl TodoDeleteArgs {
                 }
                 if let Some(todos) = obj.todos {
                     if !todos.is_empty() {
-                        return todos.into_iter().map(TodoDeleteItemInput::into_id).collect();
+                        return todos
+                            .into_iter()
+                            .map(TodoDeleteItemInput::into_id)
+                            .collect();
                     }
                 }
                 if let Some(id) = obj.id {
@@ -99,10 +102,6 @@ pub struct TodoDeleteObjectArgs {
     pub ids: Option<Vec<String>>,
 
     /// Array of objects or strings to delete.
-    #[serde(
-        default,
-        alias = "items",
-        alias = "tasks"
-    )]
+    #[serde(default, alias = "items", alias = "tasks")]
     pub todos: Option<Vec<TodoDeleteItemInput>>,
 }

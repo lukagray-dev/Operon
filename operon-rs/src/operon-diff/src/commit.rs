@@ -4,11 +4,11 @@
 // It resolves user signatures, creates initial/unborn HEAD commits, handles commit amending,
 // and maps signature errors to `DiffError::SignatureMissing` for clean frontend handling.
 
-use std::path::Path;
-use git2::Repository;
 use crate::dto::CommitResult;
 use crate::error::DiffError;
 use crate::status::discover_repository;
+use git2::Repository;
+use std::path::Path;
 
 /// Synchronously creates or amends a commit in the specified repository.
 ///

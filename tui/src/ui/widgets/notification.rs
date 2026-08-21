@@ -31,7 +31,7 @@ pub enum NotificationLevel {
 /// * `level` - Severity level (determines styling)
 pub fn render_notification(frame: &mut Frame, area: Rect, message: &str, level: NotificationLevel) {
     // Calculate notification area (top-right corner, 30% width, 3 lines height)
-    let width = (area.width * 30 / 100).max(20).min(50);
+    let width = (area.width * 30 / 100).clamp(20, 50);
     let height = 3;
 
     let notification_area = Rect {

@@ -55,7 +55,13 @@ fn extract_dynamic_levels(val: &serde_json::Value) -> Option<Vec<String>> {
     let nested_keys = ["reasoning", "thinking", "capabilities", "parameters"];
     for parent_key in nested_keys {
         if let Some(parent_obj) = val.get(parent_key).and_then(|v| v.as_object()) {
-            for sub_key in ["levels", "effort_levels", "supported_levels", "options", "values"] {
+            for sub_key in [
+                "levels",
+                "effort_levels",
+                "supported_levels",
+                "options",
+                "values",
+            ] {
                 if let Some(arr) = parent_obj.get(sub_key).and_then(|v| v.as_array()) {
                     let levels: Vec<String> = arr
                         .iter()
@@ -120,10 +126,7 @@ mod tests {
             "custom-unknown-model",
             Some(&payload),
         );
-        assert_eq!(
-            levels,
-            vec!["Minimal", "Standard", "Intense", "Disabled"]
-        );
+        assert_eq!(levels, vec!["Minimal", "Standard", "Intense", "Disabled"]);
     }
 
     #[test]

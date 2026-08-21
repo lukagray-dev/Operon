@@ -53,7 +53,7 @@ async fn test_trash_file() {
     // Verify success.
     assert!(!result.is_error, "delete to trash should succeed");
     let output = get_output(&result);
-    assert_eq!(output.permanent, false);
+    assert!(!output.permanent);
     assert_eq!(output.kind, DeletedKind::File);
     assert!(output.message.contains("trash"));
 
@@ -83,7 +83,7 @@ async fn test_trash_directory() {
     // Verify success.
     assert!(!result.is_error);
     let output = get_output(&result);
-    assert_eq!(output.permanent, false);
+    assert!(!output.permanent);
     assert_eq!(output.kind, DeletedKind::Dir);
 
     // Verify directory no longer exists.
@@ -110,7 +110,7 @@ async fn test_default_permanent_is_false() {
     // Verify success and default applied.
     assert!(!result.is_error);
     let output = get_output(&result);
-    assert_eq!(output.permanent, false, "permanent should default to false");
+    assert!(!output.permanent, "permanent should default to false");
 
     // Verify file no longer exists.
     assert!(!std::path::Path::new(&path).exists());
@@ -141,7 +141,7 @@ async fn test_permanent_delete_file() {
     // Verify success.
     assert!(!result.is_error);
     let output = get_output(&result);
-    assert_eq!(output.permanent, true);
+    assert!(output.permanent);
     assert_eq!(output.kind, DeletedKind::File);
     assert!(output.message.contains("Permanently deleted"));
 
@@ -172,7 +172,7 @@ async fn test_permanent_delete_directory() {
     // Verify success.
     assert!(!result.is_error);
     let output = get_output(&result);
-    assert_eq!(output.permanent, true);
+    assert!(output.permanent);
     assert_eq!(output.kind, DeletedKind::Dir);
 
     // Verify directory and all contents no longer exist.
@@ -504,7 +504,7 @@ async fn test_permanent_flag_true_vs_false() {
     .unwrap();
 
     let output1 = get_output(&result1);
-    assert_eq!(output1.permanent, false);
+    assert!(!output1.permanent);
 
     // Delete second with permanent: true.
     let result2 = execute(
@@ -518,7 +518,7 @@ async fn test_permanent_flag_true_vs_false() {
     .unwrap();
 
     let output2 = get_output(&result2);
-    assert_eq!(output2.permanent, true);
+    assert!(output2.permanent);
 
     // Both should be gone from original location.
     assert!(!std::path::Path::new(&path1).exists());

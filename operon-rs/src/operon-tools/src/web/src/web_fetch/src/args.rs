@@ -14,12 +14,7 @@ use serde::Deserialize;
 pub struct WebFetchArgs {
     /// The URL to fetch. Must be a valid http:// or https:// URL.
     /// Relative URLs are not supported — provide the full URL.
-    #[serde(
-        alias = "uri",
-        alias = "link",
-        alias = "address",
-        alias = "target"
-    )]
+    #[serde(alias = "uri", alias = "link", alias = "address", alias = "target")]
     pub url: String,
 
     /// Optional timeout in milliseconds. Default: 15000 (15 seconds).

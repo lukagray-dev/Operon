@@ -15,7 +15,10 @@ fn main() {
     println!();
 
     println!("2. Parameter JSON Schema:");
-    println!("{}", serde_json::to_string_pretty(&def.short.parameters).unwrap());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&def.short.parameters).unwrap()
+    );
     println!();
 
     println!("=== Ask Example Complete ===");

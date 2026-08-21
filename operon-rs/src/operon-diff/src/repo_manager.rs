@@ -3,10 +3,10 @@
 // Hey friend! This module provides `RepoRegistry`, an in-memory manager that discovers,
 // tracks, and switches between multiple Git repositories located within a workspace folder.
 
-use std::path::{Path, PathBuf};
 use crate::dto::RepoEntry;
 use crate::error::DiffError;
 use crate::status::{discover_repository, get_diff_stats};
+use std::path::{Path, PathBuf};
 
 /// In-memory manager tracking all discovered repositories in a multi-repository workspace.
 #[derive(Debug, Clone, Default)]
@@ -24,7 +24,10 @@ impl RepoRegistry {
     /// Scans `workspace_root` itself and its immediate subdirectories (non-recursive) for `.git` folders/files.
     ///
     /// Populates and returns the list of discovered repositories.
-    pub fn discover_workspace_repos<P: AsRef<Path>>(&mut self, workspace_root: P) -> Vec<RepoEntry> {
+    pub fn discover_workspace_repos<P: AsRef<Path>>(
+        &mut self,
+        workspace_root: P,
+    ) -> Vec<RepoEntry> {
         let root = workspace_root.as_ref();
         let mut candidates = Vec::new();
 
@@ -50,7 +53,8 @@ impl RepoRegistry {
             let git_entry = path.join(".git");
             if git_entry.exists() {
                 if let Ok(repo) = discover_repository(&path) {
-                    let name = repo.workdir()
+                    let name = repo
+                        .workdir()
                         .and_then(|p| p.file_name())
                         .and_then(|n| n.to_str())
                         .unwrap_or("repository")
@@ -91,8 +95,9 @@ impl RepoRegistry {
     pub fn add_repo<P: AsRef<Path>>(&mut self, root: P) -> Result<RepoEntry, DiffError> {
         let path = root.as_ref();
         let repo = discover_repository(path)?;
-        
-        let name = repo.workdir()
+
+        let name = repo
+            .workdir()
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
             .unwrap_or("repository")
@@ -127,7 +132,7 @@ impl RepoRegistry {
         let path = root.as_ref();
         let initial_len = self.repos.len();
         self.repos.retain(|r| r.root != path);
-        
+
         if self.active_root.as_deref() == Some(path) {
             self.active_root = self.repos.first().map(|r| r.root.clone());
             if let Some(first) = self.repos.first_mut() {

@@ -402,7 +402,10 @@ fn test_build_user_message_file_only() {
         ContentBlock::Text(t) => {
             assert_eq!(t, "[Attached file: D:\\Operon\\notes.txt]");
         }
-        other => panic!("expected Text block with attached file path, got {:?}", other),
+        other => panic!(
+            "expected Text block with attached file path, got {:?}",
+            other
+        ),
     }
 }
 
@@ -418,7 +421,11 @@ fn test_build_user_message_mixed_turn() {
     let file1 = std::path::PathBuf::from("D:\\Operon\\doc1.pdf");
     let file2 = std::path::PathBuf::from("D:\\Operon\\src\\main.rs");
 
-    let blocks = build_user_message("Please analyze these attachments", vec![img_block], &[file1, file2]);
+    let blocks = build_user_message(
+        "Please analyze these attachments",
+        vec![img_block],
+        &[file1, file2],
+    );
     assert_eq!(blocks.len(), 2);
 
     match &blocks[0] {
@@ -458,9 +465,7 @@ async fn test_session_runner_restores_persisted_todos() {
     let session_file = temp_dir.join(format!("test-runner-todos-{}.json", ts));
 
     // 1. Prepare SessionStore on disk with saved todos
-    let store = SessionStore::open(&session_file)
-        .await
-        .expect("open store");
+    let store = SessionStore::open(&session_file).await.expect("open store");
 
     store
         .create_session(
@@ -536,5 +541,3 @@ async fn test_session_runner_restores_persisted_todos() {
     // Clean up temporary file
     let _ = std::fs::remove_file(session_file);
 }
-
-

@@ -83,10 +83,7 @@ impl TelegramWorkspaceManager {
             std::fs::create_dir_all(&dir).map_err(|e| {
                 TelegramError::Workspace(format!("Failed to create workspace dir {:?}: {e}", dir))
             })?;
-            info!(
-                "Created shared workspace directory for Telegram: {:?}",
-                dir
-            );
+            info!("Created shared workspace directory for Telegram: {:?}", dir);
         }
 
         Ok(dir)

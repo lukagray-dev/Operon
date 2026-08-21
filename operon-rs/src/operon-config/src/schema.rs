@@ -46,7 +46,7 @@ use crate::policy::{
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Top-level deserialization struct for ~/.operon/config.toml.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct AppConfigToml {
     /// Which LLM provider and model to use.
     ///
@@ -68,17 +68,6 @@ pub(crate) struct AppConfigToml {
     /// regardless of what appears here.
     #[serde(default)]
     pub(crate) directories: Vec<DirEntryToml>,
-}
-
-impl Default for AppConfigToml {
-    fn default() -> Self {
-        Self {
-            provider: ProviderToml::default(),
-            credentials: CredentialsToml::default(),
-            policy: PolicyToml::default(),
-            directories: Vec::new(),
-        }
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -525,7 +514,7 @@ mod tests {
             Some(PermissionMode::Allow)
         );
         assert!(
-            map.get(&DirTool::Bash).is_none(),
+            !map.contains_key(&DirTool::Bash),
             "bash absent when not set"
         );
     }

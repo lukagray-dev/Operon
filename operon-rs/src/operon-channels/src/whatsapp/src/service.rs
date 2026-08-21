@@ -178,7 +178,11 @@ impl WhatsAppService {
     }
 
     /// Prunes a contact lock after turn completion if no other tasks hold a reference to it.
-    pub async fn prune_contact_lock(&self, contact: &ContactId, contact_lock: &Arc<AsyncMutex<()>>) {
+    pub async fn prune_contact_lock(
+        &self,
+        contact: &ContactId,
+        contact_lock: &Arc<AsyncMutex<()>>,
+    ) {
         let mut locks = self.contact_locks.lock().await;
         if Arc::strong_count(contact_lock) == 2 {
             if let Some(entry) = locks.get(contact) {
@@ -188,7 +192,6 @@ impl WhatsAppService {
             }
         }
     }
-
 
     /// Runs the core WhatsApp service loop.
     pub async fn run(&self) -> Result<(), WhatsAppError> {
@@ -369,4 +372,3 @@ impl WhatsAppService {
         self.contact_locks.lock().await.len()
     }
 }
-

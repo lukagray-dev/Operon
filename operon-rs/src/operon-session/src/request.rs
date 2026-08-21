@@ -113,7 +113,9 @@ pub fn build_request(
                 for t in wire_tools {
                     if let Some(decls) = t.get("function_declarations").and_then(|v| v.as_array()) {
                         all_decls.extend(decls.iter().cloned());
-                    } else if let Some(decls) = t.get("functionDeclarations").and_then(|v| v.as_array()) {
+                    } else if let Some(decls) =
+                        t.get("functionDeclarations").and_then(|v| v.as_array())
+                    {
                         all_decls.extend(decls.iter().cloned());
                     } else {
                         all_decls.push(t);

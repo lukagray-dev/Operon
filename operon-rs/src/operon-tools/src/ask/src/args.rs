@@ -15,12 +15,7 @@ use crate::error::AskToolError;
 #[derive(Debug, Deserialize)]
 pub struct AskArgs {
     /// The question to present to the user.
-    #[serde(
-        alias = "prompt",
-        alias = "message",
-        alias = "query",
-        alias = "text"
-    )]
+    #[serde(alias = "prompt", alias = "message", alias = "query", alias = "text")]
     pub question: String,
 
     /// 3 pre-defined answer options.

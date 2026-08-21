@@ -192,7 +192,9 @@ fn escape_segments(input: &str) -> String {
             let fence_start = cursor + rel_fence;
             // Escape text preceding the code fence
             if fence_start > cursor {
-                result.push_str(&escape_plain_text_with_formatting(&input[cursor..fence_start]));
+                result.push_str(&escape_plain_text_with_formatting(
+                    &input[cursor..fence_start],
+                ));
             }
 
             // Find closing ` ``` `
@@ -293,7 +295,7 @@ fn split_message_chunks(text: &str) -> Vec<String> {
         }
 
         let slice_code_blocks = count_occurrences(slice, "```");
-        let ends_in_code = (in_code_block && slice_code_blocks % 2 == 0)
+        let ends_in_code = (in_code_block && slice_code_blocks.is_multiple_of(2))
             || (!in_code_block && slice_code_blocks % 2 == 1);
 
         let mut chunk = String::new();
@@ -321,9 +323,7 @@ fn split_message_chunks(text: &str) -> Vec<String> {
 
 /// Helper that returns byte index corresponding to `count` characters safely.
 fn get_char_boundary_index(s: &str, count: usize) -> usize {
-    s.char_indices()
-        .nth(count)
-        .map_or(s.len(), |(idx, _)| idx)
+    s.char_indices().nth(count).map_or(s.len(), |(idx, _)| idx)
 }
 
 fn count_occurrences(s: &str, pat: &str) -> usize {
@@ -375,7 +375,10 @@ mod tests {
     fn test_text_over_limit_with_code_fence() {
         let mut code_content = String::from("```rust\n");
         for i in 0..500 {
-            code_content.push_str(&format!("fn test_line_{}() {{\n    println!(\"Hello!\");\n}}\n", i));
+            code_content.push_str(&format!(
+                "fn test_line_{}() {{\n    println!(\"Hello!\");\n}}\n",
+                i
+            ));
         }
         code_content.push_str("```\n");
 

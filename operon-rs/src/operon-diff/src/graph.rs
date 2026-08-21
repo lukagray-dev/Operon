@@ -3,12 +3,12 @@
 // Hey friend! This module provides topological and chronological commit graph traversal via `git2::Revwalk`,
 // resolves branch tag badges for commit nodes, and computes unpushed local commit sets.
 
-use std::collections::{HashSet, HashMap};
-use std::path::Path;
-use git2::{BranchType, Oid, Repository, Sort};
 use crate::dto::GitGraphCommit;
 use crate::error::DiffError;
 use crate::status::discover_repository;
+use git2::{BranchType, Oid, Repository, Sort};
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 /// Computes paginated commit graph history for visual rendering in Slint UI.
 pub fn get_commit_graph(
@@ -61,7 +61,11 @@ pub fn get_commit_graph(
 
         if let Ok(commit) = repo.find_commit(oid) {
             let hash = oid.to_string();
-            let short_hash = if hash.len() >= 7 { hash[..7].to_string() } else { hash.clone() };
+            let short_hash = if hash.len() >= 7 {
+                hash[..7].to_string()
+            } else {
+                hash.clone()
+            };
 
             let message = match commit.summary() {
                 Ok(Some(s)) => s.to_string(),
@@ -70,7 +74,11 @@ pub fn get_commit_graph(
                     Err(_) => String::new(),
                 },
             };
-            let author = commit.author().name().unwrap_or(commit.author().email().unwrap_or("Unknown")).to_string();
+            let author = commit
+                .author()
+                .name()
+                .unwrap_or(commit.author().email().unwrap_or("Unknown"))
+                .to_string();
             let branch_tag = branch_map.get(&oid).cloned().unwrap_or_default();
             let is_head = head_oid == Some(oid);
             let is_local = unpushed_set.contains(&oid);

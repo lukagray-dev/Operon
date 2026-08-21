@@ -59,16 +59,16 @@ fn looks_like_anthropic_chunk(raw: &Value) -> bool {
         return true;
     }
 
-    match raw.get("type").and_then(Value::as_str) {
+    matches!(
+        raw.get("type").and_then(Value::as_str),
         Some(
             "message_start"
-            | "content_block_start"
-            | "content_block_delta"
-            | "content_block_stop"
-            | "message_delta"
-            | "message_stop"
-            | "ping",
-        ) => true,
-        _ => false,
-    }
+                | "content_block_start"
+                | "content_block_delta"
+                | "content_block_stop"
+                | "message_delta"
+                | "message_stop"
+                | "ping"
+        )
+    )
 }

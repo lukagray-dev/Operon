@@ -79,6 +79,7 @@ pub(crate) enum SequenceMatch {
 /// For the first pass that produces at least one match:
 /// - If exactly 1 match is found, returns `SequenceMatch::Unique(start_line_idx)`.
 /// - If 2 or more non-overlapping matches are found, returns `SequenceMatch::Ambiguous(count)`.
+///
 /// If no pass finds any match, returns `SequenceMatch::NotFound`.
 pub(crate) fn find_sequence_match(lines: &[String], pattern: &[String]) -> SequenceMatch {
     // Edge cases: empty pattern or pattern longer than the file
@@ -112,9 +113,10 @@ pub(crate) fn find_sequence_match(lines: &[String], pattern: &[String]) -> Seque
     matches.clear();
     i = 0;
     while i <= max_start {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[i + p_idx].trim_end() == pat.trim_end()
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[i + p_idx].trim_end() == pat.trim_end());
         if all_match {
             matches.push(i);
             i += pattern_len.max(1);
@@ -134,9 +136,10 @@ pub(crate) fn find_sequence_match(lines: &[String], pattern: &[String]) -> Seque
     matches.clear();
     i = 0;
     while i <= max_start {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[i + p_idx].trim() == pat.trim()
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[i + p_idx].trim() == pat.trim());
         if all_match {
             matches.push(i);
             i += pattern_len.max(1);
@@ -156,9 +159,10 @@ pub(crate) fn find_sequence_match(lines: &[String], pattern: &[String]) -> Seque
     matches.clear();
     i = 0;
     while i <= max_start {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            normalise(&lines[i + p_idx]) == normalise(pat)
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| normalise(&lines[i + p_idx]) == normalise(pat));
         if all_match {
             matches.push(i);
             i += pattern_len.max(1);
@@ -178,9 +182,10 @@ pub(crate) fn find_sequence_match(lines: &[String], pattern: &[String]) -> Seque
     matches.clear();
     i = 0;
     while i <= max_start {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[i + p_idx].trim().eq_ignore_ascii_case(pat.trim())
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[i + p_idx].trim().eq_ignore_ascii_case(pat.trim()));
         if all_match {
             matches.push(i);
             i += pattern_len.max(1);
@@ -251,32 +256,37 @@ pub(crate) fn seek_sequence(
         }
 
         // Pass 2: Trailing-whitespace-ignored match at the end
-        let pass2 = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[end_idx + p_idx].trim_end() == pat.trim_end()
-        });
+        let pass2 = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[end_idx + p_idx].trim_end() == pat.trim_end());
         if pass2 {
             return Some(end_idx);
         }
 
         // Pass 3: Both-sides-trimmed match at the end
-        let pass3 = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[end_idx + p_idx].trim() == pat.trim()
-        });
+        let pass3 = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[end_idx + p_idx].trim() == pat.trim());
         if pass3 {
             return Some(end_idx);
         }
 
         // Pass 4: Unicode-normalised match at the end
-        let pass4 = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            normalise(&lines[end_idx + p_idx]) == normalise(pat)
-        });
+        let pass4 = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| normalise(&lines[end_idx + p_idx]) == normalise(pat));
         if pass4 {
             return Some(end_idx);
         }
 
         // Pass 5: Case-insensitive both-sides-trimmed match at the end
         let pass5 = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[end_idx + p_idx].trim().eq_ignore_ascii_case(pat.trim())
+            lines[end_idx + p_idx]
+                .trim()
+                .eq_ignore_ascii_case(pat.trim())
         });
         if pass5 {
             return Some(end_idx);
@@ -302,9 +312,10 @@ pub(crate) fn seek_sequence(
 
     // Pass 2: Trailing-whitespace-ignored match
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[i + p_idx].trim_end() == pat.trim_end()
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[i + p_idx].trim_end() == pat.trim_end());
         if all_match {
             return Some(i);
         }
@@ -312,9 +323,10 @@ pub(crate) fn seek_sequence(
 
     // Pass 3: Both-sides-trimmed match
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[i + p_idx].trim() == pat.trim()
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[i + p_idx].trim() == pat.trim());
         if all_match {
             return Some(i);
         }
@@ -322,9 +334,10 @@ pub(crate) fn seek_sequence(
 
     // Pass 4: Unicode normalisation
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            normalise(&lines[i + p_idx]) == normalise(pat)
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| normalise(&lines[i + p_idx]) == normalise(pat));
         if all_match {
             return Some(i);
         }
@@ -332,9 +345,10 @@ pub(crate) fn seek_sequence(
 
     // Pass 5: Case-insensitive trimmed match
     for i in search_start..=lines.len().saturating_sub(pattern.len()) {
-        let all_match = pattern.iter().enumerate().all(|(p_idx, pat)| {
-            lines[i + p_idx].trim().eq_ignore_ascii_case(pat.trim())
-        });
+        let all_match = pattern
+            .iter()
+            .enumerate()
+            .all(|(p_idx, pat)| lines[i + p_idx].trim().eq_ignore_ascii_case(pat.trim()));
         if all_match {
             return Some(i);
         }
@@ -365,10 +379,7 @@ mod tests {
     fn exact_match_finds_sequence() {
         let lines = v(&["foo", "bar", "baz"]);
         let pattern = v(&["bar", "baz"]);
-        assert_eq!(
-            seek_sequence(&lines, &pattern, 0, false),
-            Some(1)
-        );
+        assert_eq!(seek_sequence(&lines, &pattern, 0, false), Some(1));
     }
 
     #[test]
@@ -393,10 +404,7 @@ mod tests {
     fn rstrip_match_ignores_trailing_whitespace() {
         let lines = v(&["foo   ", "bar\t\t"]);
         let pattern = v(&["foo", "bar"]);
-        assert_eq!(
-            seek_sequence(&lines, &pattern, 0, false),
-            Some(0)
-        );
+        assert_eq!(seek_sequence(&lines, &pattern, 0, false), Some(0));
     }
 
     #[test]
@@ -412,16 +420,16 @@ mod tests {
     fn trim_match_ignores_leading_and_trailing_whitespace() {
         let lines = v(&["    foo   ", "   bar\t"]);
         let pattern = v(&["foo", "bar"]);
-        assert_eq!(
-            seek_sequence(&lines, &pattern, 0, false),
-            Some(0)
-        );
+        assert_eq!(seek_sequence(&lines, &pattern, 0, false), Some(0));
     }
 
     #[test]
     fn unicode_dash_normalised() {
         let lines = v(&["some\u{2014}thing"]);
-        assert_eq!(seek_sequence(&lines, &v(&["some-thing"]), 0, false), Some(0));
+        assert_eq!(
+            seek_sequence(&lines, &v(&["some-thing"]), 0, false),
+            Some(0)
+        );
     }
 
     #[test]
@@ -439,7 +447,10 @@ mod tests {
     #[test]
     fn unicode_nbsp_normalised() {
         let lines = v(&["hello\u{00A0}world"]);
-        assert_eq!(seek_sequence(&lines, &v(&["hello world"]), 0, false), Some(0));
+        assert_eq!(
+            seek_sequence(&lines, &v(&["hello world"]), 0, false),
+            Some(0)
+        );
     }
 
     #[test]
@@ -452,10 +463,7 @@ mod tests {
     fn pattern_longer_than_input_returns_none() {
         let lines = v(&["just one line"]);
         let pattern = v(&["too", "many", "lines"]);
-        assert_eq!(
-            seek_sequence(&lines, &pattern, 0, false),
-            None
-        );
+        assert_eq!(seek_sequence(&lines, &pattern, 0, false), None);
     }
 
     #[test]
@@ -473,10 +481,7 @@ mod tests {
     #[test]
     fn eof_true_falls_back_when_end_has_no_match() {
         let lines = v(&["unique", "alpha", "beta"]);
-        assert_eq!(
-            seek_sequence(&lines, &v(&["unique"]), 0, true),
-            Some(0)
-        );
+        assert_eq!(seek_sequence(&lines, &v(&["unique"]), 0, true), Some(0));
     }
 
     #[test]

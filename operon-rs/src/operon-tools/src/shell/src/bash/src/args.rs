@@ -18,12 +18,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct BashArgs {
     /// The shell command to execute.
-    #[serde(
-        alias = "cmd",
-        alias = "script",
-        alias = "code",
-        alias = "exec"
-    )]
+    #[serde(alias = "cmd", alias = "script", alias = "code", alias = "exec")]
     pub command: String,
 
     /// Absolute path to the working directory for this command.

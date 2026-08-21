@@ -6,9 +6,9 @@ pub mod operon;
 
 pub use operon::OperonAgent;
 
+use crate::events::action::Action;
 use anyhow::Result;
 use tokio::sync::mpsc;
-use crate::events::action::Action;
 
 /// Interface between TUI and operon-rs backend session executor.
 #[async_trait::async_trait]

@@ -112,8 +112,6 @@ Returns plain text with headers for each file:
     }
 }
 
-
-
 /// Deserializes `args_json` and executes the read tool.
 ///
 /// Returns a `ToolResult` with `is_error: false` even on partial file failures —
@@ -172,7 +170,6 @@ pub async fn execute_with_progress(
             format!("Reading {} file(s)", args.target_count()),
         ),
     );
-
 
     // Execute the tool and return the result. The executor always returns a
     // ToolResult (never panics or returns an error), so we can unwrap safely.

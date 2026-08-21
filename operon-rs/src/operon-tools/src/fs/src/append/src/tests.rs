@@ -196,7 +196,7 @@ async fn test_bytes_appended_unicode() {
     // Append Unicode content where char count != byte count.
     // "héllo" is 5 characters but 6 bytes (é is 2 bytes in UTF-8).
     let append_content = "héllo";
-    let expected_bytes = append_content.as_bytes().len();
+    let expected_bytes = append_content.len();
     assert_eq!(expected_bytes, 6, "héllo should be 6 bytes");
 
     let result = execute(
@@ -314,18 +314,9 @@ async fn test_message_format() {
     .unwrap();
 
     let text = get_output_text(&result);
-    assert!(
-        text.contains("appended"),
-        "text should contain 'appended'"
-    );
-    assert!(
-        text.contains(&path),
-        "text should contain the file path"
-    );
-    assert!(
-        text.contains("bytes"),
-        "text should mention bytes"
-    );
+    assert!(text.contains("appended"), "text should contain 'appended'");
+    assert!(text.contains(&path), "text should contain the file path");
+    assert!(text.contains("bytes"), "text should mention bytes");
 }
 
 // ============================================================================

@@ -101,8 +101,15 @@ impl GrepOutput {
                 continue;
             }
 
-            let match_label = if file.match_count == 1 { "match" } else { "matches" };
-            out.push_str(&format!("=== {} ({} {}) ===\n", file.path, file.match_count, match_label));
+            let match_label = if file.match_count == 1 {
+                "match"
+            } else {
+                "matches"
+            };
+            out.push_str(&format!(
+                "=== {} ({} {}) ===\n",
+                file.path, file.match_count, match_label
+            ));
 
             let mut prev_line_no: Option<usize> = None;
             for m in &file.matches {
@@ -128,4 +135,3 @@ impl GrepOutput {
         out
     }
 }
-

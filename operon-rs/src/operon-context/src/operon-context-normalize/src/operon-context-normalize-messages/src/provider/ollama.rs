@@ -429,7 +429,7 @@ fn looks_like_openai_message_shape(raw: &Value) -> bool {
     false
 }
 
-fn extract_tool_results<'a>(blocks: &'a [ContentBlock]) -> Result<Vec<&'a ToolResult>> {
+fn extract_tool_results(blocks: &[ContentBlock]) -> Result<Vec<&ToolResult>> {
     let mut out = Vec::new();
     for block in blocks {
         match block {

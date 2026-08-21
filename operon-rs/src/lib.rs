@@ -6,18 +6,18 @@
 //! backend subsystems as modules and also exposes the most common types at the
 //! crate root.
 
+pub use operon_channels as channels;
 pub use operon_config as config;
 pub use operon_context as context;
+pub use operon_diff as diff;
 pub use operon_events as events;
 pub use operon_policy as policy;
 pub use operon_providers as providers;
 pub use operon_session as session;
 pub use operon_terminal as terminal;
-pub use operon_diff as diff;
 pub use operon_tools as tools;
 pub use operon_tools_core as tools_core;
 pub use operon_tools_memory_store as memory_store;
-pub use operon_channels as channels;
 
 pub use config::{
     add_allowed_directory, get_allowed_directories_list, get_permission_rows, load,

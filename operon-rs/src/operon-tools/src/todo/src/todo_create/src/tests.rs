@@ -130,7 +130,10 @@ async fn test_create_batch_objects() {
     assert_eq!(output.items.len(), 3);
     assert_eq!(output.items[0].id, "1");
     assert_eq!(output.items[0].content, "Task 1");
-    assert_eq!(output.items[0].priority, operon_tools_core::TodoPriority::High);
+    assert_eq!(
+        output.items[0].priority,
+        operon_tools_core::TodoPriority::High
+    );
     assert_eq!(output.items[1].id, "2");
     assert_eq!(output.items[2].id, "3");
     assert_eq!(output.total, 3);
@@ -260,5 +263,8 @@ async fn test_create_defensive_aliases() {
     assert!(!result.is_error);
     let output = get_create_output(&result);
     assert_eq!(output.items[0].content, "Build defensive parser");
-    assert_eq!(output.items[0].priority, operon_tools_core::TodoPriority::High);
+    assert_eq!(
+        output.items[0].priority,
+        operon_tools_core::TodoPriority::High
+    );
 }

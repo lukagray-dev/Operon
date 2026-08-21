@@ -74,7 +74,12 @@ pub async fn execute(
         }
     };
 
-    let output = MemoryRetrieveOutput { memories, total, offset, limit };
+    let output = MemoryRetrieveOutput {
+        memories,
+        total,
+        offset,
+        limit,
+    };
     ToolResult {
         call_id,
         name: "memory_retrieve".to_string(),

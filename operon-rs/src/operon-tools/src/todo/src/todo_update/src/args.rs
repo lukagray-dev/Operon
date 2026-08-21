@@ -33,18 +33,11 @@ pub struct TodoUpdateItemInput {
     pub content: Option<String>,
 
     /// New status. None = no change.
-    #[serde(
-        default,
-        alias = "state"
-    )]
+    #[serde(default, alias = "state")]
     pub status: Option<TodoStatus>,
 
     /// New priority. None = no change.
-    #[serde(
-        default,
-        alias = "level",
-        alias = "importance"
-    )]
+    #[serde(default, alias = "level", alias = "importance")]
     pub priority: Option<TodoPriority>,
 }
 
@@ -64,13 +57,24 @@ pub enum TodoUpdateArgs {
     Object(TodoUpdateObjectArgs),
 }
 
+/// Parsed tuple representation of a single todo update item.
+pub type TodoUpdateTuple = (
+    String,
+    Option<String>,
+    Option<TodoStatus>,
+    Option<TodoPriority>,
+);
+
 impl TodoUpdateArgs {
     /// Normalizes arguments into a list of `(id, content, status, priority)` update tuples.
-    pub fn into_updates(self) -> Vec<(String, Option<String>, Option<TodoStatus>, Option<TodoPriority>)> {
+    pub fn into_updates(self) -> Vec<TodoUpdateTuple> {
         match self {
             Self::RootList(list) => list
                 .into_iter()
-                .filter_map(|item| item.id.map(|id| (id, item.content, item.status, item.priority)))
+                .filter_map(|item| {
+                    item.id
+                        .map(|id| (id, item.content, item.status, item.priority))
+                })
                 .collect(),
             Self::Object(obj) => {
                 // 1. Batch array of distinct updates
@@ -79,7 +83,8 @@ impl TodoUpdateArgs {
                         return todos
                             .into_iter()
                             .filter_map(|item| {
-                                item.id.map(|id| (id, item.content, item.status, item.priority))
+                                item.id
+                                    .map(|id| (id, item.content, item.status, item.priority))
                             })
                             .collect();
                     }
@@ -90,7 +95,14 @@ impl TodoUpdateArgs {
                     if !ids.is_empty() {
                         return ids
                             .into_iter()
-                            .map(|id| (id, obj.content.clone(), obj.status.clone(), obj.priority.clone()))
+                            .map(|id| {
+                                (
+                                    id,
+                                    obj.content.clone(),
+                                    obj.status.clone(),
+                                    obj.priority.clone(),
+                                )
+                            })
                             .collect();
                     }
                 }
@@ -141,26 +153,14 @@ pub struct TodoUpdateObjectArgs {
     pub content: Option<String>,
 
     /// New status. None = no change.
-    #[serde(
-        default,
-        alias = "state"
-    )]
+    #[serde(default, alias = "state")]
     pub status: Option<TodoStatus>,
 
     /// New priority. None = no change.
-    #[serde(
-        default,
-        alias = "level",
-        alias = "importance"
-    )]
+    #[serde(default, alias = "level", alias = "importance")]
     pub priority: Option<TodoPriority>,
 
     /// Array of distinct updates.
-    #[serde(
-        default,
-        alias = "items",
-        alias = "tasks",
-        alias = "updates"
-    )]
+    #[serde(default, alias = "items", alias = "tasks", alias = "updates")]
     pub todos: Option<Vec<TodoUpdateItemInput>>,
 }

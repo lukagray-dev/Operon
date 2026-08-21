@@ -11,6 +11,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::todo::{TodoItem, TodoPriority, TodoStatus};
 
+/// Tuple representing an individual update spec: `(id, content, status, priority)`.
+pub type TodoUpdateSpec = (
+    String,
+    Option<String>,
+    Option<TodoStatus>,
+    Option<TodoPriority>,
+);
+
 /// In-memory store for the agent's todo list.
 ///
 /// Manages a list of `TodoItem` objects with auto-incrementing numeric IDs ("1", "2", ...).
@@ -214,17 +222,14 @@ impl TodoStore {
         created
     }
 
-    /// Updates multiple todo items in a single batch.
+    /// Applies a batch of updates to existing items.
     ///
-    /// For each update tuple `(id, content, status, priority)`, finds the matching
+    /// Iterates through each `(id, content, status, priority)` update, locates the
     /// item and applies any non-None fields.
     ///
     /// # Returns
     /// `(updated_items, not_found_ids)`
-    pub fn update_many(
-        &mut self,
-        updates: Vec<(String, Option<String>, Option<TodoStatus>, Option<TodoPriority>)>,
-    ) -> (Vec<TodoItem>, Vec<String>) {
+    pub fn update_many(&mut self, updates: Vec<TodoUpdateSpec>) -> (Vec<TodoItem>, Vec<String>) {
         let mut updated = Vec::new();
         let mut not_found = Vec::new();
 
@@ -491,7 +496,12 @@ mod tests {
         ]);
 
         let (updated, not_found) = store.update_many(vec![
-            (items[0].id.clone(), Some("Task 1 Renamed".to_string()), Some(TodoStatus::Completed), None),
+            (
+                items[0].id.clone(),
+                Some("Task 1 Renamed".to_string()),
+                Some(TodoStatus::Completed),
+                None,
+            ),
             ("9999".to_string(), None, Some(TodoStatus::InProgress), None),
         ]);
 
@@ -510,7 +520,11 @@ mod tests {
             ("Task 3".to_string(), None),
         ]);
 
-        let (deleted, not_found) = store.delete_many(&[items[0].id.clone(), items[2].id.clone(), "missing".to_string()]);
+        let (deleted, not_found) = store.delete_many(&[
+            items[0].id.clone(),
+            items[2].id.clone(),
+            "missing".to_string(),
+        ]);
         assert_eq!(deleted.len(), 2);
         assert_eq!(deleted, vec![items[0].id.clone(), items[2].id.clone()]);
         assert_eq!(not_found, vec!["missing".to_string()]);
@@ -518,4 +532,3 @@ mod tests {
         assert_eq!(store.list()[0].id, items[1].id);
     }
 }
-

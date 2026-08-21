@@ -7,8 +7,8 @@
 
 use super::types::{SaveTelegramPayloadDto, TelegramStateDto};
 use crate::shared::channels_manager::{
-    load_telegram_saved_config, save_telegram_saved_config, ACTIVE_TELEGRAM_CLIENT,
-    TelegramSavedConfig,
+    load_telegram_saved_config, save_telegram_saved_config, TelegramSavedConfig,
+    ACTIVE_TELEGRAM_CLIENT,
 };
 use operon_rs::channels::telegram::client::TelegramClient;
 use operon_rs::channels::telegram::config::TelegramConfig;
@@ -47,7 +47,8 @@ pub async fn get_telegram_state() -> Result<TelegramStateDto, String> {
         "Disconnected".to_string()
     };
 
-    let is_policy_covered = evaluate_tg_policy_coverage(&saved.workspace_dir, default_tg_ws.clone());
+    let is_policy_covered =
+        evaluate_tg_policy_coverage(&saved.workspace_dir, default_tg_ws.clone());
 
     Ok(TelegramStateDto {
         connection_status: conn_status,

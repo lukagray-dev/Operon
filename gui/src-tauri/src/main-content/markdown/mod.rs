@@ -199,7 +199,8 @@ mod tests {
 
     #[test]
     fn test_latex_math_parsing() {
-        let md = "Here is inline math $E = mc^2$ and display math: $$\\int_0^\\infty e^{-x} dx = 1$$";
+        let md =
+            "Here is inline math $E = mc^2$ and display math: $$\\int_0^\\infty e^{-x} dx = 1$$";
         let html = parse_markdown_to_html(md);
 
         assert!(html.contains("math-inline"));

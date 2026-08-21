@@ -134,7 +134,6 @@ Showing 2 match(es) across 1 file(s)."
     }
 }
 
-
 /// Deserializes `args_json` and executes the grep tool.
 ///
 /// Returns a `ToolResult` with `is_error: false` for successful searches (even if no matches found).
@@ -187,7 +186,6 @@ pub async fn execute_with_progress(
             format!("Searching {} path(s)", args.get_paths().len()),
         ),
     );
-
 
     // Execute the tool and return the result. The executor always returns a
     // ToolResult (never panics), so we can directly return it.

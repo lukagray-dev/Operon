@@ -105,12 +105,11 @@ pub fn map_screen_selector_keys(key: KeyEvent) -> Option<Action> {
 /// - All other keys forwarded to tui-textarea
 fn map_chat_keys(key: KeyEvent, state: &crate::state::AppState) -> Option<Action> {
     // If agent is actively running/thinking, Esc or Ctrl+C triggers cancellation
-    if state.agent_thinking() {
-        if key.code == KeyCode::Esc
-            || (key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL)
-        {
-            return Some(Action::CancelPrompt);
-        }
+    if state.agent_thinking()
+        && (key.code == KeyCode::Esc
+            || (key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL))
+    {
+        return Some(Action::CancelPrompt);
     }
 
     match (key.code, key.modifiers) {
@@ -134,10 +133,12 @@ fn map_chat_keys(key: KeyEvent, state: &crate::state::AppState) -> Option<Action
 }
 
 /// Models screen keybinds
+///
 /// Provider list:
 /// - Up/Down: Navigate providers
 /// - Enter: Select provider and go to setup
 /// - Esc: Back to Chat
+///
 /// Setup form:
 /// - Up/Down: Navigate model list (when fetched) OR move cursor in text fields
 /// - Left/Right: Move cursor in text fields OR toggle compat mode
@@ -156,7 +157,9 @@ fn map_models_keys(key: KeyEvent) -> Option<Action> {
 
         // Field navigation: Tab = next, BackTab / Shift+Tab = previous
         (KeyCode::Tab, KeyModifiers::NONE) => Some(Action::ModelsNextField),
-        (KeyCode::BackTab, _) | (KeyCode::Tab, KeyModifiers::SHIFT) => Some(Action::ModelsPrevField),
+        (KeyCode::BackTab, _) | (KeyCode::Tab, KeyModifiers::SHIFT) => {
+            Some(Action::ModelsPrevField)
+        }
 
         // Model discovery trigger (Ctrl+F)
         (KeyCode::Char('f'), KeyModifiers::CONTROL) => Some(Action::ModelsFetchModels),

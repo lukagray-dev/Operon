@@ -72,7 +72,6 @@ impl OutboundQueue {
         }
     }
 
-
     /// Flushes all buffered messages in FIFO order through the delivery channel.
     pub async fn flush(&self) -> Result<usize, mpsc::error::SendError<OutboundMessage>> {
         // Hey newbie friend! Scope the buffer lock so `buf` is dropped BEFORE we try to send messages.
@@ -99,7 +98,6 @@ impl OutboundQueue {
 
         Ok(count)
     }
-
 
     /// Returns the number of currently buffered messages.
     pub async fn buffered_count(&self) -> usize {

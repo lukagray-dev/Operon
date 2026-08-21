@@ -118,9 +118,15 @@ async fn test_read_multiple_files_with_string_ranges() {
     assert!(!result.is_error);
 
     let text = extract_text(result);
-    assert!(text.contains(&format!("=== {} (lines 2-4 of 5) ===", path1.to_str().unwrap())));
+    assert!(text.contains(&format!(
+        "=== {} (lines 2-4 of 5) ===",
+        path1.to_str().unwrap()
+    )));
     assert!(text.contains("line 2\nline 3\nline 4"));
-    assert!(text.contains(&format!("=== {} (lines 2-3 of 3) ===", path2.to_str().unwrap())));
+    assert!(text.contains(&format!(
+        "=== {} (lines 2-3 of 3) ===",
+        path2.to_str().unwrap()
+    )));
     assert!(text.contains("line 2\nline 3"));
 }
 

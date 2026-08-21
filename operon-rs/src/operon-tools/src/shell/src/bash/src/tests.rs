@@ -58,7 +58,10 @@ fn test_bash_output_to_plain_text() {
     assert!(text.starts_with("=== echo hello (in /tmp/app) ==="));
     assert!(text.contains("hello\nworld"));
     assert!(text.ends_with("Exit code: 0"));
-    assert!(!text.contains("\\n"), "must contain real newlines, not escaped \\n");
+    assert!(
+        !text.contains("\\n"),
+        "must contain real newlines, not escaped \\n"
+    );
 }
 
 #[test]
@@ -73,7 +76,9 @@ fn test_bash_output_to_plain_text_truncated() {
     };
 
     let text = output.to_plain_text();
-    assert!(text.contains("[Output truncated at 10,000 characters. Use head, tail, or grep to narrow output.]"));
+    assert!(text.contains(
+        "[Output truncated at 10,000 characters. Use head, tail, or grep to narrow output.]"
+    ));
     assert!(text.contains("Exit code: 0"));
 }
 
@@ -156,10 +161,7 @@ async fn test_stderr_captured() {
 
     assert!(!result.is_error);
     let text = get_text_content(&result);
-    assert!(
-        text.contains("error"),
-        "stderr should be in merged output"
-    );
+    assert!(text.contains("error"), "stderr should be in merged output");
     assert!(text.contains("Exit code: 0"));
 }
 
@@ -182,14 +184,8 @@ async fn test_stdout_and_stderr_merged() {
 
     assert!(!result.is_error);
     let text = get_text_content(&result);
-    assert!(
-        text.contains("out"),
-        "stdout should be in merged output"
-    );
-    assert!(
-        text.contains("err"),
-        "stderr should be in merged output"
-    );
+    assert!(text.contains("out"), "stdout should be in merged output");
+    assert!(text.contains("err"), "stderr should be in merged output");
     assert!(text.contains("Exit code: 0"));
 }
 
@@ -647,4 +643,3 @@ async fn test_bash_defensive_aliases_and_timeout_string() {
     assert!(text.contains("defensive_success"));
     assert!(text.contains("Exit code: 0"));
 }
-

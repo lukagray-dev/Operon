@@ -69,7 +69,8 @@ pub fn run() {
             // 2. Check startup launch mode (Start Minimized)
             let args: Vec<String> = std::env::args().collect();
             let is_minimized_arg = args.iter().any(|arg| arg == "--minimized");
-            let should_start_hidden = prefs.minimize_to_tray_enabled && (prefs.start_minimized || is_minimized_arg);
+            let should_start_hidden =
+                prefs.minimize_to_tray_enabled && (prefs.start_minimized || is_minimized_arg);
 
             if let Some(main_window) = app.get_webview_window("main") {
                 apply_window_dwm_styling(&main_window);
@@ -95,7 +96,8 @@ pub fn run() {
                 if window.label() == "main" {
                     let prefs = settings::prefs::GuiPrefs::load();
                     if prefs.minimize_to_tray_enabled
-                        && prefs.close_button_action == settings::prefs::CloseButtonAction::MinimizeToTray
+                        && prefs.close_button_action
+                            == settings::prefs::CloseButtonAction::MinimizeToTray
                     {
                         api.prevent_close();
                         let _ = window.hide();

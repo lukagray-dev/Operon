@@ -202,7 +202,7 @@ impl MemoryStore {
 
         // Insert the row. `last_insert_rowid()` gives us the new AUTOINCREMENT id.
         let result = sqlx::query(
-            "INSERT INTO memories (content, tags, created_at, updated_at) VALUES (?, ?, ?, ?)"
+            "INSERT INTO memories (content, tags, created_at, updated_at) VALUES (?, ?, ?, ?)",
         )
         .bind(&content)
         .bind(&tags_json)
@@ -215,7 +215,7 @@ impl MemoryStore {
 
         // Re-fetch the row so we return the exact same data that's stored.
         let row = sqlx::query(
-            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?"
+            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?",
         )
         .bind(row_id)
         .fetch_one(&self.pool)
@@ -251,7 +251,7 @@ impl MemoryStore {
 
         // Fetch the current row first so we can apply partial updates.
         let existing = sqlx::query(
-            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?"
+            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?",
         )
         .bind(id_i64)
         .fetch_optional(&self.pool)
@@ -272,19 +272,17 @@ impl MemoryStore {
         let new_updated_at = Utc::now().to_rfc3339();
 
         // Perform the UPDATE — the `memories_au` trigger will re-index the FTS table.
-        sqlx::query(
-            "UPDATE memories SET content = ?, tags = ?, updated_at = ? WHERE id = ?"
-        )
-        .bind(&new_content)
-        .bind(&new_tags_json)
-        .bind(&new_updated_at)
-        .bind(id_i64)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE memories SET content = ?, tags = ?, updated_at = ? WHERE id = ?")
+            .bind(&new_content)
+            .bind(&new_tags_json)
+            .bind(&new_updated_at)
+            .bind(id_i64)
+            .execute(&self.pool)
+            .await?;
 
         // Re-fetch to return the fully updated struct.
         let updated = sqlx::query(
-            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?"
+            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?",
         )
         .bind(id_i64)
         .fetch_one(&self.pool)
@@ -324,7 +322,7 @@ impl MemoryStore {
         };
 
         let row = sqlx::query(
-            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?"
+            "SELECT id, content, tags, created_at, updated_at FROM memories WHERE id = ?",
         )
         .bind(id_i64)
         .fetch_optional(&self.pool)
@@ -374,11 +372,7 @@ impl MemoryStore {
     /// # Arguments
     /// - `query`: The search terms. FTS5 MATCH syntax is supported.
     /// - `limit`: Maximum results. Use 10 as a sensible default.
-    pub async fn search(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> Result<Vec<Memory>, MemoryStoreError> {
+    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<Memory>, MemoryStoreError> {
         let trimmed = query.trim();
         if trimmed.is_empty() {
             return Ok(Vec::new());

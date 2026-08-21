@@ -33,7 +33,11 @@ impl SessionRunner {
             Provider::Anthropic => format!("{}/messages", base_url.trim_end_matches('/')),
             Provider::Gemini => {
                 let clean_id = model_id.strip_prefix("models/").unwrap_or(&model_id);
-                format!("{}/models/{}:generateContent", base_url.trim_end_matches('/'), clean_id)
+                format!(
+                    "{}/models/{}:generateContent",
+                    base_url.trim_end_matches('/'),
+                    clean_id
+                )
             }
             Provider::Cohere => format!("{}/chat", base_url.trim_end_matches('/')),
             _ => format!("{}/chat/completions", base_url.trim_end_matches('/')),
@@ -87,7 +91,11 @@ impl SessionRunner {
             let baseline_len = self.messages.len().saturating_sub(1);
             let compacted_baseline = &self.messages[..baseline_len];
             let _ = store
-                .apply_compaction(&self.session_id, compacted_baseline, Some(result.tokens_after))
+                .apply_compaction(
+                    &self.session_id,
+                    compacted_baseline,
+                    Some(result.tokens_after),
+                )
                 .await;
         }
 

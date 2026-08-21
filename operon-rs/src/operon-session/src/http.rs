@@ -130,6 +130,7 @@ fn build_headers(provider: &Provider, api_key: &str) -> reqwest::header::HeaderM
 /// - [`SessionError::Stream`] on HTTP non-2xx responses (with status + body).
 /// - [`SessionError::Stream`] on SSE parse failures.
 /// - [`SessionError::Http`] on network-level failures (reqwest::Error).
+#[allow(clippy::too_many_arguments)]
 pub async fn send_streaming(
     client: &Client,
     provider: &Provider,
@@ -389,12 +390,10 @@ pub async fn send_streaming(
             }
 
             // Final stop reason from the assembler.
-            AssemblerOutput::StreamEnded { stop_reason } => {
+            AssemblerOutput::StreamEnded { stop_reason } if result.stop_reason.is_none() => {
                 // We prefer the stop reason already recorded directly from the stream events,
                 // but use the assembler's finalized stop reason as a fallback if needed.
-                if result.stop_reason.is_none() {
-                    result.stop_reason = stop_reason;
-                }
+                result.stop_reason = stop_reason;
             }
 
             // Other outputs are unexpected at finish, so we can ignore them.

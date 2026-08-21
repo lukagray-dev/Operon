@@ -108,9 +108,7 @@ fn test_whatsapp_config_workspace_dir_resolution() {
 #[test]
 fn test_workspace_directory_provisioning_and_in_memory_channel_instructions() {
     let tmp_dir = TempDir::new().unwrap();
-    let base_ws = tmp_dir
-        .path()
-        .join("workspace");
+    let base_ws = tmp_dir.path().join("workspace");
     let base_sess = tmp_dir.path().join("sessions").join("whatsapp");
 
     let manager = WhatsAppWorkspaceManager::with_paths(base_ws.clone(), base_sess);
@@ -343,12 +341,12 @@ fn test_auth_credential_file_permissions() {
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
-        use windows_acl::acl::ACL;
-        use windows_acl::helper::sid_to_string;
         use winapi::shared::winerror::ERROR_SUCCESS;
         use winapi::um::accctrl::SE_FILE_OBJECT;
         use winapi::um::aclapi::GetNamedSecurityInfoW;
         use winapi::um::winnt::{OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID};
+        use windows_acl::acl::ACL;
+        use windows_acl::helper::sid_to_string;
 
         let wpath: Vec<u16> = std::ffi::OsStr::new(cred_path.to_str().unwrap())
             .encode_wide()
@@ -374,10 +372,13 @@ fn test_auth_credential_file_permissions() {
         };
 
         // Verify credential file ACL restrictions (only current user allowed)
-        let file_acl = ACL::from_file_path(cred_path.to_str().unwrap(), false)
-            .expect("File ACL must read");
+        let file_acl =
+            ACL::from_file_path(cred_path.to_str().unwrap(), false).expect("File ACL must read");
         let entries = file_acl.all().expect("ACL entries must be retrieved");
-        assert!(!entries.is_empty(), "File ACL must contain at least one entry");
+        assert!(
+            !entries.is_empty(),
+            "File ACL must contain at least one entry"
+        );
         for entry in entries {
             assert_eq!(
                 entry.string_sid, user_sid_str,
@@ -388,8 +389,13 @@ fn test_auth_credential_file_permissions() {
         // Verify auth directory ACL restrictions (only current user allowed)
         let dir_acl = ACL::from_file_path(auth_dir.to_str().unwrap(), false)
             .expect("Directory ACL must read");
-        let dir_entries = dir_acl.all().expect("Directory ACL entries must be retrieved");
-        assert!(!dir_entries.is_empty(), "Directory ACL must contain at least one entry");
+        let dir_entries = dir_acl
+            .all()
+            .expect("Directory ACL entries must be retrieved");
+        assert!(
+            !dir_entries.is_empty(),
+            "Directory ACL must contain at least one entry"
+        );
         for entry in dir_entries {
             assert_eq!(
                 entry.string_sid, user_sid_str,
@@ -476,7 +482,6 @@ async fn test_outbound_queue_fifo_order_preserved_on_flush_failure() {
     // 4. Assert both messages remain buffered in FIFO order (msg1 first, then msg2)
     assert_eq!(queue.buffered_count().await, 2);
 }
-
 
 #[tokio::test]
 async fn test_whatsapp_service_orchestration_loop() {
@@ -645,8 +650,6 @@ async fn test_unbounded_contact_locks_pruned_on_turn_completion() {
         "contact_locks map must return to size 0 after all turns complete"
     );
 }
-
-
 
 #[tokio::test]
 async fn test_outbound_queue_connecting_buffers_and_flushes_on_connected() {

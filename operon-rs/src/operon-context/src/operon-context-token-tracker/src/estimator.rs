@@ -62,7 +62,7 @@ impl TokenEstimator {
             // encode_with_special_tokens counts <|...|> tokens too, giving a
             // count that better matches what the API will actually bill.
             let count = encoder.encode_with_special_tokens(text).len().max(1);
-            return (count, EstimationTier::Bpe);
+            (count, EstimationTier::Bpe)
         }
 
         // ----------------------------------------------------------------
@@ -296,8 +296,7 @@ mod tests {
         let (a, _) = TokenEstimator::estimate(msgs[0]);
         let (b, _) = TokenEstimator::estimate(msgs[1]);
         let expected = a + CHAT_MESSAGE_OVERHEAD + b + CHAT_MESSAGE_OVERHEAD;
-        let (total, _) =
-            TokenEstimator::estimate_messages(&msgs.iter().map(|s| *s).collect::<Vec<_>>());
+        let (total, _) = TokenEstimator::estimate_messages(&msgs);
         assert_eq!(total, expected);
     }
 

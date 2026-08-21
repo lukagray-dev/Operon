@@ -12,11 +12,11 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio::sync::mpsc;
 
-use operon_rs::{SessionCommand, SessionEvent};
 use operon_rs::channels::telegram::client::TelegramClient;
 use operon_rs::channels::telegram::config::TelegramConfig;
 use operon_rs::channels::telegram::service::TelegramService;
 use operon_rs::channels::telegram::types::ChatId;
+use operon_rs::{SessionCommand, SessionEvent};
 
 use operon_rs::channels::whatsapp::auth::WhatsAppAuth;
 use operon_rs::channels::whatsapp::client::WhatsAppClient;
@@ -144,8 +144,9 @@ pub struct PendingPermissionEntry {
 }
 
 /// Thread-safe registry mapping permission_id -> PendingPermissionEntry.
-pub static GLOBAL_PERMISSION_REGISTRY: std::sync::Mutex<Option<HashMap<String, PendingPermissionEntry>>> =
-    std::sync::Mutex::new(None);
+pub static GLOBAL_PERMISSION_REGISTRY: std::sync::Mutex<
+    Option<HashMap<String, PendingPermissionEntry>>,
+> = std::sync::Mutex::new(None);
 
 /// Global AppHandle storage for emitting events across channel threads to webviews.
 pub static GLOBAL_APP_HANDLE: std::sync::Mutex<Option<tauri::AppHandle>> =
@@ -165,93 +166,102 @@ pub fn get_app_handle() -> Option<tauri::AppHandle> {
     }
 }
 
+/// Type alias for the unified channel event hook callback.
+pub type ChannelEventHook =
+    Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync>;
+
 /// Creates a unified event hook that streams live channel events to the Tauri webview and registers permission requests.
-pub fn create_channel_event_hook() -> Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sender<SessionCommand>) + Send + Sync> {
-    Arc::new(|session_id: &str, event: &SessionEvent, cmd_tx: &mpsc::Sender<SessionCommand>| {
-        let app_handle = get_app_handle();
+pub fn create_channel_event_hook() -> ChannelEventHook {
+    Arc::new(
+        |session_id: &str, event: &SessionEvent, cmd_tx: &mpsc::Sender<SessionCommand>| {
+            let app_handle = get_app_handle();
 
-        match event {
-            SessionEvent::ApprovalRequired {
-                id,
-                tool,
-                path,
-                reason,
-                args_json,
-            } => {
-                let req_dto = ChannelPermissionRequestDto {
-                    session_id: session_id.to_string(),
-                    id: id.clone(),
-                    tool: tool.clone(),
-                    path: path.clone(),
-                    reason: reason.clone(),
-                    args_json: args_json.clone(),
-                };
+            match event {
+                SessionEvent::ApprovalRequired {
+                    id,
+                    tool,
+                    path,
+                    reason,
+                    args_json,
+                } => {
+                    let req_dto = ChannelPermissionRequestDto {
+                        session_id: session_id.to_string(),
+                        id: id.clone(),
+                        tool: tool.clone(),
+                        path: path.clone(),
+                        reason: reason.clone(),
+                        args_json: args_json.clone(),
+                    };
 
-                // Register into global registry so approve_permission / deny_permission can find it
-                if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
-                    let map = lock.get_or_insert_with(HashMap::new);
-                    map.insert(
-                        id.clone(),
-                        PendingPermissionEntry {
-                            session_id: session_id.to_string(),
-                            request: req_dto.clone(),
-                            cmd_tx: cmd_tx.clone(),
-                        },
-                    );
-                }
-
-                // Emit event and native notification to frontend
-                if let Some(app) = app_handle {
-                    let prefs = crate::settings::prefs::GuiPrefs::load();
-                    if prefs.notify_on_permission_request {
-                        let desc = if let Some(ref p) = path {
-                            format!("Operon requests permission to {} on {}", tool, p)
-                        } else {
-                            format!("Operon requests permission to {}", tool)
-                        };
-                        crate::shared::notification::send_desktop_notification(
-                            &app,
-                            "Operon — Permission Required",
-                            &desc,
+                    // Register into global registry so approve_permission / deny_permission can find it
+                    if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+                        let map = lock.get_or_insert_with(HashMap::new);
+                        map.insert(
+                            id.clone(),
+                            PendingPermissionEntry {
+                                session_id: session_id.to_string(),
+                                request: req_dto.clone(),
+                                cmd_tx: cmd_tx.clone(),
+                            },
                         );
                     }
-                    let _ = app.emit("channel-permission-request", &req_dto);
-                    let _ = app.emit("agent-event", event);
-                }
-            }
-            SessionEvent::ApprovalGranted { .. } | SessionEvent::PermissionDenied { .. } => {
-                if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
-                    if let Some(ref mut map) = *lock {
-                        map.retain(|_, entry| entry.session_id != session_id);
+
+                    // Emit event and native notification to frontend
+                    if let Some(app) = app_handle {
+                        let prefs = crate::settings::prefs::GuiPrefs::load();
+                        if prefs.notify_on_permission_request {
+                            let desc = if let Some(ref p) = path {
+                                format!("Operon requests permission to {} on {}", tool, p)
+                            } else {
+                                format!("Operon requests permission to {}", tool)
+                            };
+                            crate::shared::notification::send_desktop_notification(
+                                &app,
+                                "Operon — Permission Required",
+                                &desc,
+                            );
+                        }
+                        let _ = app.emit("channel-permission-request", &req_dto);
+                        let _ = app.emit("agent-event", event);
                     }
                 }
-                if let Some(app) = app_handle {
-                    let _ = app.emit("channel-permission-resolved", session_id);
-                    let _ = app.emit("agent-event", event);
-                }
-            }
-            SessionEvent::Done | SessionEvent::Error { .. } => {
-                if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
-                    if let Some(ref mut map) = *lock {
-                        map.retain(|_, entry| entry.session_id != session_id);
+                SessionEvent::ApprovalGranted { .. } | SessionEvent::PermissionDenied { .. } => {
+                    if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+                        if let Some(ref mut map) = *lock {
+                            map.retain(|_, entry| entry.session_id != session_id);
+                        }
+                    }
+                    if let Some(app) = app_handle {
+                        let _ = app.emit("channel-permission-resolved", session_id);
+                        let _ = app.emit("agent-event", event);
                     }
                 }
-                if let Some(app) = app_handle {
-                    let _ = app.emit("channel-permission-resolved", session_id);
-                    let _ = app.emit("agent-event", event);
+                SessionEvent::Done | SessionEvent::Error { .. } => {
+                    if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {
+                        if let Some(ref mut map) = *lock {
+                            map.retain(|_, entry| entry.session_id != session_id);
+                        }
+                    }
+                    if let Some(app) = app_handle {
+                        let _ = app.emit("channel-permission-resolved", session_id);
+                        let _ = app.emit("agent-event", event);
+                    }
+                }
+                _ => {
+                    if let Some(app) = app_handle {
+                        let _ = app.emit("agent-event", event);
+                    }
                 }
             }
-            _ => {
-                if let Some(app) = app_handle {
-                    let _ = app.emit("agent-event", event);
-                }
-            }
-        }
-    })
+        },
+    )
 }
 
 /// Dispatches an approval or denial decision to the pending permission command sender.
-pub async fn dispatch_permission_decision(permission_id: &str, is_approve: bool) -> Result<bool, String> {
+pub async fn dispatch_permission_decision(
+    permission_id: &str,
+    is_approve: bool,
+) -> Result<bool, String> {
     let mut sender_opt = None;
 
     if let Ok(mut lock) = GLOBAL_PERMISSION_REGISTRY.lock() {

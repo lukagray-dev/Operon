@@ -3,7 +3,9 @@
 // Modal dialog for editing a single permission cell (tool/group × role).
 // Allows selecting Allow, Ask, or Deny for Owner or External roles.
 
-use crate::ui::screens::permissions::state::{EditRole, PermissionMode, RuleEditorState, ToolTableData};
+use crate::ui::screens::permissions::state::{
+    EditRole, PermissionMode, RuleEditorState, ToolTableData,
+};
 use crate::ui::theme::{STYLE_ACTIVE_BORDER, STYLE_MUTED, STYLE_NORMAL, STYLE_SELECTED};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},

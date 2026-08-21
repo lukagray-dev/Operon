@@ -308,10 +308,7 @@ impl SessionStore {
     /// # Errors
     ///
     /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
-    pub async fn load_todos(
-        &self,
-        _session_id: &str,
-    ) -> Result<Vec<TodoItem>, SessionError> {
+    pub async fn load_todos(&self, _session_id: &str) -> Result<Vec<TodoItem>, SessionError> {
         if !self.path.exists() {
             return Ok(Vec::new());
         }
@@ -652,7 +649,10 @@ mod tests {
         let store = SessionStore::open(&path).await.expect("open store");
 
         let loaded = store.load_todos("old-session").await.expect("load_todos");
-        assert!(loaded.is_empty(), "Missing todos key should default to empty vector");
+        assert!(
+            loaded.is_empty(),
+            "Missing todos key should default to empty vector"
+        );
 
         let _ = std::fs::remove_file(path);
     }
@@ -767,8 +767,14 @@ mod tests {
         let turn0 = make_messages("Turn zero");
         let turn1 = make_messages("Turn one");
 
-        store.save_turn("session-fh", 0, &turn0, None).await.unwrap();
-        store.save_turn("session-fh", 1, &turn1, None).await.unwrap();
+        store
+            .save_turn("session-fh", 0, &turn0, None)
+            .await
+            .unwrap();
+        store
+            .save_turn("session-fh", 1, &turn1, None)
+            .await
+            .unwrap();
 
         let full = store.load_full_history("session-fh").await.unwrap();
         assert_eq!(full.len(), 2);
@@ -794,9 +800,18 @@ mod tests {
         let turn1 = make_messages("Turn one");
         let turn2 = make_messages("Turn two");
 
-        store.save_turn("session-tr", 0, &turn0, None).await.unwrap();
-        store.save_turn("session-tr", 1, &turn1, None).await.unwrap();
-        store.save_turn("session-tr", 2, &turn2, None).await.unwrap();
+        store
+            .save_turn("session-tr", 0, &turn0, None)
+            .await
+            .unwrap();
+        store
+            .save_turn("session-tr", 1, &turn1, None)
+            .await
+            .unwrap();
+        store
+            .save_turn("session-tr", 2, &turn2, None)
+            .await
+            .unwrap();
 
         // Also save some todos and verify they are preserved!
         let todos = vec![TodoItem {
@@ -815,10 +830,13 @@ mod tests {
         assert_eq!(loaded[0], turn0);
 
         let loaded_todos = store.load_todos("session-tr").await.unwrap();
-        assert_eq!(loaded_todos.len(), 1, "Todos must be preserved across turn truncation");
+        assert_eq!(
+            loaded_todos.len(),
+            1,
+            "Todos must be preserved across turn truncation"
+        );
         assert_eq!(loaded_todos[0].content, "Task");
 
         let _ = std::fs::remove_file(path);
     }
 }
-

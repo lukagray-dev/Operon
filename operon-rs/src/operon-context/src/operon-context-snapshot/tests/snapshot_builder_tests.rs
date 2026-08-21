@@ -215,8 +215,14 @@ fn snapshot_renders_both_instructions_and_channel_context() {
     let chan_pos = rendered.find("=== CHANNEL CONTEXT ===").unwrap();
     let proj_pos = rendered.find("=== PROJECT ===").unwrap();
 
-    assert!(inst_pos < chan_pos, "=== INSTRUCTIONS === must precede === CHANNEL CONTEXT ===");
-    assert!(chan_pos < proj_pos, "=== CHANNEL CONTEXT === must precede === PROJECT ===");
+    assert!(
+        inst_pos < chan_pos,
+        "=== INSTRUCTIONS === must precede === CHANNEL CONTEXT ==="
+    );
+    assert!(
+        chan_pos < proj_pos,
+        "=== CHANNEL CONTEXT === must precede === PROJECT ==="
+    );
 
     let _ = fs::remove_dir_all(root);
 }
@@ -240,4 +246,3 @@ fn channel_instructions_is_fresh_uncached() {
 
     let _ = fs::remove_dir_all(root);
 }
-

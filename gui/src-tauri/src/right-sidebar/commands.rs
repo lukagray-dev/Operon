@@ -4,11 +4,11 @@
 // committing, AI commit message generation, commit graph traversal, branch management,
 // and multi-repo registry discovery) via `operon_rs::diff`.
 
-use std::path::{Path, PathBuf};
 use super::types::{
     GitDiffDetailsDto, GitDiffHunkDto, GitDiffLineDto, GitFileDiffDto, GitGraphCommitDto,
     GitRepositoryInfoDto,
 };
+use std::path::{Path, PathBuf};
 
 /// Resolves the absolute directory path to operate on.
 /// If a workspace override is provided (e.g. active project path or repo root), uses that.
@@ -165,7 +165,8 @@ pub async fn get_workspace_repositories(
         Ok(repos) => {
             let mut list = Vec::new();
             for r in repos {
-                let branch_name = match operon_rs::diff::current_branch_async(r.root.clone()).await {
+                let branch_name = match operon_rs::diff::current_branch_async(r.root.clone()).await
+                {
                     Ok(b) => b.name,
                     Err(_) => "main".to_string(),
                 };
@@ -185,7 +186,10 @@ pub async fn get_workspace_repositories(
 
 /// Stages a single modified or untracked file to Git index.
 #[tauri::command]
-pub async fn git_stage_file(workspace_path: Option<String>, rel_path: String) -> Result<(), String> {
+pub async fn git_stage_file(
+    workspace_path: Option<String>,
+    rel_path: String,
+) -> Result<(), String> {
     let workspace = resolve_workspace(workspace_path);
     operon_rs::diff::stage_file_async(workspace, rel_path)
         .await
@@ -194,7 +198,10 @@ pub async fn git_stage_file(workspace_path: Option<String>, rel_path: String) ->
 
 /// Unstages a single staged file back to working tree.
 #[tauri::command]
-pub async fn git_unstage_file(workspace_path: Option<String>, rel_path: String) -> Result<(), String> {
+pub async fn git_unstage_file(
+    workspace_path: Option<String>,
+    rel_path: String,
+) -> Result<(), String> {
     let workspace = resolve_workspace(workspace_path);
     operon_rs::diff::unstage_file_async(workspace, rel_path)
         .await
@@ -203,7 +210,10 @@ pub async fn git_unstage_file(workspace_path: Option<String>, rel_path: String) 
 
 /// Reverts / discards changes in a single file.
 #[tauri::command]
-pub async fn git_revert_file(workspace_path: Option<String>, rel_path: String) -> Result<(), String> {
+pub async fn git_revert_file(
+    workspace_path: Option<String>,
+    rel_path: String,
+) -> Result<(), String> {
     let workspace = resolve_workspace(workspace_path);
     operon_rs::diff::revert_file_async(workspace, rel_path)
         .await
@@ -272,7 +282,11 @@ pub async fn git_generate_commit_message(workspace_path: Option<String>) -> Resu
         .map_err(|e| e.to_string())?;
 
     let mut changed_files = Vec::new();
-    for f in details.staged_files.iter().chain(details.unstaged_files.iter()) {
+    for f in details
+        .staged_files
+        .iter()
+        .chain(details.unstaged_files.iter())
+    {
         changed_files.push(format!("{}: {}", f.status, f.file_name));
     }
 
@@ -281,7 +295,9 @@ pub async fn git_generate_commit_message(workspace_path: Option<String>) -> Resu
     }
 
     // Determine conventional commit prefix based on file changes
-    let is_gui = changed_files.iter().any(|f| f.contains("gui") || f.contains(".ts") || f.contains(".css"));
+    let is_gui = changed_files
+        .iter()
+        .any(|f| f.contains("gui") || f.contains(".ts") || f.contains(".css"));
     let is_doc = changed_files.iter().all(|f| f.contains(".md"));
     let is_test = changed_files.iter().all(|f| f.contains("test"));
 
@@ -295,7 +311,12 @@ pub async fn git_generate_commit_message(workspace_path: Option<String>) -> Resu
         "feat"
     };
 
-    let sample_files = changed_files.iter().take(3).cloned().collect::<Vec<_>>().join(", ");
+    let sample_files = changed_files
+        .iter()
+        .take(3)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
     Ok(format!("{}: update changes in {}", prefix, sample_files))
 }
 

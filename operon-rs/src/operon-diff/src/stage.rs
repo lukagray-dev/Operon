@@ -4,11 +4,11 @@
 // and working directory, enabling selective staging, unstaging, reverting, untracked file cleanup,
 // and hunk-level patch application.
 
-use std::path::Path;
-use git2::{ApplyLocation, DiffOptions, StatusOptions};
 use crate::diff::parse_diff;
 use crate::error::DiffError;
 use crate::status::discover_repository;
+use git2::{ApplyLocation, DiffOptions, StatusOptions};
+use std::path::Path;
 
 /// Stages a modified or untracked file to the Git index.
 pub fn stage_file<P: AsRef<Path>>(workspace_root: P, relative_path: &str) -> Result<(), DiffError> {
@@ -20,9 +20,12 @@ pub fn stage_file<P: AsRef<Path>>(workspace_root: P, relative_path: &str) -> Res
 }
 
 /// Unstages a file by resetting its index state back to HEAD.
-pub fn unstage_file<P: AsRef<Path>>(workspace_root: P, relative_path: &str) -> Result<(), DiffError> {
+pub fn unstage_file<P: AsRef<Path>>(
+    workspace_root: P,
+    relative_path: &str,
+) -> Result<(), DiffError> {
     let repo = discover_repository(workspace_root)?;
-    
+
     // Check if HEAD commit exists (we can only reset if there's a head commit)
     match repo.head() {
         Ok(head_ref) => {
@@ -36,18 +39,24 @@ pub fn unstage_file<P: AsRef<Path>>(workspace_root: P, relative_path: &str) -> R
             index.write()?;
         }
     }
-    
+
     Ok(())
 }
 
 /// Reverts unstaged modifications to a file in the workdir by checking it out from the Index.
-pub fn revert_file<P: AsRef<Path>>(workspace_root: P, relative_path: &str) -> Result<(), DiffError> {
+pub fn revert_file<P: AsRef<Path>>(
+    workspace_root: P,
+    relative_path: &str,
+) -> Result<(), DiffError> {
     let repo = discover_repository(workspace_root)?;
-    
+
     // Check if the file is untracked. Reverting an untracked file means deleting it.
     let status = repo.status_file(Path::new(relative_path))?;
     if status.contains(git2::Status::WT_NEW) {
-        let full_path = repo.workdir().unwrap_or_else(|| Path::new("")).join(relative_path);
+        let full_path = repo
+            .workdir()
+            .unwrap_or_else(|| Path::new(""))
+            .join(relative_path);
         if full_path.exists() {
             if full_path.is_dir() {
                 std::fs::remove_dir_all(full_path)?;
@@ -62,7 +71,7 @@ pub fn revert_file<P: AsRef<Path>>(workspace_root: P, relative_path: &str) -> Re
     let mut checkout_opts = git2::build::CheckoutBuilder::new();
     checkout_opts.force().path(Path::new(relative_path));
     repo.checkout_index(None, Some(&mut checkout_opts))?;
-    
+
     Ok(())
 }
 
@@ -70,23 +79,23 @@ pub fn revert_file<P: AsRef<Path>>(workspace_root: P, relative_path: &str) -> Re
 pub fn stage_all_files<P: AsRef<Path>>(workspace_root: P) -> Result<(), DiffError> {
     let repo = discover_repository(workspace_root)?;
     let mut index = repo.index()?;
-    
+
     // Add all modifications and untracked files
     index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
     index.write()?;
-    
+
     Ok(())
 }
 
 /// Discards all unstaged changes in the workdir for tracked files.
 pub fn revert_all_files<P: AsRef<Path>>(workspace_root: P) -> Result<(), DiffError> {
     let repo = discover_repository(workspace_root)?;
-    
+
     // Force checkout from index to discard all unstaged edits to tracked files
     let mut checkout_opts = git2::build::CheckoutBuilder::new();
     checkout_opts.force();
     repo.checkout_index(None, Some(&mut checkout_opts))?;
-    
+
     Ok(())
 }
 
@@ -143,7 +152,7 @@ pub fn stage_hunk<P: AsRef<Path>>(
     hunk_header: &str,
 ) -> Result<(), DiffError> {
     let repo = discover_repository(workspace_root)?;
-    
+
     // Fetch workdir diff for the target file, including untracked files
     let mut opts = DiffOptions::new();
     opts.pathspec(relative_path);
@@ -155,7 +164,11 @@ pub fn stage_hunk<P: AsRef<Path>>(
 
     let target_file = file_diffs.iter().find(|f| f.path == relative_path);
     if let Some(file_diff) = target_file {
-        if let Some(hunk) = file_diff.hunks.iter().find(|h| h.header.trim() == hunk_header.trim() || h.header.contains(hunk_header)) {
+        if let Some(hunk) = file_diff
+            .hunks
+            .iter()
+            .find(|h| h.header.trim() == hunk_header.trim() || h.header.contains(hunk_header))
+        {
             let patch_str = build_unified_patch(relative_path, &file_diff.status, hunk);
             let patch_diff = git2::Diff::from_buffer(patch_str.as_bytes())?;
             repo.apply(&patch_diff, ApplyLocation::Index, None)?;
@@ -187,8 +200,13 @@ pub fn unstage_hunk<P: AsRef<Path>>(
 
     let target_file = staged_files.iter().find(|f| f.path == relative_path);
     if let Some(file_diff) = target_file {
-        if let Some(hunk) = file_diff.hunks.iter().find(|h| h.header.trim() == hunk_header.trim() || h.header.contains(hunk_header)) {
-            let reverse_patch_str = build_reverse_unified_patch(relative_path, &file_diff.status, hunk);
+        if let Some(hunk) = file_diff
+            .hunks
+            .iter()
+            .find(|h| h.header.trim() == hunk_header.trim() || h.header.contains(hunk_header))
+        {
+            let reverse_patch_str =
+                build_reverse_unified_patch(relative_path, &file_diff.status, hunk);
             let patch_diff = git2::Diff::from_buffer(reverse_patch_str.as_bytes())?;
             repo.apply(&patch_diff, ApplyLocation::Index, None)?;
             return Ok(());
@@ -232,7 +250,11 @@ fn build_unified_patch(relative_path: &str, status: &str, hunk: &crate::dto::Dif
 }
 
 /// Helper function to build a reverse unified patch string for unstaging a single hunk.
-fn build_reverse_unified_patch(relative_path: &str, status: &str, hunk: &crate::dto::DiffHunk) -> String {
+fn build_reverse_unified_patch(
+    relative_path: &str,
+    status: &str,
+    hunk: &crate::dto::DiffHunk,
+) -> String {
     let mut patch = String::new();
     patch.push_str(&format!("diff --git a/{relative_path} b/{relative_path}\n"));
     match status {
@@ -253,7 +275,7 @@ fn build_reverse_unified_patch(relative_path: &str, status: &str, hunk: &crate::
             patch.push_str(&format!("+++ b/{relative_path}\n"));
         }
     }
-    
+
     // Invert header ranges for reverse patch
     patch.push_str(&format!(
         "@@ -{},{} +{},{} @@\n",

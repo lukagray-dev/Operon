@@ -23,12 +23,7 @@ pub enum TodoCreateItemInput {
             alias = "todo"
         )]
         content: String,
-        #[serde(
-            default,
-            alias = "level",
-            alias = "importance",
-            alias = "urgency"
-        )]
+        #[serde(default, alias = "level", alias = "importance", alias = "urgency")]
         priority: Option<TodoPriority>,
     },
 }
@@ -62,11 +57,17 @@ impl TodoCreateArgs {
     /// Normalizes the deserialized arguments into a list of `(content, priority)` pairs.
     pub fn into_items(self) -> Vec<(String, Option<TodoPriority>)> {
         match self {
-            Self::RootList(list) => list.into_iter().map(TodoCreateItemInput::into_parts).collect(),
+            Self::RootList(list) => list
+                .into_iter()
+                .map(TodoCreateItemInput::into_parts)
+                .collect(),
             Self::Object(obj) => {
                 if let Some(todos) = obj.todos {
                     if !todos.is_empty() {
-                        return todos.into_iter().map(TodoCreateItemInput::into_parts).collect();
+                        return todos
+                            .into_iter()
+                            .map(TodoCreateItemInput::into_parts)
+                            .collect();
                     }
                 }
                 if let Some(contents) = obj.contents {
@@ -99,21 +100,11 @@ pub struct TodoCreateObjectArgs {
     pub content: Option<String>,
 
     /// Priority level for single task.
-    #[serde(
-        default,
-        alias = "level",
-        alias = "importance",
-        alias = "urgency"
-    )]
+    #[serde(default, alias = "level", alias = "importance", alias = "urgency")]
     pub priority: Option<TodoPriority>,
 
     /// Array of items / tasks / todos.
-    #[serde(
-        default,
-        alias = "items",
-        alias = "tasks",
-        alias = "list"
-    )]
+    #[serde(default, alias = "items", alias = "tasks", alias = "list")]
     pub todos: Option<Vec<TodoCreateItemInput>>,
 
     /// Array of string task descriptions.
