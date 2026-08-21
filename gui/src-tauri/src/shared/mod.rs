@@ -1,6 +1,7 @@
 pub mod autostart;
 pub mod channels_manager;
 pub mod dwm;
+pub mod notification;
 pub mod state;
 pub mod tray;
 pub mod watcher;

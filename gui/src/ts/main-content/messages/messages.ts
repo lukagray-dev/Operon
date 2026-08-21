@@ -39,6 +39,7 @@ import {
   listenAgentEvent,
   listenAgentFinished,
   loadSessionMessagesIpc,
+  sendDesktopNotificationIpc,
 } from './ipc.js';
 import { messagesState } from './state.js';
 import type { ChatMessage } from './types.js';
@@ -57,6 +58,11 @@ async function getCachedSettings(): Promise<GeneralSettings | null> {
   }
   return cachedGeneralSettings;
 }
+
+// Invalidate and sync settings cache whenever user updates General settings
+listenIpcEvent<GeneralSettings>('operon://general-settings-changed', (settings) => {
+  cachedGeneralSettings = settings;
+});
 
 function setupScrollListener(): void {
   const container = document.getElementById('chat-messages-viewport');
@@ -346,20 +352,10 @@ async function triggerPermissionNotification(tool: string, path?: string | null)
     const settings = await getCachedSettings();
     if (!settings || !settings.notify_on_permission_request) return;
 
-    if (!document.hasFocus() && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        await Notification.requestPermission();
-      }
-      if (Notification.permission === 'granted') {
-        const notif = new Notification('Operon — Permission Required', {
-          body: `Operon requests permission to ${tool}${path ? ` on ${path}` : ''}`,
-          icon: 'assets/brand/operon.svg',
-        });
-        notif.onclick = () => {
-          window.focus();
-        };
-      }
-    }
+    await sendDesktopNotificationIpc(
+      'Operon — Permission Required',
+      `Operon requests permission to ${tool}${path ? ` on ${path}` : ''}`
+    );
   } catch (err) {
     console.debug('[Notification] Permission notification error:', err);
   }
@@ -370,20 +366,10 @@ async function triggerTurnCompleteNotification(): Promise<void> {
     const settings = await getCachedSettings();
     if (!settings || !settings.notify_on_response_complete) return;
 
-    if (!document.hasFocus() && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        await Notification.requestPermission();
-      }
-      if (Notification.permission === 'granted') {
-        const notif = new Notification('Operon — Response Complete', {
-          body: 'The assistant has finished responding.',
-          icon: 'assets/brand/operon.svg',
-        });
-        notif.onclick = () => {
-          window.focus();
-        };
-      }
-    }
+    await sendDesktopNotificationIpc(
+      'Operon — Response Complete',
+      'The assistant has finished responding.'
+    );
   } catch (err) {
     console.debug('[Notification] Turn complete notification error:', err);
   }

@@ -50,8 +50,13 @@ pub fn apply_window_dwm_styling(window: &tauri::WebviewWindow) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Register explicit Windows AppUserModelID so notifications show "Operon"
+    shared::notification::set_windows_app_id();
+    let _ = shared::notification::get_or_extract_icon_path();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState::default())
         .setup(|app| {
             let prefs = settings::prefs::GuiPrefs::load();
@@ -144,6 +149,7 @@ pub fn run() {
             main_content::messages::deny_permission,
             main_content::messages::respond_to_ask,
             main_content::messages::get_pending_permissions,
+            main_content::messages::send_desktop_notification,
             // Main Content Markdown actions
             main_content::markdown::render_markdown,
             main_content::markdown::render_markdown_batch,

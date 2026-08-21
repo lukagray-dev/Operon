@@ -200,8 +200,21 @@ pub fn create_channel_event_hook() -> Arc<dyn Fn(&str, &SessionEvent, &mpsc::Sen
                     );
                 }
 
-                // Emit event to frontend
+                // Emit event and native notification to frontend
                 if let Some(app) = app_handle {
+                    let prefs = crate::settings::prefs::GuiPrefs::load();
+                    if prefs.notify_on_permission_request {
+                        let desc = if let Some(ref p) = path {
+                            format!("Operon requests permission to {} on {}", tool, p)
+                        } else {
+                            format!("Operon requests permission to {}", tool)
+                        };
+                        crate::shared::notification::send_desktop_notification(
+                            &app,
+                            "Operon — Permission Required",
+                            &desc,
+                        );
+                    }
                     let _ = app.emit("channel-permission-request", &req_dto);
                     let _ = app.emit("agent-event", event);
                 }

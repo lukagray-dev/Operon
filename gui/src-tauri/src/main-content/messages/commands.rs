@@ -449,3 +449,14 @@ pub async fn respond_to_ask(id: String, answer: String) -> Result<(), String> {
 pub async fn get_pending_permissions() -> Result<Vec<crate::shared::channels_manager::ChannelPermissionRequestDto>, String> {
     Ok(crate::shared::channels_manager::get_all_pending_permissions())
 }
+
+/// Dispatches a native desktop notification to the operating system.
+#[tauri::command]
+pub async fn send_desktop_notification(
+    app: tauri::AppHandle,
+    title: String,
+    body: String,
+) -> Result<(), String> {
+    crate::shared::notification::send_desktop_notification(&app, &title, &body);
+    Ok(())
+}

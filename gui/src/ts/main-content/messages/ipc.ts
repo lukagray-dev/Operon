@@ -84,3 +84,10 @@ export async function listenAgentError(
 ): Promise<() => void> {
   return await listenIpcEvent<string>('agent-error', handler);
 }
+
+export async function sendDesktopNotificationIpc(
+  title: string,
+  body: string
+): Promise<void> {
+  await invokeIpc('send_desktop_notification', { title, body });
+}

@@ -56,8 +56,9 @@ pub async fn save_general_settings(
         }
     }
 
-    // 5. Emit event to all windows so main window input bar updates instantly
+    // 5. Emit event to all windows so main window input bar and messages controllers update instantly
     let _ = app.emit("operon://auto-approve-changed", settings.global_auto_approve_default);
+    let _ = app.emit("operon://general-settings-changed", &settings);
 
     Ok(())
 }

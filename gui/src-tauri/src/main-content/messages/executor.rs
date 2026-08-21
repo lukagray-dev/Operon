@@ -197,6 +197,15 @@ pub async fn submit_prompt(
             *lock = None;
         }
 
+        let prefs = crate::settings::prefs::GuiPrefs::load();
+        if prefs.notify_on_response_complete {
+            crate::shared::notification::send_desktop_notification(
+                &app_handle_done,
+                "Operon — Response Complete",
+                "The assistant has finished responding.",
+            );
+        }
+
         let _ = app_handle_done.emit("agent-finished", &run_id);
     });
 
@@ -379,6 +388,15 @@ pub async fn edit_and_submit_prompt(
         // Clear active command sender
         if let Ok(mut lock) = ACTIVE_CMD_TX.lock() {
             *lock = None;
+        }
+
+        let prefs = crate::settings::prefs::GuiPrefs::load();
+        if prefs.notify_on_response_complete {
+            crate::shared::notification::send_desktop_notification(
+                &app_handle_done,
+                "Operon — Response Complete",
+                "The assistant has finished responding.",
+            );
         }
 
         let _ = app_handle_done.emit("agent-finished", &run_id);

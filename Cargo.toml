@@ -133,7 +133,7 @@ crossterm    = "0.29.0"
 arboard      = "3.6.1"
 rfd          = "0.15"
 regex        = "1.10"
-windows-sys  = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading", "Win32_Graphics_Dwm"] }
+windows-sys  = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Console", "Win32_System_Threading", "Win32_Graphics_Dwm", "Win32_UI_Shell"] }
 sha2         = "0.10"
 base64       = "0.22"
 
