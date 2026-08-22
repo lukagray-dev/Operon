@@ -51,6 +51,7 @@ dist/
 build/
 out/
 gui/src/js/
+vscode/extension/src/js/
 
 # Test coverage
 coverage/
