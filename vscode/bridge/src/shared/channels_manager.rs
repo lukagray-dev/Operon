@@ -187,8 +187,8 @@ pub fn create_channel_event_hook() -> ChannelEventHook {
                         );
                     }
 
-                    if let Some(state) = app_state {
-                        let state_clone = state.clone();
+                    if let Some(ref state) = app_state {
+                        let state_clone = (*state).clone();
                         let dto_clone = req_dto.clone();
                         tokio::spawn(async move {
                             state_clone
@@ -206,8 +206,8 @@ pub fn create_channel_event_hook() -> ChannelEventHook {
                             map.retain(|_, entry| entry.session_id != session_id);
                         }
                     }
-                    if let Some(state) = app_state {
-                        let state_clone = state.clone();
+                    if let Some(ref state) = app_state {
+                        let state_clone = (*state).clone();
                         let sid = session_id.to_string();
                         tokio::spawn(async move {
                             state_clone
@@ -225,8 +225,8 @@ pub fn create_channel_event_hook() -> ChannelEventHook {
                             map.retain(|_, entry| entry.session_id != session_id);
                         }
                     }
-                    if let Some(state) = app_state {
-                        let state_clone = state.clone();
+                    if let Some(ref state) = app_state {
+                        let state_clone = (*state).clone();
                         let sid = session_id.to_string();
                         tokio::spawn(async move {
                             state_clone
@@ -239,6 +239,15 @@ pub fn create_channel_event_hook() -> ChannelEventHook {
                     }
                 }
                 _ => {}
+            }
+
+            // Broadcast every agent event to VS Code webviews for live token streaming
+            if let Some(ref state) = app_state {
+                let state_clone = (*state).clone();
+                let event_val = serde_json::to_value(event).unwrap_or_default();
+                tokio::spawn(async move {
+                    state_clone.emit_event("agent-event", event_val).await;
+                });
             }
         },
     )

@@ -548,6 +548,38 @@ pub async fn dispatch(
             main_content::messages::cancel_prompt().await?;
             Ok(Value::Null)
         }
+        "edit_and_submit_prompt" => {
+            let session_id = params
+                .get("sessionId")
+                .or_else(|| params.get("session_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let prompt = params
+                .get("prompt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let target_turn_index = params
+                .get("targetTurnIndex")
+                .or_else(|| params.get("target_turn_index"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as usize;
+            let workspace_path = params
+                .get("workspacePath")
+                .or_else(|| params.get("workspace_path"))
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            let res = main_content::messages::edit_and_submit_prompt(
+                state,
+                session_id,
+                prompt,
+                target_turn_index,
+                workspace_path,
+            )
+            .await?;
+            serde_json::to_value(res).map_err(|e| e.to_string())
+        }
         "approve_permission" => {
             let permission_id = params
                 .get("permissionId")

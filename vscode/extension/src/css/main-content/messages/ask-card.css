@@ -1,0 +1,204 @@
+/* ============================================================================
+   Ask Question / Clarification Prompt Card Styling for VS Code Extension
+   ============================================================================ */
+
+.ask-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  margin: 8px 0;
+  overflow: hidden;
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ask-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.038);
+}
+
+.ask-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ask-card-icon {
+  width: 15px;
+  height: 15px;
+  opacity: 0.85;
+  color: #70b0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ask-card-icon img,
+.ask-card-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ask-card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #d0d7de;
+  text-transform: uppercase;
+}
+
+.ask-card-body {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 10px;
+}
+
+.ask-card-question {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-primary, #ffffff);
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ask-card-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-ask-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #d3d3d3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.btn-ask-option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateX(2px);
+}
+
+.btn-ask-option:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.btn-ask-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ask-card-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.input-ask-custom {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 7px 10px;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.input-ask-custom::placeholder {
+  color: var(--text-muted, #888888);
+}
+
+.input-ask-custom:focus {
+  border-color: rgba(0, 122, 204, 0.7);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.input-ask-custom:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ask-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  background: rgba(0, 122, 204, 0.25);
+  color: #70b0ff;
+  border: 1px solid rgba(0, 122, 204, 0.4);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.btn-ask-submit:hover:not(:disabled) {
+  background: rgba(0, 122, 204, 0.4);
+  color: #ffffff;
+  border-color: rgba(0, 122, 204, 0.7);
+}
+
+.btn-ask-submit:active:not(:disabled) {
+  background: rgba(0, 122, 204, 0.55);
+}
+
+.btn-ask-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ask-card-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4caf50;
+  padding: 4px 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ask-card-status strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ask-card-check-icon {
+  width: 14px;
+  height: 14px;
+  color: #4caf50;
+  flex-shrink: 0;
+}

@@ -1,4 +1,10 @@
-// Assistant WorkGroup and Tool Execution Timeline DOM Renderer for VS Code
+// Assistant WorkGroup and Tool Execution Timeline DOM Renderer
+//
+// 1:1 visual and behavioral redesign inspired by the Slint GUI WorkGroup component:
+// - Header with Composing Thinking Orb (while active), shining summary text ("Working..." or "Thought • 2 tool calls | Worked for 3s."), and trailing chevron.
+// - Expandable timeline with a 1px vertical spine connecting 14x14 dark-masked checkpoint tool/thinking icons.
+// - Sub-tool collapsible items with inline ToolDetailBody displaying BOTH input arguments and execution output.
+// - In-place DOM synchronization (syncWorkGroupElement) preserving CSS shine animations and click responsiveness during high-frequency token streams.
 
 import { getCachedAppearance } from '../markdown/markdown.js';
 import { ThinkingOrbRenderer } from './orb.js';
@@ -327,9 +333,8 @@ function renderTimelineItemRow(
     toolTitle.textContent = item.tool_title || `Running ${item.tool_name}`;
 
     const subChevron = document.createElement('span');
-    subChevron.className = `ui-icon icon-tool-chevron work-group-tool-chevron ${
-      item.is_expanded ? 'expanded' : ''
-    }`;
+    subChevron.className = `ui-icon icon-tool-chevron work-group-tool-chevron ${item.is_expanded ? 'expanded' : ''
+      }`;
 
     toolHeader.appendChild(toolTitle);
     toolHeader.appendChild(subChevron);
@@ -420,10 +425,12 @@ export function syncWorkGroupElement(
 ): { element: HTMLElement; orbRenderer: ThinkingOrbRenderer | null } {
   let orbRenderer = existingOrbRenderer || null;
 
+  // If no existing container, construct full element from scratch
   if (!existingContainer) {
     const container = document.createElement('div');
     container.className = `work-group-container ${data.is_expanded ? 'expanded' : ''}`;
 
+    // Header
     const header = document.createElement('div');
     header.className = 'work-group-header';
 
@@ -481,6 +488,7 @@ export function syncWorkGroupElement(
     });
     container.appendChild(header);
 
+    // Timeline
     const timeline = document.createElement('div');
     timeline.className = 'work-group-timeline';
     const totalCount = data.items.length;
@@ -492,12 +500,13 @@ export function syncWorkGroupElement(
     return { element: container, orbRenderer };
   }
 
-  // In-place reconciliation
+  // ===== IN-PLACE RECONCILIATION FOR EXISTING DOM CONTAINER =====
   existingContainer.classList.toggle('expanded', data.is_expanded);
 
   const header = existingContainer.querySelector('.work-group-header') as HTMLElement | null;
   const summary = existingContainer.querySelector('.work-group-summary-text') as HTMLElement | null;
 
+  // 1. Thinking Orb Lifecycle in header
   if (data.is_active) {
     let orbContainer = existingContainer.querySelector('.work-group-orb-container') as HTMLElement | null;
     if (!orbContainer && header) {
@@ -544,6 +553,7 @@ export function syncWorkGroupElement(
     }
   }
 
+  // 2. Summary Text & Active Shine Sweep
   if (summary) {
     summary.classList.toggle('active', data.is_active);
     if (data.is_active) {
@@ -559,6 +569,7 @@ export function syncWorkGroupElement(
     }
   }
 
+  // 3. Timeline Items In-Place Update
   let timeline = existingContainer.querySelector('.work-group-timeline') as HTMLElement | null;
   if (!timeline) {
     timeline = document.createElement('div');
@@ -569,6 +580,7 @@ export function syncWorkGroupElement(
   const totalCount = data.items.length;
   const existingRows = Array.from(timeline.children) as HTMLElement[];
 
+  // Remove trailing excess rows
   while (existingRows.length > totalCount) {
     const extra = existingRows.pop();
     extra?.remove();
@@ -587,6 +599,7 @@ export function syncWorkGroupElement(
     }
   });
 
+  // Ensure spine lines updated for all rows if count changed
   timeline.querySelectorAll<HTMLElement>('.work-group-timeline-row').forEach((row, rIdx) => {
     updateSpineLine(row, rIdx, totalCount);
   });
@@ -594,6 +607,9 @@ export function syncWorkGroupElement(
   return { element: existingContainer, orbRenderer };
 }
 
+/**
+ * Renders the full WorkGroup DOM element (backwards compatibility).
+ */
 export function renderWorkGroupElement(
   data: WorkGroupData,
   onToggleExpand: () => void,
