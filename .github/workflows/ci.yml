@@ -37,6 +37,14 @@ jobs:
           npm run build
           cd ..
 
+      - name: Build VS Code Extension Frontend
+        shell: powershell
+        run: |
+          cd vscode/extension
+          npm install
+          npm run build
+          cd ../..
+
       - name: Cache cargo registry + target dir
         uses: Swatinem/rust-cache@v2
         with:

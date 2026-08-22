@@ -43,6 +43,14 @@ jobs:
           npm run build
           cd ..
 
+      - name: Build VS Code Extension Frontend
+        shell: powershell
+        run: |
+          cd vscode/extension
+          npm install
+          npm run build
+          cd ../..
+
       - name: Cache cargo registry + target dir
         uses: Swatinem/rust-cache@v2
         with:
@@ -131,13 +139,16 @@ jobs:
         with:
           node-version: 20
 
-      - name: Build GUI Frontend
+      - name: Build GUI & VS Code Frontends
         shell: powershell
         run: |
           cd gui
           npm install
           npm run build
-          cd ..
+          cd ../vscode/extension
+          npm install
+          npm run build
+          cd ../..
 
       # Install stable Rust with MSVC target on Windows
       - name: Install Rust stable
@@ -152,13 +163,14 @@ jobs:
           shared-key: windows-release
           key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      # Build the production release binaries for both GUI and TUI
-      - name: Build Operon GUI & TUI
+      # Build the production release binaries for GUI, TUI, and VS Code Bridge
+      - name: Build Operon GUI, TUI & VS Code Bridge
         run: |
           cargo build --release -p operon-gui
           cargo build --release -p operon-tui
+          cargo build --release -p operon-vscode-bridge
 
-      # Copy and rename standalone binaries to operon-gui-{TAG}.exe and operon-tui-{TAG}.exe
+      # Copy and rename standalone binaries to operon-gui-{TAG}.exe, operon-tui-{TAG}.exe, operon-vscode-bridge-{TAG}.exe and package VSIX
       - name: Locate and Package Release Binaries
         shell: powershell
         run: |
@@ -183,6 +195,30 @@ jobs:
           } else {
               Write-Error "TUI binary not found at $tui_bin!"
               exit 1
+          }
+
+          $bridge_bin = "target/release/operon-vscode-bridge.exe"
+          if (Test-Path $bridge_bin) {
+              $bridge_dest = "artifacts/operon-vscode-bridge-$tag.exe"
+              Copy-Item $bridge_bin $bridge_dest
+              Write-Host "Packaged VS Code Bridge binary to $bridge_dest"
+
+              # Place inside extension bin for VSIX packaging
+              mkdir -p vscode/extension/bin
+              Copy-Item $bridge_bin "vscode/extension/bin/operon-vscode-bridge.exe"
+          } else {
+              Write-Error "VS Code Bridge binary not found at $bridge_bin!"
+              exit 1
+          }
+
+          # Package VS Code extension VSIX
+          try {
+              cd vscode/extension
+              npx -y @vscode/vsce package --no-dependencies --out "../../artifacts/operon-vscode-$tag.vsix"
+              cd ../..
+              Write-Host "Packaged VS Code Extension to artifacts/operon-vscode-$tag.vsix"
+          } catch {
+              Write-Warning "VSIX packaging skipped or failed: $_"
           }
 
       # Upload the packaged binaries for the release job

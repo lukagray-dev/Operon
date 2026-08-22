@@ -50,6 +50,9 @@ yarn.lock
 dist/
 build/
 out/
+artifacts/
+artifacts
+*.vsix
 gui/src/js/
 vscode/extension/src/js/
 vscode/extension/bin/

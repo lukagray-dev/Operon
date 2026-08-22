@@ -5,11 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [0.0.3-beta] - 2026-08-21
+## [0.0.3-beta] - 2026-08-22
 
-This pre-release prepares the first binary distribution of Operon on Windows, bundling both the full-featured Graphical User Interface (GUI) and the new Terminal User Interface (TUI), along with major filesystem tool improvements, native desktop notifications, and a global SQLite-backed memory subsystem.
+This pre-release distributes Operon on Windows across three unified frontends: the Graphical User Interface (GUI), the Terminal User Interface (TUI), and the new **VS Code Extension** powered by a high-performance native JSON-RPC bridge (`operon-vscode-bridge`), alongside major filesystem tool improvements, native desktop notifications, and a global SQLite-backed memory subsystem.
 
 ### Added
+- **VS Code Extension & Native JSON-RPC Bridge (`operon-vscode-bridge`)**:
+  - Introduced a standalone Visual Studio Code extension (`vscode/extension/`) providing the complete Operon AI agent experience directly within the editor.
+  - Implemented high-performance native JSON-RPC 2.0 stdio bridge (`operon-vscode-bridge`) communicating with the core `operon-rs` runtime.
+  - Full feature parity with the desktop interface:
+    - **Interactive WorkGroup**: Visual tool timeline, collapsible tool execution inspection (displaying both input parameters and stdout results), and 60fps thinking orb animations.
+    - **Real-Time Token Streaming**: RAF-batched 60fps markdown rendering with syntax highlighting and KaTeX math formatting.
+    - **Human-in-the-Loop Clarification**: Embedded interactive `ask` question cards and dynamic tool authorization banners.
+    - **Context Management**: Visual compaction pills, live token usage trackers, model reasoning level selector, and session task manager.
+    - **Workspace & Chat Drawer**: Left overlay drawer for managing multi-workspace project folders, chat sessions, forks, and inline message editing.
+    - **Settings Tab**: Modular settings editor with dedicated category controllers for Models, Channels, Permissions, Appearance, Memory, and General options.
+  - Added turnkey compilation batch scripts: [`scripts/build-vscode.bat`](file:///d:/Operon/scripts/build-vscode.bat) (Development) and [`scripts/build-vscode-release.bat`](file:///d:/Operon/scripts/build-vscode-release.bat) (Release).
 - **Terminal User Interface (`operon-tui`)**:
   - Introduced a complete, high-performance terminal interface built with `ratatui` and `crossterm`.
   - Supports live multi-block assistant message streaming, interactive syntax-highlighted markdown, tool execution timeline visualizations, and compaction pills.
