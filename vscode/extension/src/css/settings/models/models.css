@@ -1,0 +1,346 @@
+/* Models & Providers Settings Panel Stylesheet (1:1 with Slint models.slint) */
+@import '../../shared/tokens.css';
+
+.settings-panel-view[data-tab="models"] {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 740px;
+}
+
+.settings-panel-view[data-tab="models"].active {
+  display: flex;
+}
+
+/* View Switch Helpers */
+.models-view-container.hidden {
+  display: none !important;
+}
+
+/* Providers List Container */
+.models-providers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Provider Card */
+.provider-card {
+  height: 58px;
+  min-height: 58px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.provider-card:hover {
+  background-color: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.provider-icon-wrapper {
+  width: 28px;
+  height: 28px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.provider-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: none;
+}
+
+.provider-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.provider-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8e8e8;
+}
+
+.provider-subinfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-status {
+  font-size: 10px;
+  font-weight: 500;
+  color: #555555;
+}
+
+.provider-status.configured {
+  color: #888888;
+}
+
+.provider-dot {
+  width: 3px;
+  height: 3px;
+  background-color: #333333;
+  border-radius: 50%;
+}
+
+.provider-active-model {
+  font-size: 10px;
+  color: #888888;
+  font-family: var(--mono-font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.provider-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.provider-active-badge {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #e8e8e8;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.provider-chevron {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background-color: #555555;
+  transition: background-color 0.15s ease;
+  pointer-events: none;
+}
+
+.provider-card:hover .provider-chevron {
+  background-color: #e0e0e0;
+}
+
+/* Provider Setup View */
+.models-setup-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.models-setup-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-models-back {
+  width: 60px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #888888;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-models-back:hover {
+  background-color: #242424;
+  color: #e0e0e0;
+}
+
+.btn-models-back .ui-icon {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: currentColor;
+  pointer-events: none;
+}
+
+.models-setup-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e8e8e8;
+}
+
+/* Setup Form Input Elements */
+.models-input {
+  width: 260px;
+  height: 30px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.models-input:focus {
+  background-color: #141414;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Discovered Models Tag Box */
+.models-box-wrapper {
+  width: 260px;
+  height: 140px;
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 4px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-tag-item {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.model-tag-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.model-tag-item.selected {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.model-tag-radio {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: 1px solid #555555;
+}
+
+.model-tag-item.selected .model-tag-radio {
+  background-color: var(--accent-blue, #007acc);
+  border-color: var(--accent-blue, #007acc);
+}
+
+.model-tag-name {
+  font-family: var(--mono-font-family);
+  font-size: 10.5px;
+  color: #cccccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-tag-item.selected .model-tag-name {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.models-empty-box {
+  padding: 16px 8px;
+  font-size: 10.5px;
+  color: var(--text-muted, #737373);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Action Button Row */
+.models-setup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-models-reload {
+  width: 70px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #888888;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-models-reload:hover {
+  background-color: #242424;
+  color: #e0e0e0;
+}
+
+.btn-models-save {
+  width: 130px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e8e8e8;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-models-save:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Provider Full Color Icons */
+.icon-provider-openai { background-image: url('../../../assets/icons/settings/provider-openai.svg'); }
+.icon-provider-anthropic { background-image: url('../../../assets/icons/settings/provider-anthropic.svg'); }
+.icon-provider-google { background-image: url('../../../assets/icons/settings/provider-google.svg'); }
+.icon-provider-groq { background-image: url('../../../assets/icons/settings/provider-groq.svg'); }
+.icon-provider-openrouter { background-image: url('../../../assets/icons/settings/provider-openrouter.svg'); }
+.icon-provider-deepseek { background-image: url('../../../assets/icons/settings/provider-deepseek.svg'); }
+.icon-provider-moonshot { background-image: url('../../../assets/icons/settings/provider-moonshot.svg'); }
+.icon-provider-mistral { background-image: url('../../../assets/icons/settings/provider-mistral.svg'); }
+.icon-provider-huggingface { background-image: url('../../../assets/icons/settings/provider-huggingface.svg'); }
+.icon-provider-ollama { background-image: url('../../../assets/icons/settings/provider-ollama.svg'); }
+.icon-provider-qwen { background-image: url('../../../assets/icons/settings/provider-qwen.svg'); }
+.icon-provider-nvidia { background-image: url('../../../assets/icons/settings/provider-nvidia.svg'); }
+.icon-provider-custom { background-image: url('../../../assets/icons/settings/provider-custom.svg'); }
+.icon-chevron-right { -webkit-mask-image: url('../../../assets/icons/settings/chevron-right.svg'); mask-image: url('../../../assets/icons/settings/chevron-right.svg'); }
+.icon-chevron-left { -webkit-mask-image: url('../../../assets/icons/settings/chevron-left.svg'); mask-image: url('../../../assets/icons/settings/chevron-left.svg'); }
+.icon-chevron-down { -webkit-mask-image: url('../../../assets/icons/settings/chevron-down.svg'); mask-image: url('../../../assets/icons/settings/chevron-down.svg'); }

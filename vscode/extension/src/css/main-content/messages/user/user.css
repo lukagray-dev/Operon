@@ -1,0 +1,176 @@
+/* User Message Styling */
+@import '../../../shared/tokens.css';
+
+.user-message-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.user-message-bubble {
+  max-width: 80%;
+  background-color: #242424;
+  border: 1px solid #333333;
+  border-radius: 12px 12px 3px 12px;
+  padding: 10px 14px;
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.user-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.user-message-row:hover .user-message-actions {
+  opacity: 1;
+}
+
+.user-action-btn {
+  height: 22px;
+  width: 22px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.user-action-btn:hover {
+  background-color: var(--dropdown-surface-hover, #2b2b2b);
+  color: var(--text-primary);
+}
+
+.user-action-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* User Message Icons */
+.icon-msg-copy {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/user/copy.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/user/copy.svg');
+}
+
+.icon-msg-check {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/user/check.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/user/check.svg');
+}
+
+.icon-msg-edit {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/user/edit.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/user/edit.svg');
+}
+
+/* User Message Inline Edit Container */
+.user-edit-container {
+  width: 100%;
+  max-width: 80%;
+  background-color: var(--sidebar-background, #121212);
+  border: 1px solid #333333;
+  border-radius: 12px 12px 3px 12px;
+  padding: 10px 12px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+  animation: userEditFadeIn 0.12s ease-out;
+}
+
+@keyframes userEditFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-edit-container:focus-within {
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+.user-edit-textarea {
+  width: 100%;
+  min-height: 38px;
+  max-height: 300px;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text-primary);
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.user-edit-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.user-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.user-edit-btn {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease, opacity 0.12s ease, border-color 0.12s ease;
+}
+
+.btn-user-edit-cancel {
+  background-color: transparent;
+  border: 1px solid #333333;
+  color: var(--text-secondary);
+}
+
+.btn-user-edit-cancel:hover {
+  background-color: var(--surface-hover, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+  border-color: #444444;
+}
+
+.btn-user-edit-save {
+  background-color: #ffffff;
+  border: 1px solid #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+.btn-user-edit-save:hover {
+  opacity: 0.88;
+}

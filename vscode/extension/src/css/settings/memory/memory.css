@@ -1,0 +1,427 @@
+/**
+ * Memory Settings Panel Styles
+ *
+ * Modelled after the reference design:
+ *   - Full-height flex column layout (list scrolls, add-input pinned at bottom)
+ *   - Individual dark card per memory item (not rows inside one card)
+ *   - Slim auto-growing textarea per card for inline editing
+ *   - Save button activates (highlights) only when content has changed
+ *   - Toolbar: search input + icon refresh button at the top
+ *   - Add-input: single slim textarea + plus icon button pinned below the list
+ *
+ * All color values use existing app design tokens from tokens.css.
+ */
+
+/* ── Memory-specific tokens ────────────────────────────────────────────────── */
+
+:root {
+  --mem-card-bg:          #0d0d0d;
+  --mem-card-border:      rgba(255, 255, 255, 0.06);
+  --mem-card-border-h:    rgba(255, 255, 255, 0.10);
+  --mem-input-bg:         #050505;
+  --mem-input-border:     rgba(255, 255, 255, 0.05);
+  --mem-input-border-f:   rgba(255, 255, 255, 0.15);
+  --mem-meta-color:       #666666;
+  --mem-time-color:       #444444;
+}
+
+/* ── Panel layout — fill the content viewport vertically ───────────────────── */
+
+/*
+ * The panel itself must stretch to fill the available height so the list
+ * can scroll and the add-input stays pinned at the very bottom.
+ * `.settings-content-viewport` already has `overflow-y: auto`; we suppress
+ * it only while the Memory tab is active.
+ */
+.settings-content-viewport:has(.mem-panel.active) {
+  overflow-y: hidden;
+}
+
+.mem-panel.active {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  max-width: 100%; /* override the 740px clamp for this panel */
+}
+
+/* Host element — owns the scroll+list+add-input region */
+.mem-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Inner container (rendered dynamically by memory.ts) ───────────────────── */
+
+.mem-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  gap: 10px;
+  min-height: 0;
+}
+
+/* ── Toolbar: search + refresh ─────────────────────────────────────────────── */
+
+.mem-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Search pill */
+.mem-search-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 360px;
+  height: 30px;
+  background: var(--mem-input-bg);
+  border: 1px solid var(--mem-card-border);
+  border-radius: 6px;
+  padding: 0 8px;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.mem-search-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  background-color: var(--text-muted);
+  -webkit-mask-image: url('../../assets/icons/settings/search.svg');
+  mask-image: url('../../assets/icons/settings/search.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  opacity: 0.45;
+}
+
+.mem-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-family);
+  padding: 0;
+  height: 100%;
+}
+
+.mem-search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.mem-search-clear {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity 120ms;
+  flex-shrink: 0;
+}
+
+.mem-search-clear:hover { opacity: 1; }
+
+/* Refresh icon button */
+.mem-refresh-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mem-input-bg);
+  border: 1px solid var(--mem-card-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.mem-refresh-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--mem-card-border-h);
+  color: var(--text-secondary);
+}
+
+.mem-refresh-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Scrollable memory list ────────────────────────────────────────────────── */
+
+.mem-list-wrap {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding-right: 3px; /* offset scrollbar */
+}
+
+/* Custom scrollbar (matches app scrollbar.css pattern) */
+.mem-list-wrap::-webkit-scrollbar        { width: 4px; }
+.mem-list-wrap::-webkit-scrollbar-track  { background: transparent; }
+.mem-list-wrap::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 2px; }
+.mem-list-wrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
+
+/* ── Empty / loading state ─────────────────────────────────────────────────── */
+
+.mem-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Spinner (re-uses existing .model-selector__spinner keyframe if present) */
+.mem-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.08);
+  border-top-color: rgba(255,255,255,0.35);
+  border-radius: 50%;
+  animation: mem-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes mem-spin { to { transform: rotate(360deg); } }
+
+/* ── Individual memory card ────────────────────────────────────────────────── */
+
+.mem-card {
+  background: var(--mem-card-bg);
+  border: 1px solid var(--mem-card-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+  transition: border-color 150ms;
+}
+
+.mem-card:hover {
+  border-color: var(--mem-card-border-h);
+}
+
+/* Card header: ID + timestamp left, Save + Delete right */
+.mem-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 22px;
+}
+
+.mem-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mem-card-id {
+  font-size: 11px;
+  color: var(--mem-meta-color);
+  font-family: var(--mono-font-family);
+  font-weight: 600;
+}
+
+.mem-card-time {
+  font-size: 11px;
+  color: var(--mem-time-color);
+}
+
+.mem-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Save button — disabled and dim by default; glows when edits exist */
+.mem-btn-save {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-family);
+  padding: 3px 10px;
+  height: 22px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms, box-shadow 120ms;
+}
+
+.mem-btn-save:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Activates when the textarea has unsaved changes */
+.mem-btn-save.is-dirty {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.22);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(255,255,255,0.05);
+}
+
+.mem-btn-save.is-dirty:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+/* Delete icon button */
+.mem-btn-delete {
+  width: 26px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.mem-btn-delete:hover {
+  background: var(--danger-red-surface-hover);
+  border-color: transparent;
+  color: var(--danger-red-hover);
+}
+
+/* ── Card body: inline auto-grow textarea ──────────────────────────────────── */
+
+.mem-card-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--mem-input-bg);
+  border: 1px solid var(--mem-input-border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-family: var(--font-family);
+  line-height: 1.45;
+  /* Slim default (1 line), grows up to 3 lines via JS */
+  height: 26px;
+  max-height: 72px;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+  transition: border-color 150ms;
+}
+
+.mem-card-textarea:focus {
+  border-color: var(--mem-input-focus-border, rgba(255,255,255,0.15));
+}
+
+.mem-card-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Tags chip row (below the textarea) ────────────────────────────────────── */
+
+.mem-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.mem-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 122, 204, 0.12);
+  color: #5aabf5;
+  border: 1px solid rgba(0, 122, 204, 0.20);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  letter-spacing: 0.01em;
+}
+
+/* ── Add-input strip — pinned at the bottom ────────────────────────────────── */
+
+.mem-add-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--mem-card-border);
+}
+
+/* Slim textarea, same style as card textarea */
+.mem-add-textarea {
+  flex: 1;
+  background: var(--mem-input-bg);
+  border: 1px solid var(--mem-input-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-family: var(--font-family);
+  line-height: 1.45;
+  height: 26px;
+  max-height: 72px;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+  transition: border-color 150ms;
+}
+
+.mem-add-textarea:focus {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.mem-add-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.mem-add-textarea:disabled { opacity: 0.4; }
+
+/* Plus / submit icon button */
+.mem-add-btn {
+  width: 30px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-blue);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 120ms;
+}
+
+.mem-add-btn:hover   { opacity: 0.85; }
+.mem-add-btn:active  { opacity: 0.70; }
+.mem-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }

@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operon Settings</title>
+  <link rel="stylesheet" href="css/shared/global.css" />
+  <link rel="stylesheet" href="css/shared/tokens.css" />
+  <link rel="stylesheet" href="css/shared/scrollbar.css" />
+  <link rel="stylesheet" href="css/settings/settings.css" />
+</head>
+
+<body>
+  <div id="settings-app" class="settings-app-container">
+    <!-- Main Content Area: Left Tab Sidebar + Right Panels -->
+    <main class="settings-main-viewport">
+      <!-- Left Navigation Sidebar -->
+      <aside id="settings-sidebar" class="settings-sidebar">
+        <!-- Search Filter Container -->
+        <div class="settings-search-container">
+          <span class="settings-search-icon"></span>
+          <input
+            id="settings-search-input"
+            class="settings-search-input"
+            type="text"
+            placeholder="Search settings..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="btn-settings-search-clear" class="settings-search-clear-btn" title="Clear Search">✕</button>
+        </div>
+
+        <!-- Scrollable Category Items List (Rendered dynamically by sidebar.ts) -->
+        <div id="settings-categories-list" class="settings-categories-list"></div>
+      </aside>
+
+      <!-- Right Content Viewport -->
+      <section class="settings-content-viewport">
+        <!-- 1. GENERAL TAB PANEL (1:1 with Slint general.slint) -->
+        <div class="settings-panel-view active" data-tab="general">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-general settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">General Settings</h1>
+              <p class="settings-header-desc">Configure application launch behavior, window controls, and system defaults.</p>
+            </div>
+          </div>
+
+          <!-- Section 1: System Startup & Window Behavior -->
+          <div class="settings-card">
+            <div class="settings-card-header">System & Window Behavior</div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Launch on Startup -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Launch on System Startup</div>
+                <div class="settings-row-desc">Automatically launch Operon when logging into your computer</div>
+              </div>
+              <div id="toggle-gen-autostart" class="toggle-switch" role="switch" aria-checked="false"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Minimize to System Tray -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Minimize to System Tray</div>
+                <div class="settings-row-desc">Keep Operon accessible from the system notification area</div>
+              </div>
+              <div id="toggle-gen-tray" class="toggle-switch" role="switch" aria-checked="false"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Start Minimized -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Start Minimized</div>
+                <div class="settings-row-desc">Launch Operon hidden in the system tray on startup</div>
+              </div>
+              <div id="toggle-gen-start-min" class="toggle-switch" role="switch" aria-checked="false"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Close Button Action -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Close Button Action</div>
+                <div class="settings-row-desc">Define behavior when clicking window close button</div>
+              </div>
+              <div class="segmented-choice">
+                <button class="segmented-choice-btn seg-choice-close-action active" data-index="0">Exit App</button>
+                <button class="segmented-choice-btn seg-choice-close-action" data-index="1">Minimize to Tray</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Session & Chat Defaults -->
+          <div class="settings-card">
+            <div class="settings-card-header">Session & Chat Defaults</div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Global Auto-Approve -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Global Auto-Approve by Default</div>
+                <div class="settings-row-desc">Automatically execute shell commands and file operations without prompt</div>
+              </div>
+              <div id="toggle-gen-auto-approve" class="toggle-switch" role="switch" aria-checked="false"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Auto-Scroll Stream -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Auto-Scroll Stream Responses</div>
+                <div class="settings-row-desc">Smoothly follow active agent tokens and code generations as they stream</div>
+              </div>
+              <div id="toggle-gen-auto-scroll" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Notify on Permission Request -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Desktop Notification on Permission Request</div>
+                <div class="settings-row-desc">Send a system notification when an agent action requires manual user confirmation</div>
+              </div>
+              <div id="toggle-gen-notify-perm" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Notify on Response Complete -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Desktop Notification on Response Complete</div>
+                <div class="settings-row-desc">Send a system notification when long-running agent responses and tool turns finish</div>
+              </div>
+              <div id="toggle-gen-notify-complete" class="toggle-switch" role="switch" aria-checked="false"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Auto-Collapse Reasoning & Tools -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Auto-Collapse Reasoning & Tool Cards</div>
+                <div class="settings-row-desc">Automatically collapse extended thinking blocks and tool execution cards in session chat</div>
+              </div>
+              <div id="toggle-gen-auto-collapse" class="toggle-switch" role="switch" aria-checked="false"></div>
+            </div>
+          </div>
+
+          <!-- Section 3: Updates & Diagnostics -->
+          <div class="settings-card">
+            <div class="settings-card-header">Updates & Diagnostics</div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Auto Update Checks -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Automatic Update Checks</div>
+                <div class="settings-row-desc">Check GitHub releases for new Operon versions and security updates on startup</div>
+              </div>
+              <div id="toggle-gen-auto-update" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Telemetry & Diagnostics -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Anonymous Error Diagnostics</div>
+                <div class="settings-row-desc">Send anonymized crash stack traces and diagnostic logs to help improve system stability</div>
+              </div>
+              <div id="toggle-gen-telemetry" class="toggle-switch" role="switch" aria-checked="false"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. APPEARANCE TAB PANEL (1:1 with Slint appearance.slint) -->
+        <div class="settings-panel-view" data-tab="appearance">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-appearance settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">Appearance</h1>
+              <p class="settings-header-desc">Customize visual themes, syntax palettes, UI density, thinking orbs, and typography.</p>
+            </div>
+          </div>
+
+          <!-- Section 1: Code Blocks & Tables Appearance -->
+          <div class="settings-card">
+            <div class="settings-card-header">Code Block Appearance</div>
+            <div class="settings-card-divider"></div>
+
+            <div class="theme-grid" id="code-theme-grid">
+              <!-- GitHub Dark -->
+              <div class="theme-preview-card selected" data-type="code" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">GitHub Dark</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-code-preview" style="background-color: #161b22; border: 1px solid #30363d;">
+                  <div><span class="kw">fn</span> <span class="fn">main</span>() {</div>
+                  <div>  <span class="fn">println!</span>(<span class="str">"Operon"</span>);</div>
+                  <div>}</div>
+                </div>
+              </div>
+
+              <!-- Midnight OLED -->
+              <div class="theme-preview-card" data-type="code" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Midnight OLED</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-code-preview" style="background-color: #000000; border: 1px solid #242424;">
+                  <div><span class="kw">let</span> s = <span class="fn">new</span>();</div>
+                  <div><span class="kw">await</span> s.<span class="fn">run</span>();</div>
+                  <div><span class="kw">return</span>;</div>
+                </div>
+              </div>
+
+              <!-- Tokyo Night -->
+              <div class="theme-preview-card" data-type="code" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Tokyo Night</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-code-preview" style="background-color: #1a1b26; border: 1px solid #292e42;">
+                  <div><span class="kw">import</span> { app }</div>
+                  <div>app.<span class="fn">listen</span>();</div>
+                  <div><span class="kw">done</span>();</div>
+                </div>
+              </div>
+
+              <!-- Monokai Matrix -->
+              <div class="theme-preview-card" data-type="code" data-index="3">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Monokai Matrix</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-code-preview" style="background-color: #1e1f1c; border: 1px solid #34352f;">
+                  <div><span class="kw">const</span> c = <span class="fn">load</span>();</div>
+                  <div>c.<span class="fn">start</span>();</div>
+                  <div><span class="kw">export</span> c;</div>
+                </div>
+              </div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Show Line Numbers in Code -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Show Line Numbers in Code</div>
+                <div class="settings-row-desc">Display non-selectable line numbers gutter inside code blocks</div>
+              </div>
+              <div id="toggle-app-line-numbers" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Highlight Inline-code -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Highlight Inline-code</div>
+                <div class="settings-row-desc">Apply syntax tokenization and tinted pill styling to inline code spans</div>
+              </div>
+              <div id="toggle-app-inline-code" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Tables Appearance Header & Cards -->
+            <div class="settings-row-title" style="margin-top: 4px; margin-bottom: 8px;">Tables Appearance</div>
+            <div class="theme-grid" id="table-theme-grid">
+              <!-- GitHub Dark -->
+              <div class="theme-preview-card selected" data-type="table" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">GitHub Dark</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-table-preview">
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell head">Key</span>
+                    <span class="theme-table-cell head">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell">id</span>
+                    <span class="theme-table-cell">string</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Modern Minimal -->
+              <div class="theme-preview-card" data-type="table" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Modern Minimal</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-table-preview" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+                  <div class="theme-table-row" style="border-bottom: 1.5px solid #60c5ff;">
+                    <span class="theme-table-cell head" style="background: transparent; color: #60c5ff;">Key</span>
+                    <span class="theme-table-cell head" style="background: transparent; color: #60c5ff;">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell" style="background: transparent;">id</span>
+                    <span class="theme-table-cell" style="background: transparent;">string</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Zebra Striped -->
+              <div class="theme-preview-card" data-type="table" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Zebra Striped</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-table-preview">
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell head" style="background-color: #222222;">Key</span>
+                    <span class="theme-table-cell head" style="background-color: #222222;">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell" style="background-color: #141414;">id</span>
+                    <span class="theme-table-cell" style="background-color: #141414;">string</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Boxed Grid -->
+              <div class="theme-preview-card" data-type="table" data-index="3">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Boxed Grid</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="theme-table-preview" style="border: 1px solid #333333;">
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell head" style="background-color: #252525; border: 1px solid #383838;">Key</span>
+                    <span class="theme-table-cell head" style="background-color: #252525; border: 1px solid #383838;">Type</span>
+                  </div>
+                  <div class="theme-table-row">
+                    <span class="theme-table-cell" style="background-color: #171717; border: 1px solid #333333;">id</span>
+                    <span class="theme-table-cell" style="background-color: #171717; border: 1px solid #333333;">string</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Thinking & Reasoning Orb -->
+          <div class="settings-card">
+            <div class="settings-card-header">Thinking & Reasoning Orb</div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Live Thinking Orb Selection Cards (4 Cards) -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div class="settings-row-title">Orb Animation Style</div>
+              <div class="settings-row-desc">Select the dynamic particle orb animation displayed while the agent is reasoning</div>
+              <div class="orb-grid" style="margin-top: 6px;">
+                <!-- Orb 0: Composing -->
+                <div class="orb-selection-card selected" data-index="0">
+                  <canvas id="canvas-orb-composing" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Composing</div>
+                  <div class="orb-card-subtitle">Undulating Ribbon</div>
+                </div>
+
+                <!-- Orb 1: Shaping -->
+                <div class="orb-selection-card" data-index="1">
+                  <canvas id="canvas-orb-shaping" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Shaping</div>
+                  <div class="orb-card-subtitle">Morphing Geometry</div>
+                </div>
+
+                <!-- Orb 2: Working -->
+                <div class="orb-selection-card" data-index="2">
+                  <canvas id="canvas-orb-working" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Working</div>
+                  <div class="orb-card-subtitle">Planetary Orbits</div>
+                </div>
+
+                <!-- Orb 3: Connecting -->
+                <div class="orb-selection-card" data-index="3">
+                  <canvas id="canvas-orb-connecting" class="orb-preview-canvas" width="64" height="64"></canvas>
+                  <div class="orb-card-title">Connecting</div>
+                  <div class="orb-card-subtitle">Neural Web</div>
+                </div>
+              </div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Orb Animation Speed -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Orb Animation Speed</div>
+                <div class="settings-row-desc">Tune the particle velocity and orbit rotation speed</div>
+              </div>
+              <div class="segmented-choice" style="width: 270px;">
+                <button class="segmented-choice-btn seg-choice-orb-speed" data-index="0">1.5x Normal</button>
+                <button class="segmented-choice-btn seg-choice-orb-speed active" data-index="1">3.0x Fast</button>
+                <button class="segmented-choice-btn seg-choice-orb-speed" data-index="2">4.5x Rapid</button>
+              </div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Live Orb in Workgroups Toggle -->
+            <div class="settings-row">
+              <div class="settings-row-text">
+                <div class="settings-row-title">Show Live Orb in Workgroups</div>
+                <div class="settings-row-desc">Display active 60 FPS particle animation while the agent is executing tools and reasoning</div>
+              </div>
+              <div id="toggle-app-live-orb" class="toggle-switch checked" role="switch" aria-checked="true"></div>
+            </div>
+          </div>
+
+          <!-- Section 3: Typography -->
+          <div class="settings-card">
+            <div class="settings-card-header">Typography</div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Primary Interface Font -->
+            <div class="settings-row-title" style="margin-bottom: 8px;">Primary Interface Font</div>
+            <div class="theme-grid font-preview-grid" id="ui-font-grid">
+              <!-- Open Sans -->
+              <div class="font-preview-card selected" data-type="ui-font" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Open Sans</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Open Sans', sans-serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">System Navigation & Labels</div>
+                </div>
+              </div>
+
+              <!-- Inter -->
+              <div class="font-preview-card" data-type="ui-font" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Inter</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Inter', sans-serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Modern Interface Sans</div>
+                </div>
+              </div>
+
+              <!-- Roboto -->
+              <div class="font-preview-card" data-type="ui-font" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Roboto</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Roboto', sans-serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Geometric Clean Sans</div>
+                </div>
+              </div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Assistant Response Font -->
+            <div class="settings-row-title" style="margin-top: 4px; margin-bottom: 8px;">Assistant Response Font</div>
+            <div class="theme-grid font-preview-grid" id="assistant-font-grid">
+              <!-- Literata -->
+              <div class="font-preview-card selected" data-type="assistant-font" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Literata</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Literata', Georgia, serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Editorial Assistant Prose</div>
+                </div>
+              </div>
+
+              <!-- Lora -->
+              <div class="font-preview-card" data-type="assistant-font" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Lora</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Lora', Georgia, serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Contemporary Reading Serif</div>
+                </div>
+              </div>
+
+              <!-- Merriweather -->
+              <div class="font-preview-card" data-type="assistant-font" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Merriweather</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Merriweather', Georgia, serif;">
+                  <div class="font-sample-headline">Aa Bb 123</div>
+                  <div class="font-sample-desc">Screen-Optimized Serif</div>
+                </div>
+              </div>
+            </div>
+            <div class="settings-card-divider"></div>
+
+            <!-- Monospace Code Font -->
+            <div class="settings-row-title" style="margin-top: 4px; margin-bottom: 8px;">Monospace Code Font</div>
+            <div class="theme-grid font-preview-grid" id="code-font-grid">
+              <!-- Kode Mono -->
+              <div class="font-preview-card selected" data-type="code-font" data-index="0">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Kode Mono</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Kode Mono', monospace;">
+                  <div class="font-sample-headline">0x7F fn()</div>
+                  <div class="font-sample-desc">Default Monospace</div>
+                </div>
+              </div>
+
+              <!-- JetBrains Mono -->
+              <div class="font-preview-card" data-type="code-font" data-index="1">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">JetBrains Mono</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'JetBrains Mono', monospace;">
+                  <div class="font-sample-headline">0x7F fn()</div>
+                  <div class="font-sample-desc">Developer Monospace</div>
+                </div>
+              </div>
+
+              <!-- Fira Code -->
+              <div class="font-preview-card" data-type="code-font" data-index="2">
+                <div class="theme-card-header">
+                  <span class="theme-card-title">Fira Code</span>
+                  <div class="theme-card-badge"></div>
+                </div>
+                <div class="font-card-sample" style="font-family: 'Fira Code', monospace;">
+                  <div class="font-sample-headline">0x7F fn()</div>
+                  <div class="font-sample-desc">Geometric Monospace</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. MODELS & PROVIDERS TAB PANEL (1:1 with Slint models.slint) -->
+        <div class="settings-panel-view" data-tab="models">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-models settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">Models Settings</h1>
+              <p id="models-header-subtitle" class="settings-header-desc">Configure AI models, API keys, endpoints, and provider preferences.</p>
+            </div>
+          </div>
+
+          <!-- View 0: Providers List View -->
+          <div id="models-view-list" class="models-view-container">
+            <div id="models-providers-container" class="models-providers-list"></div>
+          </div>
+
+          <!-- View 1: Provider Setup Form View -->
+          <div id="models-view-setup" class="models-view-container models-setup-view hidden">
+            <!-- Back Navigation Bar -->
+            <div class="models-setup-nav-bar">
+              <button id="btn-models-back" class="btn-models-back">
+                <span class="ui-icon icon-chevron-left"></span>
+                <span>Back</span>
+              </button>
+              <span id="models-setup-header-title" class="models-setup-title">Provider Setup</span>
+            </div>
+
+            <!-- Setup Form Card -->
+            <div class="settings-card">
+              <!-- API Base URL Row -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">API Base URL</div>
+                  <div class="settings-row-desc">Endpoint URL for the provider API</div>
+                </div>
+                <input
+                  id="input-models-base-url"
+                  class="models-input"
+                  type="text"
+                  placeholder="https://api.openai.com/v1"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- API Key Row -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">API Key</div>
+                  <div class="settings-row-desc">API credentials for the provider</div>
+                </div>
+                <input
+                  id="input-models-api-key"
+                  class="models-input"
+                  type="password"
+                  placeholder="sk-proj-xxxxxxxxxxxxxxxx"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Discovered Models Row -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Models</div>
+                  <div class="settings-row-desc">Select the active model to use</div>
+                </div>
+                <div id="models-discovered-list" class="models-box-wrapper"></div>
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Action Buttons -->
+              <div class="models-setup-actions">
+                <button id="btn-models-reload" class="btn-models-reload">Reload</button>
+                <button id="btn-models-save" class="btn-models-save">Save & Activate</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. PERMISSIONS TAB PANEL (1:1 with Slint permissions.slint) -->
+        <div class="settings-panel-view" data-tab="permissions">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-permissions settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">Permissions Settings</h1>
+              <p class="settings-header-desc">Manage security boundaries, allowed directory paths, and tool execution policies.</p>
+            </div>
+          </div>
+
+          <!-- Main Tabs Container (Allowed Directories vs Global Permissions) -->
+          <div id="perm-main-tabs-container" class="perm-view-section">
+            <div class="perm-tab-bar" style="margin-bottom: 12px;">
+              <button class="perm-tab-btn seg-choice-perm-tab active" data-index="0">Allowed Directories</button>
+              <button class="perm-tab-btn seg-choice-perm-tab" data-index="1">Global Permissions</button>
+            </div>
+          </div>
+
+          <!-- Tab View 0: Allowed Directories List -->
+          <div id="perm-view-allowed-dirs" class="perm-view-section">
+            <div class="settings-card">
+              <div class="settings-card-header">Allowed Directories</div>
+              <div class="settings-card-divider"></div>
+              <div id="perm-directories-container" class="perm-directories-list"></div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Add Directory Row -->
+              <div class="perm-add-dir-card">
+                <input
+                  id="input-perm-new-dir"
+                  class="perm-add-dir-input"
+                  type="text"
+                  placeholder="Enter folder path (e.g. /home/user/projects or C:\Projects)..."
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button id="btn-perm-browse-dir" class="btn-perm-browse" title="Browse folder">
+                  <span class="ui-icon icon-perm-directory"></span>
+                </button>
+                <button id="btn-perm-add-dir" class="btn-perm-add" title="Add Directory">
+                  <span class="ui-icon"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab View 1: Global Permissions Grid -->
+          <div id="perm-view-global-perms" class="perm-view-section hidden">
+            <div class="settings-card">
+              <div class="perm-scope-row">
+                <div class="perm-scope-bar">
+                  <button class="perm-scope-btn seg-choice-perm-scope active" data-index="0">Owner</button>
+                  <button class="perm-scope-btn seg-choice-perm-scope" data-index="1">External</button>
+                </div>
+                <span class="perm-scope-info-label">Global • Owner scope</span>
+              </div>
+              <div class="settings-card-divider"></div>
+              <div id="perm-global-items-container" class="perm-items-list"></div>
+            </div>
+          </div>
+
+          <!-- Directory Configuration View (Sub-view when configuring a directory) -->
+          <div id="perm-view-dir-config" class="perm-view-section hidden">
+            <div class="perm-dir-nav-bar">
+              <button id="btn-perm-dir-back" class="btn-perm-dir-back">
+                <span class="ui-icon icon-chevron-left"></span>
+                <span>Back</span>
+              </button>
+              <span id="perm-dir-config-path-title" class="perm-dir-title">Directory: </span>
+            </div>
+
+            <div class="settings-card" style="margin-top: 8px;">
+              <div class="perm-scope-row">
+                <div class="perm-scope-bar">
+                  <button class="perm-scope-btn seg-choice-perm-scope active" data-index="0">Owner</button>
+                  <button class="perm-scope-btn seg-choice-perm-scope" data-index="1">External</button>
+                </div>
+                <span class="perm-scope-info-label">Directory • Owner scope</span>
+              </div>
+              <div class="settings-card-divider"></div>
+              <div id="perm-dir-items-container" class="perm-items-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. CHANNELS TAB PANEL (1:1 with Slint channels.slint) -->
+        <div class="settings-panel-view" data-tab="channels">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-channels settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">Channels Settings</h1>
+              <p id="channels-header-subtitle" class="settings-header-desc">Set up messaging channel integrations such as WhatsApp, Telegram, or Discord.</p>
+            </div>
+          </div>
+
+          <!-- View 0: Channels List View -->
+          <div id="channels-view-list" class="channels-view-section">
+            <div id="channels-cards-container" class="channels-cards-list"></div>
+          </div>
+
+          <!-- View 1: WhatsApp Setup View -->
+          <div id="channels-view-whatsapp" class="channels-view-section hidden">
+            <div class="channel-setup-nav-bar">
+              <button id="btn-wa-back" class="btn-channel-back">
+                <span class="ui-icon icon-chevron-left"></span>
+                <span>Back</span>
+              </button>
+              <span id="wa-status-badge" class="channel-form-status-badge">Disconnected</span>
+            </div>
+
+            <div class="settings-card" style="margin-top: 8px;">
+              <div class="settings-card-header">WhatsApp Configuration</div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Owner Mobile Number -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Owner Mobile Number</div>
+                  <div class="settings-row-desc">Phone number granted Owner permissions (e.g. +1234567890)</div>
+                </div>
+                <input
+                  id="input-wa-owner-number"
+                  class="channel-input"
+                  type="text"
+                  placeholder="+1234567890"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Workspace Directory -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Workspace Directory</div>
+                  <div class="settings-row-desc">Custom directory where WhatsApp agent session operations run</div>
+                </div>
+                <div class="channel-workspace-row">
+                  <div class="channel-workspace-input-group">
+                    <input
+                      id="input-wa-workspace-dir"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="~/.operon/workspace"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-wa-browse-workspace" class="btn-channel-browse">Browse...</button>
+                  </div>
+                  <span id="wa-policy-badge" class="channel-policy-badge covered">✓ Policy Covered</span>
+                </div>
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Allowlist Mobile Numbers -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Allowlist Mobile Numbers</div>
+                  <div class="settings-row-desc">Additional phone numbers granted Owner permissions</div>
+                </div>
+                <div class="channel-allowlist-card">
+                  <div class="channel-allowlist-input-row">
+                    <input
+                      id="input-wa-new-allowlist"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="+1987654321"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-wa-add-allowlist" class="btn-channel-add-allowlist">Add</button>
+                  </div>
+                  <div id="wa-allowlist-container" class="channel-allowlist-box"></div>
+                </div>
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Action Buttons -->
+              <div class="channel-setup-actions">
+                <button id="btn-wa-scan-qr" class="btn-channel-secondary">Scan QR Code</button>
+                <button id="btn-wa-pair-code" class="btn-channel-secondary">Pairing Code</button>
+                <button id="btn-wa-save" class="btn-channel-save">Save & Connect</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- View 2: Telegram Setup View -->
+          <div id="channels-view-telegram" class="channels-view-section hidden">
+            <div class="channel-setup-nav-bar">
+              <button id="btn-tg-back" class="btn-channel-back">
+                <span class="ui-icon icon-chevron-left"></span>
+                <span>Back</span>
+              </button>
+              <span id="tg-status-badge" class="channel-form-status-badge">Disconnected</span>
+            </div>
+
+            <div class="settings-card" style="margin-top: 8px;">
+              <div class="settings-card-header">Telegram Bot Configuration</div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Bot Token -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Telegram Bot Token</div>
+                  <div class="settings-row-desc">Token obtained from @BotFather</div>
+                </div>
+                <input
+                  id="input-tg-bot-token"
+                  class="channel-input"
+                  type="password"
+                  placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Owner Chat ID -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Owner Chat ID</div>
+                  <div class="settings-row-desc">Your Telegram numeric user/chat ID</div>
+                </div>
+                <input
+                  id="input-tg-owner-chat-id"
+                  class="channel-input"
+                  type="text"
+                  placeholder="123456789"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Workspace Directory -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Workspace Directory</div>
+                  <div class="settings-row-desc">Custom directory where Telegram agent session operations run</div>
+                </div>
+                <div class="channel-workspace-row">
+                  <div class="channel-workspace-input-group">
+                    <input
+                      id="input-tg-workspace-dir"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="~/.operon/workspace"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-tg-browse-workspace" class="btn-channel-browse">Browse...</button>
+                  </div>
+                  <span id="tg-policy-badge" class="channel-policy-badge covered">✓ Policy Covered</span>
+                </div>
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Allowlist Chat IDs -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Allowlist Chat IDs</div>
+                  <div class="settings-row-desc">Telegram chat IDs granted Owner permissions</div>
+                </div>
+                <div class="channel-allowlist-card">
+                  <div class="channel-allowlist-input-row">
+                    <input
+                      id="input-tg-new-allowlist"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="987654321"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-tg-add-allowlist" class="btn-channel-add-allowlist">Add</button>
+                  </div>
+                  <div id="tg-allowlist-container" class="channel-allowlist-box"></div>
+                </div>
+              </div>
+
+              <!-- Status Message -->
+              <div id="tg-test-status-msg" style="font-size: 11px; font-weight: 600; color: #3498db; min-height: 16px;"></div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Action Buttons -->
+              <div class="channel-setup-actions">
+                <button id="btn-tg-test-connection" class="btn-channel-test">Test Connection</button>
+                <button id="btn-tg-save" class="btn-channel-save">Save & Connect</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. SKILLS TAB PANEL -->
+        <div class="settings-panel-view" data-tab="skills">
+          <h1 class="settings-panel-title">Skills & Capabilities</h1>
+          <div class="settings-section-card">
+            <div class="settings-section-card-title">Custom Tooling & Skills</div>
+            <div class="settings-section-card-desc">View and manage global and workspace-scoped skills.</div>
+          </div>
+        </div>
+
+        <!-- 7. EXTENSIONS TAB PANEL -->
+        <div class="settings-panel-view" data-tab="extensions">
+          <h1 class="settings-panel-title">Extensions & Plugins</h1>
+          <div class="settings-section-card">
+            <div class="settings-section-card-title">Installed Plugins</div>
+            <div class="settings-section-card-desc">Configure MCP servers, agent tools, and runtime plugins.</div>
+          </div>
+        </div>
+
+        <!-- 8. MEMORY TAB PANEL -->
+        <div class="settings-panel-view mem-panel" data-tab="memory">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-memory settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">Memory</h1>
+              <p class="settings-header-desc">Manage the agent's persistent long-term memories. View, search, edit, or delete them manually.</p>
+            </div>
+          </div>
+
+          <!-- Dynamic host: toolbar + list + add-input injected by memory.ts -->
+          <div id="memory-host" class="mem-host"></div>
+        </div>
+
+        <!-- 9. ABOUT TAB PANEL (1:1 with Slint about.slint) -->
+        <div class="settings-panel-view" data-tab="about">
+          <!-- Header Banner -->
+          <div class="settings-header-banner">
+            <span class="ui-icon icon-settings-about settings-header-icon"></span>
+            <div class="settings-header-text">
+              <h1 class="settings-header-title">About Operon</h1>
+              <p class="settings-header-desc">Agent that is built for everyone, not just for developers.</p>
+            </div>
+          </div>
+
+          <!-- Hero Branding Card -->
+          <div class="about-hero-card">
+            <img class="about-hero-logo" src="assets/brand/operon.svg" alt="Operon Logo" />
+            <div class="about-hero-title">Operon</div>
+            <div id="about-hero-version" class="about-hero-version">Version 0.1.0</div>
+          </div>
+
+          <!-- Technical Specifications Grid -->
+          <div class="about-specs-card">
+            <div class="about-spec-row">
+              <span class="about-spec-key">Version</span>
+              <span class="about-spec-divider"></span>
+              <span id="about-spec-version" class="about-spec-value">0.1.0</span>
+            </div>
+            <div class="about-spec-row">
+              <span class="about-spec-key">Platform</span>
+              <span class="about-spec-divider"></span>
+              <span id="about-spec-platform" class="about-spec-value">VS Code Extension</span>
+            </div>
+            <div class="about-spec-row">
+              <span class="about-spec-key">Architecture</span>
+              <span class="about-spec-divider"></span>
+              <span id="about-spec-arch" class="about-spec-value">x86_64</span>
+            </div>
+            <div class="about-spec-row">
+              <span class="about-spec-key">UI Toolkit</span>
+              <span class="about-spec-divider"></span>
+              <span id="about-spec-toolkit" class="about-spec-value">VS Code Webview + Vanilla TS/CSS</span>
+            </div>
+          </div>
+
+          <!-- External Links Button Row -->
+          <div class="about-links-row">
+            <button id="btn-about-github" class="about-link-btn" title="Open GitHub Repository">
+              <span class="ui-icon icon-about-github"></span>
+              <span>GitHub</span>
+            </button>
+            <button id="btn-about-docs" class="about-link-btn" title="Open Documentation">
+              <span class="ui-icon icon-about-documentation"></span>
+              <span>Documentation</span>
+            </button>
+            <button id="btn-about-issues" class="about-link-btn" title="Report an Issue">
+              <span class="ui-icon icon-about-report-issue"></span>
+              <span>Report Issue</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- WhatsApp QR Modal Popup -->
+    <div id="modal-wa-qr-popup" class="channel-modal-overlay hidden">
+      <div class="channel-modal-card">
+        <div class="channel-modal-header">
+          <span class="channel-modal-title">Scan WhatsApp QR Code</span>
+          <button id="btn-wa-qr-close-top" class="channel-modal-close-icon">✕</button>
+        </div>
+        <div class="channel-instructions-list">
+          <div>1. Open WhatsApp on your mobile phone</div>
+          <div>2. Go to <strong>Settings</strong> → <strong>Linked Devices</strong></div>
+          <div>3. Tap <strong>Link a Device</strong> and point your camera at this screen</div>
+        </div>
+        <div id="wa-qr-code-image-container" class="channel-qr-wrapper"></div>
+        <div class="channel-modal-footer">
+          <span class="channel-modal-status-text">Waiting for authorization on phone...</span>
+          <button id="btn-wa-qr-close" class="btn-channel-modal-close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- WhatsApp Pairing Code Modal Popup -->
+    <div id="modal-wa-pairing-code-popup" class="channel-modal-overlay hidden">
+      <div class="channel-modal-card">
+        <div class="channel-modal-header">
+          <span class="channel-modal-title">WhatsApp Pairing Code</span>
+          <button id="btn-wa-code-close-top" class="channel-modal-close-icon">✕</button>
+        </div>
+        <div class="channel-instructions-list">
+          <div>Enter this 8-character pairing code in WhatsApp on your primary phone:</div>
+        </div>
+        <div class="channel-pairing-code-box">
+          <span id="wa-pairing-code-display" class="channel-pairing-code-text">--------</span>
+        </div>
+        <div class="channel-instructions-list">
+          <div>1. Open WhatsApp on your primary phone</div>
+          <div>2. Tap Settings (or 3 dots) → Linked Devices → Link a Device</div>
+          <div class="channel-instructions-highlight">3. Tap 'Link with phone number instead'</div>
+          <div>4. Enter the 8-character code shown above</div>
+        </div>
+        <div class="channel-modal-footer">
+          <span class="channel-modal-status-text">Waiting for code entry on phone...</span>
+          <button id="btn-wa-code-close" class="btn-channel-modal-close">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Application Script Entrypoint -->
+  <script type="module" src="js/settings/settings.js"></script>
+</body>
+
+</html>

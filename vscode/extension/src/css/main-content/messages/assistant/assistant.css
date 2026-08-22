@@ -1,0 +1,140 @@
+/* Assistant Message Styling */
+@import '../../../shared/tokens.css';
+
+.assistant-message-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 4px;
+  position: relative;
+}
+
+.assistant-message-body {
+  font-family: var(--assistant-font-family, Literata, Georgia, serif);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  margin: 0;
+  padding: 0;
+}
+
+/* Controls Container wrapping Separator and Action Bar */
+.assistant-controls-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 6px;
+  margin-top: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-in-out;
+}
+
+.assistant-message-row:hover .assistant-controls-container,
+.assistant-controls-container.has-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Separator Line */
+.assistant-separator-line {
+  width: 100%;
+  height: 1px;
+  min-height: 1px;
+  background-color: #262626;
+  margin: 0;
+}
+
+/* Action Bar */
+.assistant-action-bar {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Operon Brand Logo */
+.assistant-brand-logo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  margin-right: 2px;
+  display: block;
+}
+
+/* Action Buttons */
+.assistant-action-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: background-color 150ms ease-in-out;
+}
+
+.assistant-action-btn:hover {
+  background-color: var(--dropdown-surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.assistant-action-btn .ui-icon {
+  width: 13px;
+  height: 13px;
+  background-color: var(--text-secondary);
+  transition: background-color 150ms ease-in-out;
+}
+
+.assistant-action-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.assistant-action-btn.active .ui-icon {
+  background-color: #ffffff;
+}
+
+/* Time Display */
+.assistant-time-text {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  margin-left: 2px;
+  display: flex;
+  align-items: center;
+}
+
+/* Assistant Action Icons */
+.icon-asst-copy {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+}
+
+.icon-asst-check {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+}
+
+.icon-asst-like {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/like.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/like.svg');
+}
+
+.icon-asst-dislike {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/dislike.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/dislike.svg');
+}
+
+.icon-asst-fork {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/fork.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/fork.svg');
+}
