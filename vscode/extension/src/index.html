@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/left-sidebar/sidebar.css" />
   <link rel="stylesheet" href="css/main-content/topbar/topbar.css" />
   <link rel="stylesheet" href="css/main-content/empty-state/empty-state.css" />
+  <link rel="stylesheet" href="css/main-content/empty-state/no-workspace.css" />
   <link rel="stylesheet" href="css/main-content/messages/messages.css" />
   <link rel="stylesheet" href="css/main-content/messages/ask-card.css" />
   <link rel="stylesheet" href="css/main-content/messages/compaction-pill.css" />
@@ -28,6 +29,26 @@
 
 <body>
   <div id="app">
+    <!-- No Workspace Disclaimer Screen -->
+    <div id="no-workspace-view" class="no-workspace-container hidden">
+      <div class="no-workspace-hero-badge">
+        <img class="no-workspace-hero-logo" src="assets/brand/operon.svg" alt="Operon Logo" />
+      </div>
+      <h2 class="no-workspace-title">No Project Folder Opened</h2>
+      <p class="no-workspace-description">
+        Operon requires an active workspace folder to manage codebase context, execute tools safely, and enforce directory permissions.
+      </p>
+      <button id="btn-open-workspace" class="btn-open-workspace">
+        <span class="ui-icon icon-sidebar-folder"></span>
+        <span>Open Folder</span>
+      </button>
+      <div class="no-workspace-tip">
+        <span>Tip: You can also use</span>
+        <kbd>Ctrl+K Ctrl+O</kbd>
+        <span>or File &gt; Open Folder</span>
+      </div>
+    </div>
+
     <!-- Dimmed Backdrop for Overlay Sidebar -->
     <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
@@ -66,34 +87,19 @@
 
       <!-- Scrollable Middle Section -->
       <div class="sidebar-scroll-content">
-        <!-- Projects Section -->
+        <!-- Active Project Conversations Section -->
         <section id="section-projects" class="sidebar-section">
           <div class="section-header" id="header-projects">
             <div class="section-header-left">
               <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
-              <span>Projects</span>
-              <span id="projects-count-badge" class="count-pill">1</span>
+              <span id="sidebar-project-title">Conversations</span>
+              <span id="projects-count-badge" class="count-pill">0</span>
             </div>
-            <button id="btn-add-project" class="section-action-btn" title="Add Project Folder">
-              <span class="ui-icon icon-sidebar-folder-input"></span>
-            </button>
-          </div>
-          <div id="projects-items-container" class="section-items"></div>
-        </section>
-
-        <!-- Standalone Chats Section -->
-        <section id="section-chats" class="sidebar-section">
-          <div class="section-header" id="header-chats">
-            <div class="section-header-left">
-              <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
-              <span>Chats</span>
-              <span id="chats-count-badge" class="count-pill">0</span>
-            </div>
-            <button id="btn-add-general-chat" class="section-action-btn" title="New General Chat">
+            <button id="btn-add-chat-header" class="section-action-btn" title="New Conversation in Project">
               <span class="ui-icon icon-sidebar-new-chat"></span>
             </button>
           </div>
-          <div id="chats-items-container" class="section-items"></div>
+          <div id="projects-items-container" class="section-items"></div>
         </section>
       </div>
 

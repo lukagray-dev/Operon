@@ -1,6 +1,25 @@
 import { setActiveSessionIpc } from './ipc.js';
 import type { SidebarConversation, SidebarData, SidebarProject } from './types.js';
 
+function normalizePath(p: string | null | undefined): string {
+  if (!p) return '';
+  let clean = p.trim();
+  if (clean.startsWith('\\\\?\\UNC\\')) {
+    clean = '\\\\' + clean.slice(8);
+  } else if (clean.startsWith('\\\\?\\')) {
+    clean = clean.slice(4);
+  }
+  return clean.replace(/[/\\]+/g, '/').toLowerCase().replace(/\/$/, '');
+}
+
+export function pathsMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+  const normA = normalizePath(a);
+  const normB = normalizePath(b);
+  if (!normA && !normB) return true;
+  if (!normA || !normB) return false;
+  return normA === normB;
+}
+
 type SidebarChangeListener = () => void;
 
 class SidebarStateManager {
@@ -17,6 +36,11 @@ class SidebarStateManager {
   private telegramCollapsed = false;
   private collapsedProjects: Set<string> = new Set();
   private listeners: Set<SidebarChangeListener> = new Set();
+
+  public getActiveProject(): SidebarProject | undefined {
+    if (!this.activeProjectPath) return undefined;
+    return this.projects.find((p) => pathsMatch(p.workspace, this.activeProjectPath));
+  }
 
   public isProjectCollapsed(workspace: string): boolean {
     return this.collapsedProjects.has(workspace);

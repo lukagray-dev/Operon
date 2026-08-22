@@ -13,15 +13,46 @@
 // 7. Global Settings Shortcuts    -> ./shared/ipc.ts
 // ============================================================================
 
-import { initSidebar } from './left-sidebar/sidebar.js';
+import { closeSidebar, initSidebar, refreshSidebarContent } from './left-sidebar/sidebar.js';
+import { sidebarState } from './left-sidebar/state.js';
 import { initEmptyState } from './main-content/empty-state/empty-state.js';
 import { initInputPanel } from './main-content/input/input.js';
 import { initMessages } from './main-content/messages/messages.js';
 import { initPermissionManager } from './main-content/permission/permission.js';
-import { initTopbar } from './main-content/topbar/topbar.js';
+import { initTopbar, refreshTopbar } from './main-content/topbar/topbar.js';
 import { todoPanelState } from './right-sidebar/state.js';
 import { refreshTodoPanel, renderTodoPanel } from './right-sidebar/todo-panel.js';
-import { invokeIpc } from './shared/ipc.js';
+import { invokeIpc, listenIpcEvent } from './shared/ipc.js';
+
+interface WorkspaceInfo {
+  hasWorkspace: boolean;
+  workspacePath: string | null;
+  workspaceName: string | null;
+}
+
+/**
+ * Toggles visibility between the "No Workspace Opened" disclaimer screen
+ * and the main interactive chat pane based on IDE workspace availability.
+ */
+function updateWorkspaceView(ws: WorkspaceInfo): void {
+  const noWorkspaceEl = document.getElementById('no-workspace-view');
+  const contentPaneEl = document.getElementById('content-pane');
+
+  if (!ws.hasWorkspace || !ws.workspacePath) {
+    console.log('[Operon Webview] No workspace folder detected in IDE. Showing disclaimer view.');
+    noWorkspaceEl?.classList.remove('hidden');
+    contentPaneEl?.classList.add('hidden');
+    closeSidebar();
+    sidebarState.setActiveProjectPath(null);
+  } else {
+    console.log(`[Operon Webview] Active workspace folder connected: ${ws.workspacePath}`);
+    noWorkspaceEl?.classList.add('hidden');
+    contentPaneEl?.classList.remove('hidden');
+    sidebarState.setActiveProjectPath(ws.workspacePath);
+    refreshTopbar().catch(() => {});
+    refreshSidebarContent().catch(() => {});
+  }
+}
 
 function initApp(): void {
   console.log('[Operon Webview] Initializing modular UI layout...');
@@ -59,7 +90,33 @@ function initApp(): void {
     });
   }
 
-  // 7. Global Settings shortcut (Ctrl+, or Cmd+,)
+  // 7. Initialize "Open Folder" button on the No Workspace disclaimer screen
+  const btnOpenWorkspace = document.getElementById('btn-open-workspace');
+  btnOpenWorkspace?.addEventListener('click', async () => {
+    try {
+      await invokeIpc('open_workspace_folder');
+    } catch (err) {
+      console.error('[Main] Failed to open workspace folder:', err);
+    }
+  });
+
+  // 8. Query initial workspace state from VS Code Extension Host
+  invokeIpc<WorkspaceInfo>('get_workspace_info')
+    .then((ws) => {
+      if (ws) {
+        updateWorkspaceView(ws);
+      }
+    })
+    .catch((err) => console.warn('[Main] Failed to get initial workspace info:', err));
+
+  // 9. Subscribe to live workspace change notifications
+  listenIpcEvent<WorkspaceInfo>('operon://workspace-changed', (ws) => {
+    if (ws) {
+      updateWorkspaceView(ws);
+    }
+  }).catch((err) => console.warn('[Main] Failed to listen to workspace changes:', err));
+
+  // 10. Global Settings shortcut (Ctrl+, or Cmd+,)
   window.addEventListener('keydown', async (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === ',') {
       e.preventDefault();

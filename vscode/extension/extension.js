@@ -218,6 +218,43 @@ class NativeBridgeClient {
 }
 
 /**
+ * Inspects VS Code workspace state and returns details of the currently open project.
+ * @returns {{ hasWorkspace: boolean, workspacePath: string | null, workspaceName: string | null }}
+ */
+function getActiveWorkspaceInfo() {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    return {
+      hasWorkspace: false,
+      workspacePath: null,
+      workspaceName: null,
+    };
+  }
+
+  const primary = folders[0];
+  return {
+    hasWorkspace: true,
+    workspacePath: primary.uri.fsPath,
+    workspaceName: primary.name,
+  };
+}
+
+/**
+ * Automatically registers the active workspace folder in Operon's allowed directories.
+ */
+async function syncActiveWorkspaceToAllowedDirectories() {
+  const wsInfo = getActiveWorkspaceInfo();
+  if (wsInfo.hasWorkspace && wsInfo.workspacePath) {
+    try {
+      await bridgeClient?.invoke('add_allowed_directory', { path: wsInfo.workspacePath });
+      outputChannel?.appendLine(`[Operon] Auto-registered project workspace in allowed directories: ${wsInfo.workspacePath}`);
+    } catch (err) {
+      outputChannel?.appendLine(`[Operon] Notice: Could not register workspace directory: ${err.message}`);
+    }
+  }
+}
+
+/**
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
@@ -226,6 +263,11 @@ function activate(context) {
 
   bridgeClient = new NativeBridgeClient(context.extensionUri);
   bridgeClient.start();
+
+  // Auto-register current workspace in allowed directories on extension activation
+  setTimeout(() => {
+    syncActiveWorkspaceToAllowedDirectories().catch(() => {});
+  }, 1000);
 
   const provider = new OperonChatViewProvider(context.extensionUri);
   chatProviderInstance = provider;
@@ -238,6 +280,20 @@ function activate(context) {
     })
   );
 
+  // Listen for workspace folder additions / removals in VS Code
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(async () => {
+      outputChannel?.appendLine('[Operon] Workspace folders changed, syncing project context...');
+      await syncActiveWorkspaceToAllowedDirectories();
+      const wsInfo = getActiveWorkspaceInfo();
+      const msg = { type: 'event', event: 'operon://workspace-changed', payload: wsInfo };
+      chatProviderInstance?.postMessage(msg);
+      if (activeSettingsPanel) {
+        activeSettingsPanel.webview.postMessage(msg);
+      }
+    })
+  );
+
   // Register commands
   context.subscriptions.push(
     vscode.commands.registerCommand('operon.openChat', () => {
@@ -245,7 +301,12 @@ function activate(context) {
     }),
 
     vscode.commands.registerCommand('operon.newSession', () => {
-      provider.postMessage({ type: 'event', event: 'new-session', payload: {} });
+      const wsInfo = getActiveWorkspaceInfo();
+      provider.postMessage({
+        type: 'event',
+        event: 'new-session',
+        payload: { workspacePath: wsInfo.workspacePath || null },
+      });
     }),
 
     vscode.commands.registerCommand('operon.cancelPrompt', () => {
@@ -391,6 +452,28 @@ async function handleUnifiedIpcInvoke(cmd, args, extensionUri) {
       });
       return uri && uri[0] ? uri[0].fsPath : null;
     }
+
+    case 'get_workspace_info':
+      return getActiveWorkspaceInfo();
+
+    case 'open_workspace_folder': {
+      const uri = await vscode.window.showOpenDialog({
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        openLabel: 'Open Folder',
+      });
+      if (uri && uri[0]) {
+        await vscode.commands.executeCommand('vscode.openFolder', uri[0], { forceNewWindow: false });
+      }
+      return null;
+    }
+
+    case 'ensure_allowed_directory':
+      if (args && args.path) {
+        return await bridgeClient?.invoke('add_allowed_directory', { path: args.path });
+      }
+      return null;
 
     case 'open_external_url':
       if (args && args.url) {

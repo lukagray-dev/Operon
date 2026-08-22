@@ -9,10 +9,46 @@ use crate::shared::AppState;
 
 /// Strips Windows UNC prefix (`\\?\`) for clean path representation.
 pub fn clean_unc_path(s: String) -> String {
-    if let Some(stripped) = s.strip_prefix(r"\\?\") {
+    if let Some(stripped) = s.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{}", stripped)
+    } else if let Some(stripped) = s.strip_prefix(r"\\?\") {
         stripped.to_string()
     } else {
         s
+    }
+}
+
+/// Normalizes a path string by removing UNC prefixes, standardizing separators, and trimming trailing slashes.
+pub fn normalize_path_str(s: &str) -> String {
+    let mut clean = s.trim().to_string();
+    if let Some(stripped) = clean.strip_prefix(r"\\?\UNC\") {
+        clean = format!(r"\\{}", stripped);
+    } else if let Some(stripped) = clean.strip_prefix(r"\\?\") {
+        clean = stripped.to_string();
+    }
+    // Standardize separators
+    let normalized = clean.replace('/', "\\");
+    let trimmed = normalized.trim_end_matches('\\');
+    trimmed.to_string()
+}
+
+/// Checks if two path strings reference the same folder (case-insensitive on Windows).
+pub fn paths_match(a: &str, b: &str) -> bool {
+    let norm_a = normalize_path_str(a);
+    let norm_b = normalize_path_str(b);
+    if norm_a.is_empty() && norm_b.is_empty() {
+        return true;
+    }
+    if norm_a.is_empty() || norm_b.is_empty() {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        norm_a.eq_ignore_ascii_case(&norm_b)
+    }
+    #[cfg(not(windows))]
+    {
+        norm_a == norm_b
     }
 }
 
@@ -53,12 +89,12 @@ pub async fn query_sidebar_data(
     };
 
     // Query configured workspace directories from config.toml
-    let mut projects_list = Vec::new();
+    let mut projects_list: Vec<String> = Vec::new();
     if let Ok(allowed_dirs) = operon_rs::get_allowed_directories_list() {
         for dir in allowed_dirs.0 {
             let cleaned = clean_unc_path(dir.clone());
-            if cleaned != default_workspace {
-                projects_list.push(dir);
+            if !paths_match(&cleaned, &default_workspace) && !projects_list.iter().any(|p| paths_match(p, &cleaned)) {
+                projects_list.push(cleaned);
             }
         }
     }
@@ -107,15 +143,7 @@ pub async fn query_sidebar_data(
                                 let is_project = if row.workspace.trim().is_empty() {
                                     false
                                 } else {
-                                    let session_workspace_canon = {
-                                        let p = PathBuf::from(&row.workspace)
-                                            .canonicalize()
-                                            .unwrap_or_else(|_| PathBuf::from(&row.workspace))
-                                            .to_string_lossy()
-                                            .to_string();
-                                        clean_unc_path(p)
-                                    };
-                                    session_workspace_canon != default_workspace
+                                    !paths_match(&row.workspace, &default_workspace)
                                 };
 
                                 let project_name = if is_project {
@@ -169,11 +197,10 @@ pub async fn query_sidebar_data(
         if !s.is_project {
             standalone_chats.push(dto);
         } else {
-            let clean_ws = clean_unc_path(s.workspace.clone());
             let mut matched_project_key = None;
 
             for p in &projects_list {
-                if p == &s.workspace || clean_unc_path(p.clone()) == clean_ws {
+                if paths_match(p, &s.workspace) {
                     matched_project_key = Some(p.clone());
                     break;
                 }
@@ -182,7 +209,9 @@ pub async fn query_sidebar_data(
             if let Some(key) = matched_project_key {
                 project_chats_map.entry(key).or_default().push(dto);
             } else {
-                standalone_chats.push(dto);
+                let clean_ws = clean_unc_path(s.workspace.clone());
+                projects_list.push(clean_ws.clone());
+                project_chats_map.entry(clean_ws).or_default().push(dto);
             }
         }
     }
@@ -273,7 +302,6 @@ pub async fn delete_project(project_path: String) -> Result<(), String> {
     let paths = operon_rs::config::OperonPaths::resolve().map_err(|e| e.to_string())?;
     let sessions_dir = &paths.sessions_dir;
 
-    let clean_proj = clean_unc_path(project_path.clone());
     let mut session_ids_to_delete = Vec::new();
 
     if sessions_dir.exists() {
@@ -284,8 +312,7 @@ pub async fn delete_project(project_path: String) -> Result<(), String> {
                     if let Ok(store) = operon_rs::session::store::SessionStore::open(&path).await {
                         if let Ok(rows) = store.list_sessions().await {
                             if let Some(row) = rows.first() {
-                                let clean_ws = clean_unc_path(row.workspace.clone());
-                                if clean_ws == clean_proj {
+                                if paths_match(&row.workspace, &project_path) {
                                     session_ids_to_delete.push(row.id.clone());
                                 }
                             }
