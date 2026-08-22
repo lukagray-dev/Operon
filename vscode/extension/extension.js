@@ -1,31 +1,234 @@
 // ============================================================================
-// Operon VS Code Extension Host Loader
+// Operon VS Code Extension Host Loader & Native Bridge Client
 //
-// Hey friend! This is the lightweight Extension Host entrypoint that loads
-// our Webview UI directly from `src/index.html` (with compiled `src/js/` and `src/css/`).
+// Hey friend! This is the Extension Host entrypoint that bridges the Webview
+// UI with the native Rust JSON-RPC binary (`operon-vscode-bridge`).
 //
-// Features:
-// 1. Sidebar Webview Provider (Chat Timeline)
-// 2. Standalone Editor Tab Webview (Settings Tab in editor space)
-// 3. Zero-keystroke instant live-reloading during development
-// 4. Cache-busting module reloader on file changes
-// 5. Webview IPC communication relay to the native agent backend
+// Architecture:
+// 1. Spawns `operon-vscode-bridge` binary over stdio (JSON lines protocol).
+// 2. Dispatches `invoke` requests from both Chat and Settings Webviews to the bridge.
+// 3. Receives live streaming events (`stream_token`, `agent-finished`) and broadcasts to Webviews.
+// 4. Provides zero-keystroke live-reloading of HTML/CSS/JS during development.
 // ============================================================================
 
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
+const readline = require('readline');
 
-// Keep reference to active settings editor tab panel to avoid duplicates
+// Reference to active settings panel in editor space
 let activeSettingsPanel = undefined;
+let chatProviderInstance = undefined;
+
+/** @type {NativeBridgeClient | null} */
+let bridgeClient = null;
+let outputChannel = null;
+
+/**
+ * Native JSON-RPC Stdio Bridge Client.
+ */
+class NativeBridgeClient {
+  constructor(extensionUri) {
+    this.extensionUri = extensionUri;
+    this.process = null;
+    this.requestId = 1;
+    this.pending = new Map();
+    this.isStarting = false;
+  }
+
+  /**
+   * Resolves the executable path of the bridge binary.
+   */
+  resolveBinaryPath() {
+    const isWindows = process.platform === 'win32';
+    const binName = isWindows ? 'operon-vscode-bridge.exe' : 'operon-vscode-bridge';
+    const rootDir = path.resolve(this.extensionUri.fsPath, '..', '..');
+
+    const candidates = [
+      path.join(this.extensionUri.fsPath, 'bin', binName),
+      path.join(this.extensionUri.fsPath, '..', 'bridge', 'bin', binName),
+      path.join(rootDir, 'target', 'release', binName),
+      path.join(rootDir, 'target', 'debug', binName),
+    ];
+
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Starts or restarts the native bridge child process.
+   */
+  start() {
+    if (this.process || this.isStarting) return;
+    this.isStarting = true;
+
+    const binPath = this.resolveBinaryPath();
+    if (!binPath) {
+      outputChannel?.appendLine('[Operon Bridge] No compiled binary found. Waiting for cargo build.');
+      this.isStarting = false;
+      return;
+    }
+
+    outputChannel?.appendLine(`[Operon Bridge] Spawning native bridge at: ${binPath}`);
+
+    try {
+      this.process = spawn(binPath, [], {
+        cwd: path.resolve(this.extensionUri.fsPath, '..', '..'),
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          RUST_LOG: 'info',
+        },
+      });
+
+      this.isStarting = false;
+
+      const rl = readline.createInterface({
+        input: this.process.stdout,
+        crlfDelay: Infinity,
+      });
+
+      rl.on('line', (line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        this.handleMessage(trimmed);
+      });
+
+      this.process.stderr.on('data', (data) => {
+        const text = data.toString('utf8');
+        outputChannel?.append(`[Bridge Log] ${text}`);
+      });
+
+      this.process.on('close', (code) => {
+        outputChannel?.appendLine(`[Operon Bridge] Process exited with code ${code}`);
+        this.process = null;
+        // Reject all pending requests
+        for (const [id, req] of this.pending.entries()) {
+          req.reject(new Error(`Bridge process terminated with code ${code}`));
+        }
+        this.pending.clear();
+      });
+
+      this.process.on('error', (err) => {
+        outputChannel?.appendLine(`[Operon Bridge] Process error: ${err.message}`);
+        this.process = null;
+      });
+    } catch (err) {
+      outputChannel?.appendLine(`[Operon Bridge] Spawn failed: ${err.message}`);
+      this.isStarting = false;
+    }
+  }
+
+  /**
+   * Dispatches a JSON-RPC request to the bridge binary over stdin.
+   */
+  invoke(method, params = {}) {
+    if (!this.process) {
+      this.start();
+    }
+
+    if (!this.process) {
+      return Promise.reject(new Error('Native bridge binary is not running. Please build with cargo.'));
+    }
+
+    const id = this.requestId++;
+    const payload = {
+      jsonrpc: '2.0',
+      id,
+      method,
+      params,
+    };
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this.pending.has(id)) {
+          this.pending.delete(id);
+          reject(new Error(`Bridge request '${method}' timed out after 30s`));
+        }
+      }, 30000);
+
+      this.pending.set(id, { resolve, reject, timer });
+
+      try {
+        this.process.stdin.write(JSON.stringify(payload) + '\n');
+      } catch (err) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(err);
+      }
+    });
+  }
+
+  /**
+   * Handles incoming JSON lines from the bridge's stdout.
+   */
+  handleMessage(jsonString) {
+    try {
+      const msg = JSON.parse(jsonString);
+
+      // 1. JSON-RPC Response matching a pending request
+      if (msg.id !== undefined && msg.id !== null) {
+        const req = this.pending.get(msg.id);
+        if (req) {
+          clearTimeout(req.timer);
+          this.pending.delete(msg.id);
+
+          if (msg.error) {
+            req.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+          } else {
+            req.resolve(msg.result);
+          }
+        }
+        return;
+      }
+
+      // 2. Streaming Event Notification
+      if (msg.method === 'operon://stream-event' && msg.params) {
+        const { event, payload } = msg.params;
+        this.broadcastEvent(event, payload);
+      }
+    } catch (err) {
+      outputChannel?.appendLine(`[Operon Bridge] Parse error for stdout: ${err.message}`);
+    }
+  }
+
+  /**
+   * Broadcasts events to all connected webviews.
+   */
+  broadcastEvent(event, payload) {
+    const msg = { type: 'event', event, payload };
+    chatProviderInstance?.postMessage(msg);
+    if (activeSettingsPanel) {
+      activeSettingsPanel.webview.postMessage(msg);
+    }
+  }
+
+  stop() {
+    if (this.process) {
+      this.process.kill();
+      this.process = null;
+    }
+  }
+}
 
 /**
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-  console.log('[Operon] Extension host activated.');
+  outputChannel = vscode.window.createOutputChannel('Operon Native Bridge');
+  outputChannel.appendLine('[Operon] Extension host activating...');
+
+  bridgeClient = new NativeBridgeClient(context.extensionUri);
+  bridgeClient.start();
 
   const provider = new OperonChatViewProvider(context.extensionUri);
+  chatProviderInstance = provider;
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('operon.chatView', provider, {
@@ -46,7 +249,7 @@ function activate(context) {
     }),
 
     vscode.commands.registerCommand('operon.cancelPrompt', () => {
-      provider.postMessage({ type: 'event', event: 'cancel-prompt', payload: {} });
+      bridgeClient?.invoke('cancel_prompt');
     }),
 
     vscode.commands.registerCommand('operon.openSettings', () => {
@@ -103,7 +306,7 @@ function openSettingsTab(extensionUri) {
 
     if (msg.type === 'invoke') {
       try {
-        const result = await handleSettingsIpcInvoke(msg.cmd, msg.args, extensionUri);
+        const result = await handleUnifiedIpcInvoke(msg.cmd, msg.args, extensionUri);
         activeSettingsPanel.webview.postMessage({
           id: msg.id,
           type: 'response',
@@ -162,51 +365,15 @@ function renderSettingsHtml(panel, extensionUri) {
 }
 
 /**
- * Dispatches IPC commands from the settings tab.
+ * Universal IPC dispatcher handling UI actions & routing all backend queries to Rust bridge.
  */
-async function handleSettingsIpcInvoke(cmd, args, extensionUri) {
+async function handleUnifiedIpcInvoke(cmd, args, extensionUri) {
+  // 1. UI-level actions handled directly by VS Code Extension Host
   switch (cmd) {
-    case 'get_general_settings':
-      return {
-        autostart: false,
-        minimize_to_tray: false,
-        start_minimized: false,
-        close_action: 'Exit',
-        auto_approve_default: false,
-        auto_scroll_stream: true,
-        notify_on_permission_request: true,
-        notify_on_response_complete: false,
-        auto_collapse_reasoning_and_tools: false,
-        auto_update_checks: true,
-        anonymous_telemetry: false,
-      };
-
-    case 'get_appearance_settings':
-      return {
-        code_theme: 'github-dark',
-        show_line_numbers: true,
-        highlight_inline_code: true,
-        table_style: 'github-dark',
-        orb_style: 'composing',
-        orb_speed: 'fast',
-        show_live_orb: true,
-        ui_font: 'Open Sans',
-        assistant_font: 'Literata',
-        code_font: 'Kode Mono',
-      };
-
-    case 'get_models_settings':
-      return { providers: [] };
-
-    case 'get_permissions_settings':
-      return { allowed_directories: [], global_permissions: [] };
-
-    case 'get_channels_settings':
-      return { channels: [] };
-
-    case 'get_memory_settings':
-    case 'list_memories':
-      return [];
+    case 'open_settings_window':
+    case 'open_settings':
+      openSettingsTab(extensionUri);
+      return null;
 
     case 'close_settings_window':
       if (activeSettingsPanel) {
@@ -214,10 +381,35 @@ async function handleSettingsIpcInvoke(cmd, args, extensionUri) {
       }
       return null;
 
-    default:
-      console.log(`[Operon Settings Host] Unhandled settings cmd: ${cmd}`, args);
+    case 'pick_allowed_directory_dialog':
+    case 'open_project_picker': {
+      const uri = await vscode.window.showOpenDialog({
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        openLabel: 'Select Folder',
+      });
+      return uri && uri[0] ? uri[0].fsPath : null;
+    }
+
+    case 'open_external_url':
+      if (args && args.url) {
+        vscode.env.openExternal(vscode.Uri.parse(args.url));
+      }
       return null;
   }
+
+  // 2. Delegate everything else to the Rust JSON-RPC Bridge
+  if (bridgeClient) {
+    try {
+      return await bridgeClient.invoke(cmd, args || {});
+    } catch (err) {
+      outputChannel?.appendLine(`[Operon Bridge] Error handling '${cmd}': ${err.message}`);
+      throw err;
+    }
+  }
+
+  throw new Error('Bridge client not available');
 }
 
 class OperonChatViewProvider {
@@ -245,24 +437,6 @@ class OperonChatViewProvider {
 
     this.renderHtml();
 
-    // Native fs.watch on src/ for instant zero-latency file watching
-    const srcDir = path.join(this.extensionUri.fsPath, 'src');
-    try {
-      if (fs.existsSync(srcDir)) {
-        const fsWatcher = fs.watch(srcDir, { recursive: true }, (_eventType, filename) => {
-          if (!filename) return;
-          if (filename.includes('.git') || filename.includes('node_modules')) return;
-          this.scheduleLiveReload();
-        });
-
-        webviewView.onDidDispose(() => {
-          try { fsWatcher.close(); } catch (_) {}
-        });
-      }
-    } catch (e) {
-      console.warn('[Operon] fs.watch not supported, using VS Code watcher:', e);
-    }
-
     const vsWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(this.extensionUri, 'src/**/*')
     );
@@ -280,7 +454,7 @@ class OperonChatViewProvider {
 
       if (msg.type === 'invoke') {
         try {
-          const result = await this.handleIpcInvoke(msg.cmd, msg.args);
+          const result = await handleUnifiedIpcInvoke(msg.cmd, msg.args, this.extensionUri);
           this.postMessage({
             id: msg.id,
             type: 'response',
@@ -304,37 +478,6 @@ class OperonChatViewProvider {
     this.reloadTimer = setTimeout(() => {
       this.renderHtml();
     }, 50);
-  }
-
-  /**
-   * Dispatches IPC commands from the sidebar chat webview.
-   */
-  async handleIpcInvoke(cmd, args) {
-    switch (cmd) {
-      case 'open_settings_window':
-      case 'open_settings':
-        openSettingsTab(this.extensionUri);
-        return null;
-
-      case 'get_topbar_info':
-        return { title: 'New Session', is_project: false };
-
-      case 'get_available_models':
-        return [];
-
-      case 'get_context_window_info':
-        return { tokens_used: 0, tokens_total: 128000, percentage: 0, formatted: '0 / 128k' };
-
-      case 'get_git_diff_stats':
-        return { insertions: 0, deletions: 0, files_changed: 0, is_git_repo: false };
-
-      case 'load_session_messages':
-        return [];
-
-      default:
-        console.log(`[Operon Extension Host] Unhandled invoke cmd: ${cmd}`, args);
-        return null;
-    }
   }
 
   postMessage(msg) {
@@ -378,6 +521,9 @@ class OperonChatViewProvider {
 }
 
 function deactivate() {
+  if (bridgeClient) {
+    bridgeClient.stop();
+  }
   console.log('[Operon] Extension host deactivated.');
 }
 

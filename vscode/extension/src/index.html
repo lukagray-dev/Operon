@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="css/main-content/empty-state/empty-state.css" />
   <link rel="stylesheet" href="css/main-content/messages/messages.css" />
   <link rel="stylesheet" href="css/main-content/input/input.css" />
+  <link rel="stylesheet" href="css/right-sidebar/todo-panel.css" />
 </head>
 
 <body>
@@ -69,30 +70,7 @@
               <span class="ui-icon icon-sidebar-folder-input"></span>
             </button>
           </div>
-          <div id="projects-items-container" class="section-items">
-            <div class="project-card">
-              <div class="project-header">
-                <div class="session-item-left">
-                  <span class="ui-icon icon-sidebar-folder"></span>
-                  <span class="session-title-text">Operon</span>
-                </div>
-                <div class="project-header-actions">
-                  <span class="ui-icon icon-sidebar-chevron-down proj-chevron"></span>
-                </div>
-              </div>
-              <div class="project-conversations">
-                <div class="session-item">
-                  <div class="session-item-left">
-                    <span class="ui-icon icon-sidebar-chats"></span>
-                    <span class="session-title-text">VS Code Extension UI</span>
-                  </div>
-                  <button class="item-more-btn" title="More options">
-                    <span class="ui-icon icon-sidebar-more-vertical"></span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div id="projects-items-container" class="section-items"></div>
         </section>
 
         <!-- Standalone Chats Section -->
@@ -101,32 +79,13 @@
             <div class="section-header-left">
               <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
               <span>Chats</span>
-              <span id="chats-count-badge" class="count-pill">2</span>
+              <span id="chats-count-badge" class="count-pill">0</span>
             </div>
             <button id="btn-add-general-chat" class="section-action-btn" title="New General Chat">
               <span class="ui-icon icon-sidebar-new-chat"></span>
             </button>
           </div>
-          <div id="chats-items-container" class="section-items">
-            <div class="session-item active">
-              <div class="session-item-left">
-                <span class="ui-icon icon-sidebar-chats"></span>
-                <span class="session-title-text">Rust Bridge Stdio</span>
-              </div>
-              <button class="item-more-btn" title="More options">
-                <span class="ui-icon icon-sidebar-more-vertical"></span>
-              </button>
-            </div>
-            <div class="session-item">
-              <div class="session-item-left">
-                <span class="ui-icon icon-sidebar-chats"></span>
-                <span class="session-title-text">Tauri vs Slint for GUI</span>
-              </div>
-              <button class="item-more-btn" title="More options">
-                <span class="ui-icon icon-sidebar-more-vertical"></span>
-              </button>
-            </div>
-          </div>
+          <div id="chats-items-container" class="section-items"></div>
         </section>
       </div>
 
@@ -156,7 +115,12 @@
         </div>
 
         <!-- Right: Actions Area -->
-        <div class="topbar-right-section"></div>
+        <div class="topbar-right-section">
+          <button id="btn-toggle-todos" class="topbar-btn btn-todos-toggle" title="Toggle Session Tasks">
+            <span class="ui-icon icon-todo-tasks" style="width: 14px; height: 14px; background-color: var(--text-secondary, #cccccc); -webkit-mask-image: url('assets/icons/right-sidebar/list-todo.svg'); mask-image: url('assets/icons/right-sidebar/list-todo.svg'); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; display: inline-block;"></span>
+            <span class="todo-counter-badge hidden">0</span>
+          </button>
+        </div>
       </header>
 
       <!-- Main Content Body: Viewport + Floating Input Container -->
@@ -224,6 +188,9 @@
         </div>
       </div>
     </section>
+
+    <!-- Right Sidebar Drawer (Session Tasks) -->
+    <aside id="right-sidebar" class="right-sidebar"></aside>
   </div>
 
   <!-- Application Script Entrypoint -->

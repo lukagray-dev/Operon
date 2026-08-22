@@ -13,13 +13,20 @@ name = "operon-vscode-bridge"
 path = "src/main.rs"
 
 [dependencies]
-# Async runtime — same one used everywhere else in the workspace
-tokio      = { workspace = true }
+# Async runtime with full features and io-util for stdio pipes
+tokio                = { workspace = true, features = ["full", "io-util"] }
 # JSON serialization for the stdio RPC protocol
-serde      = { workspace = true }
-serde_json = { workspace = true }
+serde                = { workspace = true, features = ["derive"] }
+serde_json           = { workspace = true }
 # Structured logging — writes to stderr so it doesn't pollute the stdout RPC pipe
 tracing              = { workspace = true }
 tracing-subscriber   = { version = "0.3", features = ["env-filter"] }
+# Utilities and backend dependencies
+dirs                 = { workspace = true }
+toml                 = { workspace = true }
+rfd                  = { workspace = true }
+pulldown-cmark       = { workspace = true }
+notify               = { workspace = true }
+anyhow               = { workspace = true }
 # The entire operon backend — all agent logic comes from here
-operon-rs  = { workspace = true }
+operon-rs            = { workspace = true }

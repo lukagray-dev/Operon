@@ -1,0 +1,362 @@
+/* WorkGroup and Tool Cards Styling (Slint 1:1 Design Port) */
+@import '../../../shared/tokens.css';
+
+/* WorkGroup Main Container */
+.work-group-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0;
+    margin: 0 0 2px 0;
+    background: transparent;
+    border: none;
+}
+
+/* Header Trigger Bar */
+.work-group-header {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding-left: 2px;
+    padding-right: 4px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    background: transparent;
+}
+
+/* Active Thinking Orb Container */
+.work-group-orb-container {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.work-group-orb-canvas {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+/* Summary Text */
+.work-group-summary-text {
+    font-family: var(--font-family);
+    font-size: 13px;
+    font-weight: 400;
+    color: #a0a0a0;
+    opacity: 0.88;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 120ms ease-in-out, opacity 120ms ease-in-out;
+}
+
+.work-group-header:hover .work-group-summary-text {
+    color: #ffffff;
+    font-weight: 500;
+    opacity: 1.0;
+}
+
+/* Smooth left-to-right white light sweep across active text */
+@keyframes text-shine-sweep {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.work-group-summary-text.active {
+    background: linear-gradient(90deg,
+            rgba(130, 130, 130, 0.7) 0%,
+            rgba(130, 130, 130, 0.7) 20%,
+            #ffffff 42%,
+            #ffffff 58%,
+            rgba(130, 130, 130, 0.7) 80%,
+            rgba(130, 130, 130, 0.7) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: text-shine-sweep 2.0s linear infinite;
+    opacity: 1;
+    filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.4));
+}
+
+/* Header Trailing Chevron Icon */
+.work-group-chevron {
+    width: 12px;
+    height: 12px;
+    background-color: #777777;
+    opacity: 0.6;
+    transform: rotate(-90deg);
+    transition: transform 150ms ease-in-out, background-color 120ms ease-in-out, opacity 120ms ease-in-out;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.work-group-header:hover .work-group-chevron {
+    background-color: #ffffff;
+    opacity: 1.0;
+}
+
+.work-group-container.expanded .work-group-chevron {
+    transform: rotate(0deg);
+}
+
+/* Expanded Timeline List */
+.work-group-timeline {
+    display: none;
+    flex-direction: column;
+    padding: 2px 0 4px 2px;
+    width: 100%;
+}
+
+.work-group-container.expanded .work-group-timeline {
+    display: flex;
+}
+
+/* Timeline Row */
+.work-group-timeline-row {
+    display: flex;
+    gap: 8px;
+    padding: 2px 0 6px 0;
+    width: 100%;
+}
+
+/* Left Column: 20px Spine */
+.work-group-timeline-spine {
+    width: 20px;
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    min-height: 22px;
+}
+
+/* 1px Vertical Connector Line */
+.work-group-timeline-line {
+    position: absolute;
+    width: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.work-group-timeline-line.first {
+    top: 4px;
+    height: calc(100% - 4px);
+}
+
+.work-group-timeline-line.middle {
+    top: 0;
+    height: 100%;
+}
+
+.work-group-timeline-line.last {
+    top: 0;
+    height: 18px;
+}
+
+.work-group-timeline-line.single {
+    display: none;
+}
+
+/* Dark Background Mask Behind Checkpoint Icon */
+.work-group-timeline-mask {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background-color: #141414;
+    z-index: 1;
+}
+
+/* 14x14 Checkpoint Icon */
+.work-group-timeline-icon {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    z-index: 2;
+}
+
+/* Right Column: Item Content */
+.work-group-timeline-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Thinking Block Text */
+.work-group-thinking-text {
+    font-family: var(--mono-font-family);
+    font-size: 12px;
+    color: #888888;
+    line-height: 1.45;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    margin-top: 2px;
+}
+
+/* Tool Sub-item Trigger Row */
+.work-group-tool-header {
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    gap: 6px;
+}
+
+.work-group-tool-title {
+    font-family: var(--font-family);
+    font-size: 12.5px;
+    font-weight: 400;
+    color: #a8a8a8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 120ms ease;
+}
+
+.work-group-tool-title.running {
+    background: linear-gradient(90deg,
+            rgba(140, 140, 140, 0.7) 0%,
+            rgba(140, 140, 140, 0.7) 20%,
+            #ffffff 42%,
+            #ffffff 58%,
+            rgba(140, 140, 140, 0.7) 80%,
+            rgba(140, 140, 140, 0.7) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: text-shine-sweep 2.0s linear infinite;
+    filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.4));
+}
+
+.work-group-tool-header:hover .work-group-tool-title {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.work-group-tool-chevron {
+    width: 10px;
+    height: 10px;
+    background-color: #777777;
+    opacity: 0.5;
+    transform: rotate(-90deg);
+    transition: transform 150ms ease-in-out, background-color 120ms ease, opacity 120ms ease;
+    flex-shrink: 0;
+}
+
+.work-group-tool-header:hover .work-group-tool-chevron {
+    background-color: #ffffff;
+    opacity: 1.0;
+}
+
+.work-group-tool-chevron.expanded {
+    transform: rotate(0deg);
+}
+
+/* Collapsible Tool Detail Body (1:1 with Slint ToolDetailBody) */
+.tool-detail-body {
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    padding: 8px 10px;
+    max-height: 270px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.tool-args-text {
+    color: #888888;
+    font-size: 11px;
+    font-family: var(--mono-font-family);
+    word-break: break-all;
+    white-space: pre-wrap;
+    line-height: 1.45;
+}
+
+.tool-detail-divider {
+    height: 1px;
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.tool-result-text {
+    color: #c7c7c7;
+    font-size: 11px;
+    font-family: var(--mono-font-family);
+    word-break: break-word;
+    white-space: pre-wrap;
+    line-height: 1.45;
+}
+
+.tool-result-text.failed {
+    color: #ef9a9a;
+}
+
+/* SVG Mask Icons for Tools */
+.icon-tool-read {
+    -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-read.svg');
+    mask-image: url('../../../assets/icons/main-content/messages/assistant/work-read.svg');
+}
+
+.icon-tool-edit {
+    -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-edit.svg');
+    mask-image: url('../../../assets/icons/main-content/messages/assistant/work-edit.svg');
+}
+
+.icon-tool-search {
+    -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-search.svg');
+    mask-image: url('../../../assets/icons/main-content/messages/assistant/work-search.svg');
+}
+
+.icon-tool-list {
+    -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-list-dir.svg');
+    mask-image: url('../../../assets/icons/main-content/messages/assistant/work-list-dir.svg');
+}
+
+.icon-tool-web {
+    -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-web.svg');
+    mask-image: url('../../../assets/icons/main-content/messages/assistant/work-web.svg');
+}
+
+.icon-tool-thinking {
+    -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-thinking.svg');
+    mask-image: url('../../../assets/icons/main-content/messages/assistant/work-thinking.svg');
+}
+
+.icon-tool-general {
+    -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/tool.svg');
+    mask-image: url('../../../assets/icons/main-content/messages/assistant/tool.svg');
+}
+
+.icon-tool-chevron {
+    -webkit-mask-image: url('../../../assets/icons/sidebar/chevron-down.svg');
+    mask-image: url('../../../assets/icons/sidebar/chevron-down.svg');
+}

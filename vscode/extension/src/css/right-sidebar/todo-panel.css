@@ -1,0 +1,520 @@
+/* ==========================================================================
+   Session Tasks / Todo Right Sidebar Panel Styling for VS Code
+   ========================================================================== */
+
+@import '../shared/tokens.css';
+
+/* --------------------------------------------------------------------------
+   0. Right Sidebar Drawer Positioning
+   -------------------------------------------------------------------------- */
+.right-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 90vw;
+  background-color: #181818;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.right-sidebar.visible {
+  transform: translateX(0);
+}
+
+/* --------------------------------------------------------------------------
+   1. Todo Panel Container & Header
+   -------------------------------------------------------------------------- */
+.todo-panel-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: #181818;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.todo-panel-header {
+  height: 38px;
+  min-height: 38px;
+  flex: 0 0 38px;
+  background-color: #181818;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+.todo-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.todo-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-family);
+  color: #cccccc;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.todo-header-badge {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--mono-font-family);
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 170, 0, 0.12);
+  color: #ffaa00;
+  border: 1px solid rgba(255, 170, 0, 0.25);
+  white-space: nowrap;
+}
+
+.todo-header-badge.all-done {
+  background: rgba(35, 209, 139, 0.12);
+  color: #23d18b;
+  border-color: rgba(35, 209, 139, 0.25);
+}
+
+.todo-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.todo-panel-icon-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted, #999999);
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.todo-panel-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary, #ffffff);
+}
+
+.todo-panel-icon-btn:hover .ui-icon {
+  background-color: var(--text-primary, #ffffff);
+}
+
+/* --------------------------------------------------------------------------
+   2. Filter Chips Toolbar
+   -------------------------------------------------------------------------- */
+.todo-filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: #141414;
+  flex-shrink: 0;
+}
+
+.todo-filter-chip {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-family);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted, #888888);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.todo-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary, #cccccc);
+}
+
+.todo-filter-chip.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary, #ffffff);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* --------------------------------------------------------------------------
+   3. Scrollable Todo Item List
+   -------------------------------------------------------------------------- */
+.todo-list-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todo-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.todo-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.todo-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.todo-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* --------------------------------------------------------------------------
+   4. Individual Todo Item Card
+   -------------------------------------------------------------------------- */
+.todo-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  position: relative;
+}
+
+.todo-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #232323;
+}
+
+.todo-card.completed {
+  opacity: 0.65;
+  background: #191919;
+}
+
+.todo-card.completed:hover {
+  opacity: 0.85;
+}
+
+/* Checkbox Toggle Button */
+.todo-checkbox-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.15s ease;
+}
+
+.todo-checkbox-btn:hover {
+  border-color: var(--accent-blue, #007acc);
+  background: rgba(0, 122, 204, 0.1);
+}
+
+.todo-card.completed .todo-checkbox-btn {
+  background: #23d18b;
+  border-color: #23d18b;
+}
+
+.todo-card.in_progress .todo-checkbox-btn {
+  border-color: #00bcd4;
+  background: rgba(0, 188, 212, 0.15);
+}
+
+.todo-checkbox-check-icon {
+  width: 12px;
+  height: 12px;
+  background-color: #121212;
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/check.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/check.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  display: none;
+}
+
+.todo-card.completed .todo-checkbox-check-icon {
+  display: block;
+}
+
+.todo-checkbox-dot-icon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #00bcd4;
+  display: none;
+}
+
+.todo-card.in_progress .todo-checkbox-dot-icon {
+  display: block;
+}
+
+/* Card Content Area */
+.todo-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.todo-card-text {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-primary, #ffffff);
+  font-family: var(--font-family);
+  word-break: break-word;
+}
+
+.todo-card.completed .todo-card-text {
+  text-decoration: line-through;
+  color: var(--text-muted, #777777);
+}
+
+/* Card Footer Meta Tags */
+.todo-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.todo-id-pill {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--mono-font-family);
+  color: var(--text-muted, #666666);
+}
+
+.todo-status-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.todo-status-badge.pending {
+  background: rgba(255, 255, 255, 0.06);
+  color: #aaaaaa;
+}
+
+.todo-status-badge.in_progress {
+  background: rgba(0, 188, 212, 0.15);
+  color: #00bcd4;
+}
+
+.todo-status-badge.completed {
+  background: rgba(35, 209, 139, 0.15);
+  color: #23d18b;
+}
+
+.todo-priority-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.todo-priority-badge.high {
+  background: rgba(255, 75, 75, 0.15);
+  color: #ff4b4b;
+}
+
+.todo-priority-badge.medium {
+  background: rgba(255, 170, 0, 0.15);
+  color: #ffaa00;
+}
+
+.todo-priority-badge.low {
+  background: rgba(100, 160, 255, 0.12);
+  color: #70a5ff;
+}
+
+/* Card Action Hover Buttons (Delete) */
+.todo-card-actions {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  display: flex;
+  align-items: center;
+}
+
+.todo-card:hover .todo-card-actions {
+  opacity: 1;
+}
+
+.todo-delete-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #888888);
+  transition: all 0.1s ease;
+}
+
+.todo-delete-btn:hover {
+  background: rgba(255, 75, 75, 0.2);
+  color: #ff4b4b;
+}
+
+.todo-delete-btn:hover .ui-icon {
+  background-color: #ff4b4b;
+}
+
+.icon-todo-trash {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/trash-2.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/trash-2.svg');
+}
+
+.icon-todo-close {
+  -webkit-mask-image: url('../../../assets/icons/titlebar/close.svg');
+  mask-image: url('../../../assets/icons/titlebar/close.svg');
+}
+
+/* --------------------------------------------------------------------------
+   5. Empty State Container
+   -------------------------------------------------------------------------- */
+.todo-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-muted, #777777);
+  flex: 1 1 auto;
+}
+
+.todo-empty-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 12px;
+  background-color: rgba(255, 255, 255, 0.15);
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/list-todo.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/list-todo.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.todo-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #cccccc);
+  margin-bottom: 4px;
+}
+
+.todo-empty-desc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  max-width: 200px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Quick Add Footer Form
+   -------------------------------------------------------------------------- */
+.todo-add-footer {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: #141414;
+  flex-shrink: 0;
+}
+
+.todo-add-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 4px 8px 4px 10px;
+  transition: border-color 0.12s ease;
+}
+
+.todo-add-form:focus-within {
+  border-color: var(--accent-blue, #007acc);
+}
+
+.todo-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: var(--text-primary, #ffffff);
+  font-family: var(--font-family);
+}
+
+.todo-add-input::placeholder {
+  color: var(--text-muted, #666666);
+}
+
+.todo-add-submit-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #888888);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+}
+
+.todo-add-submit-btn:hover {
+  background: var(--accent-blue, #007acc);
+  color: #ffffff;
+}
+
+.todo-add-submit-btn:hover .ui-icon {
+  background-color: #ffffff;
+}
+
+.icon-todo-add {
+  -webkit-mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
+  mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
+}

@@ -85,6 +85,7 @@ members = [
     # Frontends
     "tui",
     "gui/src-tauri",
+    "vscode/bridge",
 
     # Terminal Crate
     "operon-rs/src/operon-terminal",

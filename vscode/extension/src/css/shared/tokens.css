@@ -1,7 +1,5 @@
 /* Centralized Design Tokens matching Operon design system */
-/* Strictly following D:\Operon\docs\Typography-and-Fonts.md */
 
-/* ── 1. Open Sans: Entire General UI ─────────────────────────────────────── */
 @font-face {
   font-family: 'Open Sans';
   src: url('../../assets/fonts/OpenSans/OpenSans-VariableFont_wdth,wght.ttf') format('truetype-variations');
@@ -18,16 +16,38 @@
   font-display: swap;
 }
 
-/* ── 2. Kode Mono: All Monospace, Code, Shortcuts, Git Diffs ─────────────── */
 @font-face {
-  font-family: 'Kode Mono';
-  src: url('../../assets/fonts/KodeMono/KodeMono-Regular.ttf') format('truetype');
-  font-weight: normal;
+  font-family: 'Inter';
+  src: url('../../assets/fonts/Inter/Inter-VariableFont_opsz,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
 
-/* ── 3. Literata: Assistant Prose & Markdown Paragraphs Only ─────────────── */
+@font-face {
+  font-family: 'Inter';
+  src: url('../../assets/fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../../assets/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../../assets/fonts/Roboto/Roboto-Italic-VariableFont_wdth,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 @font-face {
   font-family: 'Literata';
   src: url('../../assets/fonts/Literata/Literata-VariableFont.ttf') format('truetype-variations');
@@ -44,25 +64,90 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Lora';
+  src: url('../../assets/fonts/Lora/Lora-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora';
+  src: url('../../assets/fonts/Lora/Lora-Italic-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Merriweather';
+  src: url('../../assets/fonts/Merriweather/Merriweather-VariableFont_opsz,wdth,wght.ttf') format('truetype-variations');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Merriweather';
+  src: url('../../assets/fonts/Merriweather/Merriweather-Italic-VariableFont_opsz,wdth,wght.ttf') format('truetype-variations');
+  font-weight: 300 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kode Mono';
+  src: url('../../assets/fonts/KodeMono/KodeMono-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../assets/fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../assets/fonts/JetBrains_Mono/JetBrainsMono-Italic-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fira Code';
+  src: url('../../assets/fonts/Fira_Code/FiraCode-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  /* Typography Guidelines */
+  /* Typography */
   --font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --mono-font-family: 'Kode Mono', monospace;
   --assistant-font-family: 'Literata', Georgia, serif;
 
   /* Surfaces & Backgrounds */
   --window-background: #000000;
+  --titlebar-background: #121212;
+  --titlebar-background-soft: #121212;
   --sidebar-background: #121212;
-  --sidebar-drawer-background: #0d0d0d;
   --surface-hover: rgba(255, 255, 255, 0.08);
   --surface-pressed: rgba(255, 255, 255, 0.12);
 
   /* Dropdown & Popovers */
   --dropdown-surface: #1f1f1f;
   --dropdown-surface-hover: #2b2b2b;
-  --dropdown-border: #262626;
-  --dropdown-separator: #333333;
-  --dropdown-radius: 6px;
+  --dropdown-surface-pressed: #2a2a2a;
+  --dropdown-border: #373737;
+  --dropdown-separator: #474747;
   --dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.72);
 
   /* Foreground & Text */
@@ -75,9 +160,18 @@
   --accent-blue-surface: #161a20;
   --danger-red: #ff0000;
   --danger-red-hover: #ff4747;
-  --danger-red-surface-hover: rgba(255, 0, 0, 0.18);
+  --danger-red-surface-hover: #4f2026;
+  --danger-red-surface-pressed: #5d2630;
 
   /* Sizing & Geometry */
-  --topbar-height: 40px;
-  --sidebar-overlay-width: 280px;
+  --titlebar-height: 36px;
+  --titlebar-padding-x: 12px;
+  --titlebar-logo-size: 20px;
+  --titlebar-icon-size: 14px;
+  --titlebar-icon-hit-width: 24px;
+  --titlebar-icon-hit-height: 22px;
+  --titlebar-font-size: 14px;
+  --dropdown-font-size: 13px;
+  --dropdown-width: 220px;
+  --dropdown-radius: 5px;
 }

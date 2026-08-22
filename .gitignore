@@ -7,7 +7,7 @@ target/
 # Cargo.lock
 
 # IDE and editor files
-.vscode/
+
 .idea/
 *.swp
 *.swo
@@ -52,6 +52,7 @@ build/
 out/
 gui/src/js/
 vscode/extension/src/js/
+vscode/extension/bin/
 
 # Test coverage
 coverage/
