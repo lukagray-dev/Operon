@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operon</title>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/shared/global.css" />
+  <link rel="stylesheet" href="css/shared/tokens.css" />
+  <link rel="stylesheet" href="css/shared/scrollbar.css" />
+  <link rel="stylesheet" href="css/left-sidebar/sidebar.css" />
+  <link rel="stylesheet" href="css/main-content/topbar/topbar.css" />
+  <link rel="stylesheet" href="css/main-content/empty-state/empty-state.css" />
+  <link rel="stylesheet" href="css/main-content/input/input.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- Dimmed Backdrop for Overlay Sidebar -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+    <!-- Left Sidebar Overlay Drawer -->
+    <aside id="left-sidebar" class="left-sidebar">
+      <!-- Drawer Top Header -->
+      <div class="sidebar-drawer-header">
+        <div class="drawer-brand">
+          <img src="assets/brand/operon.svg" alt="Operon Logo" />
+          <span>Operon</span>
+        </div>
+        <button id="btn-close-sidebar" class="btn-close-sidebar" title="Close Sidebar">
+          <span class="ui-icon icon-titlebar-close"></span>
+        </button>
+      </div>
+
+      <!-- Top Actions -->
+      <div class="sidebar-top">
+        <button id="btn-new-chat" class="btn-new-chat">
+          <div class="btn-new-chat-left">
+            <span class="ui-icon icon-sidebar-new-chat"></span>
+            <span>New conversation</span>
+          </div>
+          <span class="key-badge">Ctrl+N</span>
+        </button>
+        <div class="sidebar-search-container">
+          <span class="ui-icon icon-sidebar-search"></span>
+          <input id="sidebar-search-input" class="sidebar-search-input" type="text" placeholder="Search conversation..." />
+          <button id="btn-search-clear" class="btn-search-clear" title="Clear search">✕</button>
+        </div>
+        <button id="btn-plugins" class="btn-sidebar-plugins">
+          <span class="ui-icon icon-sidebar-plugins"></span>
+          <span>Plugins</span>
+        </button>
+      </div>
+
+      <!-- Scrollable Middle Section -->
+      <div class="sidebar-scroll-content">
+        <!-- Projects Section -->
+        <section id="section-projects" class="sidebar-section">
+          <div class="section-header" id="header-projects">
+            <div class="section-header-left">
+              <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
+              <span>Projects</span>
+              <span id="projects-count-badge" class="count-pill">1</span>
+            </div>
+            <button id="btn-add-project" class="section-action-btn" title="Add Project Folder">
+              <span class="ui-icon icon-sidebar-folder-input"></span>
+            </button>
+          </div>
+          <div id="projects-items-container" class="section-items">
+            <div class="project-card">
+              <div class="project-header">
+                <div class="session-item-left">
+                  <span class="ui-icon icon-sidebar-folder"></span>
+                  <span class="session-title-text">Operon</span>
+                </div>
+                <div class="project-header-actions">
+                  <span class="ui-icon icon-sidebar-chevron-down proj-chevron"></span>
+                </div>
+              </div>
+              <div class="project-conversations">
+                <div class="session-item">
+                  <div class="session-item-left">
+                    <span class="ui-icon icon-sidebar-chats"></span>
+                    <span class="session-title-text">VS Code Extension UI</span>
+                  </div>
+                  <button class="item-more-btn" title="More options">
+                    <span class="ui-icon icon-sidebar-more-vertical"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Standalone Chats Section -->
+        <section id="section-chats" class="sidebar-section">
+          <div class="section-header" id="header-chats">
+            <div class="section-header-left">
+              <span class="ui-icon icon-sidebar-chevron-down chevron-icon"></span>
+              <span>Chats</span>
+              <span id="chats-count-badge" class="count-pill">2</span>
+            </div>
+            <button id="btn-add-general-chat" class="section-action-btn" title="New General Chat">
+              <span class="ui-icon icon-sidebar-new-chat"></span>
+            </button>
+          </div>
+          <div id="chats-items-container" class="section-items">
+            <div class="session-item active">
+              <div class="session-item-left">
+                <span class="ui-icon icon-sidebar-chats"></span>
+                <span class="session-title-text">Rust Bridge Stdio</span>
+              </div>
+              <button class="item-more-btn" title="More options">
+                <span class="ui-icon icon-sidebar-more-vertical"></span>
+              </button>
+            </div>
+            <div class="session-item">
+              <div class="session-item-left">
+                <span class="ui-icon icon-sidebar-chats"></span>
+                <span class="session-title-text">Tauri vs Slint for GUI</span>
+              </div>
+              <button class="item-more-btn" title="More options">
+                <span class="ui-icon icon-sidebar-more-vertical"></span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Bottom Settings Section -->
+      <div class="sidebar-bottom">
+        <button id="btn-sidebar-settings" class="btn-sidebar-settings">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="ui-icon icon-sidebar-settings"></span>
+            <span>Settings</span>
+          </div>
+          <span class="key-badge">Ctrl+,</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area: Topbar + Empty State + Pinned Input Box -->
+    <section id="content-pane" class="main-content-layout">
+      <!-- Main Content Topbar -->
+      <header id="main-content-topbar" class="main-topbar">
+        <!-- Left: Hamburger Toggle & Conversation Title -->
+        <div class="topbar-left-section">
+          <button id="btn-toggle-sidebar" class="topbar-btn" title="Toggle Conversation History">
+            <span class="ui-icon icon-titlebar-sidebar-closed"></span>
+          </button>
+          <span id="topbar-session-title" class="topbar-session-title">New Session</span>
+          <span id="topbar-project-badge" class="topbar-project-badge visible">Operon</span>
+        </div>
+
+        <!-- Right: Actions Area -->
+        <div class="topbar-right-section"></div>
+      </header>
+
+      <!-- Main Content Body: Viewport + Floating Input Container -->
+      <div id="main-content-body" class="main-content-body">
+        <!-- Chat Message Stream Viewport -->
+        <div id="chat-messages-viewport" class="main-chat-viewport">
+          <!-- Empty State -->
+          <div id="chat-empty-state" class="empty-state-container">
+            <img class="empty-state-logo" src="assets/brand/operon.svg" alt="Operon Logo" />
+            <div class="empty-state-tagline">
+              <span>Agent that is built for everyone,</span>
+              <span>— not just for developers.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pinned Bottom Floating Input Area -->
+        <div class="input-panel-container">
+          <!-- Input Card -->
+          <div class="input-card">
+            <!-- Pending Attachments Bar -->
+            <div id="input-attachments-bar" class="attachments-bar"></div>
+
+            <!-- Multiline Prompt Input -->
+            <textarea id="chat-input-textarea" class="input-textarea" placeholder="Message Operon..." rows="1"></textarea>
+
+            <!-- Bottom Input Toolbar -->
+            <div class="input-toolbar">
+              <!-- Left Section: Attach & Auto-Approve -->
+              <div class="toolbar-group-left">
+                <button id="btn-attach-files" class="toolbar-btn btn-attach" title="Attach file or image">
+                  <span class="ui-icon icon-input-attach"></span>
+                </button>
+                <button id="btn-auto-approve" class="toolbar-btn btn-auto-approve" title="Toggle Auto-Approve tool execution">
+                  <span class="ui-icon icon-input-auto-approve-disable"></span>
+                  <span>Autoapprove</span>
+                </button>
+              </div>
+
+              <!-- Right Section: Context, Model, Voice, Send -->
+              <div class="toolbar-group-right">
+                <button id="btn-context-usage" class="toolbar-btn btn-context-indicator" title="Context token window usage">
+                  <span id="context-usage-text">0 / 128k</span>
+                </button>
+                <button id="btn-select-model" class="toolbar-btn btn-selector-pill btn-unified-model" title="Select Model & Reasoning Level">
+                  <span id="selected-model-text">Think</span>
+                  <span id="selected-reasoning-badge" class="model-reasoning-badge">High</span>
+                  <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
+                </button>
+                <button id="btn-voice-input" class="toolbar-btn btn-voice" title="Voice input">
+                  <span class="ui-icon icon-input-voice"></span>
+                </button>
+                <button id="btn-send-message" class="btn-send-action disabled" title="Send message">
+                  <span class="ui-icon icon-input-send"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Warning Disclaimer Text Below Input -->
+          <div class="input-warning-text">Operon uses AI models. AI can make mistakes.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Application Script Entrypoint -->
+  <script type="module" src="js/main.js"></script>
+</body>
+
+</html>

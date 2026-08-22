@@ -1,0 +1,90 @@
+/* Main Content Topbar Styling */
+@import '../../shared/tokens.css';
+
+.main-topbar {
+  height: 40px;
+  min-height: 40px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background-color: var(--window-background);
+  border-bottom: none;
+  position: relative;
+  z-index: 15;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+
+/* Left Title & Toggle Area */
+.topbar-left-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar-btn {
+  height: 28px;
+  width: 28px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  flex-shrink: 0;
+}
+
+.topbar-btn:hover {
+  background-color: var(--dropdown-surface-hover);
+  color: var(--text-primary);
+}
+
+.topbar-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.topbar-session-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.topbar-project-badge {
+  display: none;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.topbar-project-badge.visible {
+  display: inline-block;
+}
+
+/* Right Actions Area */
+.topbar-right-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}

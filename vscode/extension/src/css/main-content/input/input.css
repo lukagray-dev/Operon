@@ -1,0 +1,268 @@
+/* Main Content Input Panel & Layout Styling */
+@import '../../shared/tokens.css';
+
+/* Main Content Area Layout */
+.main-content-layout {
+  flex: 1;
+  height: 100%;
+  background-color: var(--window-background);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Main Content Body (Holds scrollable chat messages viewport and floating input card) */
+.main-content-body {
+  flex: 1 1 0px;
+  min-height: 0;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Chat Messages Scroll Viewport */
+.main-chat-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Floating Input Panel Container pinned at the bottom of the viewport */
+.input-panel-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 12px 10px 12px;
+  z-index: 20;
+  pointer-events: none;
+  background: transparent;
+}
+
+/* Central Input Box Card */
+.input-card {
+  width: 100%;
+  max-width: 680px;
+  background-color: var(--sidebar-background, #121212);
+  border: 1px solid #222222;
+  border-radius: 12px;
+  padding: 10px 12px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  position: relative;
+  pointer-events: auto;
+  transition: border-color 0.18s ease-in-out, box-shadow 0.18s ease-in-out;
+}
+
+.input-card:focus-within {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5),
+              0 0 14px 2px rgba(255, 255, 255, 0.35),
+              0 0 28px 4px rgba(255, 255, 255, 0.15),
+              0 8px 32px rgba(0, 0, 0, 0.8);
+}
+
+/* Attachments Chips Bar */
+.attachments-bar {
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.attachments-bar.has-items {
+  display: flex;
+}
+
+/* Auto-expanding Multiline Textarea */
+.input-textarea {
+  width: 100%;
+  min-height: 28px;
+  max-height: 180px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 13.5px;
+  line-height: 1.45;
+  resize: none;
+  padding: 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.input-textarea::placeholder {
+  color: #737373;
+}
+
+/* Bottom Input Toolbar */
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-group-left,
+.toolbar-group-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Toolbar Buttons Base */
+.toolbar-btn {
+  height: 28px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 6px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.toolbar-btn:hover {
+  background-color: #1f1f1f;
+  color: var(--text-primary);
+}
+
+.toolbar-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Auto-Approve Toggle Pill */
+.btn-auto-approve {
+  border: 1px solid #282828;
+  background-color: #171717;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 0 8px;
+}
+
+.btn-auto-approve:hover {
+  background-color: #222222;
+  border-color: #333333;
+}
+
+.btn-auto-approve.active {
+  background-color: rgba(35, 209, 139, 0.12);
+  border-color: rgba(35, 209, 139, 0.35);
+  color: #23d18b;
+}
+
+.btn-auto-approve.active .ui-icon {
+  background-color: #23d18b;
+}
+
+/* Context Indicator */
+.btn-context-indicator {
+  font-family: var(--mono-font-family);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+/* Model Selector Pill */
+.btn-unified-model {
+  background-color: #171717;
+  border: 1px solid #282828;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-unified-model:hover {
+  background-color: #222222;
+  border-color: #333333;
+  color: var(--text-primary);
+}
+
+.btn-unified-model:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.model-reasoning-badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+/* Voice Input Button */
+.btn-voice {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* Circular Send Action Button */
+.btn-send-action {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-send-action .ui-icon {
+  background-color: #000000;
+  width: 13px;
+  height: 13px;
+}
+
+.btn-send-action:hover:not(.disabled) {
+  background-color: #e6e6e6;
+  transform: scale(1.04);
+}
+
+.btn-send-action.disabled {
+  background-color: #2a2a2a;
+  cursor: default;
+}
+
+.btn-send-action.disabled .ui-icon {
+  background-color: #666666;
+}
+
+/* Warning Disclaimer Text Below Input */
+.input-warning-text {
+  font-size: 11px;
+  color: #555555;
+  text-align: center;
+  margin-top: 6px;
+  font-family: var(--font-family);
+}

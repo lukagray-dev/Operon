@@ -1,0 +1,396 @@
+/* Operon Markdown Stylesheet
+ *
+ * Exclusively uses the official github-markdown-css (dark theme)
+ * with font definitions bound to Operon's typography system:
+ * - Prose: Literata (--assistant-font-family)
+ * - Monospace: Kode Mono (--mono-font-family)
+ * - UI & Header: Open Sans (--font-family)
+ */
+
+@import './github-markdown-dark.css';
+
+/* 1. Strict Typography Enforcement according to docs/Typography-and-Fonts.md */
+.assistant-message-body.markdown-body {
+  font-family: var(--assistant-font-family, 'Literata', Georgia, serif);
+}
+
+.user-message-bubble.markdown-body {
+  font-family: var(--font-family, 'Open Sans', sans-serif) !important;
+}
+
+.markdown-body code,
+.markdown-body tt,
+.markdown-body kbd,
+.markdown-body pre,
+.markdown-body pre code,
+.markdown-body pre tt,
+.markdown-body samp,
+.markdown-body pre code.hljs {
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+}
+
+/* 2. Enhanced Code Block Card Base Structure */
+.code-block-wrapper {
+  position: relative;
+  margin: 14px 0;
+  border-radius: 6px;
+  border: 1px solid #3e3e3e;
+  background-color: #1d1d1d;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Code Header Bar */
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 12px;
+  background-color: #1e1e1e;
+  border-bottom: 1px solid #3c3c3c;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Language Title */
+.code-block-lang {
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  color: #8b8b8b;
+}
+
+/* Copy Button */
+.code-block-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #9d9d9d;
+  font-family: var(--font-family, 'Open Sans', sans-serif);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.code-block-copy-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.code-block-copy-btn.copied {
+  color: #00ff37;
+  background-color: rgba(63, 185, 80, 0.1);
+  border-color: rgba(63, 185, 80, 0.25);
+}
+
+/* Copy & Check SVG Icons via CSS mask-image */
+.code-block-copy-icon {
+  width: 12px;
+  height: 12px;
+  background-color: currentColor;
+  display: inline-block;
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/copy.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  transition: -webkit-mask-image 150ms ease, mask-image 150ms ease;
+}
+
+.code-block-copy-btn.copied .code-block-copy-icon {
+  -webkit-mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+  mask-image: url('../../../../assets/icons/main-content/messages/assistant/check.svg');
+}
+
+/* Code Content Body with Gutter Layout */
+.code-block-body {
+  display: flex;
+  position: relative;
+  overflow-x: auto;
+}
+
+/* Line Numbers Gutter */
+.code-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px 12px 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #585858;
+  text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  min-width: 34px;
+}
+
+/* Code Pre and Content Inside Wrapper */
+.code-block-wrapper pre {
+  flex: 1;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  padding: 12px 14px !important;
+  overflow-x: auto;
+}
+
+.code-block-wrapper pre code {
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #f0f6fc;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  white-space: pre;
+}
+
+/* ==========================================================================
+   3. CODE BLOCK THEME VARIANTS (4 Styles)
+   ========================================================================== */
+
+/* Theme 0: GitHub Dark (Default) */
+.code-theme-github.code-block-wrapper {
+  background-color: #161b22;
+  border-color: #30363d;
+}
+.code-theme-github .code-block-header {
+  background-color: #161b22;
+  border-bottom-color: #30363d;
+}
+.code-theme-github .code-block-lang {
+  color: #8b949e;
+}
+.code-theme-github .code-line-numbers {
+  border-right-color: #30363d;
+  color: #484f58;
+}
+
+/* Theme 1: Midnight OLED */
+.code-theme-oled.code-block-wrapper {
+  background-color: #000000;
+  border-color: #242424;
+}
+.code-theme-oled .code-block-header {
+  background-color: #080808;
+  border-bottom-color: #202020;
+}
+.code-theme-oled .code-block-lang {
+  color: #58a6ff;
+}
+.code-theme-oled .code-line-numbers {
+  border-right-color: #202020;
+  color: #404040;
+}
+
+/* Theme 2: Tokyo Night */
+.code-theme-tokyo.code-block-wrapper {
+  background-color: #1a1b26;
+  border-color: #292e42;
+}
+.code-theme-tokyo .code-block-header {
+  background-color: #16161e;
+  border-bottom-color: #24283b;
+}
+.code-theme-tokyo .code-block-lang {
+  color: #7aa2f7;
+}
+.code-theme-tokyo .code-line-numbers {
+  border-right-color: #24283b;
+  color: #565f89;
+}
+
+/* Theme 3: Monokai Matrix */
+.code-theme-monokai.code-block-wrapper {
+  background-color: #1e1f1c;
+  border-color: #34352f;
+}
+.code-theme-monokai .code-block-header {
+  background-color: #181915;
+  border-bottom-color: #2e2f29;
+}
+.code-theme-monokai .code-block-lang {
+  color: #e6db74;
+}
+.code-theme-monokai .code-line-numbers {
+  border-right-color: #2e2f29;
+  color: #64645e;
+}
+
+/* ==========================================================================
+   4. INLINE CODE STYLING (Highlight vs Plain)
+   ========================================================================== */
+
+.markdown-body code:not(pre code) {
+  font-family: var(--mono-font-family, 'Kode Mono', monospace) !important;
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: break-spaces;
+  transition: all 0.12s ease;
+}
+
+/* Highlighted Inline Code */
+.markdown-body.inline-code-highlighted code:not(pre code),
+.markdown-body code.inline-highlighted:not(pre code) {
+  background-color: rgba(96, 197, 255, 0.1) !important;
+  border: 1px solid rgba(96, 197, 255, 0.28) !important;
+  color: #72cbff !important;
+  font-weight: 500;
+}
+
+.markdown-body.inline-code-highlighted code:not(pre code) .hl-kw,
+.markdown-body code.inline-highlighted:not(pre code) .hl-kw {
+  color: #bb9af7;
+  font-weight: 600;
+}
+
+.markdown-body.inline-code-highlighted code:not(pre code) .hl-str,
+.markdown-body code.inline-highlighted:not(pre code) .hl-str {
+  color: #9ece6a;
+}
+
+.markdown-body.inline-code-highlighted code:not(pre code) .hl-fn,
+.markdown-body code.inline-highlighted:not(pre code) .hl-fn {
+  color: #7aa2f7;
+}
+
+.markdown-body.inline-code-highlighted code:not(pre code) .hl-num,
+.markdown-body code.inline-highlighted:not(pre code) .hl-num {
+  color: #ff9e64;
+}
+
+/* Plain Inline Code */
+.markdown-body.inline-code-plain code:not(pre code),
+.markdown-body code.inline-plain:not(pre code) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e6edf3 !important;
+}
+
+/* ==========================================================================
+   5. TABLE THEME VARIANTS (4 Styles)
+   ========================================================================== */
+
+/* Base Table Styling */
+.markdown-body table {
+  width: 100%;
+  margin: 14px 0;
+  display: table;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+/* Theme 0: GitHub Dark (Default) */
+.markdown-body.table-theme-github table,
+.markdown-body table.table-theme-github {
+  border-color: #30363d !important;
+}
+.markdown-body.table-theme-github table th,
+.markdown-body table.table-theme-github th {
+  background-color: #161b22 !important;
+  border: 1px solid #30363d !important;
+}
+.markdown-body.table-theme-github table td,
+.markdown-body table.table-theme-github td {
+  border: 1px solid #30363d !important;
+}
+
+/* Theme 1: Modern Minimal (Glass & Accent Divider) */
+.markdown-body.table-theme-minimal table,
+.markdown-body table.table-theme-minimal {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: none !important;
+  background: transparent !important;
+}
+.markdown-body.table-theme-minimal table th,
+.markdown-body table.table-theme-minimal th {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 2px solid #60c5ff !important;
+  color: #ffffff;
+  padding: 10px 14px;
+}
+.markdown-body.table-theme-minimal table td,
+.markdown-body table.table-theme-minimal td {
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background-color: transparent !important;
+  padding: 9px 14px;
+}
+.markdown-body.table-theme-minimal table tr:hover td,
+.markdown-body table.table-theme-minimal tr:hover td {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Theme 2: Zebra Striped */
+.markdown-body.table-theme-zebra table,
+.markdown-body table.table-theme-zebra {
+  border-collapse: collapse;
+  border: 1px solid #282828 !important;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.markdown-body.table-theme-zebra table th,
+.markdown-body table.table-theme-zebra th {
+  background-color: #202020 !important;
+  border: 1px solid #303030 !important;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 10px 14px;
+}
+.markdown-body.table-theme-zebra table tr:nth-child(odd) td,
+.markdown-body table.table-theme-zebra tr:nth-child(odd) td {
+  background-color: #141414 !important;
+}
+.markdown-body.table-theme-zebra table tr:nth-child(even) td,
+.markdown-body table.table-theme-zebra tr:nth-child(even) td {
+  background-color: #1b1b1b !important;
+}
+.markdown-body.table-theme-zebra table td,
+.markdown-body table.table-theme-zebra td {
+  border: 1px solid #262626 !important;
+  padding: 9px 14px;
+}
+
+/* Theme 3: Boxed Grid */
+.markdown-body.table-theme-grid table,
+.markdown-body table.table-theme-grid {
+  border-collapse: collapse;
+  border: 1px solid #383838 !important;
+}
+.markdown-body.table-theme-grid table th,
+.markdown-body table.table-theme-grid th {
+  background-color: #242424 !important;
+  border: 1px solid #383838 !important;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+.markdown-body.table-theme-grid table td,
+.markdown-body table.table-theme-grid td {
+  background-color: #171717 !important;
+  border: 1px solid #333333 !important;
+  padding: 7px 12px;
+}

@@ -1,0 +1,721 @@
+/* Left Sidebar Layout & Components (Symmetrical to GUI) */
+@import '../shared/tokens.css';
+
+:root {
+  --sidebar-background: #121212;
+  --sidebar-border-color: #222222;
+  --sidebar-width: 280px;
+  --sidebar-min-width: 220px;
+  --sidebar-max-width: 450px;
+}
+
+/* Dimmed Blurred Backdrop for Overlay Sidebar Drawer */
+.sidebar-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Left Sidebar Overlay Drawer */
+.left-sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  max-width: 88%;
+  height: 100%;
+  background-color: var(--sidebar-background);
+  border-right: 1px solid #1c1c1c;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.75);
+}
+
+.left-sidebar.open {
+  transform: translateX(0);
+}
+
+/* Drawer Top Header */
+.sidebar-drawer-header {
+  padding: 8px 10px 4px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text-primary);
+}
+
+.drawer-brand img {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-close-sidebar {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.btn-close-sidebar:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.btn-close-sidebar:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Top Action Section */
+.sidebar-top {
+  padding: 8px 10px 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* New Conversation Primary Button */
+.btn-new-chat {
+  width: 100%;
+  height: 32px;
+  background-color: #1c1c1c;
+  border: 1px solid #2b2b2b;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.btn-new-chat:hover {
+  background-color: #262626;
+  border-color: #3b3b3b;
+}
+
+.btn-new-chat:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.btn-new-chat-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.key-badge {
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-family: var(--mono-font-family);
+  color: var(--text-muted);
+}
+
+/* Search Bar */
+.sidebar-search-container {
+  height: 28px;
+  background-color: #171717;
+  border: 1px solid #262626;
+  border-radius: 5px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s ease;
+}
+
+.sidebar-search-container:focus-within {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar-search-container:focus-within .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.sidebar-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 12px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sidebar-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.btn-search-clear {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 0 2px;
+}
+
+.btn-search-clear.visible {
+  display: inline-block;
+}
+
+/* Plugins Button */
+.btn-sidebar-plugins {
+  height: 28px;
+  border-radius: 5px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.btn-sidebar-plugins:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.btn-sidebar-plugins:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Scrollable Middle Content */
+.sidebar-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Section Container */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Section Header */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.section-header:hover {
+  color: var(--text-secondary);
+}
+
+.section-header:hover .ui-icon {
+  background-color: var(--text-secondary);
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chevron-icon {
+  width: 11px;
+  height: 11px;
+  transition: transform 0.15s ease;
+}
+
+.sidebar-section.collapsed .chevron-icon {
+  transform: rotate(-90deg);
+}
+
+.sidebar-section.collapsed .section-items {
+  display: none;
+}
+
+.count-pill {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--mono-font-family);
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1px 5px;
+}
+
+.section-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 0.12s ease;
+}
+
+.section-action-btn:hover {
+  opacity: 1;
+  background: transparent;
+}
+
+.section-action-btn:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.section-action-btn .ui-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Section Items List */
+.section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Standalone Conversation / Session Item */
+.session-item {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  position: relative;
+}
+
+.session-item:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.session-item:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.session-item.active {
+  background-color: #242424;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.session-item.active .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.session-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.session-title-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Three Dots Button on Conversation Items */
+.item-more-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px 4px;
+  opacity: 0.7;
+  transition: opacity 0.1s ease, background-color 0.1s ease;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-item:hover .item-more-btn,
+.session-item.active .item-more-btn,
+.item-more-btn.active {
+  display: flex;
+}
+
+.item-more-btn:hover,
+.item-more-btn.active {
+  opacity: 1;
+  background-color: var(--surface-hover);
+}
+
+.item-more-btn:hover .ui-icon,
+.item-more-btn.active .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Floating Conversation Context Menu Dropdown */
+.session-context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: var(--dropdown-surface, #1f1f1f);
+  border: 1px solid var(--dropdown-border, #262626);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.72);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 140px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-family);
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.context-menu-item:hover {
+  background-color: var(--dropdown-surface-hover, #2b2b2b);
+  color: var(--text-primary);
+}
+
+.context-menu-item:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.context-menu-item.danger {
+  color: var(--danger-red, #ff4747);
+}
+
+.context-menu-item.danger .ui-icon {
+  background-color: var(--danger-red, #ff4747);
+}
+
+.context-menu-item.danger:hover {
+  background-color: rgba(255, 0, 0, 0.18);
+  color: var(--danger-red-hover, #ff6666);
+}
+
+.context-menu-item.danger:hover .ui-icon {
+  background-color: var(--danger-red-hover, #ff6666);
+}
+
+.context-menu-separator {
+  height: 1px;
+  background-color: var(--dropdown-separator, #333333);
+  margin: 2px 0;
+}
+
+/* Project Item Tree */
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.project-header {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.project-header:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.project-header:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.project-header.active {
+  background-color: #242424;
+  color: var(--text-primary);
+}
+
+.project-header.active .ui-icon {
+  background-color: var(--text-primary);
+}
+
+.project-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.proj-chevron {
+  width: 10px;
+  height: 10px;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.project-card.collapsed .proj-chevron {
+  transform: rotate(-90deg);
+}
+
+.project-card.collapsed .project-conversations {
+  display: none;
+}
+
+.project-conversations {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  margin-left: 14px;
+}
+
+/* Bottom Settings Section */
+.sidebar-bottom {
+  padding: 8px 10px;
+  border-top: 1px solid var(--sidebar-border-color);
+  background-color: var(--sidebar-background);
+}
+
+.btn-sidebar-settings {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.btn-sidebar-settings:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.btn-sidebar-settings:hover .ui-icon {
+  background-color: var(--text-primary);
+}
+
+/* Sidebar Specific Mask Icons */
+.icon-sidebar-chats {
+  -webkit-mask-image: url('../../assets/icons/sidebar/chats.svg');
+  mask-image: url('../../assets/icons/sidebar/chats.svg');
+}
+
+.icon-sidebar-new-chat {
+  -webkit-mask-image: url('../../assets/icons/sidebar/new-chat.svg');
+  mask-image: url('../../assets/icons/sidebar/new-chat.svg');
+}
+
+.icon-sidebar-search {
+  -webkit-mask-image: url('../../assets/icons/sidebar/search.svg');
+  mask-image: url('../../assets/icons/sidebar/search.svg');
+}
+
+.icon-sidebar-plugins {
+  -webkit-mask-image: url('../../assets/icons/sidebar/plugins.svg');
+  mask-image: url('../../assets/icons/sidebar/plugins.svg');
+}
+
+.icon-sidebar-projects {
+  -webkit-mask-image: url('../../assets/icons/sidebar/projects.svg');
+  mask-image: url('../../assets/icons/sidebar/projects.svg');
+}
+
+.icon-sidebar-folder {
+  -webkit-mask-image: url('../../assets/icons/sidebar/folder.svg');
+  mask-image: url('../../assets/icons/sidebar/folder.svg');
+}
+
+.icon-sidebar-folder-input {
+  -webkit-mask-image: url('../../assets/icons/sidebar/folder-input.svg');
+  mask-image: url('../../assets/icons/sidebar/folder-input.svg');
+}
+
+.icon-sidebar-pencil {
+  -webkit-mask-image: url('../../assets/icons/sidebar/pencil.svg');
+  mask-image: url('../../assets/icons/sidebar/pencil.svg');
+}
+
+.icon-sidebar-trash {
+  -webkit-mask-image: url('../../assets/icons/sidebar/trash.svg');
+  mask-image: url('../../assets/icons/sidebar/trash.svg');
+}
+
+.icon-sidebar-settings {
+  -webkit-mask-image: url('../../assets/icons/sidebar/settings.svg');
+  mask-image: url('../../assets/icons/sidebar/settings.svg');
+}
+
+.icon-sidebar-chevron-down {
+  -webkit-mask-image: url('../../assets/icons/sidebar/chevron-down.svg');
+  mask-image: url('../../assets/icons/sidebar/chevron-down.svg');
+}
+
+.icon-sidebar-user {
+  -webkit-mask-image: url('../../assets/icons/sidebar/user.svg');
+  mask-image: url('../../assets/icons/sidebar/user.svg');
+}
+
+.icon-sidebar-more-vertical {
+  -webkit-mask-image: url('../../assets/icons/sidebar/more-vertical.svg');
+  mask-image: url('../../assets/icons/sidebar/more-vertical.svg');
+}
+
+.icon-sidebar-share {
+  -webkit-mask-image: url('../../assets/icons/sidebar/share.svg');
+  mask-image: url('../../assets/icons/sidebar/share.svg');
+}
+
+.icon-sidebar-pin {
+  -webkit-mask-image: url('../../assets/icons/sidebar/pin.svg');
+  mask-image: url('../../assets/icons/sidebar/pin.svg');
+}
+
+.icon-sidebar-fork {
+  -webkit-mask-image: url('../../assets/icons/sidebar/git-fork.svg');
+  mask-image: url('../../assets/icons/sidebar/git-fork.svg');
+}
+
+.icon-titlebar-close {
+  -webkit-mask-image: url('../../assets/icons/titlebar/close.svg');
+  mask-image: url('../../assets/icons/titlebar/close.svg');
+}
+
+.icon-titlebar-sidebar-closed {
+  -webkit-mask-image: url('../../assets/icons/titlebar/sidebar-closed.svg');
+  mask-image: url('../../assets/icons/titlebar/sidebar-closed.svg');
+}
+
+.icon-titlebar-sidebar-opened {
+  -webkit-mask-image: url('../../assets/icons/titlebar/sidebar-opened.svg');
+  mask-image: url('../../assets/icons/titlebar/sidebar-opened.svg');
+}
+
+/* Input Icon Masks */
+.icon-input-attach {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/attach.svg');
+  mask-image: url('../../assets/icons/main-content/input/attach.svg');
+}
+
+.icon-input-auto-approve-disable {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/auto-approve-disable.svg');
+  mask-image: url('../../assets/icons/main-content/input/auto-approve-disable.svg');
+}
+
+.icon-input-auto-approve-enable {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/auto-approve-enable.svg');
+  mask-image: url('../../assets/icons/main-content/input/auto-approve-enable.svg');
+}
+
+.icon-input-chevron-down {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/chevron-down.svg');
+  mask-image: url('../../assets/icons/main-content/input/chevron-down.svg');
+}
+
+.icon-input-voice {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/voice.svg');
+  mask-image: url('../../assets/icons/main-content/input/voice.svg');
+}
+
+.icon-input-send {
+  -webkit-mask-image: url('../../assets/icons/main-content/input/send.svg');
+  mask-image: url('../../assets/icons/main-content/input/send.svg');
+}
+
+/* Topbar Icon Masks */
+.icon-topbar-git-commit {
+  -webkit-mask-image: url('../../assets/icons/main-content/topbar/git-commit.svg');
+  mask-image: url('../../assets/icons/main-content/topbar/git-commit.svg');
+}
+
+.icon-topbar-todo {
+  -webkit-mask-image: url('../../assets/icons/main-content/topbar/todo.svg');
+  mask-image: url('../../assets/icons/main-content/topbar/todo.svg');
+}

@@ -1,0 +1,67 @@
+/* Centralized Design Tokens matching Operon design system */
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('../../assets/fonts/OpenSans/OpenSans-VariableFont_wdth,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('../../assets/fonts/OpenSans/OpenSans-Italic-VariableFont_wdth,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../../assets/fonts/Inter/Inter-VariableFont_opsz,wght.ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kode Mono';
+  src: url('../../assets/fonts/KodeMono/KodeMono-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Typography */
+  --font-family: 'Open Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono-font-family: 'Kode Mono', monospace;
+
+  /* Surfaces & Backgrounds */
+  --window-background: #000000;
+  --sidebar-background: #121212;
+  --sidebar-drawer-background: #0d0d0d;
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --surface-pressed: rgba(255, 255, 255, 0.12);
+
+  /* Dropdown & Popovers */
+  --dropdown-surface: #1f1f1f;
+  --dropdown-surface-hover: #2b2b2b;
+  --dropdown-border: #262626;
+  --dropdown-separator: #333333;
+
+  /* Foreground & Text */
+  --text-primary: #ffffff;
+  --text-secondary: #d3d3d3;
+  --text-muted: #888888;
+
+  /* State & Action Colors */
+  --accent-blue: #007acc;
+  --accent-blue-surface: #161a20;
+  --danger-red: #ff0000;
+  --danger-red-hover: #ff4747;
+
+  /* Sizing & Geometry */
+  --topbar-height: 42px;
+  --sidebar-overlay-width: 280px;
+}
