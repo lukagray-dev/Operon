@@ -118,6 +118,38 @@ function setupHelpMenuActions(): void {
     await invokeIpc('open_documentation');
   });
 
+  document.getElementById('menu-item-check-update')?.addEventListener('click', async () => {
+    appState.setActiveMenu(null);
+    try {
+      const { manualCheckForUpdates } = await import('../left-sidebar/updater.js');
+      const { showConfirmDialog } = await import('../shared/dialog.js');
+      const info = await manualCheckForUpdates();
+      if (!info) {
+        await showConfirmDialog({
+          title: 'Operon Update',
+          message: 'You are already running the latest version of Operon.',
+          confirmText: 'OK',
+          cancelText: '',
+          icon: 'info',
+        });
+      }
+    } catch (err) {
+      const { showConfirmDialog } = await import('../shared/dialog.js');
+      await showConfirmDialog({
+        title: 'Update Check Failed',
+        message: `Could not check for updates: ${err instanceof Error ? err.message : String(err)}`,
+        confirmText: 'OK',
+        cancelText: '',
+        icon: 'warning',
+      });
+    }
+  });
+
+  document.getElementById('menu-item-about')?.addEventListener('click', async () => {
+    appState.setActiveMenu(null);
+    await openSettingsWindowIpc();
+  });
+
   document.getElementById('menu-item-report-bug')?.addEventListener('click', async () => {
     appState.setActiveMenu(null);
     await invokeIpc('open_report_bug');

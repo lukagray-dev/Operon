@@ -4326,6 +4326,7 @@ dependencies = [
  "notify",
  "operon-rs",
  "pulldown-cmark",
+ "reqwest",
  "rfd",
  "serde",
  "serde_json",

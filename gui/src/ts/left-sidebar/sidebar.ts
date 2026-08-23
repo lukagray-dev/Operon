@@ -15,6 +15,7 @@ import {
   renameSessionIpc,
 } from './ipc.js';
 import { showConfirmDialog, showPromptDialog } from '../shared/dialog.js';
+import { initSidebarUpdater } from './updater.js';
 import { sidebarState } from './state.js';
 import type { SidebarConversation } from './types.js';
 
@@ -27,6 +28,7 @@ export function initSidebar(): void {
   setupSectionToggles();
   setupResizeHandle();
   setupBottomActions();
+  initSidebarUpdater();
 
   // Close context menu on outside click or window resize
   window.addEventListener('click', () => {

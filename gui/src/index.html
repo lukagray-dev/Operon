@@ -227,6 +227,20 @@
 
         <!-- Bottom Section -->
         <div class="sidebar-bottom">
+          <!-- Update Available Relaunch Banner (Visible only when update is ready) -->
+          <div id="sidebar-update-container" class="sidebar-update-container hidden">
+            <button id="btn-sidebar-update" class="btn-sidebar-update" title="Click to restart and apply update">
+              <div class="update-info-left">
+                <span class="ui-icon icon-sidebar-update"></span>
+                <div class="update-text-group">
+                  <span class="update-title">Update Ready</span>
+                  <span id="update-version-label" class="update-version-text">v0.2.0</span>
+                </div>
+              </div>
+              <span class="update-action-pill">Relaunch</span>
+            </button>
+          </div>
+
           <button id="btn-sidebar-settings" class="btn-sidebar-settings">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span class="ui-icon icon-sidebar-settings"></span>

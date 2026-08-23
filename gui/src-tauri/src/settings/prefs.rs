@@ -108,6 +108,8 @@ pub struct GuiPrefs {
     pub notify_on_response_complete: bool,
     #[serde(default = "default_auto_collapse_reasoning_tools")]
     pub auto_collapse_reasoning_tools: bool,
+    #[serde(default = "default_true")]
+    pub auto_update_checks: bool,
 
     // Appearance: Markdown & Code block settings
     #[serde(default)]
@@ -155,6 +157,7 @@ impl Default for GuiPrefs {
             notify_on_permission_request: true,
             notify_on_response_complete: false,
             auto_collapse_reasoning_tools: false,
+            auto_update_checks: true,
             code_block_theme: 0,
             show_line_numbers: true,
             highlight_inline_code: true,

@@ -18,7 +18,7 @@ pub async fn get_general_settings() -> Result<GeneralSettingsDto, String> {
         notify_on_permission_request: prefs.notify_on_permission_request,
         notify_on_response_complete: prefs.notify_on_response_complete,
         auto_collapse_reasoning_tools: prefs.auto_collapse_reasoning_tools,
-        auto_update_checks: true,
+        auto_update_checks: prefs.auto_update_checks,
         telemetry_enabled: false,
     })
 }
@@ -39,6 +39,7 @@ pub async fn save_general_settings(
     prefs.notify_on_permission_request = settings.notify_on_permission_request;
     prefs.notify_on_response_complete = settings.notify_on_response_complete;
     prefs.auto_collapse_reasoning_tools = settings.auto_collapse_reasoning_tools;
+    prefs.auto_update_checks = settings.auto_update_checks;
 
     // 1. Save to disk
     prefs.save()?;

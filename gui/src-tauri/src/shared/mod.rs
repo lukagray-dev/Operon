@@ -4,6 +4,7 @@ pub mod dwm;
 pub mod notification;
 pub mod state;
 pub mod tray;
+pub mod updater;
 pub mod watcher;
 
 pub use dwm::apply_window_dwm_styling;

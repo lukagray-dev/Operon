@@ -1,5 +1,6 @@
 /* Left Sidebar Layout & Components */
 @import '../shared/tokens.css';
+@import './updater.css';
 
 :root {
   --sidebar-background: #121212;

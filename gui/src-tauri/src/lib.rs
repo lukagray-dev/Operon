@@ -89,6 +89,9 @@ pub fn run() {
             // 4. Auto-start WhatsApp and Telegram background services if configured
             shared::channels_manager::auto_start_channels_on_launch();
 
+            // 5. Start background auto-update checker
+            shared::updater::start_background_updater_task(app.handle().clone());
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -219,6 +222,9 @@ pub fn run() {
             settings::memory::memory_add,
             settings::memory::memory_edit,
             settings::memory::memory_delete,
+            // Updater actions
+            shared::updater::check_for_updates,
+            shared::updater::relaunch_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

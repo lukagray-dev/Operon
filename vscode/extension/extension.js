@@ -315,8 +315,111 @@ function activate(context) {
 
     vscode.commands.registerCommand('operon.openSettings', () => {
       openSettingsTab(context.extensionUri);
+    }),
+
+    vscode.commands.registerCommand('operon.checkForUpdates', () => {
+      checkForExtensionUpdates(context, true);
     })
   );
+
+  // Background auto-update check on startup if enabled in settings
+  setTimeout(async () => {
+    try {
+      const settings = await bridgeClient?.invoke('get_general_settings');
+      if (settings?.auto_update_checks !== false) {
+        checkForExtensionUpdates(context, false);
+      }
+    } catch (_) {
+      checkForExtensionUpdates(context, false);
+    }
+  }, 5000);
+}
+
+/**
+ * Compares two semantic version strings (e.g. "0.2.0" > "0.1.0").
+ */
+function isNewerSemver(current, remote) {
+  const clean = (v) => v.trim().replace(/^v/i, '').split('.').map((n) => parseInt(n.replace(/\D/g, ''), 10) || 0);
+  const [cMaj = 0, cMin = 0, cPat = 0] = clean(current);
+  const [rMaj = 0, rMin = 0, rPat = 0] = clean(remote);
+
+  if (rMaj !== cMaj) return rMaj > cMaj;
+  if (rMin !== cMin) return rMin > cMin;
+  return rPat > cPat;
+}
+
+/**
+ * Queries GitHub releases to check if a newer version of the extension / binary is available.
+ * @param {vscode.ExtensionContext} context
+ * @param {boolean} forceManual
+ */
+async function checkForExtensionUpdates(context, forceManual = false) {
+  const currentVersion = context.extension?.packageJSON?.version || '0.1.0';
+  outputChannel?.appendLine(`[Operon Updater] Checking GitHub releases (current: v${currentVersion}, manual: ${forceManual})...`);
+
+  try {
+    const https = require('https');
+    const options = {
+      hostname: 'api.github.com',
+      path: '/repos/lukagray-dev/Operon/releases/latest',
+      headers: {
+        'User-Agent': `Operon-VSCode/${currentVersion}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    };
+
+    const data = await new Promise((resolve, reject) => {
+      const req = https.get(options, (res) => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`GitHub API returned status ${res.statusCode}`));
+          res.resume();
+          return;
+        }
+        let body = '';
+        res.on('data', (chunk) => {
+          body += chunk;
+        });
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+
+      req.on('error', (err) => reject(err));
+      req.setTimeout(10000, () => {
+        req.destroy();
+        reject(new Error('Update check request timed out after 10s'));
+      });
+    });
+
+    const remoteTag = data?.tag_name?.trim() || '';
+    const remoteVersion = remoteTag.replace(/^v/i, '');
+
+    if (remoteVersion && isNewerSemver(currentVersion, remoteVersion)) {
+      outputChannel?.appendLine(`[Operon Updater] Newer version available: v${remoteVersion}`);
+      const choice = await vscode.window.showInformationMessage(
+        `Operon v${remoteVersion} is available (current: v${currentVersion}).`,
+        'View Release Notes',
+        'Check Marketplace'
+      );
+
+      if (choice === 'View Release Notes' && data.html_url) {
+        vscode.env.openExternal(vscode.Uri.parse(data.html_url));
+      } else if (choice === 'Check Marketplace') {
+        vscode.commands.executeCommand('workbench.extensions.action.checkForUpdates');
+      }
+    } else if (forceManual) {
+      vscode.window.showInformationMessage(`Operon Extension is up to date (v${currentVersion}).`);
+    }
+  } catch (err) {
+    outputChannel?.appendLine(`[Operon Updater] Update check error: ${err.message}`);
+    if (forceManual) {
+      vscode.window.showWarningMessage(`Could not check for Operon updates: ${err.message}`);
+    }
+  }
 }
 
 /**

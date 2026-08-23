@@ -54,6 +54,14 @@
       {
         "command": "operon.cancelPrompt",
         "title": "Operon: Cancel"
+      },
+      {
+        "command": "operon.openSettings",
+        "title": "Operon: Open Settings"
+      },
+      {
+        "command": "operon.checkForUpdates",
+        "title": "Operon: Check for Updates"
       }
     ],
     "keybindings": [
