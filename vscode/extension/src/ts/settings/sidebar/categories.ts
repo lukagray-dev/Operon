@@ -22,12 +22,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     description: 'LLM providers, API keys, active model discovery, and base URLs.',
   },
   {
-    id: 'channels',
-    label: 'Channels',
-    iconClass: 'icon-settings-channels',
-    description: 'WhatsApp and Telegram companion bridge pairing and listener setup.',
-  },
-  {
     id: 'memory',
     label: 'Memory',
     iconClass: 'icon-settings-memory',

@@ -2,7 +2,6 @@
 
 pub mod about;
 pub mod appearance;
-pub mod channels;
 pub mod commands;
 pub mod general;
 pub mod memory;

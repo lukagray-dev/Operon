@@ -34,13 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 3. Initialize application state
     let state = Arc::new(AppState::new(transport.clone()));
 
-    // 4. Register state into channels manager for async channel event broadcasts
+    // 4. Register state into permission manager for async event broadcasts
     channels_manager::set_app_state(state.clone());
 
-    // 5. Initialize background channels (WhatsApp / Telegram) if credentials exist
-    channels_manager::init_channels_on_startup().await;
-
-    // 6. Read newline-delimited JSON-RPC messages from standard input
+    // 5. Read newline-delimited JSON-RPC messages from standard input
     let stdin = tokio::io::stdin();
     let mut reader = BufReader::new(stdin).lines();
 

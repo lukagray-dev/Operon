@@ -137,12 +137,6 @@ function renderActivePanel(): void {
     panel.classList.toggle('active', panel.dataset.tab === currentTab);
   });
 
-  if (currentTab === 'channels') {
-    import('../channels/channels.js').then(({ refreshChannelsData }) => {
-      refreshChannelsData();
-    }).catch(() => {});
-  }
-
   if (currentTab === 'memory') {
     import('../memory/memory.js').then(({ refreshMemoryData }) => {
       refreshMemoryData();

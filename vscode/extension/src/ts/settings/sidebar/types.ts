@@ -4,7 +4,6 @@ export type SettingsTabId =
   | 'general'
   | 'models'
   | 'appearance'
-  | 'channels'
   | 'skills'
   | 'extensions'
   | 'memory'

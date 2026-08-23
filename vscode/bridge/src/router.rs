@@ -148,88 +148,6 @@ pub async fn dispatch(
         }
 
         // =========================================================================
-        // Settings - Channels
-        // =========================================================================
-        "get_channels_list" => {
-            let res = settings::channels::get_channels_list().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "get_whatsapp_state" => {
-            let res = settings::channels::whatsapp::get_whatsapp_state().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "check_whatsapp_policy_coverage" => {
-            let workspace_dir = params
-                .get("workspaceDir")
-                .or_else(|| params.get("workspace_dir"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let res = settings::channels::whatsapp::check_whatsapp_policy_coverage(workspace_dir).await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "pick_whatsapp_workspace_dialog" => {
-            let res = settings::channels::whatsapp::pick_whatsapp_workspace_dialog().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "save_whatsapp_channel_config" => {
-            let payload: settings::channels::whatsapp::types::SaveWhatsAppPayloadDto =
-                serde_json::from_value(params.get("payload").cloned().unwrap_or(params))
-                    .map_err(|e| format!("Invalid SaveWhatsAppPayloadDto: {e}"))?;
-            settings::channels::whatsapp::save_whatsapp_channel_config(payload).await?;
-            Ok(Value::Null)
-        }
-        "start_whatsapp_qr_pairing" => {
-            let res = settings::channels::whatsapp::start_whatsapp_qr_pairing().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "start_whatsapp_code_pairing" => {
-            let phone_number = params
-                .get("phoneNumber")
-                .or_else(|| params.get("phone_number"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let res = settings::channels::whatsapp::start_whatsapp_code_pairing(phone_number).await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "get_telegram_state" => {
-            let res = settings::channels::telegram::get_telegram_state().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "check_telegram_policy_coverage" => {
-            let workspace_dir = params
-                .get("workspaceDir")
-                .or_else(|| params.get("workspace_dir"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let res = settings::channels::telegram::check_telegram_policy_coverage(workspace_dir).await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "pick_telegram_workspace_dialog" => {
-            let res = settings::channels::telegram::pick_telegram_workspace_dialog().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "test_telegram_channel_connection" => {
-            let bot_token = params
-                .get("botToken")
-                .or_else(|| params.get("bot_token"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let res = settings::channels::telegram::test_telegram_channel_connection(bot_token).await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "save_telegram_channel_config" => {
-            let payload: settings::channels::telegram::types::SaveTelegramPayloadDto =
-                serde_json::from_value(params.get("payload").cloned().unwrap_or(params))
-                    .map_err(|e| format!("Invalid SaveTelegramPayloadDto: {e}"))?;
-            settings::channels::telegram::save_telegram_channel_config(payload).await?;
-            Ok(Value::Null)
-        }
-
-        // =========================================================================
         // Settings - Memory
         // =========================================================================
         "memory_list" => {
@@ -407,14 +325,6 @@ pub async fn dispatch(
                 .to_string();
             left_sidebar::move_session(session_id, target_workspace).await?;
             Ok(Value::Null)
-        }
-        "query_whatsapp_contacts" => {
-            let res = left_sidebar::query_whatsapp_contacts().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
-        }
-        "query_telegram_contacts" => {
-            let res = left_sidebar::query_telegram_contacts().await?;
-            serde_json::to_value(res).map_err(|e| e.to_string())
         }
 
         // =========================================================================

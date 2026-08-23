@@ -1,7 +1,7 @@
 // Left Sidebar IPC callers for VS Code
 
 import { invokeIpc } from '../shared/ipc.js';
-import type { SidebarData, SidebarProject } from './types.js';
+import type { SidebarData } from './types.js';
 
 export async function querySidebarData(searchQuery = ''): Promise<SidebarData> {
   const res = await invokeIpc<SidebarData>('query_sidebar_data', { searchQuery });
@@ -43,14 +43,4 @@ export async function forkSessionIpc(sessionId: string, untilTurnIndex?: number)
 
 export async function moveSessionIpc(sessionId: string, targetWorkspace: string): Promise<void> {
   await invokeIpc('move_session', { sessionId, targetWorkspace });
-}
-
-export async function queryWhatsAppContactsIpc(): Promise<SidebarProject[]> {
-  const res = await invokeIpc<SidebarProject[]>('query_whatsapp_contacts');
-  return res || [];
-}
-
-export async function queryTelegramContactsIpc(): Promise<SidebarProject[]> {
-  const res = await invokeIpc<SidebarProject[]>('query_telegram_contacts');
-  return res || [];
 }

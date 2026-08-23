@@ -15,7 +15,6 @@
 
 import { initAboutSettings } from './about/about.js';
 import { initAppearanceSettings } from './appearance/appearance.js';
-import { initChannelsSettings } from './channels/channels.js';
 import { initGeneralSettings } from './general/general.js';
 import { initMemorySettings } from './memory/memory.js';
 import { initModelsSettings } from './models/models.js';
@@ -55,12 +54,6 @@ async function initSettings(): Promise<void> {
     await initPermissionsSettings();
   } catch (err) {
     console.error('[Operon Settings] Error initializing Permissions settings:', err);
-  }
-
-  try {
-    await initChannelsSettings();
-  } catch (err) {
-    console.error('[Operon Settings] Error initializing Channels settings:', err);
   }
 
   try {
