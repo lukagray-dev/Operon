@@ -191,7 +191,7 @@ pub async fn relaunch_app(app: AppHandle) -> Result<(), String> {
 
 /// Spawns a background task that checks for updates on startup if enabled in settings.
 pub fn start_background_updater_task(app: AppHandle) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         // Delay 5 seconds on startup to allow UI initialization to finish without network contention
         tokio::time::sleep(Duration::from_secs(5)).await;
 
