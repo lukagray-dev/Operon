@@ -480,6 +480,14 @@ async function handleUnifiedIpcInvoke(cmd, args, extensionUri) {
         vscode.env.openExternal(vscode.Uri.parse(args.url));
       }
       return null;
+
+    case 'send_desktop_notification': {
+      const title = (args && args.title) ? args.title : 'Operon';
+      const body = (args && args.body) ? args.body : '';
+      const message = body ? `${title}: ${body}` : title;
+      vscode.window.showInformationMessage(message);
+      return null;
+    }
   }
 
   // 2. Delegate everything else to the Rust JSON-RPC Bridge

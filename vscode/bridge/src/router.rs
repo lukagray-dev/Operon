@@ -589,6 +589,7 @@ pub async fn dispatch(
             let res = main_content::markdown::render_markdown_batch(texts).await?;
             serde_json::to_value(res).map_err(|e| e.to_string())
         }
+        "send_desktop_notification" => Ok(Value::Null),
 
         unknown => Err(format!("Unknown JSON-RPC method: '{unknown}'")),
     }

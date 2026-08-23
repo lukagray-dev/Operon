@@ -33,6 +33,7 @@ import {
   listenAgentEvent,
   listenAgentFinished,
   loadSessionMessagesIpc,
+  sendDesktopNotificationIpc,
 } from './ipc.js';
 import { messagesState } from './state.js';
 import type { ChatMessage } from './types.js';
@@ -271,6 +272,8 @@ export function initMessages(): void {
     messagesState.finishStreaming();
     inputState.setIsResponding(false);
 
+    triggerTurnCompleteNotification();
+
     const activeSession = sidebarState.getActiveSessionId() || sessionId;
     if (activeSession) {
       try {
@@ -300,6 +303,34 @@ export function initMessages(): void {
     refreshMessages(initialSessionId);
   } else {
     setEmptyStateVisible(true);
+  }
+}
+
+async function triggerPermissionNotification(tool: string, path?: string | null): Promise<void> {
+  try {
+    const settings = await getCachedSettings();
+    if (!settings || !settings.notify_on_permission_request) return;
+
+    await sendDesktopNotificationIpc(
+      'Operon — Permission Required',
+      `Operon requests permission to ${tool}${path ? ` on ${path}` : ''}`
+    );
+  } catch (err) {
+    console.debug('[Notification] Permission notification error:', err);
+  }
+}
+
+async function triggerTurnCompleteNotification(): Promise<void> {
+  try {
+    const settings = await getCachedSettings();
+    if (!settings || !settings.notify_on_response_complete) return;
+
+    await sendDesktopNotificationIpc(
+      'Operon — Response Complete',
+      'The assistant has finished responding.'
+    );
+  } catch (err) {
+    console.debug('[Notification] Turn complete notification error:', err);
   }
 }
 
@@ -373,6 +404,7 @@ function handleAgentEvent(event: Record<string, unknown>): void {
         });
       } else {
         showPermissionDialog(req.id, req.tool, req.path || null, req.reason, req.args_json, activeSess);
+        triggerPermissionNotification(req.tool, req.path);
         smartAutoScroll();
       }
     }
