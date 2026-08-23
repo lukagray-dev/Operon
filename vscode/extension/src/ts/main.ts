@@ -13,6 +13,7 @@
 // 7. Global Settings Shortcuts    -> ./shared/ipc.ts
 // ============================================================================
 
+import { createNewSessionIpc } from './left-sidebar/ipc.js';
 import { closeSidebar, initSidebar, refreshSidebarContent } from './left-sidebar/sidebar.js';
 import { sidebarState } from './left-sidebar/state.js';
 import { initEmptyState } from './main-content/empty-state/empty-state.js';
@@ -44,13 +45,32 @@ function updateWorkspaceView(ws: WorkspaceInfo): void {
     contentPaneEl?.classList.add('hidden');
     closeSidebar();
     sidebarState.setActiveProjectPath(null);
+    sidebarState.setActiveSessionId(null);
   } else {
     console.log(`[Operon Webview] Active workspace folder connected: ${ws.workspacePath}`);
     noWorkspaceEl?.classList.add('hidden');
     contentPaneEl?.classList.remove('hidden');
-    sidebarState.setActiveProjectPath(ws.workspacePath);
-    refreshTopbar().catch(() => {});
-    refreshSidebarContent().catch(() => {});
+    const wsPath = ws.workspacePath;
+    sidebarState.setActiveProjectPath(wsPath);
+
+    // Auto-create a fresh project-scoped session if no session is active yet
+    if (!sidebarState.getActiveSessionId()) {
+      createNewSessionIpc(undefined, wsPath)
+        .then((newId) => {
+          sidebarState.selectSession(newId, wsPath);
+          refreshTopbar().catch(() => {});
+          refreshSidebarContent().catch(() => {});
+          console.log(`[Operon Webview] Auto-created initial fresh project session: ${newId}`);
+        })
+        .catch((err) => {
+          console.warn('[Operon Webview] Failed to auto-create initial session:', err);
+          refreshTopbar().catch(() => {});
+          refreshSidebarContent().catch(() => {});
+        });
+    } else {
+      refreshTopbar().catch(() => {});
+      refreshSidebarContent().catch(() => {});
+    }
   }
 }
 

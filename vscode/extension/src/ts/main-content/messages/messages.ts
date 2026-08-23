@@ -136,6 +136,12 @@ export function initMessages(): void {
     }
     previousActiveSessionId = activeSessionId;
 
+    // If currently streaming a response for this session, protect in-memory streaming messages
+    if (inputState.getIsResponding()) {
+      syncPendingPermissionForActiveSession(activeSessionId);
+      return;
+    }
+
     liveMarkdownRenderer.clearAll();
     syncPendingPermissionForActiveSession(activeSessionId);
     if (activeSessionId) {

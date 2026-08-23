@@ -1,6 +1,6 @@
-// Application root coordinator
-
-import { initSidebar } from './left-sidebar/sidebar.js';
+import { createNewSessionIpc } from './left-sidebar/ipc.js';
+import { initSidebar, refreshSidebarContent } from './left-sidebar/sidebar.js';
+import { sidebarState } from './left-sidebar/state.js';
 import { initEmptyState } from './main-content/empty-state/empty-state.js';
 import { initInputPanel } from './main-content/input/input.js';
 import { initMessages } from './main-content/messages/messages.js';
@@ -17,6 +17,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Left Sidebar
   initSidebar();
+
+  // Auto-create a fresh general chat session on GUI startup
+  createNewSessionIpc(undefined, undefined)
+    .then((newId) => {
+      sidebarState.selectSession(newId, null);
+      refreshSidebarContent().catch(() => {});
+      console.debug('[Operon GUI] Auto-created initial fresh general chat session:', newId);
+    })
+    .catch((err) => {
+      console.warn('[Operon GUI] Failed to auto-create initial session:', err);
+    });
 
   // Initialize Main Content Topbar
   initTopbar();
