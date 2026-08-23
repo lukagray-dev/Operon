@@ -5,55 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [0.0.3-beta] - 2026-08-22
+## [0.0.3-beta] - 2026-08-23
 
-This pre-release distributes Operon on Windows across three unified frontends: the Graphical User Interface (GUI), the Terminal User Interface (TUI), and the new **VS Code Extension** powered by a high-performance native JSON-RPC bridge (`operon-vscode-bridge`), alongside major filesystem tool improvements, native desktop notifications, and a global SQLite-backed memory subsystem.
+This release distributes Operon on Windows across three unified frontends: the Graphical User Interface (GUI), the Terminal User Interface (TUI), and the new standalone **VS Code Extension** (`.vsix`) powered by an optimized native JSON-RPC bridge (`operon-vscode-bridge`), alongside automated GitHub Releases update checking, desktop notifications, filesystem tool improvements, and a global SQLite-backed memory subsystem.
 
 ### Added
-- **VS Code Extension & Native JSON-RPC Bridge (`operon-vscode-bridge`)**:
-  - Introduced a standalone Visual Studio Code extension (`vscode/extension/`) providing the complete Operon AI agent experience directly within the editor.
-  - Implemented high-performance native JSON-RPC 2.0 stdio bridge (`operon-vscode-bridge`) communicating with the core `operon-rs` runtime.
-  - Full feature parity with the desktop interface:
-    - **Interactive WorkGroup**: Visual tool timeline, collapsible tool execution inspection (displaying both input parameters and stdout results), and 60fps thinking orb animations.
-    - **Real-Time Token Streaming**: RAF-batched 60fps markdown rendering with syntax highlighting and KaTeX math formatting.
-    - **Human-in-the-Loop Clarification**: Embedded interactive `ask` question cards and dynamic tool authorization banners.
-    - **Context Management**: Visual compaction pills, live token usage trackers, model reasoning level selector, and session task manager.
-    - **Workspace & Chat Drawer**: Left overlay drawer for managing multi-workspace project folders, chat sessions, forks, and inline message editing.
-    - **Settings Tab**: Modular settings editor with dedicated category controllers for Models, Channels, Permissions, Appearance, Memory, and General options.
-  - Added turnkey compilation batch scripts: [`scripts/build-vscode.bat`](file:///d:/Operon/scripts/build-vscode.bat) (Development) and [`scripts/build-vscode-release.bat`](file:///d:/Operon/scripts/build-vscode-release.bat) (Release).
+- **VS Code Extension Distribution (`operon-vscode-0.1.0.vsix`) & Native Bridge (`operon-vscode-bridge`)**:
+  - Distributed standalone Visual Studio Code extension package (`.vsix`) bundling the pre-compiled, optimized Rust bridge binary (`bin/operon-vscode-bridge.exe`) and full TypeScript Webview frontend.
+  - **Project-Scoped Session Architecture**:
+    - Automatically links chat sessions to the active VS Code workspace folder without polluting user profile root paths.
+    - Integrated "No Workspace Opened" disclaimer screen with single-click folder picker to prevent unattached session executions.
+    - Automatically creates a fresh project-scoped session on startup so users can start typing and streaming immediately.
+  - **IDE-Optimized Responsive Layout**:
+    - Responsive input bar toolbar that collapses text labels (Auto-Approve, Model Name) into icon-only chips when the sidebar width is narrow.
+    - Full feature parity with GUI: Interactive WorkGroup tool timeline, 60fps streaming markdown, thinking orb animations, multiple-choice `ask` cards, and floating permission approval cards.
+    - Added native VS Code toast notifications for pending tool permission requests and turn completion.
+    - Turnkey compilation and packaging scripts: [`scripts/build-vscode.bat`](file:///d:/Operon/scripts/build-vscode.bat) and [`scripts/build-vscode-release.bat`](file:///d:/Operon/scripts/build-vscode-release.bat).
+- **Automated GitHub Release Update System (GUI & VS Code)**:
+  - **Operon GUI**:
+    - Added native updater service ([`gui/src-tauri/src/shared/updater.rs`](file:///d:/Operon/gui/src-tauri/src/shared/updater.rs)) querying GitHub Releases API (`lukagray-dev/Operon`) with semantic version comparison (`is_newer_version`).
+    - Configurable background startup checking controlled via **"Automatic Update Checks"** in General Settings.
+    - Prominent **"Update Ready (vX.Y.Z) — Relaunch"** badge in the left sidebar bottom drawer for single-click seamless restart and upgrade.
+    - Integrated manual update check in Titlebar `Help → Check for update` with real-time feedback dialogs.
+  - **VS Code Extension**:
+    - Background startup check notifying developers of new Operon releases with direct action buttons to view release notes or update via the marketplace.
+    - Registered Command Palette action: `Operon: Check for Updates`.
 - **Terminal User Interface (`operon-tui`)**:
-  - Introduced a complete, high-performance terminal interface built with `ratatui` and `crossterm`.
-  - Supports live multi-block assistant message streaming, interactive syntax-highlighted markdown, tool execution timeline visualizations, and compaction pills.
-  - Interactive human-in-the-loop permission request dialogs and multiple-choice `ask` tool question cards.
-  - Real-time status bar with token usage tracker, active session context, and hotkey navigation.
+  - High-performance terminal interface built with `ratatui` and `crossterm`.
+  - Supports live multi-block assistant message streaming, syntax-highlighted markdown, tool timeline visualizations, compaction pills, and interactive permission/ask dialogs.
 - **Native Desktop Notifications (GUI)**:
-  - Integrated native Windows desktop toast notifications via `tauri-plugin-notification` with explicit AppUserModelID (`com.operon.desktop`) registration and embedded brand logo icons.
-  - Configurable notifications in the General Settings panel for **"Notify when response complete"** and **"Notify when asking permissions"**, synchronized in real time across the application.
-- **Tool Suite Overhaul & Examples**:
-  - Implemented automatic recursive parent directory creation in `operon-tools-fs-write` to eliminate redundant directory creation tool calls.
-  - Optimized `operon-tools-fs-read` prompts and schemas to encourage single-turn batch reading of multiple files via the `paths` parameter.
-  - Added 21 standalone, well-documented runnable basic usage examples across filesystem, shell, web, todo, memory, load, and ask tools.
+  - Integrated native Windows desktop notifications via `tauri-plugin-notification` with explicit AppUserModelID (`com.operon.desktop`) registration and embedded brand logo icons.
 - **Global Persistent Memory Subsystem**:
-  - Added SQLite-backed persistent memory store (`operon-tools-memory-store`) supporting `memory_add`, `memory_edit`, `memory_delete`, `memory_retrieve`, and `memory_search` tools.
-- **Channels Integration (WhatsApp & Telegram)**:
-  - Centralized background channels service manager with auto-reconnect on startup, QR and phone code pairing, owner allowlists, and live policy coverage indicators.
+  - SQLite-backed persistent memory store (`operon-tools-memory-store`) supporting `memory_add`, `memory_edit`, `memory_delete`, `memory_retrieve`, and `memory_search` tools.
 
 ### Changed
+- **VS Code Extension Specialization**:
+  - Removed background WhatsApp and Telegram channel daemons from the VS Code extension and native bridge to keep the extension lightweight, fast, and focused purely on IDE workflows (channels remain fully supported in the standalone GUI).
 - **Absolute Path Enforcement**:
-  - Enforced strict absolute path validation across all filesystem tools (`ls`, `read`, `write`, `edit`, `append`, `delete`, `grep`) and shell (`bash`), rejecting relative paths to maintain statelessness and prevent process-level working directory pollution.
-- **Dual Workspace Routing in GUI**:
-  - Preserved dual general chat (`~/.operon/workspace/`) vs project chat workspace routing without mutating the host process working directory.
-- **WhatsApp Shared Workspace Directory & Policy Coverage**:
-  - Migrated WhatsApp session workspace directory resolution from per-contact subdirectories (`~/.operon/channels/whatsapp/workspace/<number>/`) to a single shared workspace root (`WhatsAppConfig.workspace_dir`, defaulting to `~/.operon/workspace/`).
-  - Added configuration option `workspace_dir` to `WhatsAppConfig` with GUI settings panel integration, including folder picker and real-time policy coverage indicator.
-  - Role-specific `AGENTS.md` system prompt guidelines are now generated fresh in the shared workspace root prior to each turn based on the message sender's resolved role.
-  - Per-contact session history storage remains fully isolated under `~/.operon/sessions/whatsapp/<number>/<session_id>.json`.
-  - **Migration Note**: Legacy per-contact workspace folders under `~/.operon/channels/whatsapp/workspace/<number>/` are no longer used by WhatsApp session turns and can be safely removed manually.
+  - Enforced strict absolute path validation across all filesystem tools (`ls`, `read`, `write`, `edit`, `append`, `delete`, `grep`) and shell (`bash`) to maintain statelessness and prevent process-level working directory pollution.
 
 ### Fixed
+- Fixed message stream re-render race condition where in-memory assistant streaming tokens were wiped upon initial prompt session attachment.
+- Fixed task/todo right sidebar pointer-events freeze and subscription re-render loops in VS Code extension.
+- Fixed missing floating permission approval cards in VS Code Webview.
+- Fixed Tauri v2 main thread async runtime panic in GUI background updater task.
 - Fixed streaming provider test assertions in `operon-context-normalize-stream` for Gemini and tool call sequencers.
-- Fixed non-existent test file paths and Windows drive letter resolution across filesystem tool test suites.
-- Fixed Cargo workspace example binary target name collisions under MSVC on Windows.
 
 ## [0.0.2-beta] - 2026-07-21
 
