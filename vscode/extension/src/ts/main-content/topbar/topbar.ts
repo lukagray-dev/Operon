@@ -5,6 +5,7 @@
 import { toggleSidebar } from '../../left-sidebar/sidebar.js';
 import { sidebarState } from '../../left-sidebar/state.js';
 import { todoPanelState } from '../../right-sidebar/state.js';
+import { refreshTodoPanel } from '../../right-sidebar/todo-panel.js';
 import { getTopbarInfoIpc } from './ipc.js';
 import { topbarState } from './state.js';
 
@@ -25,8 +26,11 @@ export function initTopbar(): void {
     toggleSidebar();
   });
 
-  btnToggleTodosEl?.addEventListener('click', () => {
+  btnToggleTodosEl?.addEventListener('click', async () => {
     todoPanelState.toggle();
+    if (todoPanelState.getIsOpen()) {
+      await refreshTodoPanel();
+    }
   });
 
   // Re-fetch topbar metadata when sidebar active session changes
@@ -36,6 +40,11 @@ export function initTopbar(): void {
 
   // Re-render when topbar state updates
   topbarState.subscribe(() => {
+    renderTopbar();
+  });
+
+  // Re-render when right sidebar state updates
+  todoPanelState.subscribe(() => {
     renderTopbar();
   });
 
@@ -70,12 +79,14 @@ export async function refreshTopbar(): Promise<void> {
 function renderTopbar(): void {
   if (sessionTitleEl) {
     sessionTitleEl.textContent = topbarState.getTitle();
+    sessionTitleEl.title = topbarState.getTitle();
   }
 
   if (projectBadgeEl) {
     const projectName = topbarState.getProjectName();
     if (projectName) {
       projectBadgeEl.textContent = projectName;
+      projectBadgeEl.title = `Project: ${projectName}`;
       projectBadgeEl.classList.add('visible');
     } else {
       projectBadgeEl.textContent = '';
@@ -83,8 +94,20 @@ function renderTopbar(): void {
     }
   }
 
+  // Todo topbar button: Only visible when active session has tasks present (matching GUI)
   if (btnToggleTodosEl) {
     const { unfinished, total } = topbarState.getTodoCounts();
+    if (total > 0) {
+      btnToggleTodosEl.style.display = 'flex';
+      if (unfinished > 0) {
+        btnToggleTodosEl.title = `Session Tasks (${unfinished} pending, ${total} total)`;
+      } else {
+        btnToggleTodosEl.title = `Session Tasks (All ${total} completed)`;
+      }
+    } else {
+      btnToggleTodosEl.style.display = 'none';
+    }
+
     const badge = btnToggleTodosEl.querySelector('.todo-counter-badge');
     if (badge) {
       if (total > 0) {
@@ -94,5 +117,7 @@ function renderTopbar(): void {
         badge.classList.add('hidden');
       }
     }
+
+    btnToggleTodosEl.classList.toggle('active', todoPanelState.getIsOpen());
   }
 }

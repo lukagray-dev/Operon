@@ -22,10 +22,12 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
+  pointer-events: none;
 }
 
 .right-sidebar.visible {
   transform: translateX(0);
+  pointer-events: auto;
 }
 
 /* --------------------------------------------------------------------------
@@ -40,6 +42,7 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  pointer-events: auto;
 }
 
 .todo-panel-header {
@@ -116,6 +119,19 @@
 
 .todo-panel-icon-btn:hover .ui-icon {
   background-color: var(--text-primary, #ffffff);
+}
+
+.todo-panel-icon-btn .ui-icon {
+  width: 14px;
+  height: 14px;
+  background-color: var(--text-muted, #999999);
+  display: inline-block;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 /* --------------------------------------------------------------------------
@@ -250,8 +266,8 @@
   width: 12px;
   height: 12px;
   background-color: #121212;
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/check.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/check.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/check.svg');
+  mask-image: url('../../assets/icons/right-sidebar/check.svg');
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -400,13 +416,13 @@
 }
 
 .icon-todo-trash {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/trash-2.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/trash-2.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/trash-2.svg');
+  mask-image: url('../../assets/icons/right-sidebar/trash-2.svg');
 }
 
 .icon-todo-close {
-  -webkit-mask-image: url('../../../assets/icons/titlebar/close.svg');
-  mask-image: url('../../../assets/icons/titlebar/close.svg');
+  -webkit-mask-image: url('../../assets/icons/titlebar/close.svg');
+  mask-image: url('../../assets/icons/titlebar/close.svg');
 }
 
 /* --------------------------------------------------------------------------
@@ -428,8 +444,8 @@
   height: 36px;
   margin-bottom: 12px;
   background-color: rgba(255, 255, 255, 0.15);
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/list-todo.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/list-todo.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/list-todo.svg');
+  mask-image: url('../../assets/icons/right-sidebar/list-todo.svg');
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -515,6 +531,6 @@
 }
 
 .icon-todo-add {
-  -webkit-mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
-  mask-image: url('../../../assets/icons/right-sidebar/plus.svg');
+  -webkit-mask-image: url('../../assets/icons/right-sidebar/plus.svg');
+  mask-image: url('../../assets/icons/right-sidebar/plus.svg');
 }

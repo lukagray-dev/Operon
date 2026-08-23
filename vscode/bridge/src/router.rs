@@ -600,6 +600,10 @@ pub async fn dispatch(
             main_content::messages::deny_permission(permission_id).await?;
             Ok(Value::Null)
         }
+        "get_pending_permissions" => {
+            let perms = crate::shared::channels_manager::get_all_pending_permissions();
+            serde_json::to_value(perms).map_err(|e| e.to_string())
+        }
         "respond_to_ask" => {
             let id = params
                 .get("id")

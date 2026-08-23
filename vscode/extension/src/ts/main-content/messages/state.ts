@@ -152,38 +152,70 @@ class MessagesStateManager {
     }
 
     const isWhitespaceOnly = text.trim().length === 0;
+
+    // Mark all work groups as non-active when response text is being generated
+    msg.blocks.forEach((b) => {
+      if (b.kind === 'work_group') {
+        b.data.is_active = false;
+      }
+    });
+    if (msg.work_group) {
+      msg.work_group.is_active = false;
+    }
+
     let lastBlock = msg.blocks[msg.blocks.length - 1];
 
     if (isWhitespaceOnly && (!lastBlock || lastBlock.kind === 'work_group')) {
       return;
     }
 
-    if (!lastBlock || lastBlock.kind !== 'text') {
-      if (lastBlock && lastBlock.kind === 'work_group') {
-        lastBlock.data.is_active = false;
+    // Check if the current trailing block is already a text block.
+    // If lastBlock is a work_group, check if that work_group contains tool_calls.
+    // If it DOES NOT contain tool_calls (i.e. it was an initial reasoning block or pure thinking block),
+    // and there is already a text block in msg.blocks, append to that existing text block!
+    let targetTextBlock: { kind: 'text'; text: string } | null = null;
+    let targetBlockIdx = -1;
+
+    if (lastBlock && lastBlock.kind === 'text') {
+      targetTextBlock = lastBlock;
+      targetBlockIdx = msg.blocks.length - 1;
+    } else if (
+      lastBlock &&
+      lastBlock.kind === 'work_group' &&
+      !lastBlock.data.items.some((it) => it.kind === 'tool')
+    ) {
+      // Find previous text block if no tool calls occurred
+      for (let i = msg.blocks.length - 1; i >= 0; i--) {
+        const b = msg.blocks[i];
+        if (b.kind === 'text') {
+          targetTextBlock = b;
+          targetBlockIdx = i;
+          break;
+        }
       }
-      const newTextBlock: MessageBlock = { kind: 'text', text: '' };
-      msg.blocks.push(newTextBlock);
-      lastBlock = newTextBlock;
     }
 
-    if (lastBlock.kind === 'text') {
-      if (lastBlock.text.length === 0) {
-        text = text.replace(/^[\r\n]+/, '');
-      }
-      if (text.length === 0) return;
+    if (!targetTextBlock) {
+      const newTextBlock: MessageBlock = { kind: 'text', text: '' };
+      msg.blocks.push(newTextBlock);
+      targetTextBlock = newTextBlock as { kind: 'text'; text: string };
+      targetBlockIdx = msg.blocks.length - 1;
+    }
 
-      lastBlock.text += text;
-      const blockIdx = msg.blocks.length - 1;
+    if (targetTextBlock.text.length === 0) {
+      text = text.replace(/^[\r\n]+/, '');
+    }
+    if (text.length === 0 && targetTextBlock.text.length === 0) return;
 
-      msg.text = msg.blocks
-        .filter((b): b is { kind: 'text'; text: string } => b.kind === 'text')
-        .map((b) => b.text)
-        .join('\n\n');
+    targetTextBlock.text += text;
 
-      for (const l of this.streamTextListeners) {
-        l(this.streamingMessageId, blockIdx, lastBlock.text, text);
-      }
+    msg.text = msg.blocks
+      .filter((b): b is { kind: 'text'; text: string } => b.kind === 'text')
+      .map((b) => b.text)
+      .join('\n\n');
+
+    for (const l of this.streamTextListeners) {
+      l(this.streamingMessageId, targetBlockIdx, targetTextBlock.text, text);
     }
   }
 
@@ -196,16 +228,23 @@ class MessagesStateManager {
       msg.blocks = [];
     }
 
-    let lastBlock = msg.blocks[msg.blocks.length - 1];
+    // Identify if there is already an existing work_group in this message turn.
+    // If a model (like Nemotron or DeepSeek via OpenAI-compatible endpoints) streams interleaved
+    // reasoning & text deltas, route thinking deltas to the latest work_group instead of slicing
+    // the text block into multiple fragmented pieces.
+    let targetWgBlock: { kind: 'work_group'; data: import('../work-group/types.js').WorkGroupData } | null = null;
+    let targetBlockIdx = -1;
 
-    if (!lastBlock || lastBlock.kind !== 'work_group') {
-      if (lastBlock && lastBlock.kind === 'text') {
-        lastBlock.text = lastBlock.text.trimEnd();
-        const prevTextIdx = msg.blocks.length - 1;
-        for (const l of this.streamTextListeners) {
-          l(this.streamingMessageId, prevTextIdx, lastBlock.text, '');
-        }
+    for (let i = msg.blocks.length - 1; i >= 0; i--) {
+      const b = msg.blocks[i];
+      if (b.kind === 'work_group') {
+        targetWgBlock = b;
+        targetBlockIdx = i;
+        break;
       }
+    }
+
+    if (!targetWgBlock) {
       const newWgBlock: MessageBlock = {
         kind: 'work_group',
         data: {
@@ -215,14 +254,14 @@ class MessagesStateManager {
           elapsed_secs: 0,
         },
       };
-      msg.blocks.push(newWgBlock);
-      lastBlock = newWgBlock;
+      msg.blocks.unshift(newWgBlock);
+      targetWgBlock = newWgBlock as { kind: 'work_group'; data: import('../work-group/types.js').WorkGroupData };
+      targetBlockIdx = 0;
     }
 
-    const blockIdx = msg.blocks.length - 1;
-    if (lastBlock.kind !== 'work_group') return;
-    const workGroup = lastBlock.data;
+    const workGroup = targetWgBlock.data;
 
+    // Chronological thinking: append to last item if it's thinking, otherwise start new thinking item
     const lastItem = workGroup.items[workGroup.items.length - 1];
     if (lastItem && lastItem.kind === 'thinking') {
       lastItem.thinking_text += text;
@@ -235,7 +274,7 @@ class MessagesStateManager {
     }
 
     for (const l of this.streamWorkGroupListeners) {
-      l(this.streamingMessageId, blockIdx);
+      l(this.streamingMessageId, targetBlockIdx);
     }
   }
 

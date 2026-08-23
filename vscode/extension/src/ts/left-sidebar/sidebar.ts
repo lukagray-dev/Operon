@@ -2,6 +2,7 @@
 // Left Sidebar Overlay Drawer Controller & Dynamic DOM Renderer
 // ============================================================================
 
+import { todoPanelState } from '../right-sidebar/state.js';
 import { invokeIpc, listenIpcEvent } from '../shared/ipc.js';
 import {
   createNewSessionIpc,
@@ -259,6 +260,8 @@ export function initSidebar(): void {
         dismissContextMenu();
       } else if (leftSidebarEl?.classList.contains('open')) {
         closeSidebar();
+      } else if (todoPanelState.getIsOpen()) {
+        todoPanelState.setIsOpen(false);
       }
     }
   });

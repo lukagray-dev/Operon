@@ -173,6 +173,7 @@ function toggleModelPopover(trigger: HTMLElement): void {
   popover.className = 'input-popover-dropdown';
   popover.dataset.type = 'model';
 
+  // Header for the model popover
   const header = document.createElement('div');
   header.className = 'popover-dropdown-header';
   header.innerHTML = `
@@ -205,6 +206,7 @@ function toggleModelPopover(trigger: HTMLElement): void {
         </div>
       `;
 
+      // Hover handler to open dynamic reasoning level sub-dropdown
       item.addEventListener('mouseenter', () => {
         if (subDropdownHoverTimeout !== null) {
           window.clearTimeout(subDropdownHoverTimeout);
@@ -221,13 +223,21 @@ function toggleModelPopover(trigger: HTMLElement): void {
         }, 150);
       });
 
+      // Direct click on model item selects model with its active or default reasoning level
       item.addEventListener('click', async (evt) => {
         evt.stopPropagation();
         dismissPopover();
         const chosenReasoning = isModelActive && currentReasoning ? currentReasoning : m.reasoning_levels[0];
-        await selectModelIpc(m.id, chosenReasoning);
+        await selectModelIpc(m.id, chosenReasoning, m.context_window);
         inputState.setSelectedModel(m.id);
         inputState.setSelectedReasoning(chosenReasoning);
+        try {
+          const updatedContext = await getContextUsageIpc();
+          inputState.setContextUsage(updatedContext);
+        } catch (err) {
+          console.error('[Input] Failed to refresh context usage:', err);
+        }
+        renderInputState();
       });
     } else {
       item.innerHTML = `
@@ -247,9 +257,16 @@ function toggleModelPopover(trigger: HTMLElement): void {
       item.addEventListener('click', async (evt) => {
         evt.stopPropagation();
         dismissPopover();
-        await selectModelIpc(m.id);
+        await selectModelIpc(m.id, undefined, m.context_window);
         inputState.setSelectedModel(m.id);
         inputState.setSelectedReasoning('');
+        try {
+          const updatedContext = await getContextUsageIpc();
+          inputState.setContextUsage(updatedContext);
+        } catch (err) {
+          console.error('[Input] Failed to refresh context usage:', err);
+        }
+        renderInputState();
       });
     }
 
@@ -274,76 +291,94 @@ function openReasoningSubDropdown(
 ): void {
   dismissSubDropdown();
 
-  const sub = document.createElement('div');
-  sub.className = 'input-popover-dropdown reasoning-submenu-dropdown';
+  const subDropdown = document.createElement('div');
+  subDropdown.className = 'input-sub-dropdown';
 
-  const subHeader = document.createElement('div');
-  subHeader.className = 'popover-dropdown-header';
-  subHeader.innerHTML = `
-    <span class="popover-header-title">Reasoning Effort</span>
+  const header = document.createElement('div');
+  header.className = 'sub-dropdown-header';
+  header.innerHTML = `
+    <span class="ui-icon icon-input-reasoning sub-dropdown-header-icon"></span>
+    <span>Reasoning Effort</span>
   `;
-  sub.appendChild(subHeader);
+  subDropdown.appendChild(header);
 
-  const listContainer = document.createElement('div');
-  listContainer.className = 'popover-items-list';
+  const list = document.createElement('div');
+  list.className = 'sub-dropdown-list';
 
-  model.reasoning_levels.forEach((lvl) => {
-    const isReasoningActive = model.id === currentModel && lvl === currentReasoning;
-    const subItem = document.createElement('div');
-    subItem.className = `popover-item ${isReasoningActive ? 'active' : ''}`;
+  model.reasoning_levels.forEach((level) => {
+    const isLevelActive = model.id === currentModel && level === currentReasoning;
+    const subItem = document.createElement('button');
+    subItem.className = `popover-item sub-popover-item ${isLevelActive ? 'active' : ''}`;
     subItem.innerHTML = `
-      <div class="popover-item-main">
-        <span class="popover-item-label">${lvl}</span>
-      </div>
-      <div class="popover-item-right">
-        ${isReasoningActive ? '<span class="popover-active-check">✓</span>' : ''}
-      </div>
+      <span class="popover-item-label">${level}</span>
+      ${isLevelActive ? '<span class="popover-active-check">✓</span>' : ''}
     `;
 
-    subItem.addEventListener('click', async (e) => {
-      e.stopPropagation();
+    subItem.addEventListener('click', async (evt) => {
+      evt.stopPropagation();
       dismissPopover();
-      await selectModelIpc(model.id, lvl);
+      await selectModelIpc(model.id, level, model.context_window);
       inputState.setSelectedModel(model.id);
-      inputState.setSelectedReasoning(lvl);
+      inputState.setSelectedReasoning(level);
+      try {
+        const updatedContext = await getContextUsageIpc();
+        inputState.setContextUsage(updatedContext);
+      } catch (err) {
+        console.error('[Input] Failed to refresh context usage:', err);
+      }
+      renderInputState();
     });
 
-    listContainer.appendChild(subItem);
+    list.appendChild(subItem);
   });
 
-  sub.appendChild(listContainer);
+  subDropdown.appendChild(list);
 
-  sub.addEventListener('mouseenter', () => {
+  subDropdown.addEventListener('mouseenter', () => {
     if (subDropdownHoverTimeout !== null) {
       window.clearTimeout(subDropdownHoverTimeout);
       subDropdownHoverTimeout = null;
     }
   });
 
-  sub.addEventListener('mouseleave', () => {
+  subDropdown.addEventListener('mouseleave', () => {
     subDropdownHoverTimeout = window.setTimeout(() => {
-      dismissSubDropdown();
+      if (!parentItem.matches(':hover') && !subDropdown.matches(':hover')) {
+        dismissSubDropdown();
+      }
     }, 150);
   });
 
-  const rect = parentItem.getBoundingClientRect();
-  sub.style.top = `${rect.top}px`;
-  sub.style.right = `${window.innerWidth - rect.left + 4}px`;
+  document.body.appendChild(subDropdown);
 
-  document.body.appendChild(sub);
-  activeSubDropdown = sub;
+  // Position sub-dropdown adjacent to parent item
+  const itemRect = parentItem.getBoundingClientRect();
+  const subRect = subDropdown.getBoundingClientRect();
+
+  const spaceOnRight = window.innerWidth - itemRect.right;
+  if (spaceOnRight >= subRect.width + 10) {
+    subDropdown.style.left = `${itemRect.right + 6}px`;
+  } else {
+    subDropdown.style.right = `${window.innerWidth - itemRect.left + 6}px`;
+  }
+
+  const desiredTop = itemRect.top - 6;
+  const maxTop = window.innerHeight - subRect.height - 12;
+  subDropdown.style.top = `${Math.max(12, Math.min(desiredTop, maxTop))}px`;
+
+  activeSubDropdown = subDropdown;
 }
 
 function setupVoiceButton(): void {
   const btn = document.getElementById('btn-voice-input');
-  btn?.addEventListener('click', () => {
+  btn?.addEventListener('click', (e) => {
+    e.stopPropagation();
     toggleVoiceRecording();
   });
 }
 
 function setupSendButton(): void {
-  const btn = document.getElementById('btn-send-message');
-  btn?.addEventListener('click', () => {
+  document.getElementById('btn-send-message')?.addEventListener('click', () => {
     if (inputState.getIsResponding()) {
       handleCancel();
     } else {
@@ -353,16 +388,15 @@ function setupSendButton(): void {
 }
 
 function setupOutsideClickListener(): void {
-  window.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    if (activePopover && !activePopover.contains(target) && !target.closest('#btn-select-model') && !activeSubDropdown?.contains(target)) {
-      dismissPopover();
-    }
+  window.addEventListener('click', () => {
+    dismissPopover();
   });
 }
 
 async function handleSubmit(): Promise<void> {
-  stopVoiceRecording();
+  if (inputState.getIsVoiceRecording()) {
+    stopVoiceRecording();
+  }
 
   const text = inputState.getInputText().trim();
   const attachments = inputState.getPendingAttachments();
@@ -494,8 +528,22 @@ function renderInputState(): void {
 
   // 3. Model & Reasoning selector unified pill text
   const modelText = document.getElementById('selected-model-text');
+  const modelBtn = document.getElementById('btn-select-model');
+  const activeModel = inputState.getActiveModelOption();
+  const rawModelName = activeModel?.name || inputState.getSelectedModel() || 'Model';
+
   if (modelText) {
-    modelText.textContent = inputState.getSelectedModel();
+    // Truncate to first 20 characters and show ellipsis if longer for compact display
+    const displayName = rawModelName.length > 20 ? `${rawModelName.slice(0, 20)}...` : rawModelName;
+    modelText.textContent = displayName;
+    modelText.title = rawModelName;
+  }
+
+  if (modelBtn) {
+    const currentReasoning = inputState.getSelectedReasoning();
+    modelBtn.title = currentReasoning && currentReasoning !== 'Disabled'
+      ? `Model: ${rawModelName} (${currentReasoning})`
+      : `Model: ${rawModelName}`;
   }
 
   const reasoningBadge = document.getElementById('selected-reasoning-badge');

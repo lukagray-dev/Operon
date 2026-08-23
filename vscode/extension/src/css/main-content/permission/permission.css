@@ -1,0 +1,185 @@
+/* Floating Permission Panel Styling for VS Code Extension */
+@import '../../shared/tokens.css';
+
+.floating-permission-panel {
+  width: 100%;
+  max-width: 680px;
+  background-color: var(--sidebar-background, #121212);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 179, 0, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 25;
+  box-sizing: border-box;
+  pointer-events: auto;
+  animation: permSlideUpFade 0.15s ease-out;
+  gap: 8px;
+}
+
+@keyframes permSlideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.permission-left-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  position: relative;
+}
+
+.permission-lock-icon {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  color: #ffae00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.permission-lock-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.permission-desc-text {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.perm-target-chip {
+  color: #00ff0d;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 100ms ease;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 255, 13, 0.3);
+  text-underline-offset: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.perm-target-chip:hover {
+  color: #ffb300;
+  text-decoration-color: rgba(255, 179, 0, 0.5);
+}
+
+/* Tooltip on hovering target */
+.perm-hover-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 20px;
+  background: #000000;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 50;
+  pointer-events: none;
+  max-width: 400px;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.perm-tooltip-path {
+  font-family: var(--mono-font-family, monospace);
+  font-size: 11px;
+  color: #a5d6a7;
+}
+
+.perm-tooltip-reason {
+  font-size: 11px;
+  color: #888888;
+}
+
+.permission-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-perm-deny {
+  background: rgba(244, 67, 54, 0.08);
+  border: 1px solid rgba(244, 67, 54, 0.25);
+  border-radius: 4px;
+  padding: 4px 10px;
+  color: #ef9a9a;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  outline: none;
+  user-select: none;
+}
+
+.btn-perm-deny:hover {
+  background: rgba(244, 67, 54, 0.18);
+  border-color: rgba(244, 67, 54, 0.45);
+  color: #ffcdd2;
+}
+
+.btn-perm-allow {
+  background: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.25);
+  border-radius: 4px;
+  padding: 4px 10px;
+  color: #a5d6a7;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  outline: none;
+  user-select: none;
+}
+
+.btn-perm-allow:hover {
+  background: rgba(76, 175, 80, 0.18);
+  border-color: rgba(76, 175, 80, 0.45);
+  color: #c8e6c9;
+}
+
+/* Responsive adjustments for narrow extension widths */
+@media (max-width: 380px) {
+  .floating-permission-panel {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .permission-desc-text {
+    font-size: 11.5px;
+  }
+
+  .btn-perm-deny,
+  .btn-perm-allow {
+    padding: 3px 7px;
+    font-size: 10.5px;
+  }
+}

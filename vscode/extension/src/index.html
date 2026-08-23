@@ -156,6 +156,9 @@
 
         <!-- Pinned Bottom Floating Input Area -->
         <div class="input-panel-container">
+          <!-- Floating Permission Panel (Shown when model requests approval) -->
+          <div id="floating-permission-panel" class="floating-permission-panel" style="display: none;"></div>
+
           <!-- Input Card -->
           <div class="input-card">
             <!-- Pending Attachments Bar -->
@@ -173,7 +176,7 @@
                 </button>
                 <button id="btn-auto-approve" class="toolbar-btn btn-auto-approve" title="Toggle Auto-Approve tool execution">
                   <span class="ui-icon icon-input-auto-approve-disable"></span>
-                  <span>Autoapprove</span>
+                  <span class="auto-approve-label">Autoapprove</span>
                 </button>
               </div>
 
@@ -183,9 +186,10 @@
                   <span id="context-usage-text">0 / 128k</span>
                 </button>
                 <button id="btn-select-model" class="toolbar-btn btn-selector-pill btn-unified-model" title="Select Model & Reasoning Level">
-                  <span id="selected-model-text">Think</span>
+                  <span class="ui-icon icon-input-model" style="width: 12px; height: 12px; flex-shrink: 0;"></span>
+                  <span id="selected-model-text" class="selected-model-text">Think</span>
                   <span id="selected-reasoning-badge" class="model-reasoning-badge">High</span>
-                  <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px;"></span>
+                  <span class="ui-icon icon-input-chevron-down" style="width: 10px; height: 10px; flex-shrink: 0;"></span>
                 </button>
                 <button id="btn-voice-input" class="toolbar-btn btn-voice" title="Voice input">
                   <span class="ui-icon icon-input-voice"></span>

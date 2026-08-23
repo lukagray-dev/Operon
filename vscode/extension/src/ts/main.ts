@@ -21,7 +21,7 @@ import { initMessages } from './main-content/messages/messages.js';
 import { initPermissionManager } from './main-content/permission/permission.js';
 import { initTopbar, refreshTopbar } from './main-content/topbar/topbar.js';
 import { todoPanelState } from './right-sidebar/state.js';
-import { refreshTodoPanel, renderTodoPanel } from './right-sidebar/todo-panel.js';
+import { renderTodoPanel } from './right-sidebar/todo-panel.js';
 import { invokeIpc, listenIpcEvent } from './shared/ipc.js';
 
 interface WorkspaceInfo {
@@ -78,12 +78,11 @@ function initApp(): void {
   // 6. Initialize Right Sidebar Task Panel
   const rightSidebarEl = document.getElementById('right-sidebar');
   if (rightSidebarEl) {
-    todoPanelState.subscribe(async () => {
+    todoPanelState.subscribe(() => {
       const isOpen = todoPanelState.getIsOpen();
       if (isOpen) {
         rightSidebarEl.classList.add('visible');
         renderTodoPanel(rightSidebarEl);
-        await refreshTodoPanel();
       } else {
         rightSidebarEl.classList.remove('visible');
       }
