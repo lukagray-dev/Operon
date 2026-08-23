@@ -1,0 +1,107 @@
+# ==============================================================================
+# Operon - Feature Request / Capability Proposal Issue Template
+# ==============================================================================
+# This template is used when proposing new features, architectural improvements,
+# new tool plugins, channel integrations, or UI enhancements for Operon.
+# It ensures ideas are clearly structured and consider permissions and roles.
+# ==============================================================================
+
+name: Feature Request / Capability Proposal
+description: Propose a new feature, LLM provider, tool, channel, or capability for Operon.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+
+body:
+  # Guidance notice referencing our contribution alignment recommendations
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping shape the future of **Operon**!
+        
+        > **Note for Contributors:**
+        > If you are proposing a large architectural overhaul or a major new subsystem, opening this issue will help the maintainers align with you on design principles and security boundaries before code implementation begins.
+
+  # Subsystem or feature domain targeted by this proposal
+  - type: dropdown
+    id: component
+    attributes:
+      label: Target Subsystem / Area
+      description: Select the primary area this feature request relates to.
+      options:
+        - "GUI (Desktop Tauri v2 Application)"
+        - "TUI (Terminal Ratatui Client)"
+        - "VS Code Extension & Bridge"
+        - "Core Runtime Engine (operon-session / Agent Loop)"
+        - "Permission Engine (operon-policy / Role Access)"
+        - "Tool Registry & Execution (operon-tools)"
+        - "Context Pipeline (operon-context / Compaction & Tokens)"
+        - "LLM Provider Integration (operon-providers)"
+        - "Remote Channels (operon-channels / WhatsApp, Telegram, etc.)"
+        - "Configuration & System Utilities (operon-config, operon-terminal)"
+        - "Developer Tooling & Scripts"
+        - "Other"
+    validations:
+      required: true
+
+  # Problem statement and motivation
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement / Motivation
+      description: Is your feature request related to a specific limitation, pain point, or use case?
+      placeholder: "A clear description of what challenge or workflow limitation you are experiencing..."
+    validations:
+      required: true
+
+  # Proposed solution and behavior description
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution & User Experience
+      description: Describe the feature you would like to see, how it should work, and what the operator/user experience looks like.
+      placeholder: "Describe how this feature should function, including CLI commands, GUI controls, or Rust APIs..."
+    validations:
+      required: true
+
+  # Security and permission boundary considerations (vital for Operon)
+  - type: textarea
+    id: permissions_impact
+    attributes:
+      label: Permission & Role Boundaries
+      description: How should this feature interact with Operon's Owner vs. External role model and directory scoping?
+      placeholder: "Specify if this tool/capability requires Ask/Allow/Deny modes, directory scoping, or external role gating..."
+    validations:
+      required: false
+
+  # Alternatives and workarounds evaluated
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative designs, crates, or workarounds you have considered.
+      placeholder: "A clear description of any alternative solutions you thought about..."
+    validations:
+      required: false
+
+  # Additional mockups, diagrams, or references
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context & Mockups
+      description: Add any other context, architectural diagrams, wireframes, or reference documentation here.
+      placeholder: "Links, diagrams, or additional implementation notes..."
+    validations:
+      required: false
+
+  # Pre-submission confirmation
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Pre-Submission Checklist
+      description: Please verify each item before creating the issue.
+      options:
+        - label: I have searched existing issues to ensure this feature has not already been proposed or discussed.
+          required: true
+        - label: I understand that any new tool or API must strictly comply with Operon's role-based permission architecture.
+          required: true
+        - label: I am willing to collaborate on the design or help implement and test this feature.

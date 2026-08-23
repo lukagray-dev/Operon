@@ -1,0 +1,15 @@
+# GitHub Issue Chooser Configuration for Operon
+# Controls the issue creation experience, disallows blank issues, and offers verified contact routes.
+
+blank_issues_enabled: false
+
+contact_links:
+  - name: Security Vulnerability Reporting
+    url: https://github.com/lukagray-dev/Operon/blob/main/SECURITY.md
+    about: Please report security vulnerabilities privately according to our security policy. Do not open public issues for security exploits.
+  - name: Community Discussions & Questions
+    url: https://github.com/lukagray-dev/Operon/discussions
+    about: Ask usage questions, share ideas, and connect with other Operon operators and developers.
+  - name: Architecture & Permissions Documentation
+    url: https://github.com/lukagray-dev/Operon/tree/main/docs
+    about: Read deep architectural guides covering Permission Models, GUI IPC State, and Workspace Design.

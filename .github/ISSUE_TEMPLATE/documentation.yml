@@ -1,0 +1,79 @@
+# ==============================================================================
+# Operon - Documentation Improvement Issue Template
+# ==============================================================================
+# This template is used when reporting errors, ambiguities, outdated sections,
+# or missing architecture documentation across Operon's guides and code docs.
+# ==============================================================================
+
+name: Documentation Improvement
+description: Suggest improvements, report errors, or request additions to Operon documentation.
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+
+body:
+  # Guidance notice
+  - type: markdown
+    attributes:
+      value: |
+        Accurate, clear, and comprehensive documentation is a core value of the **Operon** project.
+        Thank you for helping us keep our guides and architecture notes top-notch!
+
+  # Target documentation area
+  - type: dropdown
+    id: doc_area
+    attributes:
+      label: Documentation Area
+      description: Select the document or section that needs improvement.
+      options:
+        - "README.md / Quickstart Guide"
+        - "docs/Permission.md (Permission Model & Roles)"
+        - "docs/GUI-IPC-and-State-Architecture.md (Tauri & TypeScript State)"
+        - "docs/VSCode-Workspace-Architecture.md (Extension & Bridge)"
+        - "docs/Typography-and-Fonts.md (Design System Tokens)"
+        - "CONTRIBUTING.md / Development Setup Guide"
+        - "SECURITY.md / Disclosure Policy"
+        - "Rust API Documentation (rustdoc in operon-rs crates)"
+        - "Other / New Guide Request"
+    validations:
+      required: true
+
+  # Page or file link
+  - type: input
+    id: doc_link
+    attributes:
+      label: File Path or URL
+      description: Provide the specific file path or link to the page requiring changes.
+      placeholder: "e.g., docs/Permission.md or README.md#getting-started"
+    validations:
+      required: false
+
+  # Issue description
+  - type: textarea
+    id: issue_description
+    attributes:
+      label: Description of the Problem / Gap
+      description: What is inaccurate, missing, confusing, or out of date?
+      placeholder: "Describe what information is missing or unclear..."
+    validations:
+      required: true
+
+  # Proposed improvements
+  - type: textarea
+    id: proposed_changes
+    attributes:
+      label: Suggested Changes or Additions
+      description: Provide the proposed wording, corrected code snippets, or markdown content if you have recommendations.
+      placeholder: "Paste proposed wording or structural improvements here..."
+    validations:
+      required: false
+
+  # Verification checklist
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Please verify before submitting.
+      options:
+        - label: I have verified that this issue is specifically about documentation and not a software bug or feature request.
+          required: true
+        - label: I would be interested in submitting a pull request to update the documentation.

@@ -1,0 +1,177 @@
+# ==============================================================================
+# Operon - Bug Report Issue Template
+# ==============================================================================
+# This template is used when contributors or users encounter a defect, crash,
+# unexpected behavior, or broken component within Operon.
+# It captures environment details, reproduction steps, logs, and subsystem scopes.
+# ==============================================================================
+
+name: Bug Report
+description: File a bug report or unexpected runtime behavior in Operon.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+
+body:
+  # Guidance notice to ensure security disclosures and sensitive API keys are not leaked publicly
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report an issue and help improve **Operon**!
+        
+        > **Important Security Notice:**
+        > If you have discovered a suspected security vulnerability (such as permission bypass, sandbox escape, or privilege escalation), please do **NOT** submit it here. Refer to our [Security Policy](https://github.com/lukagray-dev/Operon/blob/main/SECURITY.md) to report it privately.
+        >
+        > **Never include private API keys, credentials, or confidential system tokens in logs or snippets.**
+
+  # Identify which crate or subsystem is experiencing the defect
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Subsystem / Component
+      description: Select the part of Operon where the issue occurred.
+      options:
+        - "GUI (Desktop Tauri v2 Application)"
+        - "TUI (Terminal Ratatui Client)"
+        - "VS Code Extension & Bridge"
+        - "Core Runtime Engine (operon-session / Agent Loop)"
+        - "Permission Engine (operon-policy / Role Access)"
+        - "Tool Execution (operon-tools / fs, shell, web, etc.)"
+        - "Context Pipeline (operon-context / Compaction & Tokens)"
+        - "LLM Providers (operon-providers / OpenAI, Anthropic, Ollama, etc.)"
+        - "Remote Channels (operon-channels / WhatsApp, Telegram)"
+        - "Configuration & PTY (operon-config, operon-terminal)"
+        - "Scripts & Development Launchers (scripts/)"
+        - "Documentation / Build Infra"
+        - "Other / Unsure"
+    validations:
+      required: true
+
+  # Version information for the Operon build
+  - type: input
+    id: version
+    attributes:
+      label: Operon Version / Build Commit
+      description: Provide the release tag (e.g. `v0.1.0`) or Git commit hash (from `git rev-parse --short HEAD`).
+      placeholder: "e.g., v0.1.0 or commit a1b2c3d"
+    validations:
+      required: true
+
+  # Operating system and CPU architecture
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Select your operating platform.
+      options:
+        - "Windows 11 (x86_64)"
+        - "Windows 10 (x86_64)"
+        - "Windows (ARM64)"
+        - "macOS (Apple Silicon - M1/M2/M3/M4)"
+        - "macOS (Intel - x86_64)"
+        - "Linux (Ubuntu / Debian - x86_64)"
+        - "Linux (Fedora / Arch / Other - x86_64)"
+        - "Linux (ARM64)"
+        - "Other"
+    validations:
+      required: true
+
+  # Rust and developer environment versions (useful for debugging compile/runtime quirks)
+  - type: input
+    id: environment
+    attributes:
+      label: Toolchain & Environment Info
+      description: Output of `rustc --version` and `node -v` (if reporting a GUI/extension issue).
+      placeholder: "e.g., rustc 1.84.0 (stable-x86_64-pc-windows-msvc), Node v20.18.0"
+    validations:
+      required: false
+
+  # Model and LLM Provider configuration
+  - type: input
+    id: provider_model
+    attributes:
+      label: LLM Provider & Model Name
+      description: Which provider and model were in use when the problem occurred?
+      placeholder: "e.g., Anthropic (claude-3-5-sonnet-20241022), OpenAI (gpt-4o), Ollama (deepseek-r1:14b)"
+    validations:
+      required: false
+
+  # High level summary of the issue
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the problem is.
+      placeholder: "Describe what went wrong in detail..."
+    validations:
+      required: true
+
+  # Step by step reproduction instructions
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Launch Operon via `scripts/run-gui.bat` (or `cargo run -p operon-tui`).
+        2. Send prompt: '...'
+        3. Attempt tool execution with permission mode set to '...'
+        4. See error or crash.
+    validations:
+      required: true
+
+  # Expected vs actual behavior
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear explanation of what you expected to happen.
+      placeholder: "The agent should have requested permission confirmation before modifying the file..."
+    validations:
+      required: true
+
+  # Terminal output, stack traces, and panic logs
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs & Terminal / Console Output
+      description: Please paste any relevant panic backtraces, terminal output, or browser console logs here.
+      render: shell
+      placeholder: "Paste terminal output, backtraces (RUST_BACKTRACE=1), or console logs here..."
+    validations:
+      required: false
+
+  # Configuration details (redacted of secrets)
+  - type: textarea
+    id: config_snippet
+    attributes:
+      label: Sanitized Configuration Snippet
+      description: If relevant, share the pertinent sections of your `config.toml` or permission rules. (Please remove all API keys, bearer tokens, and confidential URLs).
+      render: toml
+      placeholder: |
+        [permissions.tools]
+        file_system = "ask"
+        shell = "deny"
+    validations:
+      required: false
+
+  # Visual evidence (screenshots, recordings)
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots / Screen Recordings
+      description: Drag and drop screenshots or GIFs of the issue (especially helpful for GUI and TUI rendering glitches).
+    validations:
+      required: false
+
+  # Mandatory verification checkboxes
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Checklist
+      description: Please verify and check all items before submitting.
+      options:
+        - label: I have searched existing GitHub issues and confirmed this bug is not already reported.
+          required: true
+        - label: I have sanitized all pasted logs and configurations to ensure no API keys or secrets are included.
+        - label: I confirmed this is a public bug report and not a sensitive security vulnerability.
+          required: true
