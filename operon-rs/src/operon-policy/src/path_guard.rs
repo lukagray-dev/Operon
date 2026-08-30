@@ -88,15 +88,12 @@ impl<'a> PathGuard<'a> {
         // For paths that already exist on disk, this resolves symlinks and ..
         // For paths that don't exist yet (new files being created), canonicalize
         // will fail — so we fall back to normalize_without_io().
+        // We clean any Windows verbatim (`\\?\`) prefix so comparison is uniform.
         let canonical: PathBuf = match std::fs::canonicalize(path) {
-            Ok(c) => c,
+            Ok(c) => clean_verbatim_path(c),
             Err(_) => {
                 // File doesn't exist yet (e.g. model is creating a new file).
                 // Normalize the path components without I/O to prevent .. traversal.
-                // IMPORTANT: also strip the Windows extended-length prefix (\\?\)
-                // if present, because std::fs::canonicalize() on Windows adds it,
-                // meaning policy directory paths have it but our non-I/O normalized
-                // paths won't — causing starts_with() to fail.
                 normalize_without_io(path)
             }
         };
@@ -104,32 +101,16 @@ impl<'a> PathGuard<'a> {
         // Step 2: Find the first DirectoryPolicy whose canonical root is a
         // path prefix of our canonical input. `Path::starts_with()` is
         // component-aware — it will NOT falsely match "/allowed" against "/allowedBUT".
-        //
-        // On Windows, std::fs::canonicalize() prefixes paths with \\?\ (extended-length
-        // path prefix). Both the directory path (from PolicyConfig::validate()) and the
-        // canonical input path will have this prefix, so starts_with() works correctly
-        // for existing paths.
-        //
-        // For the normalize_without_io fallback (nonexistent files), we strip the \\?\
-        // prefix from the directory path before comparing, so a nonexistent file path
-        // (which won't have the \\?\ prefix) still matches against its parent directory.
         self.directories.iter().find(|dir| {
-            // Try the direct starts_with first (covers all existing-file cases and Unix).
-            if canonical.starts_with(&dir.path) {
+            let clean_dir = clean_verbatim_path(dir.path.clone());
+            if canonical.starts_with(&clean_dir) {
                 return true;
             }
-            // Fallback for Windows: if the stored dir.path has the \\?\ prefix but our
-            // normalize_without_io path does not, strip the prefix and retry.
-            // This happens specifically when canonicalize() failed (nonexistent path).
+            // Defense-in-depth: if dir.path had a raw \\?\ prefix
             #[cfg(windows)]
             {
-                let dir_str = dir.path.to_string_lossy();
-                // \\?\ prefix is exactly 4 chars: \, \, ?, \
-                if let Some(stripped_str) = dir_str.strip_prefix(r"\\?\") {
-                    let stripped = std::path::Path::new(stripped_str);
-                    if canonical.starts_with(stripped) {
-                        return true;
-                    }
+                if canonical.starts_with(&dir.path) {
+                    return true;
                 }
             }
             false
@@ -147,6 +128,25 @@ impl<'a> PathGuard<'a> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Private helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Strips the Windows verbatim/extended-length prefix (`\\?\` and `\\?\UNC\`) from a path.
+pub fn clean_verbatim_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path_str = path.to_string_lossy();
+        if let Some(stripped) = path_str.strip_prefix(r"\\?\UNC\") {
+            PathBuf::from(format!(r"\\{}", stripped))
+        } else if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
+    }
+}
 
 /// Normalizes a path without touching the filesystem.
 ///

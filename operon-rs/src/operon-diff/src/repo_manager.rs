@@ -64,7 +64,10 @@ impl RepoRegistry {
                         .map(|s| s.insertions > 0 || s.deletions > 0)
                         .unwrap_or(false);
 
-                    let canonical_path = path.canonicalize().unwrap_or(path.clone());
+                    let canonical_path = path
+                        .canonicalize()
+                        .map(clean_verbatim_path)
+                        .unwrap_or_else(|_| path.clone());
 
                     let is_active = match &self.active_root {
                         Some(act) => act == &canonical_path || act == &path,
@@ -169,5 +172,24 @@ impl RepoRegistry {
     /// Returns all registered repository entries.
     pub fn list_repos(&self) -> Vec<RepoEntry> {
         self.repos.clone()
+    }
+}
+
+/// Strips the Windows verbatim/extended-length prefix (`\\?\` and `\\?\UNC\`) from a path.
+pub fn clean_verbatim_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path_str = path.to_string_lossy();
+        if let Some(stripped) = path_str.strip_prefix(r"\\?\UNC\") {
+            PathBuf::from(format!(r"\\{}", stripped))
+        } else if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
     }
 }

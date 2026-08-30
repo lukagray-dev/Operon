@@ -72,7 +72,8 @@ impl SnapshotBuilder {
         }
 
         // Canonicalizing once avoids path-identity drift between calls.
-        config.root = config.root.canonicalize()?;
+        // We use clean_canonicalize to strip any Windows verbatim (`\\?\`) prefix so LLMs and UI receive clean paths.
+        config.root = clean_canonicalize(&config.root)?;
 
         // Keep one-level tree traversal by default when callers pass 0.
         if config.tree_depth == 0 {
@@ -192,6 +193,42 @@ fn generate_session_id() -> String {
     format!("{nanos:x}")
 }
 
+/// Canonicalizes a path and removes any Windows verbatim/extended-length prefix (`\\?\` or `\\?\UNC\`).
+///
+/// # Why this is needed (Hey friend, listen up!):
+/// On Windows, Rust's `std::fs::canonicalize()` calls Win32 `GetFinalPathNameByHandleW`, which returns
+/// paths prefixed with `\\?\` (e.g. `\\?\D:\projects\operon` or `\\?\UNC\server\share`).
+/// While this prefix allows the Win32 kernel to support paths longer than 260 characters, it looks
+/// ugly and confusing when rendered in LLM system prompts, file tree headers, and UI elements.
+/// This helper resolves symlinks and canonicalizes paths, while safely stripping the verbatim prefix!
+pub fn clean_canonicalize<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::Error> {
+    let canonical = path.as_ref().canonicalize()?;
+    Ok(clean_verbatim_path(canonical))
+}
+
+/// Strips the Windows verbatim / extended-length prefix (`\\?\` and `\\?\UNC\`) from a path.
+///
+/// - `\\?\UNC\server\share\folder` -> `\\server\share\folder` (standard network UNC path)
+/// - `\\?\D:\folder` -> `D:\folder` (standard DOS drive path)
+/// - On Unix systems, this is a clean no-op that returns the path untouched.
+pub fn clean_verbatim_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path_str = path.to_string_lossy();
+        if let Some(stripped) = path_str.strip_prefix(r"\\?\UNC\") {
+            PathBuf::from(format!(r"\\{}", stripped))
+        } else if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,10 +241,28 @@ mod tests {
 
     #[test]
     fn snapshot_builder_is_not_sync() {
-        // SnapshotBuilder must NOT be Sync â€” callers must use Mutex for shared access.
+        // SnapshotBuilder must NOT be Sync — callers must use Mutex for shared access.
         #[allow(dead_code)]
         fn assert_not_sync<T: ?Sized + Sync>() {}
         // This must NOT compile. Leave commented as documentation of intent.
         // assert_not_sync::<SnapshotBuilder>();
+    }
+
+    #[test]
+    fn test_clean_verbatim_path_strips_unc_and_dos_prefixes() {
+        // Hey friend! Let's verify that Windows extended-length prefixes are cleanly removed.
+        let dos_verbatim = PathBuf::from(r"\\?\D:\projects\operon");
+        let cleaned_dos = clean_verbatim_path(dos_verbatim);
+        #[cfg(windows)]
+        assert_eq!(cleaned_dos, PathBuf::from(r"D:\projects\operon"));
+
+        let unc_verbatim = PathBuf::from(r"\\?\UNC\server\share\repo");
+        let cleaned_unc = clean_verbatim_path(unc_verbatim);
+        #[cfg(windows)]
+        assert_eq!(cleaned_unc, PathBuf::from(r"\\server\share\repo"));
+
+        let normal_path = PathBuf::from(r"D:\normal\path");
+        let cleaned_normal = clean_verbatim_path(normal_path.clone());
+        assert_eq!(cleaned_normal, normal_path);
     }
 }

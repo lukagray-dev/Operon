@@ -24,7 +24,7 @@ mod builder;
 mod error;
 mod types;
 
-pub use builder::{SnapshotBuilder, SnapshotConfig};
+pub use builder::{clean_canonicalize, clean_verbatim_path, SnapshotBuilder, SnapshotConfig};
 pub use error::SnapshotError;
 pub use types::{BootstrapBlock, DirectoryTree, GitStatus, Role, SessionSnapshot};
 

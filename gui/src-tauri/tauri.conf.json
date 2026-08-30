@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.operon.desktop",
   "build": {
-    "beforeDevCommand": "",
+    "beforeDevCommand": "npm run build",
     "devUrl": null,
-    "beforeBuildCommand": "",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../src"
   },
   "app": {

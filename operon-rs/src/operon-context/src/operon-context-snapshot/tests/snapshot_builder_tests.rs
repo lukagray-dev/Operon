@@ -246,3 +246,41 @@ fn channel_instructions_is_fresh_uncached() {
 
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn snapshot_builder_and_render_never_contain_windows_verbatim_prefix() {
+    // Hey friend! This test ensures that when SnapshotBuilder constructs a snapshot
+    // from any workspace directory on Windows, the resulting root path and rendered
+    // system prompt NEVER contain the unsightly `\\?\` verbatim prefix.
+    let root = create_clean_temp_dir("verbatim_prefix_test");
+    write_file(&root.join("src/main.rs"), "fn main() {}\n");
+
+    let mut builder = make_builder(&root, 1);
+    let snapshot = builder.build().expect("build snapshot");
+    let rendered = snapshot.render();
+
+    // Verify the snapshot DirectoryTree root has no verbatim prefix
+    let root_display = snapshot.tree.root.display().to_string();
+    assert!(
+        !root_display.starts_with(r"\\?\"),
+        "Snapshot root should not start with \\\\?\\ prefix. Got: {}",
+        root_display
+    );
+
+    // Verify the rendered system message does not contain \\?\ in the Root: line or anywhere
+    assert!(
+        !rendered.contains(r"\\?\"),
+        "Rendered prompt system message should never contain \\\\?\\. Got:\n{}",
+        rendered
+    );
+
+    // Verify Root line is present and matches the clean directory path
+    let expected_root_line = format!("Root: {}", root_display);
+    assert!(
+        rendered.contains(&expected_root_line),
+        "Rendered prompt should contain '{}'",
+        expected_root_line
+    );
+
+    let _ = fs::remove_dir_all(root);
+}

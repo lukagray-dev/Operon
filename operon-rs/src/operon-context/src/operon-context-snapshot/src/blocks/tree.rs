@@ -59,7 +59,7 @@ pub(crate) fn build_tree(root: &Path, tree_depth: usize) -> Result<DirectoryTree
     let rendered = render_hierarchical_tree(entries);
 
     Ok(DirectoryTree {
-        root: root.to_path_buf(),
+        root: crate::builder::clean_verbatim_path(root.to_path_buf()),
         rendered,
     })
 }

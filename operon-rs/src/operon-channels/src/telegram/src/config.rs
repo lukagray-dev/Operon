@@ -76,8 +76,9 @@ impl TelegramConfig {
     /// advising the user to configure policy coverage so tool calls won't silently deny.
     pub fn check_policy_coverage(&self, policy: &operon_config::PolicyConfig) -> bool {
         let resolved_ws = self.resolved_workspace_dir();
-        let canonical_ws =
-            std::fs::canonicalize(&resolved_ws).unwrap_or_else(|_| resolved_ws.clone());
+        let canonical_ws = std::fs::canonicalize(&resolved_ws)
+            .map(clean_verbatim_path)
+            .unwrap_or_else(|_| resolved_ws.clone());
         let covered = policy.any_directory_covers(&canonical_ws);
         if self.enabled && !covered {
             tracing::warn!(
@@ -97,5 +98,24 @@ impl TelegramConfig {
             }
         }
         self.allowlist.contains(chat_id)
+    }
+}
+
+/// Strips the Windows verbatim/extended-length prefix (`\\?\` and `\\?\UNC\`) from a path.
+pub fn clean_verbatim_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path_str = path.to_string_lossy();
+        if let Some(stripped) = path_str.strip_prefix(r"\\?\UNC\") {
+            PathBuf::from(format!(r"\\{}", stripped))
+        } else if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
     }
 }

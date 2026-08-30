@@ -39,7 +39,9 @@ impl ReadLedger {
     /// redundant separators. Falls back to the raw path if canonicalization fails
     /// (e.g. the file was deleted between read and record — rare but possible).
     pub fn record_read(&mut self, path: &Path) {
-        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let canonical = std::fs::canonicalize(path)
+            .map(clean_verbatim_path)
+            .unwrap_or_else(|_| clean_verbatim_path(path.to_path_buf()));
         self.paths.insert(canonical);
     }
 
@@ -48,7 +50,9 @@ impl ReadLedger {
     /// Used by the dispatcher to gate `write` (existing files) and `edit`.
     /// Canonicalizes the path before lookup — same logic as `record_read`.
     pub fn has_been_read(&self, path: &Path) -> bool {
-        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let canonical = std::fs::canonicalize(path)
+            .map(clean_verbatim_path)
+            .unwrap_or_else(|_| clean_verbatim_path(path.to_path_buf()));
         self.paths.contains(&canonical)
     }
 
@@ -70,6 +74,25 @@ impl ReadLedger {
     /// Returns `true` if no paths have been recorded yet.
     pub fn is_empty(&self) -> bool {
         self.paths.is_empty()
+    }
+}
+
+/// Strips the Windows verbatim/extended-length prefix (`\\?\` and `\\?\UNC\`) from a path.
+pub fn clean_verbatim_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path_str = path.to_string_lossy();
+        if let Some(stripped) = path_str.strip_prefix(r"\\?\UNC\") {
+            PathBuf::from(format!(r"\\{}", stripped))
+        } else if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
     }
 }
 

@@ -150,7 +150,9 @@ impl PolicyConfig {
                     reason: e.to_string(),
                 }
             })?;
-            dir_policy.path = canonical;
+            // Hey friend! We strip any Windows extended-length verbatim prefix (`\\?\`) so all directory
+            // paths stored in DirectoryPolicy are clean, standard DOS or UNC paths!
+            dir_policy.path = clean_verbatim_path(canonical);
         }
         Ok(())
     }
@@ -159,6 +161,25 @@ impl PolicyConfig {
         self.directories
             .iter()
             .any(|d| canonical_path.starts_with(&d.path))
+    }
+}
+
+/// Strips the Windows verbatim/extended-length prefix (`\\?\` and `\\?\UNC\`) from a path.
+pub fn clean_verbatim_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let path_str = path.to_string_lossy();
+        if let Some(stripped) = path_str.strip_prefix(r"\\?\UNC\") {
+            PathBuf::from(format!(r"\\{}", stripped))
+        } else if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
+        } else {
+            path
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        path
     }
 }
 
@@ -194,5 +215,13 @@ mod tests {
     fn empty_policy_denies_all() {
         let policy = PolicyConfig::empty();
         assert!(policy.directories.is_empty());
+    }
+
+    #[test]
+    fn test_clean_verbatim_path() {
+        let p = PathBuf::from(r"\\?\D:\test\path");
+        let cleaned = clean_verbatim_path(p);
+        #[cfg(windows)]
+        assert_eq!(cleaned, PathBuf::from(r"D:\test\path"));
     }
 }

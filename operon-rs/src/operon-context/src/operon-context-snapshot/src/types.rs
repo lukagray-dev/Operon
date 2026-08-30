@@ -149,7 +149,17 @@ impl SessionSnapshot {
 
         output.push_str("=== PROJECT ===\n");
         output.push_str("Root: ");
-        output.push_str(&self.tree.root.display().to_string());
+        // Hey friend! We ensure the rendered root path never contains the Windows verbatim prefix (`\\?\` or `\\?\UNC\`),
+        // so the LLM context prompt always receives clean, standard, friendly path strings!
+        let root_str = self.tree.root.display().to_string();
+        let clean_root = if let Some(stripped) = root_str.strip_prefix(r"\\?\UNC\") {
+            format!(r"\\{}", stripped)
+        } else if let Some(stripped) = root_str.strip_prefix(r"\\?\") {
+            stripped.to_string()
+        } else {
+            root_str
+        };
+        output.push_str(&clean_root);
         output.push('\n');
 
         let rendered_tree = self.tree.rendered.trim_end_matches('\n');
@@ -187,5 +197,44 @@ impl SessionSnapshot {
         }
 
         output
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_render_cleans_verbatim_root_path() {
+        // Hey friend! Let's verify that even if a SessionSnapshot contains a verbatim `\\?\` root path,
+        // render() strips it cleanly before sending it to the model.
+        let snapshot = SessionSnapshot {
+            bootstrap: BootstrapBlock {
+                agent_name: "Operon".to_string(),
+                timestamp: "2026-01-01T00:00:00Z".to_string(),
+                session_id: "test".to_string(),
+                role: Role::Owner,
+                system_prompt: "test prompt",
+            },
+            agents_md: None,
+            channel_instructions: None,
+            tree: DirectoryTree {
+                root: PathBuf::from(r"\\?\D:\Operon\my_workspace"),
+                rendered: "src/\n  main.rs\n".to_string(),
+            },
+            git: None,
+            tool_groups: None,
+        };
+
+        let rendered = snapshot.render();
+        assert!(
+            rendered.contains("Root: D:\\Operon\\my_workspace"),
+            "Rendered prompt should contain clean root path without \\\\?\\ prefix. Got:\n{}",
+            rendered
+        );
+        assert!(
+            !rendered.contains(r"\\?\"),
+            "Rendered prompt should never contain verbatim prefix \\\\?\\"
+        );
     }
 }
