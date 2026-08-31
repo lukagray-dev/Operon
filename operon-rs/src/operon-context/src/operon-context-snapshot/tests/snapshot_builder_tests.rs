@@ -43,7 +43,6 @@ fn make_builder(root: &Path, tree_depth: usize) -> SnapshotBuilder {
         role: Role::Owner,
         session_id: "test-session".to_string(),
         tree_depth,
-        tool_groups: Vec::new(),
         channel_instructions: None,
     })
     .expect("builder")

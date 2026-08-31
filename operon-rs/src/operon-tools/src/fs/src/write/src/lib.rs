@@ -45,24 +45,23 @@ pub use error::WriteToolError;
 pub use output::WriteOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `write` tool.
+/// Returns the canonical tool definition for the `write` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraints (parent must exist, atomic writes).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and common mistakes.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`path`, `content`).
+/// - Concise explanation of file creation, overwrite semantics, and automatic parent directory creation.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We configure the parameters schema for the write tool here.
+    // It requires both `path` and `content`.
     let parameters = json!({
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to the file to create or overwrite. Parent directories are automatically created if they do not exist."
+                "description": "File path to create or overwrite. Parent directories are automatically created if they do not exist."
             },
             "content": {
                 "type": "string",
@@ -72,36 +71,14 @@ pub fn definition() -> TieredToolDefinition {
         "required": ["path", "content"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "write".to_string(),
-            description: "Creates a new file or fully overwrites an existing file with the provided content. \
-                          Automatically creates parent directories if they do not exist. \
-                          Pass `path` (absolute path) and `content` (full text with normal \\n line breaks). \
-                          Returns a plain-text confirmation header."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "write".to_string(),
-            description: "\
-Creates a new file or fully overwrites an existing file with complete content.
-Parent directories are automatically created if they do not exist.
-
-## Parameters
-
-- `path` (required): Absolute path to target file.
-- `content` (required): Complete text content. Provide standard text with normal \\n line breaks.
-
-## Output format
-
-Returns a plain text confirmation header:
-=== /path/to/file.txt (created, 128 bytes) ===
-or
-=== /path/to/file.txt (overwritten, 256 bytes) ==="
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "write".to_string(),
+        description: "Creates a new file or fully overwrites an existing file with the provided content. \
+                      Automatically creates parent directories if they do not exist. \
+                      Pass `path` (file path) and `content` (full text with normal \\n line breaks). \
+                      Returns a plain-text confirmation header."
+            .to_string(),
+        parameters,
     }
 }
 

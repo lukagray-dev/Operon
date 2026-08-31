@@ -175,7 +175,6 @@ pub enum GlobalTool {
     SubAgent,   // subagent, spawn_agent
     Ask,        // ask
     Todo,       // todo_create, todo_list, todo_update, todo_delete
-    LoadTools,  // load_tools
 }
 ```
 
@@ -284,7 +283,6 @@ fn classify_tool(name: &str) -> ToolScope
 | `subagent`, `spawn_agent` | `Global(SubAgent)` |
 | `ask` | `Global(Ask)` |
 | `todo_create`, `todo_list`, `todo_update`, `todo_delete` | `Global(Todo)` |
-| `load_tools` | `Global(LoadTools)` |
 | `read` | `Dir(Fs(Read))` |
 | `write` | `Dir(Fs(Write))` |
 | `edit` | `Dir(Fs(Edit))` |
@@ -293,7 +291,7 @@ fn classify_tool(name: &str) -> ToolScope
 | `ls` | `Dir(Fs(Ls))` |
 | `delete` | `Dir(Fs(Delete))` |
 | `bash` | `Dir(Bash)` |
-| **Unknown** | `Global(LoadTools)` (denied) |
+| **Unknown** | `None` (denied) |
 
 ---
 

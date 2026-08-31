@@ -1,93 +1,75 @@
 # operon-tools-core
 
-Shared core types for all Operon tool crates. This is a pure types crate with no I/O, no async, and minimal dependencies.
+Shared core types and utilities for all Operon tool crates and the tool dispatcher. This is a lightweight foundational crate with minimal dependencies.
 
 ## What Lives Here
 
-### `TieredToolDefinition`
+### `ToolDefinition` Re-export
 
-A tool definition with two description tiers: **short** and **detailed**.
+Canonical tool definitions following OpenAI, Anthropic, and Google function-calling industry specifications:
+- `name: String`
+- `description: String`
+- `parameters: serde_json::Value` (JSON Schema object)
 
-- **Short description**: Used under normal conditions. Concise (≤5 lines), states what the tool does and key constraints.
-- **Detailed description**: Used after the model makes a malformed call. Full explanation with input shapes, edge cases, worked examples, and common mistakes.
+### `ToolProgress` & `ToolProgressEmitter`
 
-The dispatcher automatically switches from short to detailed when a tool receives malformed arguments, helping the model recover gracefully.
+Runtime progress event channels for streaming real-time status updates from long-running tool executions (`Started`, `Running`, `Completed`, `Failed`) to the TUI and GUI.
+
+### `ReadLedger`
+
+Read-before-write safety ledger that records files read during the current session and enforces that the model must inspect existing files before overwriting or editing them.
+
+### `TodoStore` & `TodoItem`
+
+In-memory task/todo state management used by the agent during session execution.
 
 ### `ToolDispatchError`
 
 Error types for the tool dispatcher:
-
 - `UnknownTool` — the model called a tool that isn't registered
-- `MalformedArgs` — the model's arguments failed to deserialize (triggers degradation)
-- `InternalError` — unexpected runtime error in the tool implementation
+- `MalformedArgs` — the model's arguments failed to deserialize into the tool schema
 
 ## Architecture
 
-This is a **leaf crate** with zero dependencies on other `operon-*` crates except `operon-context-normalize-tools`. Every tool sub-crate and the dispatcher depend on this.
+This is a **core foundational crate** with zero dependencies on other `operon-*` crates except `operon-context-normalize-tools`. Every tool sub-crate and the dispatcher depend on this.
 
 ```
 operon-tools-core
-  ├── No async runtime
-  ├── No I/O
-  ├── No operon-context pipeline deps
-  └── Pure types + thiserror + serde
+  ├── ToolDefinition re-export
+  ├── ReadLedger
+  ├── TodoStore & TodoItem
+  ├── ToolProgress & ToolProgressEmitter
+  └── ToolDispatchError
 ```
 
 ## Usage
 
-Tool crates return `TieredToolDefinition` from their `definition()` function:
+Tool crates return canonical `ToolDefinition` from their `definition()` function:
 
 ```rust
-use operon_tools_core::TieredToolDefinition;
 use operon_context_normalize_tools::ToolDefinition;
 use serde_json::json;
 
-pub fn definition() -> TieredToolDefinition {
+pub fn definition() -> ToolDefinition {
     let parameters = json!({
         "type": "object",
         "properties": {
-            "path": { "type": "string" }
+            "path": { "type": "string", "description": "Target file path." }
         },
         "required": ["path"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "my_tool".to_string(),
-            description: "Does something useful. Max 5 lines.".to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "my_tool".to_string(),
-            description: "Full explanation with examples and edge cases...".to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "my_tool".to_string(),
+        description: "Concise, industry-standard description of the tool.".to_string(),
+        parameters,
     }
 }
 ```
 
-## Invariants
-
-- `short.name` and `detailed.name` **MUST** be identical
-- `short.parameters` and `detailed.parameters` **MUST** be identical (same JSON Schema)
-- Only `description` differs between the two tiers
-
-A `debug_assert!` in `TieredToolDefinition::for_mode()` enforces the name invariant in debug builds.
-
-## When Each Tier Is Used
-
-1. **Session start**: All tools use `short` descriptions
-2. **Malformed call**: If a tool receives invalid arguments, it's marked "degraded"
-3. **Next request**: Degraded tools use `detailed` descriptions
-4. **Session reset**: All tools revert to `short`
-
-This allows the model to see more context only when it needs help, keeping the normal-case token usage low.
-
 ## Design Constraints
 
-- **Sync-only**: No `tokio`, no `async_trait`, no async functions
-- **No I/O**: No file system, no network, no process spawning
-- **Minimal deps**: Only `thiserror`, `serde`, `serde_json`, and `operon-context-normalize-tools`
+- **Minimal deps**: `thiserror`, `serde`, `serde_json`, `tokio::sync::mpsc`, and `operon-context-normalize-tools`
 - **No `unwrap()` or `expect()`** in production code
 
 ## License

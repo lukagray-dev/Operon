@@ -55,9 +55,9 @@ src/
 ### Public Functions
 
 ```rust
-pub fn definition() -> TieredToolDefinition
+pub fn definition() -> ToolDefinition
 ```
-Returns the tool definition with short and detailed descriptions for the model.
+Returns the canonical tool definition with parameter specifications for the model.
 
 ```rust
 pub async fn execute(
@@ -223,7 +223,7 @@ All dependencies are workspace-managed:
 - `serde` / `serde_json` — serialization
 - `thiserror` — error types
 - `operon-context-normalize-tools` — tool types (ToolCallId, ToolResult, etc.)
-- `operon-tools-core` — TieredToolDefinition
+- `operon-tools-core` — ToolProgress and progress emitter
 
 Dev dependencies:
 - `tempfile` — temporary files for testing

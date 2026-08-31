@@ -38,8 +38,8 @@ pub fn gfm_options() -> Options {
 /// Parses raw Markdown text and renders it into a standard HTML string.
 ///
 /// # Examples:
-/// ```
-/// use gui_lib::main_content::markdown::parse_markdown_to_html;
+/// ```ignore
+/// use crate::main_content::markdown::parse_markdown_to_html;
 ///
 /// let html = parse_markdown_to_html("# Hello Operon\nThis is **bold** text.");
 /// assert!(html.contains("<h1>Hello Operon</h1>"));

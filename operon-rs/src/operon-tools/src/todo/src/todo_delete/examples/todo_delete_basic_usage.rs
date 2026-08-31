@@ -17,8 +17,8 @@ async fn main() {
     // 1. Tool definition
     println!("1. Tool Definition:");
     let def = definition();
-    println!("   Name: {}", def.name());
-    println!("   Short Description: {}", def.short.description);
+    println!("   Name: {}", def.name);
+    println!("   Description: {}", def.description);
     println!();
 
     // 2. Delete the item

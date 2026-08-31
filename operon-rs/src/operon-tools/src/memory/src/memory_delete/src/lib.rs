@@ -15,60 +15,32 @@ pub use error::MemoryDeleteToolError;
 pub use output::MemoryDeleteOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use operon_tools_memory_store::MemoryStore;
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `memory_delete` tool.
-pub fn definition() -> TieredToolDefinition {
+/// Returns the canonical tool definition for the `memory_delete` tool.
+///
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`id`).
+/// - Clear parameter description for memory ID.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for deleting memories here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "id": {
                 "type": ["string", "integer"],
-                "description": "Id of the memory to permanently delete."
+                "description": "ID of the memory to permanently delete."
             }
         },
         "required": ["id"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "memory_delete".to_string(),
-            description: "Permanently deletes a memory by `id`. Returns the deleted id and remaining count. This action is irreversible — use `memory_retrieve` to confirm the id first.".to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "memory_delete".to_string(),
-            description: "\
-Permanently deletes a single memory. This action is irreversible.
-
-## Input shapes
-
-`id` (required, string or integer): Id of the memory to delete. Aliases: `memory_id`, `memoryId`.
-
-## Output
-
-```json
-{ \"id\": \"1\", \"remaining\": 4 }
-```
-
-## Errors
-
-- `\"memory not found: id 'X'\"` — no memory with that id exists
-- `\"store error: ...\"` — SQLite-level failure (rare)
-
-## Example
-
-```json
-{\"id\": \"3\"}
-{\"id\": 5}
-```"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "memory_delete".to_string(),
+        description: "Permanently deletes a memory by `id`. Returns the deleted id and remaining count. This action is irreversible — use `memory_retrieve` to confirm the id first.".to_string(),
+        parameters,
     }
 }
 

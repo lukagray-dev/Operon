@@ -87,7 +87,7 @@ pub struct SessionConfig {
     // ── Permission policy ─────────────────────────────────────────────────────
     /// Resolved tool permission policy for this session.
     ///
-    /// Carries global tool permissions (web, subagent, ask, todo, load_tools)
+    /// Carries global tool permissions (web, subagent, ask, todo)
     /// and per-directory permissions (filesystem + shell) for all allowed directories
     /// (Direction 1 + 2).
     ///
@@ -180,7 +180,6 @@ impl SessionConfig {
     /// Derive a [`SnapshotConfig`] for this session.
     ///
     /// Called once in `SessionRunner::new()` after the session ID is generated.
-    /// The `workspace_root` and `tool_groups` are cloned (both are cheap).
     pub fn snapshot_config(&self, session_id: &str) -> SnapshotConfig {
         SnapshotConfig {
             root: self.workspace_root.clone(),
@@ -189,7 +188,6 @@ impl SessionConfig {
             // One-level tree traversal gives the agent enough context without
             // flooding the system prompt with deeply nested paths.
             tree_depth: 1,
-            tool_groups: self.tool_groups.clone(),
             channel_instructions: self.channel_instructions.clone(),
         }
     }

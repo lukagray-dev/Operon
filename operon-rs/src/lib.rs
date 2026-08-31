@@ -46,8 +46,7 @@ pub use session::{LifecycleState, SessionConfig, SessionError, SessionRunner};
 pub use tools::dispatcher::{DispatchOutcome, Dispatcher};
 pub use tools::{emit_tool_progress, ToolProgress, ToolProgressEmitter, ToolProgressStage};
 pub use tools_core::{
-    ReadLedger, TieredToolDefinition, TodoItem, TodoPriority, TodoStatus, TodoStore,
-    ToolDispatchError,
+    ReadLedger, TodoItem, TodoPriority, TodoStatus, TodoStore, ToolDispatchError,
 };
 
 pub mod prelude {
@@ -60,10 +59,9 @@ pub mod prelude {
         PolicyError, PolicyResolver, Provider, ProviderCapabilities, ProviderConfig, ReadLedger,
         ReasoningBlock, ReasoningSignature, Role, SecretString, SessionCommand, SessionConfig,
         SessionError, SessionEvent, SessionRunner, SessionSnapshot, SessionTokenState,
-        SnapshotBuilder, SnapshotConfig, SnapshotError, StopReason, StreamEvent,
-        TieredToolDefinition, TodoItem, TodoPriority, TodoStatus, TodoStore, TokenBudget,
-        TokenEstimator, TokenRecorder, TokenTrackerError, ToolCall, ToolCallId, ToolContent,
-        ToolDefinition, ToolDispatchError, ToolProgress, ToolProgressEmitter, ToolProgressStage,
-        ToolResult, UsageRecord,
+        SnapshotBuilder, SnapshotConfig, SnapshotError, StopReason, StreamEvent, TodoItem,
+        TodoPriority, TodoStatus, TodoStore, TokenBudget, TokenEstimator, TokenRecorder,
+        TokenTrackerError, ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolDispatchError,
+        ToolProgress, ToolProgressEmitter, ToolProgressStage, ToolResult, UsageRecord,
     };
 }

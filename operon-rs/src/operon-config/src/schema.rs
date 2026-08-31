@@ -155,11 +155,10 @@ pub(crate) struct PolicyToml {
     pub(crate) global: GlobalPolicyToml,
 }
 
-/// [policy.global] section — permissions for web, subagent, ask, todo, load_tools.
+/// [policy.global] section — permissions for web, subagent, ask, todo.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub(crate) struct GlobalPolicyToml {
     /// [policy.global.owner] — tool permissions for the owner role.
-    /// GlobalTool variants are serialized as snake_case (e.g. "load_tools").
     /// Missing entries default to Deny.
     #[serde(default)]
     pub(crate) owner: HashMap<GlobalTool, PermissionMode>,
@@ -213,7 +212,7 @@ pub(crate) struct DirPermissionsToml {
 ///
 /// If `fs` is absent and an individual key is also absent, the tool defaults to `Deny`.
 /// This enforces safe-by-default posture: unspecified tools are blocked.
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub(crate) struct DirRolePermsToml {
     // ── Filesystem group shorthand ────────────────────────────────────────────
     /// Applies to all fs tools not overridden individually.
@@ -229,6 +228,7 @@ pub(crate) struct DirRolePermsToml {
     pub(crate) fs_grep: Option<PermissionMode>,
     pub(crate) fs_ls: Option<PermissionMode>,
     pub(crate) fs_delete: Option<PermissionMode>,
+    pub(crate) fs_glob: Option<PermissionMode>,
 
     // ── Shell ─────────────────────────────────────────────────────────────────
     /// Permission for the bash tool (shell execution) in this directory.
@@ -265,6 +265,7 @@ impl DirRolePermsToml {
         insert_fs(FsTool::Grep, self.fs_grep);
         insert_fs(FsTool::Ls, self.fs_ls);
         insert_fs(FsTool::Delete, self.fs_delete);
+        insert_fs(FsTool::Glob, self.fs_glob);
 
         if let Some(bash_mode) = self.bash {
             map.insert(DirTool::Bash, bash_mode);
@@ -434,27 +435,6 @@ pub(crate) fn build_global_policy(toml: &GlobalPolicyToml) -> GlobalPolicy {
 // Helper: clone-and-convert for DirRolePermsToml
 // ─────────────────────────────────────────────────────────────────────────────
 
-// DirRolePermsToml.into_dir_tool_map() consumes self. But build_directory_policy
-// borrows the entry, so we need a by-reference version. The cheapest way: derive
-// Clone on DirRolePermsToml. PermissionMode is Copy so clones are free.
-
-impl Clone for DirRolePermsToml {
-    fn clone(&self) -> Self {
-        // All fields are Option<PermissionMode> where PermissionMode is Copy.
-        Self {
-            fs: self.fs,
-            fs_read: self.fs_read,
-            fs_write: self.fs_write,
-            fs_edit: self.fs_edit,
-            fs_append: self.fs_append,
-            fs_grep: self.fs_grep,
-            fs_ls: self.fs_ls,
-            fs_delete: self.fs_delete,
-            bash: self.bash,
-        }
-    }
-}
-
 /// Extension trait to avoid consuming self in build_directory_policy.
 pub(crate) trait IntoMap {
     fn clone_into_dir_tool_map(&self) -> HashMap<DirTool, PermissionMode>;
@@ -579,14 +559,12 @@ web        = "allow"
 sub_agent  = "allow"
 ask        = "allow"
 todo       = "allow"
-load_tools = "allow"
 
 [policy.global.external]
 web        = "allow"
 sub_agent  = "deny"
 ask        = "deny"
 todo       = "deny"
-load_tools = "deny"
 
 [[directories]]
 path = "/tmp/test-project"
@@ -619,7 +597,7 @@ bash = "deny"
             Some(PermissionMode::Allow)
         );
         assert_eq!(
-            global_owner.get(&GlobalTool::LoadTools).copied(),
+            global_owner.get(&GlobalTool::Ask).copied(),
             Some(PermissionMode::Allow)
         );
     }

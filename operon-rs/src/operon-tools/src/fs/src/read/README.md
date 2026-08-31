@@ -5,7 +5,7 @@ The `read` tool for the Operon agent's filesystem group. Reads one or multiple f
 ## Features
 
 - **Inline string line ranges**: Specify ranges directly in path strings (`"src/main.rs:10-40"`, `"src/lib.rs:5-EOF"`, `"src/args.rs:15"`)
-- **Single file & batch reading**: Accepts top-level string `path` or `paths` array
+- **Single file & batch reading**: Accepts top-level `path` (single file string or array of file path strings to read in a single call)
 - **Absolute path enforcement**: Requires absolute paths to avoid working directory ambiguity
 - **Token-optimized plain text output**: Omits per-line line numbers in `read` responses to reduce token overhead
 - **Binary file detection**: Automatically detects and rejects binary files (images, executables, etc.)
@@ -22,9 +22,9 @@ use serde_json::json;
 async fn main() {
     let def = definition();
 
-    // Batch read with inline line ranges
+    // Batch read with inline line ranges using the unified `path` parameter
     let args = json!({
-        "paths": [
+        "path": [
             "/home/user/project/src/main.rs:10-40",
             "/home/user/project/src/lib.rs:5-EOF"
         ]

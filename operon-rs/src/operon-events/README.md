@@ -118,7 +118,7 @@ stateDiagram-v2
 |----------|--------|---------|
 | **Lifecycle** | `SessionStarted`, `Done`, `Error`, `Warning` | Session state transitions |
 | **Streaming** | `TextDelta`, `ThinkingDelta` | Real-time model output |
-| **Tool Execution** | `ToolCallStart`, `ToolCallArgsReady`, `ToolProgress`, `ToolCallResult`, `ToolDegraded` | Tool dispatch pipeline |
+| **Tool Execution** | `ToolCallStart`, `ToolCallArgsReady`, `ToolProgress`, `ToolCallResult` | Tool dispatch pipeline |
 | **Policy** | `PermissionDenied`, `ApprovalRequired`, `ApprovalGranted` | Permission enforcement |
 | **Interactive** | `AskQuestion` | Model requests user input |
 | **Turn Tracking** | `PreTurnReady`, `TurnComplete`, `PreTurnFailed` | Turn boundaries |
@@ -275,21 +275,6 @@ SessionEvent::ToolCallResult {
 ```
 
 **When**: After `Dispatcher::dispatch()` returns  
-**Purpose**: UI shows result in expandable panel
-
----
-
-```rust
-SessionEvent::ToolDegraded {
-    name: String,  // Tool entering degraded mode
-}
-```
-
-**When**: First time model sends malformed args for a tool  
-**Purpose**: UI shows warning badge; detailed definitions sent next turn
-
----
-
 ### Policy Events
 
 ```rust

@@ -43,18 +43,15 @@ pub use error::TodoDeleteToolError;
 pub use output::TodoDeleteOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, TodoStore, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `todo_delete` tool.
+/// Returns the canonical tool definition for the `todo_delete` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and key parameters.
-/// - `detailed`: sent after a malformed call. Clean explanation with input shapes
-///   and response format.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Clear parameter descriptions for single deletion (`id`) and batch deletion (`ids`).
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for deleting todo items here.
     let parameters = json!({
         "type": "object",
         "properties": {
@@ -70,35 +67,13 @@ pub fn definition() -> TieredToolDefinition {
         }
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "todo_delete".to_string(),
-            description: "Deletes one or multiple todo items by ID. Pass `id` (or `ids` array). \
-                          Returns deleted IDs and remaining count. Note: prefer marking items \
-                          \"completed\" over deleting them — deletion is for items added by mistake."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_delete".to_string(),
-            description: "\
-Deletes one or multiple todo items by ID. Returns deleted ID(s) and remaining count.
-
-## Input shapes
-
-1. Single item deletion:
-   `{\"id\": \"1\"}`
-
-2. Batch deletion of multiple IDs:
-   `{\"ids\": [\"1\", \"2\", \"3\"]}`
-
-## Response format
-
-Returns JSON object with deleted `ids` and `remaining` count:
-`{\"ids\": [\"1\", \"2\"], \"remaining\": 3}`"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "todo_delete".to_string(),
+        description: "Deletes one or multiple todo items by ID. Pass `id` (or `ids` array). \
+                      Returns deleted IDs and remaining count. Note: prefer marking items \
+                      \"completed\" over deleting them — deletion is for items added by mistake."
+            .to_string(),
+        parameters,
     }
 }
 

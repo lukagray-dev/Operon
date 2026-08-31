@@ -48,24 +48,22 @@ pub use error::WebFetchToolError;
 pub use output::WebFetchOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `web_fetch` tool.
+/// Returns the canonical tool definition for the `web_fetch` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraints (URL scheme, content cap).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and common mistakes.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`url`).
+/// - Clear parameter descriptions for URL format and optional timeout.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the JSON Schema parameters for the web fetch tool here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "url": {
                 "type": "string",
-                "description": "URL to fetch. Must start with http:// or https://."
+                "description": "URL to fetch (must start with http:// or https://)."
             },
             "timeout_ms": {
                 "type": "integer",
@@ -76,38 +74,14 @@ pub fn definition() -> TieredToolDefinition {
         "required": ["url"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "web_fetch".to_string(),
-            description: "Fetches a URL and returns the page content as clean markdown. Pass `url` \
-                          (http/https) and optionally `timeout_ms` (default: 15000). Content is stripped \
-                          of navigation, ads, and boilerplate. Capped at 20,000 characters. Returns HTTP \
-                          status code, page title, and markdown content."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "web_fetch".to_string(),
-            description: "\
-Fetches a URL and returns page content as clean markdown in plain text.
-
-## Input shapes
-
-`url` (required, string): Full HTTP/HTTPS URL to fetch.
-`timeout_ms` (optional, integer): Timeout in milliseconds (default: 15000, max: 60000).
-
-## Response format
-
-Returns plain text with section headers (content capped at 20,000 characters):
-=== <url> (<status_code>) ===
-Title: <title, or omitted if no title>
-
-<content>
-
-[truncated at <content_length> chars]"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "web_fetch".to_string(),
+        description: "Fetches a URL and returns the page content as clean markdown. Pass `url` \
+                      (http/https) and optionally `timeout_ms` (default: 15000). Content is stripped \
+                      of navigation, ads, and boilerplate. Capped at 20,000 characters. Returns HTTP \
+                      status code, page title, and markdown content."
+            .to_string(),
+        parameters,
     }
 }
 

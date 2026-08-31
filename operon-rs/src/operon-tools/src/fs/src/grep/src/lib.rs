@@ -49,37 +49,31 @@ pub use error::GrepToolError;
 pub use output::{FileGrepResult, GrepLine, GrepOutput};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `grep` tool.
+/// Returns the canonical tool definition for the `grep` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the key constraints (300 match limit, 10 MB file limit).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   edge cases, common mistakes, and worked examples.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`pattern`).
+/// - Comprehensive parameter documentation for pattern, paths, globs, case insensitivity, and context lines.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the JSON Schema parameters for the grep search tool here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "pattern": {
                 "type": "string",
-                "description": "Regex pattern to search for. Uses Rust regex syntax."
+                "description": "Regex pattern to search for (Rust regex syntax)."
             },
             "path": {
-                "type": "string",
-                "description": "Single file or directory path to search."
-            },
-            "paths": {
-                "type": "array",
+                "type": ["string", "array"],
                 "items": { "type": "string" },
-                "description": "Files or directories to search."
+                "description": "File or directory path to search, or an array of paths to search in batch. Always pass multiple paths in an array (e.g. ['src', 'tests']) to search across multiple locations in a single tool call."
             },
             "include": {
                 "type": "string",
-                "description": "Optional glob pattern to filter files by name (e.g., \"*.rs\", \"*.{ts,tsx}\")."
+                "description": "Optional glob pattern to filter files by name (e.g. \"*.rs\", \"*.{ts,tsx}\")."
             },
             "case_insensitive": {
                 "type": "boolean",
@@ -88,49 +82,21 @@ pub fn definition() -> TieredToolDefinition {
             "context_lines": {
                 "type": "integer",
                 "minimum": 0,
-                "description": "Number of context lines before/after each match. Default: 2."
+                "description": "Number of context lines before and after each match. Default: 2."
             }
         },
         "required": ["pattern"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "grep".to_string(),
-            description: "Searches files and directories for a regex pattern. \
-                          Pass `pattern` (regex string) and `path` or `paths` (file/dir paths). \
-                          Directories are walked recursively respecting .gitignore. \
-                          Use `include` to filter by filename glob (e.g., \"*.rs\")."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "grep".to_string(),
-            description: "\
-Searches files and directories recursively for a regex pattern. Returns plain text with line numbers.
-
-## Input shapes
-
-1. Single path or array of paths:
-   `{\"pattern\": \"fn main\", \"path\": \"src\"}`
-   `{\"pattern\": \"TODO\", \"paths\": [\"src\", \"tests\"]}`
-
-2. With optional filters & context:
-   `{\"pattern\": \"error\", \"path\": \"src\", \"include\": \"*.rs\", \"case_insensitive\": true, \"context_lines\": 2}`
-
-## Response format
-
-Returns plain text grouped by file:
-=== src/main.rs (2 matches) ===
-10: fn main() {
-11:     println!(\"Hello\");
----
-45: fn run() {
-
-Showing 2 match(es) across 1 file(s)."
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "grep".to_string(),
+        description: "Searches files and directories for a regex pattern. \
+                      Pass `pattern` (regex string) and `path` (file/directory path or array of paths). \
+                      Always prefer batching multiple search paths into an array (e.g. `path: [\"src\", \"tests\"]`) in ONE tool call rather than issuing multiple sequential grep calls. \
+                      Directories are walked recursively respecting .gitignore. \
+                      Use `include` to filter by filename glob (e.g., \"*.rs\")."
+            .to_string(),
+        parameters,
     }
 }
 

@@ -22,6 +22,18 @@ pub fn parse_line_with_provider(line: &str, provider: &'static str) -> Result<Ve
 
 /// Parse one OpenAI-compatible stream payload value.
 pub fn parse_value_with_provider(raw: Value, provider: &'static str) -> Result<Vec<StreamEvent>> {
+    // Check if the provider returned an API error inside the stream payload.
+    if let Some(error) = raw.get("error") {
+        let message = error
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown upstream API error");
+        return Err(StreamNormalizeError::UnknownEventType {
+            event_type: format!("upstream API error: {message}"),
+            provider,
+        });
+    }
+
     let mut events = Vec::new();
 
     if let Some(choices) = raw.get("choices").and_then(Value::as_array) {
@@ -103,16 +115,31 @@ pub fn parse_value_with_provider(raw: Value, provider: &'static str) -> Result<V
         }
     }
 
-    if let Some(usage) = raw.get("usage") {
+    if let Some(usage) = raw.get("usage").filter(|u| !u.is_null()) {
         events.push(StreamEvent::UsageMeta { raw: usage.clone() });
     }
 
-    if !events.is_empty() {
+    // If events were produced, or if the payload is a valid OpenAI-compatible stream chunk
+    // (e.g. initial role chunk `delta: {"role": "assistant"}`, empty `choices: []`, ping/keepalive,
+    // or metadata chunk with id/object/model), return Ok(events). Empty events simply allow the
+    // stream consumer to proceed to the next SSE frame.
+    if !events.is_empty()
+        || raw.get("choices").is_some()
+        || raw.get("id").is_some()
+        || raw.get("object").is_some()
+        || raw.get("model").is_some()
+        || raw.get("usage").is_some()
+    {
         return Ok(events);
     }
 
+    let keys = raw
+        .as_object()
+        .map(|object| object.keys().cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+
     Err(StreamNormalizeError::UnknownEventType {
-        event_type: "missing `choices`/`usage` in OpenAI-compatible stream payload".to_string(),
+        event_type: format!("unrecognized OpenAI stream payload with keys: {:?}", keys),
         provider,
     })
 }

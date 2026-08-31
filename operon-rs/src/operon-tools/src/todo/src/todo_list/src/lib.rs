@@ -43,18 +43,15 @@ pub use error::TodoListToolError;
 pub use output::TodoListOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, TodoStore, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `todo_list` tool.
+/// Returns the canonical tool definition for the `todo_list` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and key parameters.
-/// - `detailed`: sent after a malformed call. Clean explanation with input shapes
-///   and response format.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Clear parameter descriptions and enums for status and priority filters.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for listing todos here.
     let parameters = json!({
         "type": "object",
         "properties": {
@@ -71,40 +68,13 @@ pub fn definition() -> TieredToolDefinition {
         }
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "todo_list".to_string(),
-            description: "Returns the current todo list with status counts. \
-                          Optionally filter by `status` (\"pending\", \"in_progress\", \"completed\") \
-                          or `priority` (\"high\", \"medium\", \"low\")."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_list".to_string(),
-            description: "\
-Returns the session todo list with status counts.
-
-## Input shapes
-
-1. List all todos:
-   `{}`
-
-2. Filter by status:
-   `{\"status\": \"pending\"}`
-   `{\"status\": \"in_progress\"}`
-   `{\"status\": \"completed\"}`
-
-3. Filter by priority:
-   `{\"priority\": \"high\"}`
-
-## Response format
-
-Returns JSON object with filtered `items` array and overall status counts:
-`{\"items\": [...], \"total\": 3, \"pending\": 1, \"in_progress\": 1, \"completed\": 1}`"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "todo_list".to_string(),
+        description: "Returns the current todo list with status counts. \
+                      Optionally filter by `status` (\"pending\", \"in_progress\", \"completed\") \
+                      or `priority` (\"high\", \"medium\", \"low\")."
+            .to_string(),
+        parameters,
     }
 }
 

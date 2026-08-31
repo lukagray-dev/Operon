@@ -15,3 +15,4 @@ operon-tools-fs-edit.workspace = true
 operon-tools-fs-write.workspace = true
 operon-tools-fs-append.workspace = true
 operon-tools-fs-delete.workspace = true
+operon-tools-fs-glob.workspace = true

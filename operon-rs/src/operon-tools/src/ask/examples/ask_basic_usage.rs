@@ -10,14 +10,14 @@ fn main() {
     // 1. Tool definition
     println!("1. Tool Definition:");
     let def = definition();
-    println!("   Name: {}", def.name());
-    println!("   Short Description: {}", def.short.description);
+    println!("   Name: {}", def.name);
+    println!("   Description: {}", def.description);
     println!();
 
     println!("2. Parameter JSON Schema:");
     println!(
         "{}",
-        serde_json::to_string_pretty(&def.short.parameters).unwrap()
+        serde_json::to_string_pretty(&def.parameters).unwrap()
     );
     println!();
 

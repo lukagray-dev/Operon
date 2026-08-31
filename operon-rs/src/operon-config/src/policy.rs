@@ -30,7 +30,8 @@ pub enum GlobalTool {
     SubAgent,
     Ask,
     Todo,
-    LoadTools,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -43,6 +44,7 @@ pub enum FsTool {
     Grep,
     Ls,
     Delete,
+    Glob,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

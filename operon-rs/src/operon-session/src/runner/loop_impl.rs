@@ -34,7 +34,7 @@ impl SessionRunner {
     ///   8. If no tool calls → emit Done + break
     ///   9. Check for Cancel command
     ///  10. Policy-check each tool call; Ask waits, Deny blocks
-    ///  11. Dispatch allowed tool calls sequentially + emit ToolDegraded if needed
+    ///  11. Dispatch allowed tool calls sequentially + stream progress events
     ///  12. Loop back for the next model turn
     pub async fn run(
         &mut self,

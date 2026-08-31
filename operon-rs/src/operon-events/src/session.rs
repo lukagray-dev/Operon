@@ -35,7 +35,6 @@ use serde::{Deserialize, Serialize};
 ///   [ PermissionDenied | ApprovalRequired ] (policy)
 ///   ApprovalGranted                         (Ask was approved)
 ///   ToolCallResult                          (dispatch complete)
-///   ToolDegraded                            (if args were malformed)
 ///   TokenUsageUpdated                       (from API usage block)
 ///   ContextUsageUpdated                     (status-bar budget gauge)
 ///   TurnComplete
@@ -133,16 +132,6 @@ pub enum SessionEvent {
         /// Serialized tool content — either the plain text string or the
         /// JSON-encoded value returned by the tool.
         content_json: String,
-    },
-
-    /// A tool has been marked degraded (detailed description mode activated).
-    ///
-    /// Emitted the FIRST time a model sends malformed arguments for a tool.
-    /// After this, the tool's detailed definition is sent to the model on
-    /// subsequent turns so it can self-correct. The TUI can show a warning badge.
-    ToolDegraded {
-        /// Name of the tool that entered degraded mode.
-        name: String,
     },
 
     // ── Policy decisions ──────────────────────────────────────────────────────
@@ -287,7 +276,6 @@ pub enum SessionEvent {
         /// including the system message.
         message_count: usize,
         /// Number of tool definitions included in the `tools` array of this request.
-        /// Should be 1 (only `load_tools`) on the first turn if lazy loading is active.
         tool_count: usize,
         /// Estimated token count for this request (heuristic, not provider-reported).
         /// Useful for diagnosing 413 errors before they happen.

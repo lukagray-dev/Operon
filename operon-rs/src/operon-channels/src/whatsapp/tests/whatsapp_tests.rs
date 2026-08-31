@@ -280,7 +280,6 @@ async fn test_concurrent_turns_no_agents_md_race() {
         role: Role::Owner,
         session_id: "owner-sess".to_string(),
         tree_depth: 1,
-        tool_groups: vec![],
         channel_instructions: Some(owner_instructions),
     })
     .unwrap();
@@ -290,7 +289,6 @@ async fn test_concurrent_turns_no_agents_md_race() {
         role: Role::External,
         session_id: "ext-sess".to_string(),
         tree_depth: 1,
-        tool_groups: vec![],
         channel_instructions: Some(ext_instructions),
     })
     .unwrap();

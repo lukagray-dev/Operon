@@ -45,18 +45,15 @@ pub use error::TodoUpdateToolError;
 pub use output::TodoUpdateOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, TodoStore, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `todo_update` tool.
+/// Returns the canonical tool definition for the `todo_update` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and key parameters.
-/// - `detailed`: sent after a malformed call. Clean explanation with input shapes
-///   and response format.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Clear parameter descriptions for single task updates (`id`), bulk updates (`ids`), and batch distinct updates (`todos`).
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for updating todo items here.
     let parameters = json!({
         "type": "object",
         "properties": {
@@ -101,39 +98,13 @@ pub fn definition() -> TieredToolDefinition {
         }
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "todo_update".to_string(),
-            description: "Updates one or multiple todo items. Pass `id` (or `ids` / `todos` array) and any of: \
-                          `status` (\"pending\", \"in_progress\", \"completed\"), `priority` (\"high\", \"medium\", \"low\"), `content`. \
-                          Returns updated items."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_update".to_string(),
-            description: "\
-Updates one or multiple todo items in a single call. Supports partial updates.
-
-## Input shapes
-
-1. Single task update:
-   `{\"id\": \"1\", \"status\": \"in_progress\"}`
-   `{\"id\": \"2\", \"status\": \"completed\", \"priority\": \"high\"}`
-
-2. Batch update of distinct tasks:
-   `{\"todos\": [{\"id\": \"1\", \"status\": \"completed\"}, {\"id\": \"2\", \"status\": \"in_progress\"}]}`
-
-3. Bulk status update across multiple IDs:
-   `{\"ids\": [\"1\", \"2\", \"3\"], \"status\": \"completed\"}`
-
-## Response format
-
-Returns JSON object with updated `items` list:
-`{\"items\": [{\"id\": \"1\", \"content\": \"...\", \"status\": \"completed\", \"priority\": \"high\"}]}`"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "todo_update".to_string(),
+        description: "Updates one or multiple todo items. Pass `id` (or `ids` / `todos` array) and any of: \
+                      `status` (\"pending\", \"in_progress\", \"completed\"), `priority` (\"high\", \"medium\", \"low\"), `content`. \
+                      Returns updated items."
+            .to_string(),
+        parameters,
     }
 }
 

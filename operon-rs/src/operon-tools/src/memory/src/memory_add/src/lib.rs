@@ -41,71 +41,38 @@ pub use error::MemoryAddToolError;
 pub use output::MemoryAddOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use operon_tools_memory_store::MemoryStore;
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `memory_add` tool.
+/// Returns the canonical tool definition for the `memory_add` tool.
 ///
-/// - `short`: Sent to the model normally. Concise description of the tool.
-/// - `detailed`: Sent after a malformed call. Full input shapes, error cases, examples.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`content`).
+/// - Clear parameter descriptions for content and optional tags.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for adding persistent memories here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "content": {
                 "type": "string",
                 "minLength": 1,
-                "description": "The memory to store — a fact, preference, or note. Use a complete sentence."
+                "description": "The memory to store — a durable fact, user preference, or note. Use a complete sentence."
             },
             "tags": {
                 "type": "array",
                 "items": { "type": "string" },
-                "description": "Optional tags for categorization (e.g. [\"preference\", \"workflow\"]). Omit if not applicable."
+                "description": "Optional tags for categorization (e.g. [\"preference\", \"workflow\"])."
             }
         },
         "required": ["content"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "memory_add".to_string(),
-            description: "Stores a new memory persistently across all sessions. Pass `content` (required, the fact/preference to remember) and optionally `tags` (array of strings for categorization). Use this when the user states a durable preference or fact that should persist beyond this session.".to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "memory_add".to_string(),
-            description: "\
-Stores a new persistent memory. Memories survive restarts and persist across all sessions.
-
-## Input shapes
-
-`content` (required, string, non-empty): The fact/preference/note to remember. Aliases: `note`, `fact`, `text`, `memory`, `info`.
-
-`tags` (optional, array of strings): Categorization tags. Also accepts a single string. Alias: `tag`.
-
-## Output
-
-```json
-{ \"memory\": { \"id\": \"1\", \"content\": \"...\", \"tags\": [], \"created_at\": \"...\", \"updated_at\": \"...\" }, \"total\": 1 }
-```
-
-## Errors
-
-- `\"content is empty\"` — provide a non-empty string
-- `\"store error: ...\"` — SQLite-level failure (rare)
-
-## Examples
-
-```json
-{\"content\": \"User prefers dark mode\", \"tags\": [\"preference\"]}
-{\"note\": \"Project uses AGPL-3.0\"}
-```"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "memory_add".to_string(),
+        description: "Stores a new memory persistently across all sessions. Pass `content` (required, the fact/preference to remember) and optionally `tags` (array of strings for categorization). Use this when the user states a durable preference or fact that should persist beyond this session.".to_string(),
+        parameters,
     }
 }
 

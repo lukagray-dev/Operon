@@ -196,14 +196,12 @@ web        = "allow"
 sub_agent  = "ask"
 ask        = "allow"
 todo       = "allow"
-load_tools = "ask"
 
 [policy.global.external]
 web        = "deny"
 sub_agent  = "deny"
 ask        = "deny"
 todo       = "deny"
-load_tools = "deny"
 
 [[directories]]
 path = "~/projects/my-app"
@@ -335,7 +333,6 @@ graph TB
     Global --> SubAgent[sub_agent]
     Global --> Ask[ask]
     Global --> Todo[todo]
-    Global --> LoadTools[load_tools]
     
     Dir --> Fs[Filesystem Tools]
     Dir --> Bash[bash]
@@ -772,14 +769,12 @@ web        = "allow"    # Web search tool
 sub_agent  = "ask"      # Sub-agent invocation
 ask        = "allow"    # User confirmation prompt
 todo       = "allow"    # Task management
-load_tools = "ask"      # Dynamic tool loading
 
 [policy.global.external]
 web        = "deny"     # Block web access for external users
 sub_agent  = "deny"
 ask        = "deny"
 todo       = "deny"
-load_tools = "deny"
 ```
 
 ### Directory Section

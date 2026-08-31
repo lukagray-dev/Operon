@@ -46,24 +46,22 @@ pub use error::LsToolError;
 pub use output::{EntryKind, LsEntry, LsOutput};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `ls` tool.
+/// Returns the canonical tool definition for the `ls` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the key constraints (1000 entry limit, single-level only).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   return format, sort order, edge cases, and common mistakes.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`path`).
+/// - Concise parameter documentation for path and ignore glob patterns.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for listing directories here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to the directory to list."
+                "description": "Directory path to list."
             },
             "ignore": {
                 "type": "array",
@@ -74,38 +72,13 @@ pub fn definition() -> TieredToolDefinition {
         "required": ["path"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "ls".to_string(),
-            description: "Lists files and directories at a given path (single level). \
-                          Pass `path` (absolute directory path). \
-                          Use `ignore` to exclude entries by glob. Returns plain text list."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "ls".to_string(),
-            description: "\
-Lists files and directories at a given absolute directory path (single level, non-recursive). Returns plain text.
-
-## Input shapes
-
-1. Basic listing:
-   `{\"path\": \"/absolute/path/to/dir\"}`
-
-2. With ignore glob filters:
-   `{\"path\": \"/absolute/path/to/dir\", \"ignore\": [\"*.lock\", \"node_modules\", \".git\"]}`
-
-## Response format
-
-Returns plain text list:
-=== /absolute/path/to/dir (3 items) ===
-[DIR]  subfolder/
-[FILE] main.rs (1.2 KB)
-[FILE] lib.rs (450 B)"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "ls".to_string(),
+        description: "Lists files and directories at a given path (single level). \
+                      Pass `path` (directory path). \
+                      Use `ignore` to exclude entries by glob. Returns plain text list."
+            .to_string(),
+        parameters,
     }
 }
 

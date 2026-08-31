@@ -93,54 +93,37 @@ where
 ///
 /// Accepts:
 /// - `{ "path": "D:\\path\\file.rs:10-40" }` — single file with inline range
-/// - `{ "paths": ["D:\\path\\a.rs:10-40", "D:\\path\\b.rs:5-EOF", "D:\\path\\c.rs"] }` — batch files
-/// - `{ "filePath": "..." }` or `{ "files": "[\"...\", \"...\"]" }` — defensive aliases
+/// - `{ "path": ["D:\\path\\a.rs:10-40", "D:\\path\\b.rs:5-EOF", "D:\\path\\c.rs"] }` — batch files in single call
+/// - `{ "paths": [...] }`, `{ "filePath": "..." }`, `{ "files": [...] }` — defensive aliases
 #[derive(Debug, Deserialize)]
 pub struct ReadArgs {
-    /// Optional single file path (with optional inline range like `"file.rs:10-40"`).
-    #[serde(
-        default,
-        alias = "file_path",
-        alias = "filePath",
-        alias = "filepath",
-        alias = "target_file",
-        alias = "file",
-        alias = "filename"
-    )]
-    pub path: Option<String>,
-
-    /// List of file paths to read (with optional inline ranges like `"file.rs:10-40"`).
+    /// File path or array of file paths to read (with optional inline ranges like `"file.rs:10-40"`).
     #[serde(
         default,
         deserialize_with = "deserialize_flexible_targets_opt",
+        alias = "paths",
+        alias = "file_path",
+        alias = "filePath",
+        alias = "filepath",
         alias = "files",
         alias = "file_paths",
         alias = "filePaths",
+        alias = "target_file",
+        alias = "file",
+        alias = "filename",
         alias = "targets"
     )]
-    pub paths: Option<Vec<ReadTarget>>,
+    pub path: Option<Vec<ReadTarget>>,
 }
 
 impl ReadArgs {
-    /// Returns total number of targets specified across `path` and `paths`.
+    /// Returns total number of targets specified in `path`.
     pub fn target_count(&self) -> usize {
-        let root_count = usize::from(self.path.is_some());
-        let paths_count = self.paths.as_ref().map_or(0, |p| p.len());
-        root_count + paths_count
+        self.path.as_ref().map_or(0, |p| p.len())
     }
 
     /// Normalizes inputs into a list of `ReadTarget` items.
     pub fn into_targets(self) -> Vec<ReadTarget> {
-        let mut targets = Vec::new();
-
-        if let Some(path_str) = self.path {
-            targets.push(parse_string_target(&path_str));
-        }
-
-        if let Some(paths) = self.paths {
-            targets.extend(paths);
-        }
-
-        targets
+        self.path.unwrap_or_default()
     }
 }

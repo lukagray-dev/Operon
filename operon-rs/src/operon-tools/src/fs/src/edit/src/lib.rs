@@ -51,24 +51,23 @@ pub use error::EditToolError;
 pub use output::{EditOutput, HunkFailure};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `edit` tool.
+/// Returns the canonical tool definition for the `edit` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the `old_string`/`new_string` array schema.
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   worked examples, fuzzy matching behavior, and partial-success semantics.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`path`, `edits`, `old_string`, `new_string`).
+/// - Concise explanation of targeted hunk replacements and fuzzy matching.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the schema for file editing here.
+    // The model passes the target path and a list of edits containing old_string and new_string.
     let parameters = json!({
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to the file to edit. Also accepted as file_path."
+                "description": "File path to edit. Also accepted as file_path."
             },
             "edits": {
                 "type": "array",
@@ -78,106 +77,29 @@ pub fn definition() -> TieredToolDefinition {
                     "properties": {
                         "old_string": {
                             "type": "string",
-                            "description": "Exact or fuzzy-matchable text to replace. Must appear uniquely in the file."
+                            "description": "Exact or uniquely matchable text to replace within the file."
                         },
                         "new_string": {
                             "type": "string",
-                            "description": "Replacement text. Must differ from old_string."
+                            "description": "Replacement text to insert in place of old_string."
                         }
                     },
                     "required": ["old_string", "new_string"]
                 },
-                "description": "One or more edits to apply in order. All successful edits are committed atomically."
+                "description": "One or more edits to apply in order."
             }
         },
         "required": ["path", "edits"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "edit".to_string(),
-            description: "Edits an existing file by replacing text hunks. \
-                          Pass `path` (absolute file path) and `edits` (array of {old_string, new_string} pairs). \
-                          Each old_string is located using exact & fuzzy sequence matching (exact -> space trim -> Unicode punctuation -> case insensitivity). \
-                          If some hunks match and others fail, successful hunks are written to disk and failed hunks are reported back for retry."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "edit".to_string(),
-            description: "\
-Edits an existing file by replacing text hunks.
-
-## Input shapes
-
-`path` (required, string): Absolute path to the file to edit. Also accepted as \"file_path\" for compatibility.
-
-`edits` (required, array, min 1 item): One or more edits to apply in order.
-Each edit is an object with:
-  - `old_string` (required, string): Exact or unique text to find. Must match uniquely.
-  - `new_string` (required, string): Replacement text. Must differ from old_string.
-
-## Worked examples
-
-### Single edit
-```json
-{
-  \"path\": \"/path/to/file.rs\",
-  \"edits\": [
-    {
-      \"old_string\": \"fn old_name() {\",
-      \"new_string\": \"fn new_name() {\"
-    }
-  ]
-}
-```
-
-### Multi-hunk edit
-```json
-{
-  \"path\": \"/path/to/file.rs\",
-  \"edits\": [
-    {
-      \"old_string\": \"import { oldFunc } from './lib';\",
-      \"new_string\": \"import { newFunc } from './lib';\"
-    },
-    {
-      \"old_string\": \"oldFunc(x, y)\",
-      \"new_string\": \"newFunc(x, y)\"
-    },
-    {
-      \"old_string\": \"// TODO: refactor oldFunc\",
-      \"new_string\": \"// TODO: refactor newFunc\"
-    }
-  ]
-}
-```
-
-## Matching Lenience & Fuzzy Fallback
-
-The tool first attempts exact substring matching. If exact matching fails (0 matches), it uses a 6-pass fuzzy sequence seeker:
-1. Exact byte-for-byte line match
-2. Trailing whitespace ignored (rstrip)
-3. Leading & trailing whitespace ignored (trim)
-4. Unicode punctuation normalized (dashes, quotes, non-breaking spaces converted to ASCII)
-5. Case-insensitive matching fallback
-6. Case-insensitive Unicode normalisation
-
-## Hunk Ordering & Partial Success Semantics
-
-Edits are evaluated sequentially in array order against the running in-memory working buffer:
-- Later hunks see changes made by earlier successful hunks.
-- If some hunks match and others fail, all successfully matched hunks are written to disk!
-- Failed hunks are reported back in `failures` with their index, `old_string`, and error reason so you only need to retry the specific hunks that failed.
-- If zero hunks match, the file is NOT modified.
-
-## Common Mistakes
-
-1. **Ambiguous old_string**: searching for just `}` or `return;` matches multiple places. Include more surrounding lines to make it unique.
-2. **Display prefix in old_string**: the line number prefix in read output (e.g., \"  123 | \") is display-only and must NOT be included in old_string."
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "edit".to_string(),
+        description: "Edits an existing file by replacing text hunks. \
+                      Pass `path` (file path) and `edits` (array of {old_string, new_string} pairs). \
+                      Each old_string is located using exact & fuzzy sequence matching (exact -> space trim -> Unicode punctuation -> case insensitivity). \
+                      If some hunks match and others fail, successful hunks are written to disk and failed hunks are reported back for retry."
+            .to_string(),
+        parameters,
     }
 }
 

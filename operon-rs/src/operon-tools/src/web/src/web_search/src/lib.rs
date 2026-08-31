@@ -46,67 +46,41 @@ pub use error::WebSearchToolError;
 pub use output::{SearchResult, WebSearchOutput};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `web_search` tool.
+/// Returns the canonical tool definition for the `web_search` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraints (query syntax, result cap).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and common mistakes.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`query`).
+/// - Clear parameter descriptions for query syntax and max_results limits.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the JSON Schema parameters for the DuckDuckGo web search tool here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "query": {
                 "type": "string",
-                "description": "Search query. Supports DuckDuckGo syntax: quotes, site:, filetype:, etc."
+                "description": "Search query string. Supports search operators like quotes, site:, filetype:, etc."
             },
             "max_results": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 10,
-                "description": "Number of results to return. Default: 5. Maximum: 10."
+                "description": "Number of results to return (1-10, default 5)."
             }
         },
         "required": ["query"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "web_search".to_string(),
-            description: "Searches DuckDuckGo and returns structured results. Pass `query` (search string) \
-                          and optionally `max_results` (1–10, default 5). Returns title, URL, and snippet \
-                          for each result. No API key required. Use web_fetch to read the full content of \
-                          any result URL."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "web_search".to_string(),
-            description: "\
-Searches DuckDuckGo and returns results formatted as plain text.
-
-## Input shapes
-
-`query` (required, string): Search query (supports quotes, `site:`, `filetype:`, `-keyword`).
-`max_results` (optional, integer, 1–10): Number of results to return (default: 5, max: 10).
-
-## Response format
-
-Returns plain text with query and numbered results:
-Query: <query>
-<result_count> result(s)
-
-[1] <title>
-    <url>
-    <snippet>"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "web_search".to_string(),
+        description: "Searches DuckDuckGo and returns structured results. Pass `query` (search string) \
+                      and optionally `max_results` (1–10, default 5). Returns title, URL, and snippet \
+                      for each result. No API key required. Use web_fetch to read the full content of \
+                      any result URL."
+            .to_string(),
+        parameters,
     }
 }
 

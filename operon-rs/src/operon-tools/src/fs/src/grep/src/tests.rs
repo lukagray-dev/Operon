@@ -25,9 +25,10 @@ async fn test_basic_search() {
     let temp = TempDir::new().expect("failed to create temp dir");
     let file = create_test_file(&temp, "test.txt", "line 1\nline 2 with pattern\nline 3");
 
+    // Test passing an array directly to the unified `path` parameter
     let args = json!({
         "pattern": "pattern",
-        "paths": [file]
+        "path": [file.clone()]
     });
 
     let result = execute(ToolCallId("test".to_string()), args)
@@ -40,6 +41,16 @@ async fn test_basic_search() {
     let text = extract_text(result);
     assert!(text.contains("2: line 2 with pattern"));
     assert!(text.contains("Showing 1 match(es) across 1 file(s)."));
+
+    // Legacy paths alias test
+    let legacy_args = json!({
+        "pattern": "pattern",
+        "paths": [file]
+    });
+    let legacy_result = execute(ToolCallId("test_legacy".to_string()), legacy_args)
+        .await
+        .expect("legacy execute failed");
+    assert!(!legacy_result.is_error);
 }
 
 #[tokio::test]

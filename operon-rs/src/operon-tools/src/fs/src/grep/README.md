@@ -5,7 +5,7 @@ The `grep` tool for the Operon agent's filesystem group. Searches files and dire
 ## Features
 
 - **Regex pattern matching**: Full Rust regex syntax support with case-sensitive/insensitive modes
-- **Single or multiple target paths**: Accepts `"path": "src"` or `"paths": ["src", "tests"]`
+- **Single or multiple target paths**: Accepts top-level `path` as a single path string or an array of path strings (`path: ["src", "tests"]`)
 - **Recursive directory walking**: Automatically walks directories respecting `.gitignore`
 - **Filename glob filtering**: Use `include` patterns like `*.rs` or `*.{ts,tsx}` during directory walks
 - **Context lines**: Default 2 lines before/after matches (customizable via `context_lines`)
@@ -25,7 +25,7 @@ async fn main() {
 
     let args = json!({
         "pattern": "fn main",
-        "path": "/home/user/project/src"
+        "path": ["/home/user/project/src", "/home/user/project/tests"]
     });
 
     let result = execute(ToolCallId("call_123".to_string()), args).await.unwrap();

@@ -28,8 +28,8 @@ async fn main() {
     // Example 1: Get the tool definition
     println!("1. Tool Definition:");
     let def = definition();
-    println!("   Name: {}", def.name());
-    println!("   Short Description: {}", def.short.description);
+    println!("   Name: {}", def.name);
+    println!("   Description: {}", def.description);
     println!();
 
     // Example 2: Read entire file

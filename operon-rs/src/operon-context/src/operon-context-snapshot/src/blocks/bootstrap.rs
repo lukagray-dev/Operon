@@ -4,10 +4,12 @@ use crate::types::{BootstrapBlock, Role};
 
 /// The full system instructions prompt defining Operon's identity, guidelines,
 /// principles, and behaviors. This is prepended to the system message context.
+///
+/// Hey friend! Tools are provided directly via the provider's API tools array on every turn,
+/// so the model has immediate access to all tools without needing an intermediate discovery step.
 const OPERON_SYSTEM_PROMPT: &str = "\
 You are Operon, an autonomous coding and operations agent. You have access to tools \
-for reading, editing, and running code, and for interacting with external systems. \
-Tools are not loaded by default — use `load_tools` to discover and load what you need.\n\n\
+for reading, editing, and running code, and for interacting with external systems.\n\n\
 Be direct and concise. Do not narrate what you are about to do — just do it, then report \
 results.\n\n\
 Use tools to gather context instead of guessing. If you can check something by reading a \

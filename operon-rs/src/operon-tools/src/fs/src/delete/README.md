@@ -83,16 +83,9 @@ dispatcher.register(
 
 ## API
 
-### `definition() -> TieredToolDefinition`
+### `definition() -> ToolDefinition`
 
-Returns the tool's tiered definition (short + detailed descriptions).
-
-**Short description** (sent to model normally):
-- Concise statement of what the tool does
-- Key constraints (path must exist, two deletion modes)
-- Safety guidance (prefer trash mode)
-
-**Detailed description** (sent after malformed call):
+Returns the tool's canonical definition with industry-standard JSON Schema parameter specifications.
 - Full parameter documentation
 - Deletion modes explained in detail
 - Worked examples (trash file, permanent delete, directory deletion)
@@ -221,7 +214,7 @@ The crate includes 18 comprehensive tests covering:
 - `serde` / `serde_json`: Serialization/deserialization
 - `thiserror`: Error type derivation
 - `operon-context-normalize-tools`: Tool types (ToolCallId, ToolResult, etc.)
-- `operon-tools-core`: TieredToolDefinition type
+- `operon-tools-core`: ToolProgress and error types
 
 ## Integration
 

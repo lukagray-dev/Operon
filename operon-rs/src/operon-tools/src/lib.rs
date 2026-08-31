@@ -7,7 +7,9 @@
 //! - `fs` — filesystem tools (read, write, edit, grep, …)
 //! - `shell` — shell tools (bash, …)
 //! - `todo` — todo tools (create, list, update, delete)
-//! - `load` — load_tools tool (on-demand tool discovery)
+//! - `ask` — prompt user for clarifying input or approval
+//! - `memory` — global persistent memory store
+//! - `web` — web search and fetch tools
 //! - `dispatcher` — routes model tool calls to implementations; manages tiered
 //!   descriptions per session.
 //!
@@ -20,7 +22,6 @@
 //! d.register_fs_tools();
 //! d.register_shell_tools();
 //! d.register_todo_tools();
-//! d.register_load_tool();
 //!
 //! // Definitions to send to the model:
 //! let defs: Vec<_> = d.definitions().collect();
@@ -40,7 +41,6 @@ pub use operon_tools_core::{
     ToolProgressEmitter, ToolProgressStage,
 };
 pub use operon_tools_fs as fs;
-pub use operon_tools_load as load;
 pub use operon_tools_memory as memory;
 pub use operon_tools_shell as shell;
 pub use operon_tools_todo as todo;

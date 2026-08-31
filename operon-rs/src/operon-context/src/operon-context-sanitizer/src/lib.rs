@@ -66,7 +66,6 @@ mod tests {
                 rendered: ".".to_string(),
             },
             git: None,
-            tool_groups: None,
         }
     }
 

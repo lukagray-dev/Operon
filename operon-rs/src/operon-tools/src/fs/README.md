@@ -1,8 +1,8 @@
 # operon-tools-fs
 
-**Filesystem tool group — 7 tools for reading, writing, editing, and searching files**
+**Filesystem tool group — 8 tools for reading, writing, editing, pattern globbing, and searching files**
 
-`operon-tools-fs` is a facade crate that re-exports all filesystem tool sub-crates. It provides a complete filesystem manipulation toolkit: **read, write, edit, append, delete, grep, ls**.
+`operon-tools-fs` is a facade crate that re-exports all filesystem tool sub-crates. It provides a complete filesystem manipulation toolkit: **read, write, edit, append, delete, grep, glob, ls**.
 
 ---
 
@@ -18,12 +18,14 @@ flowchart TB
     Facade --> Append[append<br/>Non-destructive]
     Facade --> Delete[delete<br/>Trash/permanent]
     Facade --> Grep[grep<br/>Regex + gitignore]
+    Facade --> Glob[glob<br/>Fast path pattern matching]
     Facade --> Ls[ls<br/>Single-level listing]
     
     style Facade fill:#FFD700
     style Read fill:#90EE90
     style Edit fill:#87CEEB
     style Grep fill:#FFD700
+    style Glob fill:#98FB98
 ```
 
 ---
@@ -32,12 +34,13 @@ flowchart TB
 
 | Tool | Purpose | Key Feature |
 |------|---------|-------------|
-| **read** | Read files | Batch reads, inline ranges (`path:10-40`) |
+| **read** | Read files | Batch reads via `path: [...]`, inline ranges (`path:10-40`) |
 | **write** | Create/overwrite | Atomic writes, parent must exist |
 | **edit** | Replace text | 6-pass fuzzy seeking, partial success |
 | **append** | Add to end | Non-destructive, O_APPEND mode |
 | **delete** | Remove files/dirs | Trash (default) or permanent |
 | **grep** | Regex search | gitignore-aware, context lines, 300 match limit |
+| **glob** | Path pattern search | Fast wildcard matching (`**/*.rs`), gitignore-aware |
 | **ls** | List directory | Single-level, metadata, glob exclusion |
 
 ---

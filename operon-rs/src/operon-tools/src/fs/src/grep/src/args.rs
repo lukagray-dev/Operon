@@ -19,7 +19,7 @@ pub struct GrepArgs {
     #[serde(
         default,
         deserialize_with = "deserialize_flexible_string_list_opt",
-        alias = "path",
+        alias = "paths",
         alias = "file_path",
         alias = "filePath",
         alias = "directory",
@@ -27,7 +27,7 @@ pub struct GrepArgs {
         alias = "folder",
         alias = "target"
     )]
-    paths: Option<Vec<String>>,
+    pub path: Option<Vec<String>>,
 
     /// Optional glob pattern to filter files by name (e.g. "*.rs").
     #[serde(
@@ -74,6 +74,6 @@ where
 impl GrepArgs {
     /// Returns the target paths as a vector.
     pub fn get_paths(&self) -> Vec<String> {
-        self.paths.clone().unwrap_or_default()
+        self.path.clone().unwrap_or_default()
     }
 }

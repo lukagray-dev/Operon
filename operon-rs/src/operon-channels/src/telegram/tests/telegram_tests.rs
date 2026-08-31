@@ -226,7 +226,6 @@ fn test_snapshot_integration_with_channel_instructions() {
         role: Role::Owner,
         session_id: "tg-12345".to_string(),
         tree_depth: 1,
-        tool_groups: Vec::new(),
         channel_instructions: Some(channel_inst),
     };
 

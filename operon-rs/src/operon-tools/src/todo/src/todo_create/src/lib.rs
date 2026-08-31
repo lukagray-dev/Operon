@@ -45,25 +45,22 @@ pub use error::TodoCreateToolError;
 pub use output::TodoCreateOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, TodoStore, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, TodoStore, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `todo_create` tool.
+/// Returns the canonical tool definition for the `todo_create` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and key parameters.
-/// - `detailed`: sent after a malformed call. Clean explanation with input shapes
-///   and response format.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Clear parameter descriptions for single creation (`content`, `priority`) and batch creation (`todos`).
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the schema for creating todo items here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "content": {
                 "type": "string",
                 "minLength": 1,
-                "description": "Task description for single creation. Imperative form: 'Implement the grep tool'."
+                "description": "Task description for single creation (e.g. 'Implement parser')."
             },
             "priority": {
                 "type": "string",
@@ -72,7 +69,7 @@ pub fn definition() -> TieredToolDefinition {
             },
             "todos": {
                 "type": "array",
-                "description": "Array of todo items to create at once.",
+                "description": "Array of todo items to create at once in batch.",
                 "items": {
                     "type": "object",
                     "properties": {
@@ -93,39 +90,13 @@ pub fn definition() -> TieredToolDefinition {
         }
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "todo_create".to_string(),
-            description: "Creates one or multiple todo items. \
-                          Pass `content` (or `todos` array) with optional `priority` (\"high\", \"medium\", \"low\"). \
-                          Returns created items with assigned IDs."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "todo_create".to_string(),
-            description: "\
-Creates one or multiple todo items in a single call. Returns created item(s) with assigned IDs.
-
-## Input shapes
-
-1. Single task:
-   `{\"content\": \"Fix login bug\", \"priority\": \"high\"}`
-   `{\"content\": \"Write unit tests\"}`
-
-2. Multiple tasks in batch:
-   `{\"todos\": [{\"content\": \"Fix login bug\", \"priority\": \"high\"}, {\"content\": \"Write tests\", \"priority\": \"medium\"}]}`
-
-3. Array of task strings:
-   `{\"todos\": [\"Implement parser\", \"Add error handling\"]}`
-
-## Response format
-
-Returns JSON object with `items` list and `total` count:
-`{\"items\": [{\"id\": \"1\", \"content\": \"...\", \"status\": \"pending\", \"priority\": \"high\"}], \"total\": 1}`"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "todo_create".to_string(),
+        description: "Creates one or multiple todo items. \
+                      Pass `content` (or `todos` array) with optional `priority` (\"high\", \"medium\", \"low\"). \
+                      Returns created items with assigned IDs."
+            .to_string(),
+        parameters,
     }
 }
 

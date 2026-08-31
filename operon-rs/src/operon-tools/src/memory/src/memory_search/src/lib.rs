@@ -15,73 +15,37 @@ pub use error::MemorySearchToolError;
 pub use output::MemorySearchOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use operon_tools_memory_store::MemoryStore;
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `memory_search` tool.
-pub fn definition() -> TieredToolDefinition {
+/// Returns the canonical tool definition for the `memory_search` tool.
+///
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`query`).
+/// - Clear parameter descriptions for search query syntax and limit.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for full-text searching memories here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "query": {
                 "type": "string",
                 "minLength": 1,
-                "description": "FTS5 search query. Aliases: q, text, term, terms."
+                "description": "Full-text search query string (supports FTS5 matching)."
             },
             "limit": {
                 "type": "integer",
-                "description": "Max results to return, ranked by relevance (default: 10)."
+                "description": "Maximum number of results to return, ranked by relevance (default: 10)."
             }
         },
         "required": ["query"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "memory_search".to_string(),
-            description: "Full-text searches memory content using FTS5 (BM25 relevance). Pass `query` (required) and optionally `limit`. Returns `memories` ranked by relevance and `count`.".to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "memory_search".to_string(),
-            description: "\
-Full-text searches memory content using SQLite FTS5 (BM25 relevance ranking).
-
-## Input shapes
-
-`query` (required, string, non-empty): Search terms. FTS5 MATCH syntax is supported:
-- Single term: `\"Rust\"`
-- AND: `\"Rust AND programming\"`  (implicit AND: `\"Rust programming\"`)
-- OR: `\"Rust OR Go\"`
-- Phrase: `\"dark mode\"`
-
-Aliases: `q`, `text`, `term`, `terms`.
-
-`limit` (optional, integer): Max results, ranked by relevance (default: 10).
-
-## Output
-
-```json
-{ \"memories\": [...], \"count\": 2, \"query\": \"Rust\" }
-```
-
-## Errors
-
-- `\"query is empty\"` — provide a non-empty search term
-
-## Examples
-
-```json
-{\"query\": \"dark mode\"}
-{\"q\": \"Rust\", \"limit\": 5}
-{\"query\": \"workflow AND git\"}
-```"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "memory_search".to_string(),
+        description: "Full-text searches memory content using FTS5 (BM25 relevance). Pass `query` (required) and optionally `limit`. Returns `memories` ranked by relevance and `count`.".to_string(),
+        parameters,
     }
 }
 

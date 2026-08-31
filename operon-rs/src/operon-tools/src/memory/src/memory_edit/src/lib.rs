@@ -15,77 +15,41 @@ pub use error::MemoryEditToolError;
 pub use output::MemoryEditOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use operon_tools_memory_store::MemoryStore;
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `memory_edit` tool.
-pub fn definition() -> TieredToolDefinition {
+/// Returns the canonical tool definition for the `memory_edit` tool.
+///
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`id`).
+/// - Clear parameter descriptions for id, updated content, and updated tags.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for editing existing memories here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "id": {
                 "type": ["string", "integer"],
-                "description": "Id of the memory to update."
+                "description": "ID of the memory to update."
             },
             "content": {
                 "type": "string",
-                "description": "New content for the memory. Aliases: note, fact, text, memory, info."
+                "description": "New content for the memory."
             },
             "tags": {
                 "type": "array",
                 "items": { "type": "string" },
-                "description": "New tags (replaces current tags). Alias: tag."
+                "description": "New tags (replaces current tags)."
             }
         },
         "required": ["id"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "memory_edit".to_string(),
-            description: "Partially updates an existing memory. Pass `id` (required) and any of: `content`, `tags`. Only provided fields change; omitted fields are unchanged.".to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "memory_edit".to_string(),
-            description: "\
-Partially updates an existing memory. Only provided fields are changed — omitted fields remain as-is.
-
-## Input shapes
-
-`id` (required, string or integer): Id of the memory to update. Aliases: `memory_id`, `memoryId`.
-
-`content` (optional, string, non-empty): New content. Aliases: `note`, `fact`, `text`, `memory`, `info`.
-
-`tags` (optional, array of strings): Replaces all current tags. Single string also accepted. Alias: `tag`.
-
-At least one of `content` or `tags` must be provided.
-
-## Output
-
-```json
-{ \"memory\": { \"id\": \"1\", \"content\": \"...\", \"tags\": [], \"created_at\": \"...\", \"updated_at\": \"...\" } }
-```
-
-## Errors
-
-- `\"no fields to update — provide at least one of: content, tags\"`
-- `\"content is empty\"`
-- `\"memory not found: id 'X'\"`
-
-## Examples
-
-```json
-{\"id\": \"1\", \"content\": \"Updated preference text\"}
-{\"id\": 2, \"tags\": [\"workflow\", \"git\"]}
-{\"id\": \"3\", \"content\": \"New fact\", \"tags\": [\"fact\"]}
-```"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "memory_edit".to_string(),
+        description: "Partially updates an existing memory. Pass `id` (required) and any of: `content`, `tags`. Only provided fields change; omitted fields are unchanged.".to_string(),
+        parameters,
     }
 }
 

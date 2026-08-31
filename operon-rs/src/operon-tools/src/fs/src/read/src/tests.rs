@@ -100,7 +100,7 @@ async fn test_read_single_file_full() {
 }
 
 #[tokio::test]
-async fn test_read_multiple_files_with_string_ranges() {
+async fn test_read_multiple_files_with_path_array() {
     let dir = setup_test_dir();
     let path1 = dir.path().join("simple.txt");
     let path2 = dir.path().join("no_newline.txt");
@@ -108,8 +108,9 @@ async fn test_read_multiple_files_with_string_ranges() {
     let target1 = format!("{}:2-4", path1.to_str().unwrap());
     let target2 = format!("{}:2-EOF", path2.to_str().unwrap());
 
+    // Test passing an array to the unified `path` parameter
     let args = json!({
-        "paths": [target1, target2]
+        "path": [target1.clone(), target2.clone()]
     });
 
     let result = execute(ToolCallId("test_2".to_string()), args)
@@ -128,6 +129,15 @@ async fn test_read_multiple_files_with_string_ranges() {
         path2.to_str().unwrap()
     )));
     assert!(text.contains("line 2\nline 3"));
+
+    // Also verify backwards compatibility with `paths` alias
+    let legacy_args = json!({
+        "paths": [target1, target2]
+    });
+    let legacy_result = execute(ToolCallId("test_2_legacy".to_string()), legacy_args)
+        .await
+        .unwrap();
+    assert!(!legacy_result.is_error);
 }
 
 #[tokio::test]

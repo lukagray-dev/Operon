@@ -50,24 +50,22 @@ pub use error::DeleteToolError;
 pub use output::{DeleteOutput, DeletedKind};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `delete` tool.
+/// Returns the canonical tool definition for the `delete` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraints (path must exist, two deletion modes).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, common mistakes, and strong safety guidance.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`path`).
+/// - Clear documentation for `path` and `permanent` deletion mode.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for deleting files or directories here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to the file or directory to delete."
+                "description": "File or directory path to delete."
             },
             "permanent": {
                 "type": "boolean",
@@ -78,202 +76,15 @@ pub fn definition() -> TieredToolDefinition {
         "required": ["path"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "delete".to_string(),
-            description: "Deletes a file or directory. Pass `path` (absolute path) and optionally \
-                          `permanent` (bool, default false). When permanent is false (default), the \
-                          target is moved to the system trash and can be recovered. When permanent \
-                          is true, it is deleted with no recovery possible. Prefer permanent: false \
-                          unless permanent deletion is explicitly required."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "delete".to_string(),
-            description: "\
-Deletes a file or directory. Pass `path` (absolute path to an existing file or directory) and optionally \
-`permanent` (bool, default false). The path must exist — if it doesn't, the tool returns an error.
-
-## Input shapes
-
-`path` (required, string): Absolute path to the file or directory to delete. The path must exist. \
-If the path does not exist, the tool returns an error and nothing is deleted. Both files and directories \
-are supported. For directories, the entire tree is deleted (all contents recursively).
-
-`permanent` (optional, bool, default false): Controls the deletion mode:
-- `false` (default): Move the target to the system trash. The file is recoverable by the user from their \
-  system trash (macOS Trash, Windows Recycle Bin, Linux trash-spec). Use this for almost all deletions.
-- `true`: Permanently delete the target with no recovery possible. Irreversible. Use only when permanent \
-  removal is explicitly required (e.g., deleting a temp file that must not persist in trash, removing \
-  secrets from disk).
-
-## Deletion modes in detail
-
-### Trash mode (permanent: false, default)
-The target is moved to the system trash. The file is NOT deleted from disk — it is moved to a special \
-location where the user can recover it. This is the safe default.
-
-- macOS: Moved to ~/Trash
-- Windows: Moved to Recycle Bin
-- Linux: Moved to ~/.local/share/Trash (trash-spec)
-
-Use this for almost all deletions. The user can recover the file if needed.
-
-### Permanent mode (permanent: true)
-The target is permanently deleted using `remove_file` (for files) or `remove_dir_all` (for directories). \
-This is irreversible — if the wrong path is deleted, the data is unrecoverable.
-
-Use only when permanent removal is explicitly required:
-- Deleting a temp file that must not persist in trash
-- Removing secrets or sensitive data from disk
-- Cleaning up after a build or test run
-
-**WARNING**: Permanent deletion is irreversible. If the wrong path is deleted, the data is unrecoverable. \
-Always double-check the path before using permanent: true.
-
-## Files and directories
-
-Both files and directories are supported:
-- **Files**: The file is deleted (or moved to trash).
-- **Directories**: The entire directory tree is deleted recursively (or moved to trash). All contents \
-  (subdirectories, files) are deleted along with the directory itself.
-- **Symlinks**: The symlink itself is deleted, not the target. The target remains untouched.
-
-## Output fields
-
-- `path`: The path that was deleted (echoed back for correlation).
-- `kind`: Either \"file\" or \"dir\" — indicates what was deleted.
-- `permanent`: Whether the deletion was permanent (true) or moved to trash (false).
-- `message`: Human-readable summary (\"Moved {path} to trash (file|dir)\" or \
-  \"Permanently deleted {path} (file|dir)\").
-
-## When to use delete vs other tools
-
-Use `delete` for:
-- Removing files or directories that are no longer needed
-- Cleaning up temporary files
-- Removing secrets or sensitive data (with permanent: true)
-
-Use `write` for:
-- Creating new files
-- Replacing entire file content
-
-Use `edit` for:
-- Modifying specific lines within a file
-
-## Worked examples
-
-### Delete a file to trash (safe, recoverable)
-```json
-{
-  \"path\": \"/tmp/temp_file.txt\",
-  \"permanent\": false
-}
-```
-
-Result: The file is moved to the system trash. The user can recover it from their trash.
-
-### Delete a file permanently (irreversible)
-```json
-{
-  \"path\": \"/tmp/secret.key\",
-  \"permanent\": true
-}
-```
-
-Result: The file is permanently deleted. No recovery is possible.
-
-### Delete a directory and all its contents to trash
-```json
-{
-  \"path\": \"/tmp/build_output\",
-  \"permanent\": false
-}
-```
-
-Result: The directory and all its contents are moved to trash. Recoverable.
-
-### Delete a directory permanently
-```json
-{
-  \"path\": \"/tmp/cache\",
-  \"permanent\": true
-}
-```
-
-Result: The directory and all its contents are permanently deleted. No recovery is possible.
-
-### Omit permanent (defaults to false)
-```json
-{
-  \"path\": \"/tmp/file.txt\"
-}
-```
-
-Result: The file is moved to trash (permanent defaults to false). Safe default.
-
-## Common mistakes
-
-### Mistake #1: Path doesn't exist
-```json
-{
-  \"path\": \"/tmp/does_not_exist_xyz/file.txt\",
-  \"permanent\": false
-}
-```
-
-Error: \"path does not exist: /tmp/does_not_exist_xyz/file.txt\"
-
-Fix: Verify the path exists before calling delete.
-
-### Mistake #2: Using permanent: true when permanent: false would suffice
-```json
-{
-  \"path\": \"/tmp/file.txt\",
-  \"permanent\": true
-}
-```
-
-This permanently deletes the file. If the wrong path was specified, the data is unrecoverable.
-
-Fix: Always prefer permanent: false (or omit it). Only use permanent: true when you have a specific reason.
-
-### Mistake #3: Trying to delete a non-existent nested path
-```json
-{
-  \"path\": \"/tmp/does_not_exist_xyz_operon/subdir/file.txt\",
-  \"permanent\": false
-}
-```
-
-Error: \"path does not exist: /tmp/does_not_exist_xyz_operon/subdir/file.txt\"
-
-Fix: Verify the entire path exists before calling delete.
-
-### Mistake #4: Forgetting that permanent deletion is irreversible
-Using permanent: true on the wrong path will permanently delete the data with no recovery possible. \
-Always verify the path is correct before using permanent: true.
-
-## Error messages
-
-- \"path does not exist: ...\" → Verify the path exists before calling delete.
-- \"failed to access path: ...\" → Permission denied or other I/O error. Check permissions.
-- \"failed to move to trash: ...\" → Trash operation failed (disk full, permission denied, etc.).
-- \"failed to delete file: ...\" → Permanent deletion failed (permission denied, etc.).
-- \"failed to delete directory: ...\" → Permanent deletion of directory failed (permission denied, etc.).
-- \"internal error: delete task panicked\" → Internal error. This should not happen — report if seen.
-
-## Safety guidance
-
-**Prefer permanent: false for all deletions.** Permanent deletion is irreversible — if the wrong path is \
-deleted, the data is unrecoverable. Only use permanent: true when you have a specific reason (temp files, \
-secrets that must not remain in trash).
-
-Always verify the path is correct before calling delete, especially with permanent: true."
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "delete".to_string(),
+        description: "Deletes a file or directory. Pass `path` (file or directory path) and optionally \
+                      `permanent` (bool, default false). When permanent is false (default), the \
+                      target is moved to the system trash and can be recovered. When permanent \
+                      is true, it is deleted with no recovery possible. Prefer permanent: false \
+                      unless permanent deletion is explicitly required."
+            .to_string(),
+        parameters,
     }
 }
 

@@ -61,93 +61,50 @@ pub use error::BashToolError;
 pub use output::BashOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // definition
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Returns the tiered tool definition for the `bash` tool.
+/// Returns the canonical tool definition for the `bash` tool.
 ///
-/// # Tiers
-///
-/// - `short`: Sent under normal conditions. Concise description covering what the
-///   tool does, its key constraints, and all required fields.
-/// - `detailed`: Sent after a malformed call. Full description with input shapes,
-///   cwd semantics, timeout behavior, exit codes, common mistakes, and examples.
-///
-/// # Breaking change note
-///
-/// `cwd` was added as a required field (previously the tool had no working directory
-/// concept). All callers must provide `cwd`. This change was made to enable
-/// directory-scoped shell permissions in `operon-policy`.
-pub fn definition() -> TieredToolDefinition {
-    // The JSON schema is shared between short and detailed definitions.
-    // Only the description text differs between the two tiers.
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`command`, `cwd`).
+/// - Concise parameter documentation covering command execution, statelessness, cwd, and timeout.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the JSON Schema parameters for the shell execution tool here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "command": {
                 "type": "string",
-                "description": "Shell command to execute. Runs in a fresh sh -c subprocess each call. \
-                                No state persists between calls — chain with && or ; for sequential state."
+                "description": "Shell command to execute. Runs in a fresh subprocess each call. No state persists between calls — chain with && or ; for sequential state."
             },
             "cwd": {
                 "type": "string",
-                "description": "Absolute path to the working directory for this command. \
-                                Must be within an allowed directory. The subprocess runs with \
-                                this directory as its working directory."
+                "description": "Working directory path for this command."
             },
             "timeout_ms": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "Optional timeout in milliseconds. Process is killed if it \
-                                exceeds this duration. No timeout if omitted."
+                "description": "Optional timeout in milliseconds. Process is killed if it exceeds this duration."
             }
         },
-        // Both command and cwd are required — cwd is the policy anchor.
         "required": ["command", "cwd"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "bash".to_string(),
-            description: "Executes a shell command in a stateless subprocess rooted at `cwd` and \
-                          returns merged stdout+stderr, exit code, and truncation status. Each call \
-                          is independent — no state persists between calls. Chain commands with && \
-                          or ; for sequential state within one call. Output capped at 10,000 \
-                          characters. `cwd` (absolute path) and `command` are required. \
-                          Optionally specify `timeout_ms`."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "bash".to_string(),
-            description: "\
-Executes a shell command in a stateless subprocess rooted at `cwd`. Returns merged stdout+stderr (max 10,000 chars) and exit code.
-
-## Input shapes
-
-1. Basic command execution:
-   `{\"command\": \"cargo check\", \"cwd\": \"/path/to/project\"}`
-
-2. Command with timeout (in milliseconds):
-   `{\"command\": \"npm test\", \"cwd\": \"/path/to/project\", \"timeout_ms\": 30000}`
-
-3. Chaining sequential commands in one subprocess:
-   `{\"command\": \"cd /tmp && pwd\", \"cwd\": \"/home/user\"}`
-
-## Key behavior
-
-- Stateless: Each call runs in a fresh process. `cd` and env vars do NOT persist across calls — chain with `&&` or `;`.
-- `cwd` required: Must be an absolute path to the working directory.
-- Output: Merged stdout+stderr truncated at 10,000 characters."
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "bash".to_string(),
+        description: "Executes a shell command in a stateless subprocess rooted at `cwd` and \
+                      returns merged stdout+stderr, exit code, and truncation status. Each call \
+                      is independent — no state persists between calls. Chain commands with && \
+                      or ; for sequential state within one call. Output capped at 10,000 \
+                      characters. `cwd` (working directory path) and `command` are required. \
+                      Optionally specify `timeout_ms`."
+            .to_string(),
+        parameters,
     }
 }
 

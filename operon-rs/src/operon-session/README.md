@@ -427,11 +427,7 @@ flowchart TB
     PolicyCheck -->|Deny| Denied2[Emit PermissionDenied]
     Denied2 --> OpaqueErr
     
-    Dispatch --> CheckDeg{Newly degraded?}
-    CheckDeg -->|Yes| EmitDeg[Emit ToolDegraded]
-    CheckDeg -->|No| EmitRes[Emit ToolCallResult]
-    EmitDeg --> EmitRes
-    
+    Dispatch --> EmitRes[Emit ToolCallResult]
     EmitRes --> PushRes[Push to tool_results]
     PushRes --> Continue[Return Continue]
     
@@ -833,28 +829,9 @@ sequenceDiagram
 
 ---
 
-### load_tools State Restoration
+### Upfront Tool Exposure
 
-**Module**: `runner/mod.rs` (set_history method)
-
-```mermaid
-flowchart TB
-    Start[Resume session<br/>set_history called] --> Scan[Scan message history]
-    Scan --> Find{Find load_tools<br/>ToolResult?}
-    Find -->|Yes| Extract[Extract group from JSON]
-    Extract --> Mark[dispatcher.mark_group_loaded]
-    Mark --> Next[Continue scanning]
-    Find -->|No| Next
-    Next --> More{More messages?}
-    More -->|Yes| Find
-    More -->|No| Done[Restoration complete]
-    
-    style Start fill:#FFD700
-    style Mark fill:#90EE90
-    style Done fill:#87CEEB
-```
-
-**Why**: When resuming a session, the dispatcher must restore which tool groups were dynamically loaded via `load_tools` so those tools appear in the `tools` array of the first API request.
+All registered tools (`fs`, `shell`, `web`, `todo`, `ask`, `memory`) are exposed to the model directly in the top-level API payload from turn 1. This eliminates discovery round-trip latency, supports provider prompt caching, and avoids polluting conversation context with dynamic schema JSON.
 
 ---
 

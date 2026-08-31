@@ -20,8 +20,8 @@ async fn main() {
     // 2. Tool definition
     println!("1. Tool Definition:");
     let def = definition();
-    println!("   Name: {}", def.name());
-    println!("   Short Description: {}", def.short.description);
+    println!("   Name: {}", def.name);
+    println!("   Description: {}", def.description);
     println!();
 
     // 3. Append a new line to the file

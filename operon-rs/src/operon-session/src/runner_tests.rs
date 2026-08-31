@@ -144,7 +144,7 @@ fn tool_result_content_json_serializes_text_and_json_cleanly() {
 }
 
 #[test]
-fn test_set_history_restores_loaded_groups() {
+fn test_set_history_restores_state() {
     use operon_context::{CompactionConfig, SnapshotConfig};
     use operon_providers::{ApiCredentials, ModelConfig, Provider, ProviderConfig};
     use reqwest::Client;
@@ -157,7 +157,6 @@ fn test_set_history_restores_loaded_groups() {
         role: Role::Owner,
         session_id: "test-session".to_string(),
         tree_depth: 1,
-        tool_groups: Vec::new(),
         channel_instructions: None,
     })
     .unwrap();
@@ -206,35 +205,9 @@ fn test_set_history_restores_loaded_groups() {
     };
 
     // Construct mock conversation history:
-    // 1. A successful load_tools call for "fs"
-    // 2. A failed load_tools call for "web"
-    // 3. A read tool call (should not affect groups)
     let history = vec![ConversationMessage {
         role: MessageRole::Tool,
         content: vec![
-            // Successful load_tools for "fs": should be recovered!
-            ContentBlock::ToolResult(ToolResult {
-                call_id: ToolCallId("call_load_fs".to_string()),
-                name: "load_tools".to_string(),
-                content: ToolContent::Json(json!({
-                    "group": "fs",
-                    "tool_count": 7,
-                    "tools": []
-                })),
-                is_error: false,
-            }),
-            // Failed load_tools for "web": should NOT be recovered because is_error is true!
-            ContentBlock::ToolResult(ToolResult {
-                call_id: ToolCallId("call_load_web".to_string()),
-                name: "load_tools".to_string(),
-                content: ToolContent::Json(json!({
-                    "group": "web",
-                    "tool_count": 2,
-                    "tools": []
-                })),
-                is_error: true,
-            }),
-            // Standard tool result: should NOT affect any loaded groups!
             ContentBlock::ToolResult(ToolResult {
                 call_id: ToolCallId("call_read_file".to_string()),
                 name: "read".to_string(),
@@ -248,26 +221,12 @@ fn test_set_history_restores_loaded_groups() {
     // Invoke set_history to simulate session resume.
     runner.set_history(history, 4, Some(800));
 
-    // Verify turn index and token states are correctly recovered.
+    // Verify turn index, messages, and token states are correctly recovered.
     assert_eq!(runner.turn_index, 4, "Turn index must be set to 4");
+    assert_eq!(runner.messages.len(), 1, "Messages must be restored");
     assert_eq!(
         runner.token_state.current_context_tokens, 800,
         "Context tokens must be set to 800"
-    );
-
-    // Verify that the dispatcher has marked "fs" as loaded, but not "web" or "read".
-    let loaded = runner.dispatcher.loaded_groups();
-    assert!(
-        loaded.contains("fs"),
-        "The successfully loaded 'fs' group must be recovered"
-    );
-    assert!(
-        !loaded.contains("web"),
-        "The failed 'web' group must NOT be marked loaded"
-    );
-    assert!(
-        !loaded.contains("read"),
-        "Individual tool calls must not affect loaded groups"
     );
 }
 

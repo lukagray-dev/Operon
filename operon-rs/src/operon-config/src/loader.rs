@@ -277,14 +277,12 @@ web        = "ask"
 sub_agent  = "ask"
 ask        = "ask"
 todo       = "ask"
-load_tools = "ask"
 
 [policy.global.external]
 web        = "deny"
 sub_agent  = "deny"
 ask        = "deny"
 todo       = "deny"
-load_tools = "deny"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ALLOWED DIRECTORIES
@@ -1136,11 +1134,6 @@ pub fn get_permission_rows(
                 crate::policy::GlobalTool::Todo,
                 "todo",
                 "Manage Tasks / Todo Lists",
-            ),
-            (
-                crate::policy::GlobalTool::LoadTools,
-                "load_tools",
-                "Load Custom Dynamic Tools",
             ),
         ];
 

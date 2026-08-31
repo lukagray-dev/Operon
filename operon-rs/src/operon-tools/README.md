@@ -6,19 +6,28 @@ All Operon agent tool groups and their runtime dispatcher. This crate provides t
 
 ```
 operon-tools/
-  ├── dispatcher.rs     — Routes tool calls, manages tiered descriptions per session
-  ├── fs/               — Filesystem tools (read, write, edit, grep, ...)
-  ├── web/              — Web tools (fetch, search, ...) [future]
-  └── sub_agents/       — Sub-agent tools [future]
+  ├── dispatcher/       — Routes tool calls, enforces read-before-write safety, progress events
+  │     ├── mod.rs        — Dispatcher struct, lifecycle methods, definitions iterator
+  │     ├── register.rs   — Group registration methods (fs, shell, web, todo, memory, ask)
+  │     ├── dispatch.rs   — Execution pipeline, stateful tool routing (todo/memory), ledger checks
+  │     └── ledger.rs     — Read ledger recording helpers
+  ├── fs/               — Filesystem tools (read, grep, glob, ls, write, edit, append, delete)
+  ├── shell/            — Shell execution tools (bash)
+  ├── web/              — Web search and fetch tools (web_search, web_fetch)
+  ├── todo/             — Session todo management tools (create, list, update, delete)
+  ├── memory/           — Persistent SQLite memory tools (add, edit, delete, retrieve, search)
+  └── ask/              — User confirmation and interactive choice tool
 ```
 
 ## The Dispatcher
 
 The `Dispatcher` is the central component that:
 
-1. **Routes tool calls** from the model to the correct implementation
-2. **Manages tiered descriptions** — switches from short to detailed when a tool receives malformed args
-3. **Handles errors gracefully** — converts all errors to `ToolResult` so the model can see what went wrong
+1. **Exposes all 21 tools upfront**: All tools and their canonical JSON Schemas are available from turn 1.
+2. **Routes tool calls**: Dispatches model tool calls to their respective implementations.
+3. **Enforces Read-Before-Write Safety**: Guarantees that existing files must be read before being edited or overwritten via `ReadLedger`.
+4. **Streams Real-Time Progress Events**: Emits granular lifecycle progress updates (`Started`, `Running`, `Completed`, `Failed`) to the TUI and GUI.
+5. **Handles errors gracefully**: Converts errors to `ToolResult` so the model can inspect error details and self-correct.
 
 ### Session Lifecycle
 
@@ -30,45 +39,18 @@ use operon_tools::dispatcher::Dispatcher;
 // Session start
 let mut dispatcher = Dispatcher::new();
 dispatcher.register_fs_tools();
+dispatcher.register_shell_tools();
+dispatcher.register_web_tools();
+dispatcher.register_todo_tools();
+dispatcher.register_ask_tool();
+dispatcher.register_memory_tools();
 
 // Get definitions to send to the model
 let defs: Vec<_> = dispatcher.definitions().collect();
 
 // After the model calls a tool
 let result = dispatcher.dispatch(tool_call).await;
-
-// Session end — drop the dispatcher
 ```
-
-A new session gets a fresh dispatcher with all tools back in short-description mode.
-
-## Tiered Descriptions
-
-The dispatcher implements a **graceful degradation** strategy:
-
-### Normal Operation (Short Descriptions)
-
-```
-Model sees: "read — Reads files (max 1 MB). Pass paths as array."
-Model calls: read with valid args
-Result: Success
-```
-
-### After Malformed Call (Detailed Descriptions)
-
-```
-Model sees: "read — Reads files (max 1 MB). Pass paths as array."
-Model calls: read with { "path": "file.txt" }  ← wrong! should be "paths" (array)
-Result: Error ToolResult explaining the mistake
-Dispatcher marks "read" as degraded
-
-Next request:
-Model sees: "read — Full explanation with examples, edge cases, common mistakes..."
-Model calls: read with { "paths": ["file.txt"] }  ← correct!
-Result: Success
-```
-
-The detailed description stays active for the rest of the session. Other tools remain in short mode.
 
 ## Dispatch Flow
 
@@ -77,112 +59,51 @@ ToolCall from model
   ↓
 dispatcher.dispatch(call)
   ↓
-Look up tool by name
+Intercept stateful tools (Todo / Memory)
+  ├─ todo_*   → Handled via &mut dispatcher.todo_store
+  └─ memory_* → Handled via &dispatcher.memory_store
+  ↓
+Lookup standard tool by name
   ├─ Not found → UnknownTool error ToolResult
   └─ Found
       ↓
-Parse arguments
-  ├─ Parse failure → MalformedArgs error ToolResult + mark tool degraded
-  └─ Parse success
+Read-before-write / Read-before-edit verification
       ↓
-Execute tool
-  ├─ Runtime error → InternalError error ToolResult
-  └─ Success → ToolResult (may contain per-file/per-item errors in JSON)
-```
-
-**Key property**: `dispatch()` always returns a `ToolResult`, never propagates errors. The model sees all failures as structured tool results.
-
-## Registering Tools
-
-### Filesystem Tools
-
-```rust
-dispatcher.register_fs_tools();
-```
-
-This registers all tools from the `fs` group:
-- `read` — reads one or multiple files with optional line ranges
-
-### Custom Tools (Future)
-
-```rust
-dispatcher.register(
-    my_tool::definition(),
-    |call_id, args| async move {
-        my_tool::execute(call_id, args)
-            .await
-            .map_err(|e| e.to_string())
-    },
-);
-```
-
-The execute closure must:
-- Return `Err(String)` **only** for args parse failures (triggers degradation)
-- Return `Ok(ToolResult { is_error: true, ... })` for runtime errors (file not found, network timeout, etc.)
-
-## Error Handling Philosophy
-
-### Top-Level Errors (Rare)
-
-These become error `ToolResult` with `is_error: true`:
-
-- Unknown tool name
-- Malformed arguments (also triggers degradation)
-- Internal tool runtime bugs
-
-### Per-Item Errors (Common)
-
-These are embedded in the `ToolResult` JSON content with `is_error: false`:
-
-- File not found (in a multi-file read)
-- Network timeout (in a batch fetch)
-- Permission denied (in a file write)
-
-The tool call itself succeeded — it processed the request and returned structured results. Individual item failures are part of the normal response.
-
-## Testing
-
-The dispatcher has comprehensive tests covering:
-
-- Unknown tool handling
-- Malformed args detection and degradation
-- Tiered description switching
-- Successful dispatch without degradation
-- Isolation (degrading one tool doesn't affect others)
-
-Run tests:
-
-```bash
-cargo test -p operon-tools
+Execute tool with progress reporting
+  ├─ Parse failure → MalformedArgs error ToolResult
+  └─ Success       → ToolResult (record read path into ReadLedger if tool is `read`)
 ```
 
 ## Tool Groups
 
-### `fs` — Filesystem Tools
+Operon includes 21 built-in agent tools:
 
-- **`read`**: Reads one or multiple files in a single call. Supports line ranges for large files, binary detection, 1 MB size limit on full-file reads.
+1. **Filesystem (`fs`)** (8 tools):
+   - `read`: Reads one or multiple files in batch with inline line ranges (`"path": ["src/a.rs:10-50", "src/b.rs"]`).
+   - `grep`: Regex search across files/directories with gitignore support and context lines.
+   - `glob`: Fast wildcard path search (`"pattern": "**/*.rs"`) respecting `.gitignore`.
+   - `ls`: Single-level directory listing with metadata and glob filters.
+   - `write`: Creates or overwrites files with atomic write guarantees.
+   - `edit`: Precise text hunk replacements with 6-pass fuzzy matching.
+   - `append`: Appends text to existing files non-destructively.
+   - `delete`: Safely removes files/directories (trash or permanent).
+2. **Shell (`shell`)** (1 tool):
+   - `bash`: Cross-platform command execution with timeout and output capture.
+3. **Web (`web`)** (2 tools):
+   - `web_search`: Live search query across the web.
+   - `web_fetch`: URL fetching and HTML-to-markdown extraction.
+4. **Todo (`todo`)** (4 tools):
+   - `todo_create`, `todo_list`, `todo_update`, `todo_delete`.
+5. **Memory (`memory`)** (5 tools):
+   - `memory_add`, `memory_edit`, `memory_delete`, `memory_retrieve`, `memory_search`.
+6. **Ask (`ask`)** (1 tool):
+   - Interactive user choice and confirmation prompts.
 
-Future groups:
-- **`web`**: HTTP fetch, web search, scraping
-- **`sub_agents`**: Spawn and manage sub-agents
-- **`git`**: Repository operations
-- **`shell`**: Safe command execution
+## Testing
 
-## Design Constraints
-
-- **No `unwrap()` or `expect()`** in production code (except the justified semaphore acquire in `executor.rs`)
-- **Dispatcher is session-scoped** — one instance per agent session, dropped on session end
-- **Tool crates are stateless** — all state lives in the dispatcher
-- **Errors never propagate** — `dispatch()` always returns `ToolResult`
-
-## Dependencies
-
-- `operon-tools-core` — shared types (`TieredToolDefinition`, `ToolDispatchError`)
-- `operon-tools-fs` — filesystem tool group facade
-- `operon-tools-fs-read` — read tool implementation
-- `operon-context-normalize-tools` — canonical tool types (`ToolCall`, `ToolResult`, etc.)
-- `tokio` — async runtime
-- `serde_json` — JSON handling
+```bash
+cargo test -p operon-tools
+```
 
 ## License
 

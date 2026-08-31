@@ -102,11 +102,24 @@ impl PolicyResolver {
     ///
     /// # Never panics
     ///
-    /// Unknown tool names are classified as `GlobalTool`-unknown and denied.
+    /// Unknown tool names are denied.
     /// All paths through this function return a valid `PolicyDecision`.
     pub fn check(&self, call: &ToolCall, role: CallerRole) -> PolicyDecision {
+        let tool_scope = match classify_tool(&call.name) {
+            Some(scope) => scope,
+            None => {
+                tracing::warn!(
+                    "operon-policy: unknown tool name '{}' — denying call",
+                    call.name
+                );
+                return PolicyDecision::Deny {
+                    reason: format!("unknown tool name '{}'", call.name),
+                };
+            }
+        };
+
         // Step 1: Classify the tool name into a ToolScope.
-        match classify_tool(&call.name) {
+        match tool_scope {
             // ── Global tool ────────────────────────────────────────────────────
             ToolScope::Global(global_tool) => {
                 let mode = self.config.global.mode_for(global_tool, role);
@@ -170,47 +183,33 @@ impl PolicyResolver {
 
 /// Maps a tool call name (as it appears in `ToolCall.name`) to a `ToolScope`.
 ///
-/// Unknown tool names are mapped to `ToolScope::Global(GlobalTool::LoadTools)`
-/// as a safe fallback — the global policy will deny them if not configured.
-///
+/// Unknown tool names return `None` and are denied by default.
 /// This function does NOT read any config — it's a pure static dispatch table.
-fn classify_tool(name: &str) -> ToolScope {
+fn classify_tool(name: &str) -> Option<ToolScope> {
     match name {
         // ── Global tools ───────────────────────────────────────────────────────
-        "web_search" | "web_fetch" => ToolScope::Global(GlobalTool::Web),
-        "subagent" | "spawn_agent" => ToolScope::Global(GlobalTool::SubAgent),
-        "ask" => ToolScope::Global(GlobalTool::Ask),
+        "web_search" | "web_fetch" => Some(ToolScope::Global(GlobalTool::Web)),
+        "subagent" | "spawn_agent" => Some(ToolScope::Global(GlobalTool::SubAgent)),
+        "ask" => Some(ToolScope::Global(GlobalTool::Ask)),
         "todo_create" | "todo_list" | "todo_update" | "todo_delete" => {
-            ToolScope::Global(GlobalTool::Todo)
+            Some(ToolScope::Global(GlobalTool::Todo))
         }
-        "load_tools" => ToolScope::Global(GlobalTool::LoadTools),
 
         // ── Directory-scoped: filesystem tools ────────────────────────────────
-        "read" => ToolScope::Dir(DirTool::Fs(FsTool::Read)),
-        "write" => ToolScope::Dir(DirTool::Fs(FsTool::Write)),
-        "edit" => ToolScope::Dir(DirTool::Fs(FsTool::Edit)),
-        "append" => ToolScope::Dir(DirTool::Fs(FsTool::Append)),
-        "grep" => ToolScope::Dir(DirTool::Fs(FsTool::Grep)),
-        "ls" => ToolScope::Dir(DirTool::Fs(FsTool::Ls)),
-        "delete" => ToolScope::Dir(DirTool::Fs(FsTool::Delete)),
+        "read" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Read))),
+        "write" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Write))),
+        "edit" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Edit))),
+        "append" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Append))),
+        "grep" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Grep))),
+        "ls" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Ls))),
+        "delete" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Delete))),
+        "glob" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Glob))),
 
         // ── Directory-scoped: shell tool ──────────────────────────────────────
-        "bash" => ToolScope::Dir(DirTool::Bash),
+        "bash" => Some(ToolScope::Dir(DirTool::Bash)),
 
         // ── Unknown tool name ─────────────────────────────────────────────────
-        // Unknown tools are treated as global unknowns — they have no path argument
-        // to extract, so directory-scope evaluation is impossible. The global policy
-        // will deny them (default deny for missing entries).
-        other => {
-            tracing::warn!(
-                "operon-policy: unknown tool name '{}' — classifying as global unknown, \
-                 will be denied unless explicitly configured",
-                other
-            );
-            // Map to an obscure GlobalTool so the global deny-by-default fires.
-            // LoadTools is the least permissive global tool by typical config.
-            ToolScope::Global(GlobalTool::LoadTools)
-        }
+        _ => None,
     }
 }
 
@@ -458,12 +457,11 @@ mod tests {
             "todo_list",
             "todo_update",
             "todo_delete",
-            "load_tools",
         ];
         for name in &global_names {
             match classify_tool(name) {
-                ToolScope::Global(_) => { /* correct */ }
-                ToolScope::Dir(_) => panic!("'{}' should be classified as global", name),
+                Some(ToolScope::Global(_)) => { /* correct */ }
+                other => panic!("'{}' should be classified as Some(Global), got {:?}", name, other),
             }
         }
     }
@@ -746,8 +744,8 @@ mod tests {
         ];
         for name in &dir_names {
             match classify_tool(name) {
-                ToolScope::Dir(_) => { /* correct */ }
-                ToolScope::Global(_) => panic!("'{}' should be classified as dir-scoped", name),
+                Some(ToolScope::Dir(_)) => { /* correct */ }
+                other => panic!("'{}' should be classified as Some(Dir), got {:?}", name, other),
             }
         }
     }

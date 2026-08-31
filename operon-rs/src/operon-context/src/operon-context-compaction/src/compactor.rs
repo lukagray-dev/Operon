@@ -168,7 +168,6 @@ mod tests {
                 rendered: "src/\n  lib.rs".to_string(),
             },
             git: None,
-            tool_groups: None,
         }
     }
 

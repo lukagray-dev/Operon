@@ -100,8 +100,6 @@ pub struct SessionSnapshot {
     pub channel_instructions: Option<String>,
     pub tree: DirectoryTree,
     pub git: Option<GitStatus>,
-    /// Available tool groups block. None if no groups configured.
-    pub tool_groups: Option<String>,
 }
 
 impl SessionSnapshot {
@@ -187,11 +185,6 @@ impl SessionSnapshot {
             output.push('\n');
         }
 
-        if let Some(groups_block) = &self.tool_groups {
-            output.push_str(groups_block);
-            output.push('\n');
-        }
-
         while output.ends_with("\n\n") {
             output.pop();
         }
@@ -223,7 +216,6 @@ mod tests {
                 rendered: "src/\n  main.rs\n".to_string(),
             },
             git: None,
-            tool_groups: None,
         };
 
         let rendered = snapshot.render();

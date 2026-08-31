@@ -252,22 +252,13 @@ impl SessionRunner {
             }
         }
 
-        // dispatch_with_progress() returns DispatchOutcome so we can observe degradation
-        // while forwarding runtime progress events to the UI.
+        // dispatch_with_progress() forwards runtime progress events to the UI and returns
+        // the executed ToolResult inside DispatchOutcome.
         let progress_emitter = self.tool_progress_emitter();
         let outcome = self
             .dispatcher
             .dispatch_with_progress(call, Some(progress_emitter))
             .await;
-
-        // If this is the FIRST malformed call for this tool, emit ToolDegraded
-        // so the TUI can show a warning badge on the tool.
-        if let Some(ref name) = outcome.newly_degraded {
-            let _ = self
-                .event_tx
-                .send(SessionEvent::ToolDegraded { name: name.clone() })
-                .await;
-        }
 
         let result = outcome.result;
 

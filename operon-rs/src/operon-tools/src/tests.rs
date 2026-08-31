@@ -31,11 +31,9 @@ async fn test_unknown_tool_returns_error_result() {
 }
 
 #[tokio::test]
-async fn test_malformed_args_marks_tool_degraded() {
+async fn test_malformed_args_returns_error_result() {
     let mut d = Dispatcher::new();
     d.register_fs_tools();
-
-    assert!(!d.is_degraded("read"));
 
     // Send malformed args — missing required "paths" field
     let result = d
@@ -43,121 +41,72 @@ async fn test_malformed_args_marks_tool_degraded() {
         .await;
 
     assert!(result.is_error);
-    assert!(
-        d.is_degraded("read"),
-        "read should be degraded after malformed call"
-    );
+    match &result.content {
+        operon_context_normalize_tools::ToolContent::Text(t) => {
+            assert!(t.contains("malformed arguments"));
+        }
+        _ => panic!("expected Text content"),
+    }
 }
 
 #[tokio::test]
-async fn test_degraded_tool_uses_detailed_definition() {
+async fn test_canonical_tool_definitions_consistent() {
     let mut d = Dispatcher::new();
     d.register_fs_tools();
 
-    // Since we've enabled lazy tool loading, the "read" tool (which is in the "fs" group)
-    // is not exposed in definitions() by default. We must explicitly mark the "fs" group
-    // as loaded for its definitions to show up!
-    d.mark_group_loaded("fs");
-
-    // Short description is used initially
-    let short_desc = d
+    // Initial definition
+    let desc_initial = d
         .definitions()
         .find(|def| def.name == "read")
         .unwrap()
         .description
         .clone();
 
-    // Trigger degradation
+    // Dispatch a malformed call
     d.dispatch(make_call("read", json!({ "bad": "args" })))
         .await;
 
-    // Detailed description is now used
-    let detailed_desc = d
+    // Single canonical definition remains unchanged
+    let desc_after = d
         .definitions()
         .find(|def| def.name == "read")
         .unwrap()
         .description
         .clone();
 
-    assert_ne!(short_desc, detailed_desc);
-    assert!(
-        detailed_desc.len() > short_desc.len(),
-        "detailed description should be longer than short"
-    );
+    assert_eq!(desc_initial, desc_after);
 }
 
 #[tokio::test]
-async fn test_lazy_loading_tools() {
+async fn test_all_registered_tools_exposed_upfront() {
     let mut d = Dispatcher::new();
 
-    // We register the load_tools meta-tool (belongs to the "core" group)
-    // and the filesystem tools (belong to the "fs" group).
-    d.register_load_tool();
+    // Register all tool groups
     d.register_fs_tools();
+    d.register_shell_tools();
+    d.register_web_tools();
+    d.register_todo_tools();
+    d.register_ask_tool();
+    d.register_memory_tools();
 
-    // 1. Initially, only the bootstrap tools (in the "core" group) should be returned
-    //    by definitions(). Other tool groups (like "fs") are hidden to save token size!
+    // Verify all 21 tools are immediately available on turn 1
     let defs: Vec<_> = d.definitions().collect();
     assert_eq!(
         defs.len(),
-        1,
-        "Initially, only load_tools should be visible to the AI model"
+        21,
+        "All registered tools (8 fs + 1 shell + 2 web + 4 todo + 1 ask + 5 memory) must be exposed upfront"
     );
-    assert_eq!(
-        defs[0].name, "load_tools",
-        "The visible tool must be load_tools"
-    );
-
-    // 2. The AI model requests loading the "fs" group.
-    let result = d
-        .dispatch(make_call("load_tools", json!({ "group": "fs" })))
-        .await;
-    assert!(
-        !result.is_error,
-        "The load_tools execution should complete successfully"
-    );
-
-    // 3. Verify that the dispatcher successfully tracked that the "fs" group is now loaded.
-    assert!(
-        d.loaded_groups().contains("fs"),
-        "The 'fs' group should be marked as loaded in the dispatcher"
-    );
-
-    // 4. Now, the next time definitions() is called, it should yield load_tools AND all the fs tools.
-    let defs_after: Vec<_> = d.definitions().collect();
-    // The "fs" group has 7 tools (read, grep, ls, edit, write, append, delete).
-    // Plus the 1 bootstrap tool (load_tools). Total is 8 tools.
-    assert_eq!(
-        defs_after.len(),
-        8,
-        "We expect 8 tools to be visible now that the fs group is unlocked (7 fs + 1 core)"
-    );
-    assert!(
-        defs_after.iter().any(|def| def.name == "read"),
-        "The definitions must now contain the 'read' tool"
-    );
+    assert!(defs.iter().any(|d| d.name == "read"));
+    assert!(defs.iter().any(|d| d.name == "glob"));
+    assert!(defs.iter().any(|d| d.name == "bash"));
+    assert!(defs.iter().any(|d| d.name == "web_search"));
+    assert!(defs.iter().any(|d| d.name == "todo_create"));
+    assert!(defs.iter().any(|d| d.name == "ask"));
+    assert!(defs.iter().any(|d| d.name == "memory_add"));
 }
 
 #[tokio::test]
-async fn test_other_tools_unaffected_by_degradation() {
-    // Once more tools are registered this test verifies that degrading one
-    // tool does not affect the description tier of others.
-    // For now it verifies the degraded set is tool-specific (not global).
-    let mut d = Dispatcher::new();
-    d.register_fs_tools();
-
-    // Degrade "read"
-    d.dispatch(make_call("read", json!({ "bad": "args" })))
-        .await;
-
-    assert!(d.is_degraded("read"));
-    // "write" is not yet implemented but the degraded set must not contain it
-    assert!(!d.is_degraded("write"));
-    assert!(!d.is_degraded("grep"));
-}
-
-#[tokio::test]
-async fn test_successful_dispatch_does_not_degrade() {
+async fn test_successful_dispatch() {
     use std::fs;
     use tempfile::TempDir;
 
@@ -176,7 +125,6 @@ async fn test_successful_dispatch_does_not_degrade() {
         .await;
 
     assert!(!result.is_error);
-    assert!(!d.is_degraded("read"));
 }
 
 // ============================================================================
@@ -530,13 +478,11 @@ async fn test_bash_tool_registration_and_dispatch() {
 }
 
 #[tokio::test]
-async fn test_bash_tool_malformed_args_marks_degraded() {
-    // Test: Verify bash tool degradation on malformed args.
-    // Missing both `command` and `cwd` → ArgsParse → degraded.
+async fn test_bash_tool_malformed_args_returns_error() {
+    // Test: Verify bash tool returns error on malformed args.
+    // Missing both `command` and `cwd` → ArgsParse error.
     let mut d = Dispatcher::new();
     d.register_shell_tools();
-
-    assert!(!d.is_degraded("bash"));
 
     // Send malformed args — missing both required fields.
     let result = d
@@ -544,10 +490,12 @@ async fn test_bash_tool_malformed_args_marks_degraded() {
         .await;
 
     assert!(result.is_error);
-    assert!(
-        d.is_degraded("bash"),
-        "bash should be degraded after malformed call"
-    );
+    match &result.content {
+        operon_context_normalize_tools::ToolContent::Text(t) => {
+            assert!(t.contains("malformed arguments"));
+        }
+        _ => panic!("expected Text content"),
+    }
 }
 
 #[tokio::test]
@@ -657,73 +605,37 @@ async fn test_progress_events_flow_through_dispatcher() {
 }
 
 #[tokio::test]
-async fn test_load_tools_no_args_lists_all_registered_groups() {
+async fn test_glob_tool_dispatch() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    fs::write(dir.path().join("b.rs"), "fn b() {}").unwrap();
+    fs::write(dir.path().join("c.txt"), "hello").unwrap();
+
     let mut d = Dispatcher::new();
-    d.register_load_tool();
     d.register_fs_tools();
-    d.register_shell_tools();
-    d.register_web_tools();
-    d.register_todo_tools();
-    d.register_ask_tool();
-    d.register_memory_tools();
 
-    // Call load_tools with no arguments ({})
-    let result = d.dispatch(make_call("load_tools", json!({}))).await;
-    assert!(!result.is_error, "load_tools list should succeed");
+    let result = d
+        .dispatch(make_call(
+            "glob",
+            json!({
+                "pattern": "*.rs",
+                "path": dir.path().to_str().unwrap()
+            }),
+        ))
+        .await;
 
+    assert!(!result.is_error);
     match result.content {
-        operon_context_normalize_tools::ToolContent::Json(val) => {
-            let groups = val["available_groups"]
-                .as_array()
-                .expect("available_groups must be an array")
-                .iter()
-                .map(|v| v.as_str().unwrap().to_string())
-                .collect::<Vec<_>>();
-
-            assert!(groups.contains(&"ask".to_string()), "must list ask group");
-            assert!(
-                groups.contains(&"memory".to_string()),
-                "must list memory group"
-            );
-            assert!(groups.contains(&"fs".to_string()), "must list fs group");
-            assert!(
-                groups.contains(&"shell".to_string()),
-                "must list shell group"
-            );
-            assert!(groups.contains(&"web".to_string()), "must list web group");
-            assert!(groups.contains(&"todo".to_string()), "must list todo group");
-            assert!(
-                !groups.contains(&"core".to_string()),
-                "core group must not be listed"
-            );
+        operon_context_normalize_tools::ToolContent::Text(text) => {
+            assert!(text.contains("a.rs"));
+            assert!(text.contains("b.rs"));
+            assert!(!text.contains("c.txt"));
         }
-        other => panic!("expected JSON content, got {:?}", other),
+        _ => panic!("expected Text content"),
     }
 }
 
-#[tokio::test]
-async fn test_lazy_loading_memory_group() {
-    let mut d = Dispatcher::new();
-    d.register_load_tool();
-    d.register_memory_tools();
 
-    // 1. Initially only load_tools is visible
-    let defs: Vec<_> = d.definitions().collect();
-    assert_eq!(defs.len(), 1);
-    assert_eq!(defs[0].name, "load_tools");
-
-    // 2. Load "memory" group
-    let result = d
-        .dispatch(make_call("load_tools", json!({ "group": "memory" })))
-        .await;
-    assert!(!result.is_error);
-
-    // 3. Now memory tools + load_tools are visible (5 memory + 1 load_tools = 6)
-    let defs_after: Vec<_> = d.definitions().collect();
-    assert_eq!(defs_after.len(), 6);
-    assert!(defs_after.iter().any(|d| d.name == "memory_add"));
-    assert!(defs_after.iter().any(|d| d.name == "memory_edit"));
-    assert!(defs_after.iter().any(|d| d.name == "memory_delete"));
-    assert!(defs_after.iter().any(|d| d.name == "memory_retrieve"));
-    assert!(defs_after.iter().any(|d| d.name == "memory_search"));
-}

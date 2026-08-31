@@ -44,71 +44,41 @@ pub use error::ReadToolError;
 pub use output::{FileReadResult, LineRange, ReadOutput};
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `read` tool.
+/// Returns the canonical tool definition for the `read` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the single most important constraint (1 MB limit).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   edge cases, and worked examples.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Clear, concise description of capabilities, inline line range syntax, and batching recommendations.
+/// - Descriptive JSON schema properties for `paths` and `path`.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the JSON Schema parameters for the read tool here.
+    // We explain the arguments clearly so models know they can read single files
+    // or batch multiple files/line ranges in one single call!
     let parameters = json!({
         "type": "object",
         "properties": {
-            "paths": {
-                "type": "array",
-                "description": "PREFERRED: Array of absolute file path strings to read in batch in a single call. Each path can include an optional inline range suffix (e.g. ['/path/to/a.rs:10-40', '/path/to/b.rs:5-EOF', '/path/to/c.rs']). Always prefer passing all files you need to inspect into 'paths' in a single call rather than issuing multiple separate read tool calls.",
+            "path": {
+                "type": ["string", "array"],
                 "items": {
                     "type": "string",
-                    "description": "Absolute file path string with optional inline range suffix like '/path/to/main.rs:10-40', '/path/to/main.rs:5-EOF', or '/path/to/main.rs'."
-                }
-            },
-            "path": {
-                "type": "string",
-                "description": "Absolute file path string when reading only a single file, with optional inline range suffix (e.g. '/path/to/main.rs:10-40', '/path/to/main.rs:5-EOF', '/path/to/main.rs:15', or '/path/to/main.rs'). For reading multiple files, always use 'paths' instead."
+                    "description": "File path string with optional inline range suffix like 'src/main.rs:10-40', 'src/main.rs:5-EOF', or 'src/main.rs'."
+                },
+                "description": "File path to read, or an array of file paths to read in batch. Always pass multiple paths in an array (e.g. ['src/a.rs', 'src/b.rs:10-50']) to read all files in a single tool call rather than issuing multiple sequential read calls. Supports optional :start-end line ranges."
             }
-        }
+        },
+        "required": ["path"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "read".to_string(),
-            description: "Reads one or multiple files in a single call (max 1 MB per file). \
-                          Always prefer batching multiple files into `paths` (e.g. `paths: [\"/path/a.rs:10-40\", \"/path/b.rs\"]`) in ONE tool call instead of calling `read` multiple times sequentially. \
-                          Supports inline line ranges like `:10-40` or `:5-EOF`. Returns raw plain text with per-file headers."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "read".to_string(),
-            description: "\
-Reads one or multiple files in a single call. Returns raw plain text with section headers.
-
-IMPORTANT: When you need to read or inspect multiple files, ALWAYS batch them together in a single call using the `paths` array instead of making separate sequential read calls. This is significantly faster and saves context tokens.
-
-## Input shapes
-
-1. Batch multi-file read (PREFERRED when reading multiple files):
-   `{\"paths\": [\"/path/to/a.rs:10-40\", \"/path/to/b.rs:5-EOF\", \"/path/to/c.rs\"]}`
-
-2. Single file read (use only when strictly inspecting one file):
-   `{\"path\": \"/path/to/main.rs:10-40\"}`   ← lines 10 to 40
-   `{\"path\": \"/path/to/main.rs:5-EOF\"}`   ← line 5 to end of file
-   `{\"path\": \"/path/to/main.rs:15\"}`      ← line 15 only
-   `{\"path\": \"/path/to/main.rs\"}`         ← full file read
-
-## Response format
-
-Returns plain text with headers for each file:
-=== /path/to/main.rs (lines 10-40 of 200) ===
-<raw content without line number prefixes>"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "read".to_string(),
+        description: "Reads one or multiple files in a single call (max 1 MB per file). \
+                      Pass `path` as a single path string or an array of path strings. \
+                      Always prefer batching multiple files into an array (e.g. `path: [\"src/a.rs:10-40\", \"src/b.rs\"]`) in ONE tool call instead of calling `read` multiple times sequentially. \
+                      Supports inline line ranges like `:10-40` or `:5-EOF`. Returns raw plain text with per-file headers."
+            .to_string(),
+        parameters,
     }
 }
 
@@ -155,9 +125,9 @@ pub async fn execute_with_progress(
 ) -> Result<ToolResult, ReadToolError> {
     // Deserialize the arguments. If this fails, return an ArgsParse error.
     let args: ReadArgs = serde_json::from_value(args_json)?;
-    if args.path.is_none() && args.paths.is_none() {
+    if args.path.is_none() {
         return Err(ReadToolError::ArgsParse(serde::de::Error::custom(
-            "must provide either 'path' or 'paths'",
+            "must provide 'path'",
         )));
     }
 

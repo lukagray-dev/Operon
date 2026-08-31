@@ -29,8 +29,8 @@ async fn main() {
     // 2. Display the tool definition provided to LLMs
     println!("1. Tool Definition:");
     let def = definition();
-    println!("   Name: {}", def.name());
-    println!("   Short Description: {}", def.short.description);
+    println!("   Name: {}", def.name);
+    println!("   Description: {}", def.description);
     println!();
 
     // 3. Example 1: Basic directory listing of the root temp folder

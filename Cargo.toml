@@ -35,6 +35,7 @@ members = [
     "operon-rs/src/operon-tools/src/fs/src/write",
     "operon-rs/src/operon-tools/src/fs/src/append",
     "operon-rs/src/operon-tools/src/fs/src/delete",
+    "operon-rs/src/operon-tools/src/fs/src/glob",
 
     # Shell tool
     "operon-rs/src/operon-tools/src/shell",
@@ -60,9 +61,6 @@ members = [
     "operon-rs/src/operon-tools/src/memory/src/memory_delete",
     "operon-rs/src/operon-tools/src/memory/src/memory_retrieve",
     "operon-rs/src/operon-tools/src/memory/src/memory_search",
-
-    # Load tools
-    "operon-rs/src/operon-tools/src/load",
 
     # Ask tool
     "operon-rs/src/operon-tools/src/ask",
@@ -187,6 +185,7 @@ operon-tools-fs-edit                  = { path = "operon-rs/src/operon-tools/src
 operon-tools-fs-write                 = { path = "operon-rs/src/operon-tools/src/fs/src/write" }
 operon-tools-fs-append                = { path = "operon-rs/src/operon-tools/src/fs/src/append" }
 operon-tools-fs-delete                = { path = "operon-rs/src/operon-tools/src/fs/src/delete" }
+operon-tools-fs-glob                  = { path = "operon-rs/src/operon-tools/src/fs/src/glob" }
 operon-tools-shell                    = { path = "operon-rs/src/operon-tools/src/shell" }
 operon-tools-shell-bash               = { path = "operon-rs/src/operon-tools/src/shell/src/bash" }
 operon-tools-web                      = { path = "operon-rs/src/operon-tools/src/web" }
@@ -205,7 +204,6 @@ operon-tools-memory-delete            = { path = "operon-rs/src/operon-tools/src
 operon-tools-memory-retrieve          = { path = "operon-rs/src/operon-tools/src/memory/src/memory_retrieve" }
 operon-tools-memory-search            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_search" }
 operon-tools-memory                   = { path = "operon-rs/src/operon-tools/src/memory" }
-operon-tools-load                     = { path = "operon-rs/src/operon-tools/src/load" }
 operon-tools-ask                      = { path = "operon-rs/src/operon-tools/src/ask" }
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }

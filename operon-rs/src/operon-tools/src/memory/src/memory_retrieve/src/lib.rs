@@ -15,24 +15,26 @@ pub use error::MemoryRetrieveToolError;
 pub use output::MemoryRetrieveOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use operon_tools_memory_store::MemoryStore;
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `memory_retrieve` tool.
-pub fn definition() -> TieredToolDefinition {
+/// Returns the canonical tool definition for the `memory_retrieve` tool.
+///
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Clear parameter descriptions for single memory lookup (`id`) and paginated listing (`limit`, `offset`).
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the parameters schema for retrieving memories here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "id": {
                 "type": ["string", "integer"],
-                "description": "Fetch a single memory by id. If omitted, lists all memories."
+                "description": "Fetch a single memory by ID. If omitted, lists all memories."
             },
             "limit": {
                 "type": "integer",
-                "description": "Max memories to return in list mode (default: 20)."
+                "description": "Maximum number of memories to return in list mode (default: 20)."
             },
             "offset": {
                 "type": "integer",
@@ -41,46 +43,10 @@ pub fn definition() -> TieredToolDefinition {
         }
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "memory_retrieve".to_string(),
-            description: "Fetches one memory by `id`, or lists all memories (most recent first) with `limit`/`offset` pagination. Returns `memories` array, `total`, `limit`, and `offset`.".to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "memory_retrieve".to_string(),
-            description: "\
-Fetches memories from the store. Two modes depending on whether `id` is provided.
-
-## Input shapes
-
-**Single-record mode** — `id` present:
-```json
-{\"id\": \"3\"}
-{\"id\": 3}
-```
-Returns only that memory, or an error if not found.
-
-**List mode** — no `id`:
-```json
-{}
-{\"limit\": 10, \"offset\": 0}
-{\"limit\": 5, \"offset\": 20}
-```
-Returns memories ordered most recent first. `limit` defaults to 20, `offset` to 0.
-
-## Output
-
-```json
-{ \"memories\": [...], \"total\": 12, \"limit\": 20, \"offset\": 0 }
-```
-
-## Errors
-
-- `\"memory not found: id 'X'\"` — only in single-record mode"
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "memory_retrieve".to_string(),
+        description: "Fetches one memory by `id`, or lists all memories (most recent first) with `limit`/`offset` pagination. Returns `memories` array, `total`, `limit`, and `offset`.".to_string(),
+        parameters,
     }
 }
 

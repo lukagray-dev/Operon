@@ -1,6 +1,6 @@
 [package]
 name        = "operon-tools-core"
-description = "Shared core types for all Operon tool crates: TieredToolDefinition, dispatch errors, and the Tool trait."
+description = "Shared core types for all Operon tool crates: ToolDefinition, dispatch errors, and the Tool trait."
 version.workspace    = true
 edition.workspace    = true
 authors.workspace    = true

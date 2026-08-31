@@ -173,6 +173,24 @@ fn openai_parse_text_tool_start_tool_delta_stop_and_malformed() {
 }
 
 #[test]
+fn openai_and_nvidia_nim_handshake_and_empty_chunks_do_not_fail() {
+    // Initial handshake role chunk commonly sent by NVIDIA NIM / vLLM
+    let nim_role_chunk = r#"{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1740810000,"model":"meta/llama-3.1-70b-instruct","choices":[{"index":0,"delta":{"role":"assistant"},"logprobs":null,"finish_reason":null}]}"#;
+    let events = parse_line(nim_role_chunk, &Provider::NvidiaNim).unwrap();
+    assert!(events.is_empty(), "role-only handshake chunk should return empty events, not an error");
+
+    // Empty choices chunk
+    let empty_choices_chunk = r#"{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1740810000,"model":"meta/llama-3.1-70b-instruct","choices":[]}"#;
+    let events2 = parse_line(empty_choices_chunk, &Provider::NvidiaNim).unwrap();
+    assert!(events2.is_empty(), "empty choices chunk should return empty events");
+
+    // Upstream API error payload in stream
+    let api_err_chunk = r#"{"error":{"message":"Rate limit exceeded","type":"requests","code":429}}"#;
+    let err = parse_line(api_err_chunk, &Provider::NvidiaNim).unwrap_err();
+    assert!(err.to_string().contains("Rate limit exceeded"));
+}
+
+#[test]
 fn openai_parallel_tool_calls_emit_multiple_events() {
     let events = parse_line(
         r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"fn1","arguments":"{\"a\":1}"}},{"index":1,"id":"call_2","type":"function","function":{"name":"fn2","arguments":"{\"b\":2}"}}]},"finish_reason":null}]}"#,

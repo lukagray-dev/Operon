@@ -45,24 +45,22 @@ pub use error::AppendToolError;
 pub use output::AppendOutput;
 
 use operon_context_normalize_tools::{ToolCallId, ToolDefinition, ToolResult};
-use operon_tools_core::{
-    emit_tool_progress, TieredToolDefinition, ToolProgress, ToolProgressEmitter,
-};
+use operon_tools_core::{emit_tool_progress, ToolProgress, ToolProgressEmitter};
 use serde_json::json;
 
-/// Returns the tiered tool definition for the `append` tool.
+/// Returns the canonical tool definition for the `append` tool.
 ///
-/// - `short`: sent to the model under normal conditions. Concise — states what
-///   the tool does and the most important constraints (file must exist, non-destructive).
-/// - `detailed`: sent after a malformed call. Full explanation with input shapes,
-///   error cases, worked examples, and common mistakes.
-pub fn definition() -> TieredToolDefinition {
+/// Follows industry standards (OpenAI/Anthropic/Google function-calling specifications):
+/// - Explicit required fields (`path`, `content`).
+/// - Clear description of append semantics and requirements.
+pub fn definition() -> ToolDefinition {
+    // Hey friend! We define the schema for appending to an existing file here.
     let parameters = json!({
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Absolute path to an existing file to append to."
+                "description": "File path to an existing file to append to."
             },
             "content": {
                 "type": "string",
@@ -72,33 +70,13 @@ pub fn definition() -> TieredToolDefinition {
         "required": ["path", "content"]
     });
 
-    TieredToolDefinition {
-        short: ToolDefinition {
-            name: "append".to_string(),
-            description: "Appends text to the end of an existing file. Pass `path` (existing file path) \
-                          and `content` (text to append with normal \\n line breaks; include leading \\n if separating newline is needed). \
-                          The file must exist (use write for new files). Returns plain-text confirmation header."
-                .to_string(),
-            parameters: parameters.clone(),
-        },
-        detailed: ToolDefinition {
-            name: "append".to_string(),
-            description: "\
-Appends text content to the end of an existing file.
-
-## Parameters
-
-- `path` (required): Absolute path to an existing file.
-- `content` (required): Non-empty text content to append. Standard string with normal \\n line breaks. \
-If a separating newline is needed before the new content, include it at the start of `content`.
-
-## Output format
-
-Returns a plain text confirmation header:
-=== /path/to/file.txt (appended 64 bytes, total 512 bytes) ==="
-                .to_string(),
-            parameters,
-        },
+    ToolDefinition {
+        name: "append".to_string(),
+        description: "Appends text to the end of an existing file. Pass `path` (existing file path) \
+                      and `content` (text to append with normal \\n line breaks; include leading \\n if separating newline is needed). \
+                      The file must exist (use write for new files). Returns plain-text confirmation header."
+            .to_string(),
+        parameters,
     }
 }
 
