@@ -1,5 +1,6 @@
 /* WorkGroup and Tool Cards Styling (Slint 1:1 Design Port) */
 @import '../../../shared/tokens.css';
+@import './diff-viewer.css';
 
 /* WorkGroup Main Container */
 .work-group-container {
@@ -279,51 +280,310 @@
   transform: rotate(0deg);
 }
 
-/* Collapsible Tool Detail Body (1:1 with Slint ToolDetailBody) */
+/* Collapsible Tool Detail Body Container */
 .tool-detail-body {
   width: 100%;
-  background-color: rgba(255, 255, 255, 0.02);
-  border-radius: 6px;
-  padding: 8px 10px;
-  max-height: 270px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   user-select: text;
   -webkit-user-select: text;
 }
 
-.tool-args-text {
-  color: #888888;
-  font-size: 11px;
-  font-family: var(--mono-font-family);
-  word-break: break-all;
-  white-space: pre-wrap;
-  line-height: 1.45;
-}
+/* ==========================================================================
+   Specialized Tool Cards (Pure Black Theme Matching App Design)
+   ========================================================================== */
 
-.tool-detail-divider {
-  height: 1px;
+.tool-custom-card {
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #000000;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  margin: 2px 0;
+  box-sizing: border-box;
 }
 
-.tool-result-text {
-  color: #c7c7c7;
-  font-size: 11px;
-  font-family: var(--mono-font-family);
-  word-break: break-word;
-  white-space: pre-wrap;
+.tool-custom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 10px;
+  background-color: #0a0a0a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+}
+
+.tool-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tool-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Tool Action Chips */
+.tool-action-chip {
+  font-family: var(--font-family, sans-serif);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background-color: rgba(56, 139, 253, 0.15);
+  color: #58a6ff;
+  border: 1px solid rgba(56, 139, 253, 0.3);
+  flex-shrink: 0;
+}
+
+/* File Read Card Single Scroll Viewport */
+.tool-read-viewport {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  background-color: #000000;
+  user-select: text;
+  -webkit-user-select: text;
+  position: relative;
+}
+
+.tool-read-lines-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: max-content;
+}
+
+.tool-read-line-row {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-size: 11.5px;
+  line-height: 20px;
+  white-space: pre;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: max-content;
+  background-color: #000000;
+  transition: filter 80ms ease;
+}
+
+.tool-read-line-row:hover {
+  filter: brightness(1.18);
+}
+
+/* Sticky line numbers gutter pinned on left: 0 */
+.tool-read-gutter-num {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  width: 38px;
+  min-width: 38px;
+  height: 100%;
+  text-align: right;
+  padding-right: 8px;
+  font-size: 10.5px;
+  color: #6e7681;
+  background-color: #000000;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.tool-read-code-text {
+  flex: 1;
+  padding: 0 10px 0 8px;
+  color: #f0f6fc;
+  tab-size: 4;
+}
+
+/* Command Execution Card */
+.tool-cmd-prompt {
+  color: #58a6ff;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.tool-cmd-string {
+  color: #f0f6fc;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-cwd-chip {
+  font-size: 10px;
+  color: #8b949e;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  flex-shrink: 0;
+}
+
+.tool-terminal-body {
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  padding: 8px 10px;
+  background-color: #000000;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tool-terminal-pre {
+  margin: 0;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-size: 11.5px;
   line-height: 1.45;
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
-.tool-result-text.failed {
-  color: #ef9a9a;
+/* Search, Web & Generic Tool Bodies */
+.tool-search-query {
+  color: #79c0ff;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
-/* SVG Mask Icons for Tools */
+.tool-search-path {
+  color: #8b949e;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-search-body,
+.tool-generic-body {
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  padding: 8px 10px;
+  background-color: #000000;
+}
+
+.tool-search-pre,
+.tool-generic-pre {
+  margin: 0;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tool-web-url {
+  color: #58a6ff;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+}
+
+.tool-generic-name {
+  color: #f0f6fc;
+  font-family: var(--font-family, sans-serif);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.tool-args-chips-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.tool-arg-chip {
+  font-size: 10px;
+  color: #8b949e;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--mono-font-family, 'Kode Mono', monospace);
+  white-space: nowrap;
+}
+
+/* Mask Icons for Specialized Tool Headers */
+.icon-tool-read-card {
+  width: 13px;
+  height: 13px;
+  background-color: #9cdcfe;
+  display: inline-block;
+  flex-shrink: 0;
+  -webkit-mask-image: url('../../../assets/icons/sidebar/folder-input.svg');
+  mask-image: url('../../../assets/icons/sidebar/folder-input.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.icon-tool-search-card {
+  width: 13px;
+  height: 13px;
+  background-color: #9cdcfe;
+  display: inline-block;
+  flex-shrink: 0;
+  -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-search.svg');
+  mask-image: url('../../../assets/icons/main-content/messages/assistant/work-search.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.icon-tool-web-card {
+  width: 13px;
+  height: 13px;
+  background-color: #9cdcfe;
+  display: inline-block;
+  flex-shrink: 0;
+  -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-web.svg');
+  mask-image: url('../../../assets/icons/main-content/messages/assistant/work-web.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* Legacy & Timeline Icons */
 .icon-tool-read {
   -webkit-mask-image: url('../../../assets/icons/main-content/messages/assistant/work-read.svg');
   mask-image: url('../../../assets/icons/main-content/messages/assistant/work-read.svg');

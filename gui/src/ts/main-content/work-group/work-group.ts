@@ -1,15 +1,36 @@
-// Assistant WorkGroup and Tool Execution Timeline DOM Renderer
+// ============================================================================
+// Assistant WorkGroup & Tool Execution Timeline DOM Renderer
 //
-// 1:1 visual and behavioral redesign inspired by the Slint GUI WorkGroup component:
-// - Header with Composing Thinking Orb (while active), shining summary text ("Working..." or "Thought • 2 tool calls | Worked for 3s."), and trailing chevron.
-// - Expandable timeline with a 1px vertical spine connecting 14x14 dark-masked checkpoint tool/thinking icons.
-// - Sub-tool collapsible items with inline ToolDetailBody displaying BOTH input arguments and execution output.
-// - In-place DOM synchronization (syncWorkGroupElement) preserving CSS shine animations and click responsiveness during high-frequency token streams.
+// Hey friend! Welcome to the WorkGroup DOM renderer module!
+// This file is the master controller for rendering the assistant's thought
+// process and live tool execution cards in our chat timeline.
+//
+// Key Features:
+// 1. Thinking Orb Header: Live canvas animation with shine sweep text ("Working...").
+// 2. 1px Timeline Spine: Connects chronological checkpoints with 14x14 tool icons.
+// 3. Stylized Tool Cards:
+//    - File modifications (edits, writes, appends) render as GitHub-style diffs.
+//    - File reads render with line numbers and syntax highlighting.
+//    - Shell commands render in a dark terminal prompt card.
+//    - Searches render with structured query chips and matches.
+// 4. In-Place DOM Synchronization: Fast 60fps updates preserving animations and user scroll.
+// ============================================================================
 
 import { getCachedAppearance } from '../markdown/markdown.js';
 import { ThinkingOrbRenderer } from './orb.js';
+import {
+  renderCommandCard,
+  renderFileModificationCard,
+  renderFileReadCard,
+  renderGenericToolCard,
+  renderSearchCard,
+  renderWebCard,
+} from './tool-card-renderers.js';
 import type { WorkGroupData, WorkGroupItem } from './types.js';
 
+/**
+ * Returns the orb rendering state based on the user's selected appearance index.
+ */
 function getOrbState(idx: number): 'composing' | 'shaping' | 'working' | 'connecting' {
   switch (idx) {
     case 1:
@@ -23,6 +44,9 @@ function getOrbState(idx: number): 'composing' | 'shaping' | 'working' | 'connec
   }
 }
 
+/**
+ * Returns the speed multiplier for the thinking orb canvas.
+ */
 function getOrbSpeedMultiplier(idx: number): number {
   switch (idx) {
     case 0:
@@ -38,27 +62,49 @@ function getOrbSpeedMultiplier(idx: number): number {
  * Checks if a tool name belongs to directory listing.
  */
 export function isListTool(name: string): boolean {
-  return name === 'ls' || name === 'list_dir';
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n === 'ls' || n === 'list_dir' || n === 'list_directory' || n === 'dir';
 }
 
 /**
  * Checks if a tool name belongs to file reading.
  */
 export function isReadTool(name: string): boolean {
-  return name === 'read' || name === 'view_file' || name === 'read_file';
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n === 'read' || n === 'view_file' || n === 'read_file' || n === 'cat' || n === 'view';
 }
 
 /**
- * Checks if a tool name belongs to file creation/editing.
+ * Checks if a tool name belongs to file creation, editing, or deletion.
  */
 export function isEditTool(name: string): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase();
   return (
-    name === 'write' ||
-    name === 'edit' ||
-    name === 'append' ||
-    name === 'write_to_file' ||
-    name === 'replace_file_content' ||
-    name === 'multi_replace_file_content'
+    n === 'write' ||
+    n === 'edit' ||
+    n === 'append' ||
+    n === 'delete' ||
+    n === 'write_to_file' ||
+    n === 'replace_file_content' ||
+    n === 'multi_replace_file_content' ||
+    n === 'create_file' ||
+    n === 'save_file' ||
+    n === 'edit_file' ||
+    n === 'modify_file' ||
+    n === 'write_file' ||
+    n === 'new_file' ||
+    n === 'append_to_file' ||
+    n === 'append_file' ||
+    n === 'delete_file' ||
+    n === 'remove_file' ||
+    n === 'str_replace_editor' ||
+    n === 'file_editor' ||
+    n === 'patch' ||
+    n === 'apply_patch' ||
+    n === 'apply_diff'
   );
 }
 
@@ -66,12 +112,17 @@ export function isEditTool(name: string): boolean {
  * Checks if a tool name belongs to codebase search or grep.
  */
 export function isSearchTool(name: string): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase();
   return (
-    name === 'search' ||
-    name === 'web_search' ||
-    name === 'search_web' ||
-    name === 'grep' ||
-    name === 'grep_search'
+    n === 'search' ||
+    n === 'web_search' ||
+    n === 'search_web' ||
+    n === 'grep' ||
+    n === 'grep_search' ||
+    n === 'find_by_name' ||
+    n === 'find_files' ||
+    n === 'glob'
   );
 }
 
@@ -79,11 +130,13 @@ export function isSearchTool(name: string): boolean {
  * Checks if a tool name belongs to web fetching or scraping.
  */
 export function isWebTool(name: string): boolean {
-  return name === 'web' || name === 'web_fetch' || name === 'read_url_content' || name === 'fetch';
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return n === 'web' || n === 'web_fetch' || n === 'read_url_content' || n === 'fetch' || n === 'fetch_web';
 }
 
 /**
- * Returns the appropriate CSS mask icon class for a tool.
+ * Returns the appropriate CSS mask icon class for a tool in the timeline spine.
  */
 export function getItemIconClass(name: string): string {
   if (isListTool(name)) return 'icon-tool-list';
@@ -112,20 +165,40 @@ export function getItemIconOpacity(name: string): string {
 }
 
 /**
- * Generates a human-friendly descriptive title for tool actions.
+ * Generates a human-friendly descriptive title for tool actions in the timeline row.
  */
 export function getToolFriendlyTitle(name: string, argsJson: string): string {
   let parsedArgs: Record<string, unknown> = {};
   try {
-    if (argsJson) parsedArgs = JSON.parse(argsJson);
+    if (argsJson) {
+      if (typeof argsJson === 'object') {
+        parsedArgs = argsJson as Record<string, unknown>;
+      } else {
+        let p = JSON.parse(argsJson);
+        while (typeof p === 'string') {
+          p = JSON.parse(p);
+        }
+        if (typeof p === 'object' && p !== null) {
+          parsedArgs = p;
+        }
+      }
+    }
   } catch {
     // Fallback on raw string
   }
 
   const rawPath = (parsedArgs.path ||
+    parsedArgs.file_path ||
+    parsedArgs.filePath ||
+    parsedArgs.filepath ||
     parsedArgs.TargetFile ||
+    parsedArgs.target_file ||
+    parsedArgs.targetFile ||
     parsedArgs.DirectoryPath ||
     parsedArgs.AbsolutePath ||
+    parsedArgs.file ||
+    parsedArgs.filename ||
+    parsedArgs.fileName ||
     '') as string;
   const shortPath = rawPath ? rawPath.split(/[/\\]/).pop() || rawPath : '';
 
@@ -133,29 +206,50 @@ export function getToolFriendlyTitle(name: string, argsJson: string): string {
     return shortPath ? `Reading ${shortPath}` : 'Reading file';
   }
   if (isEditTool(name)) {
+    const n = name.toLowerCase();
+    if (
+      n === 'write' ||
+      n === 'write_to_file' ||
+      n === 'create_file' ||
+      n === 'save_file' ||
+      n === 'write_file' ||
+      n === 'new_file'
+    ) {
+      return shortPath ? `Writing ${shortPath}` : 'Writing file';
+    }
+    if (n === 'append' || n === 'append_to_file' || n === 'append_file') {
+      return shortPath ? `Appending to ${shortPath}` : 'Appending to file';
+    }
+    if (n === 'delete' || n === 'delete_file' || n === 'remove_file') {
+      return shortPath ? `Deleting ${shortPath}` : 'Deleting file';
+    }
     return shortPath ? `Editing ${shortPath}` : 'Editing file';
   }
   if (isListTool(name)) {
     return shortPath ? `Listing directory ${shortPath}` : 'Listing directory';
   }
   if (name === 'grep_search' || name === 'grep') {
-    return parsedArgs.Query ? `Searching "${parsedArgs.Query}"` : 'Searching codebase';
+    return parsedArgs.Query || parsedArgs.query ? `Searching "${parsedArgs.Query || parsedArgs.query}"` : 'Searching codebase';
+  }
+  if (name === 'find_by_name' || name === 'find_files' || name === 'glob') {
+    return parsedArgs.Pattern || parsedArgs.pattern ? `Finding "${parsedArgs.Pattern || parsedArgs.pattern}"` : 'Finding files';
   }
   if (name === 'search_web' || name === 'web_search') {
     return parsedArgs.query ? `Web search: "${parsedArgs.query}"` : 'Web search';
   }
-  if (name === 'read_url_content' || name === 'web_fetch') {
-    return parsedArgs.Url ? `Fetching ${parsedArgs.Url}` : 'Fetching URL';
+  if (name === 'read_url_content' || name === 'web_fetch' || name === 'fetch') {
+    return parsedArgs.Url || parsedArgs.url ? `Fetching ${parsedArgs.Url || parsedArgs.url}` : 'Fetching URL';
   }
   if (name === 'run_command' || name === 'bash' || name === 'exec') {
-    return parsedArgs.CommandLine ? `Running: ${parsedArgs.CommandLine}` : 'Running command';
+    const cmd = parsedArgs.CommandLine || parsedArgs.command || parsedArgs.cmd;
+    return cmd ? `Running: ${cmd}` : 'Running command';
   }
 
   return `Running ${name}`;
 }
 
 /**
- * Builds the summary label for a completed work activity.
+ * Builds the summary label for a completed work activity header.
  */
 export function getWorkGroupSummaryText(items: WorkGroupItem[]): string {
   const toolCount = items.filter((i) => i.kind === 'tool').length;
@@ -174,7 +268,7 @@ export function getWorkGroupSummaryText(items: WorkGroupItem[]): string {
 }
 
 /**
- * Updates the 1px vertical spine connector line based on row index and count.
+ * Updates the 1px vertical spine connector line based on row index and total count.
  */
 function updateSpineLine(row: HTMLElement, idx: number, totalCount: number): void {
   const line = row.querySelector('.work-group-timeline-line');
@@ -192,22 +286,31 @@ function updateSpineLine(row: HTMLElement, idx: number, totalCount: number): voi
 }
 
 /**
- * Formats JSON text for display in ToolDetailBody.
+ * Dispatches to the specialized card renderer based on tool name.
  */
-function formatJsonSafe(raw: string): string {
-  try {
-    if (raw && (raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
-      const parsed = JSON.parse(raw);
-      return JSON.stringify(parsed, null, 2);
-    }
-  } catch {
-    // Keep raw string if parse fails
+function createSpecificToolCard(item: WorkGroupItem & { kind: 'tool' }): HTMLElement {
+  const name = item.tool_name.toLowerCase();
+
+  if (isEditTool(name)) {
+    return renderFileModificationCard(item);
   }
-  return raw;
+  if (isReadTool(name)) {
+    return renderFileReadCard(item);
+  }
+  if (name === 'run_command' || name === 'bash' || name === 'exec') {
+    return renderCommandCard(item);
+  }
+  if (isSearchTool(name) || isListTool(name)) {
+    return renderSearchCard(item);
+  }
+  if (isWebTool(name)) {
+    return renderWebCard(item);
+  }
+  return renderGenericToolCard(item);
 }
 
 /**
- * Creates the collapsible ToolDetailBody (args and output).
+ * Creates the collapsible ToolDetailBody wrapping the stylized tool card.
  */
 function createToolDetailBody(item: WorkGroupItem & { kind: 'tool' }): HTMLElement {
   const detailBody = document.createElement('div');
@@ -221,57 +324,17 @@ function createToolDetailBody(item: WorkGroupItem & { kind: 'tool' }): HTMLEleme
     { passive: true }
   );
 
-  // 1. Tool Input Arguments Section
-  const argsEl = document.createElement('div');
-  argsEl.className = 'tool-args-text';
-  const formattedArgs = formatJsonSafe(item.tool_args);
-  argsEl.textContent = `args: ${formattedArgs || '{}'}`;
-  detailBody.appendChild(argsEl);
-
-  // 2. Horizontal Divider separating Args and Output
-  const divider = document.createElement('div');
-  divider.className = 'tool-detail-divider';
-  detailBody.appendChild(divider);
-
-  // 3. Tool Execution Output Result Section
-  const resultEl = document.createElement('div');
-  resultEl.className = `tool-result-text ${item.tool_status === 'failed' ? 'failed' : ''}`;
-  const formattedResult = formatJsonSafe(item.tool_result);
-  if (formattedResult && formattedResult.trim().length > 0) {
-    resultEl.textContent = `output: ${formattedResult}`;
-  } else if (item.tool_status === 'running') {
-    resultEl.textContent = 'output: Tool is executing...';
-  } else {
-    resultEl.textContent = 'output: (no output)';
-  }
-  detailBody.appendChild(resultEl);
-
+  const card = createSpecificToolCard(item);
+  detailBody.appendChild(card);
   return detailBody;
 }
 
 /**
- * In-place updater for ToolDetailBody.
+ * In-place updater for ToolDetailBody when tool arguments or output stream in.
  */
 function updateToolDetailBody(detailBody: HTMLElement, item: WorkGroupItem & { kind: 'tool' }): void {
-  const argsEl = detailBody.querySelector('.tool-args-text');
-  if (argsEl) {
-    const formattedArgs = formatJsonSafe(item.tool_args);
-    const expectedArgs = `args: ${formattedArgs || '{}'}`;
-    if (argsEl.textContent !== expectedArgs) argsEl.textContent = expectedArgs;
-  }
-
-  const resultEl = detailBody.querySelector('.tool-result-text');
-  if (resultEl) {
-    resultEl.className = `tool-result-text ${item.tool_status === 'failed' ? 'failed' : ''}`;
-    const formattedResult = formatJsonSafe(item.tool_result);
-    let expectedRes = 'output: (no output)';
-    if (formattedResult && formattedResult.trim().length > 0) {
-      expectedRes = `output: ${formattedResult}`;
-    } else if (item.tool_status === 'running') {
-      expectedRes = 'output: Tool is executing...';
-    }
-    if (resultEl.textContent !== expectedRes) resultEl.textContent = expectedRes;
-  }
+  const newCard = createSpecificToolCard(item);
+  detailBody.replaceChildren(newCard);
 }
 
 /**
@@ -398,7 +461,7 @@ function updateTimelineItemRow(
       subChevron.classList.toggle('expanded', item.is_expanded);
     }
 
-    // 4. Detail body
+    // 4. Detail body update
     const content = row.querySelector('.work-group-timeline-content');
     const existingBody = row.querySelector('.tool-detail-body') as HTMLElement | null;
 
