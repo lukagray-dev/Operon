@@ -938,6 +938,130 @@
               </div>
             </div>
           </div>
+
+          <!-- View 3: Discord Setup View -->
+          <div id="channels-view-discord" class="channels-view-section hidden">
+            <div class="channel-setup-nav-bar">
+              <button id="btn-dc-back" class="btn-channel-back">
+                <span class="ui-icon icon-chevron-left"></span>
+                <span>Back</span>
+              </button>
+              <span id="dc-status-badge" class="channel-form-status-badge">Disconnected</span>
+            </div>
+
+            <div class="settings-card" style="margin-top: 8px;">
+              <div class="settings-card-header">Discord Bot Configuration</div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Bot Token -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Discord Bot Token</div>
+                  <div class="settings-row-desc">Bot token from Discord Developer Portal</div>
+                </div>
+                <input
+                  id="input-dc-bot-token"
+                  class="channel-input"
+                  type="password"
+                  placeholder="MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.ABCdef..."
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Owner User ID -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Owner User ID</div>
+                  <div class="settings-row-desc">Your Discord numeric user snowflake ID</div>
+                </div>
+                <input
+                  id="input-dc-owner-user-id"
+                  class="channel-input"
+                  type="text"
+                  placeholder="123456789012345678"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Guild ID (Optional) -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Guild (Server) ID (Optional)</div>
+                  <div class="settings-row-desc">Restrict bot operations to a specific server</div>
+                </div>
+                <input
+                  id="input-dc-guild-id"
+                  class="channel-input"
+                  type="text"
+                  placeholder="Leave empty for all servers / DMs"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Workspace Directory -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Workspace Directory</div>
+                  <div class="settings-row-desc">Custom directory where Discord agent session operations run</div>
+                </div>
+                <div class="channel-workspace-row">
+                  <div class="channel-workspace-input-group">
+                    <input
+                      id="input-dc-workspace-dir"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="~/.operon/workspace"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-dc-browse-workspace" class="btn-channel-browse">Browse...</button>
+                  </div>
+                  <span id="dc-policy-badge" class="channel-policy-badge covered">✓ Policy Covered</span>
+                </div>
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Allowlist User IDs -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Allowlist User IDs</div>
+                  <div class="settings-row-desc">Discord user IDs granted Owner permissions</div>
+                </div>
+                <div class="channel-allowlist-card">
+                  <div class="channel-allowlist-input-row">
+                    <input
+                      id="input-dc-new-allowlist"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="987654321098765432"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-dc-add-allowlist" class="btn-channel-add-allowlist">Add</button>
+                  </div>
+                  <div id="dc-allowlist-container" class="channel-allowlist-box"></div>
+                </div>
+              </div>
+
+              <!-- Status Message -->
+              <div id="dc-test-status-msg" style="font-size: 11px; font-weight: 600; color: #3498db; min-height: 16px;"></div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Action Buttons -->
+              <div class="channel-setup-actions">
+                <button id="btn-dc-test-connection" class="btn-channel-test">Test Connection</button>
+                <button id="btn-dc-save" class="btn-channel-save">Save & Connect</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 6. SKILLS TAB PANEL -->

@@ -2,6 +2,7 @@
 @import '../../shared/tokens.css';
 @import './whatsapp.css';
 @import './telegram.css';
+@import './discord.css';
 
 .settings-panel-view[data-tab="channels"] {
   display: none;
@@ -72,6 +73,10 @@
 
 .icon-channel-telegram {
   background-image: url('../../../assets/icons/settings/connector-telegram.svg');
+}
+
+.icon-channel-discord {
+  background-image: url('../../../assets/icons/settings/connector-discord.svg');
 }
 
 .channel-info {

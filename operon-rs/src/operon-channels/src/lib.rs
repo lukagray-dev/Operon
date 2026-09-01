@@ -16,3 +16,6 @@ pub use operon_channels_whatsapp as whatsapp;
 
 /// Re-exported Telegram channel sub-crate.
 pub use operon_channels_telegram as telegram;
+
+/// Re-exported Discord channel sub-crate.
+pub use operon_channels_discord as discord;

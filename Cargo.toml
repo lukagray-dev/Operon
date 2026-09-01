@@ -93,6 +93,7 @@ members = [
     "operon-rs/src/operon-channels",
     "operon-rs/src/operon-channels/src/whatsapp",
     "operon-rs/src/operon-channels/src/telegram",
+    "operon-rs/src/operon-channels/src/discord",
 ]
 
 [workspace.dependencies]
@@ -154,6 +155,7 @@ winapi                        = { version = "0.3", features = ["processthreadsap
 # ── Third party dependencies ──────────────────────────────────────────────────
 portable-pty     = "0.8"
 qrcode           = "0.14"
+tokio-tungstenite = { version = "0.26", features = ["connect", "handshake", "native-tls"] }
 
 # ── SQLite persistence (used by operon-session) ───────────────────────────────
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros"] }
@@ -220,6 +222,7 @@ operon-diff      = { path = "operon-rs/src/operon-diff" }
 operon-channels  = { path = "operon-rs/src/operon-channels" }
 operon-channels-whatsapp = { path = "operon-rs/src/operon-channels/src/whatsapp" }
 operon-channels-telegram = { path = "operon-rs/src/operon-channels/src/telegram" }
+operon-channels-discord  = { path = "operon-rs/src/operon-channels/src/discord" }
 
 [workspace.package]
 version    = "0.1.0"

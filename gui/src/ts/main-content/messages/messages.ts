@@ -124,14 +124,23 @@ function insertBlockInRow(row: HTMLElement, newEl: HTMLElement, blockIdx: number
 
 function isChannelSession(sessionId: string | null): boolean {
   if (!sessionId) return false;
-  if (sessionId.startsWith('wa-') || sessionId.startsWith('tg-')) return true;
+  if (
+    sessionId.startsWith('wa-') ||
+    sessionId.startsWith('tg-') ||
+    sessionId.startsWith('dc-')
+  ) {
+    return true;
+  }
   const isWa = sidebarState
     .getWhatsAppContacts()
     .some((c) => c.conversations.some((s) => s.id === sessionId));
   const isTg = sidebarState
     .getTelegramContacts()
     .some((c) => c.conversations.some((s) => s.id === sessionId));
-  return isWa || isTg;
+  const isDc = sidebarState
+    .getDiscordContacts()
+    .some((c) => c.conversations.some((s) => s.id === sessionId));
+  return isWa || isTg || isDc;
 }
 
 export function initMessages(): void {

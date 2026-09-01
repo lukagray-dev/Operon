@@ -1,6 +1,7 @@
 //! Channels Settings Submodule.
 
 pub mod commands;
+pub mod discord;
 pub mod telegram;
 pub mod types;
 pub mod whatsapp;

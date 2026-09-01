@@ -16,3 +16,4 @@ tracing.workspace = true
 
 operon-channels-whatsapp.workspace = true
 operon-channels-telegram.workspace = true
+operon-channels-discord.workspace = true

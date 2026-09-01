@@ -54,3 +54,9 @@ export async function queryTelegramContactsIpc(): Promise<SidebarProject[]> {
   const res = await invokeIpc<SidebarProject[]>('query_telegram_contacts');
   return res || [];
 }
+
+export async function queryDiscordContactsIpc(): Promise<SidebarProject[]> {
+  const res = await invokeIpc<SidebarProject[]>('query_discord_contacts');
+  return res || [];
+}
+

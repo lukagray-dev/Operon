@@ -21,6 +21,22 @@ pub async fn get_channels_list() -> Result<Vec<ChannelCardDto>, String> {
         "Disconnected".to_string()
     };
 
+    let tg_saved = crate::shared::channels_manager::load_telegram_saved_config();
+    let tg_has_token = !tg_saved.bot_token.trim().is_empty();
+    let tg_status = if tg_has_token {
+        "Connected".to_string()
+    } else {
+        "Disconnected".to_string()
+    };
+
+    let dc_saved = crate::shared::channels_manager::load_discord_saved_config();
+    let dc_has_token = !dc_saved.bot_token.trim().is_empty();
+    let dc_status = if dc_has_token {
+        "Connected".to_string()
+    } else {
+        "Disconnected".to_string()
+    };
+
     Ok(vec![
         ChannelCardDto {
             id: "whatsapp".to_string(),
@@ -33,9 +49,17 @@ pub async fn get_channels_list() -> Result<Vec<ChannelCardDto>, String> {
         ChannelCardDto {
             id: "telegram".to_string(),
             label: "Telegram Channel".to_string(),
-            status: "Disconnected".to_string(),
-            is_active: false,
+            status: tg_status,
+            is_active: tg_has_token,
             description: "Connect Operon to Telegram to receive and execute commands via a bot."
+                .to_string(),
+        },
+        ChannelCardDto {
+            id: "discord".to_string(),
+            label: "Discord Channel".to_string(),
+            status: dc_status,
+            is_active: dc_has_token,
+            description: "Connect Operon to Discord to receive and execute commands via a bot."
                 .to_string(),
         },
     ])

@@ -1,13 +1,14 @@
 // Channels Root Coordinator
 //
-// Manages high-level view navigation between Channels List (0), WhatsApp Setup (1), and Telegram Setup (2).
+// Manages high-level view navigation between Channels List (0), WhatsApp Setup (1), Telegram Setup (2), and Discord Setup (3).
 
 import { getChannelsListIpc } from './ipc.js';
 import { initTelegramChannel, refreshTelegramState } from './telegram/telegram.js';
+import { initDiscordChannel, refreshDiscordState } from './discord/discord.js';
 import type { ChannelCard } from './types.js';
 import { initWhatsAppChannel, refreshWhatsAppState } from './whatsapp/whatsapp.js';
 
-let activeView = 0; // 0 = List, 1 = WhatsApp, 2 = Telegram
+let activeView = 0; // 0 = List, 1 = WhatsApp, 2 = Telegram, 3 = Discord
 let channelsList: ChannelCard[] = [];
 
 /**
@@ -24,6 +25,7 @@ export async function initChannelsSettings(): Promise<void> {
 
   await initWhatsAppChannel(handleSaved);
   await initTelegramChannel(handleSaved);
+  await initDiscordChannel(handleSaved);
   await refreshChannelsData();
 }
 
@@ -36,6 +38,7 @@ export async function refreshChannelsData(): Promise<void> {
     renderChannelsList();
     await refreshWhatsAppState();
     await refreshTelegramState();
+    await refreshDiscordState();
   } catch (err) {
     console.error('[ChannelsSettings] Failed to fetch channels list:', err);
   }
@@ -55,7 +58,12 @@ function renderChannelsList(): void {
     card.className = 'channel-card';
     card.dataset.id = ch.id;
 
-    const iconClass = ch.id === 'whatsapp' ? 'icon-channel-whatsapp' : 'icon-channel-telegram';
+    let iconClass = 'icon-channel-whatsapp';
+    if (ch.id === 'telegram') {
+      iconClass = 'icon-channel-telegram';
+    } else if (ch.id === 'discord') {
+      iconClass = 'icon-channel-discord';
+    }
 
     card.innerHTML = `
       <div class="channel-icon-wrapper">
@@ -82,6 +90,9 @@ function renderChannelsList(): void {
       } else if (ch.id === 'telegram') {
         activeView = 2;
         await refreshTelegramState();
+      } else if (ch.id === 'discord') {
+        activeView = 3;
+        await refreshDiscordState();
       }
       updateChannelsViewSwitch();
     });
@@ -91,7 +102,7 @@ function renderChannelsList(): void {
 }
 
 /**
- * Sets up back button navigation for both channel views.
+ * Sets up back button navigation for channel views.
  */
 function setupNavigationButtons(): void {
   document.getElementById('btn-wa-back')?.addEventListener('click', () => {
@@ -103,21 +114,28 @@ function setupNavigationButtons(): void {
     activeView = 0;
     updateChannelsViewSwitch();
   });
+
+  document.getElementById('btn-dc-back')?.addEventListener('click', () => {
+    activeView = 0;
+    updateChannelsViewSwitch();
+  });
 }
 
 /**
- * Updates UI view container visibility between List, WhatsApp, and Telegram.
+ * Updates UI view container visibility between List, WhatsApp, Telegram, and Discord.
  */
 function updateChannelsViewSwitch(): void {
   const listView = document.getElementById('channels-view-list');
   const waView = document.getElementById('channels-view-whatsapp');
   const tgView = document.getElementById('channels-view-telegram');
+  const dcView = document.getElementById('channels-view-discord');
   const headerSubtitle = document.getElementById('channels-header-subtitle');
 
   if (activeView === 0) {
     listView?.classList.remove('hidden');
     waView?.classList.add('hidden');
     tgView?.classList.add('hidden');
+    dcView?.classList.add('hidden');
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Set up messaging channel integrations such as WhatsApp, Telegram, or Discord.';
     }
@@ -125,6 +143,7 @@ function updateChannelsViewSwitch(): void {
     listView?.classList.add('hidden');
     waView?.classList.remove('hidden');
     tgView?.classList.add('hidden');
+    dcView?.classList.add('hidden');
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure WhatsApp mobile pairing, Owner number, and access permission allowlist.';
     }
@@ -132,8 +151,17 @@ function updateChannelsViewSwitch(): void {
     listView?.classList.add('hidden');
     waView?.classList.add('hidden');
     tgView?.classList.remove('hidden');
+    dcView?.classList.add('hidden');
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure Telegram Bot Token, Owner Chat ID, and access permission allowlist.';
+    }
+  } else if (activeView === 3) {
+    listView?.classList.add('hidden');
+    waView?.classList.add('hidden');
+    tgView?.classList.add('hidden');
+    dcView?.classList.remove('hidden');
+    if (headerSubtitle) {
+      headerSubtitle.textContent = 'Configure Discord Bot Token, Owner User ID, and access permission allowlist.';
     }
   }
 }

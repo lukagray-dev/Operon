@@ -12,6 +12,10 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio::sync::mpsc;
 
+use operon_rs::channels::discord::client::DiscordClient;
+use operon_rs::channels::discord::config::DiscordConfig;
+use operon_rs::channels::discord::service::DiscordService;
+use operon_rs::channels::discord::types::UserId;
 use operon_rs::channels::telegram::client::TelegramClient;
 use operon_rs::channels::telegram::config::TelegramConfig;
 use operon_rs::channels::telegram::service::TelegramService;
@@ -31,6 +35,10 @@ pub static ACTIVE_WHATSAPP_CLIENT: std::sync::Mutex<Option<Arc<WhatsAppClient>>>
 
 /// Global handle for active Telegram client.
 pub static ACTIVE_TELEGRAM_CLIENT: std::sync::Mutex<Option<Arc<TelegramClient>>> =
+    std::sync::Mutex::new(None);
+
+/// Global handle for active Discord client.
+pub static ACTIVE_DISCORD_CLIENT: std::sync::Mutex<Option<Arc<DiscordClient>>> =
     std::sync::Mutex::new(None);
 
 /// Persisted configuration JSON format for WhatsApp.
@@ -61,6 +69,23 @@ pub struct TelegramSavedConfig {
     pub workspace_dir: String,
 }
 
+/// Persisted configuration JSON format for Discord.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct DiscordSavedConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub bot_token: String,
+    #[serde(default)]
+    pub owner_user_id: String,
+    #[serde(default)]
+    pub allowlist: Vec<String>,
+    #[serde(default)]
+    pub guild_id: String,
+    #[serde(default)]
+    pub workspace_dir: String,
+}
+
 /// Resolves the path to `~/.operon/channels/whatsapp/config.json`.
 pub fn get_whatsapp_config_path() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -76,6 +101,15 @@ pub fn get_telegram_config_path() -> PathBuf {
     home.join(".operon")
         .join("channels")
         .join("telegram")
+        .join("config.json")
+}
+
+/// Resolves the path to `~/.operon/channels/discord/config.json`.
+pub fn get_discord_config_path() -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    home.join(".operon")
+        .join("channels")
+        .join("discord")
         .join("config.json")
 }
 
@@ -119,6 +153,30 @@ pub fn load_telegram_saved_config() -> TelegramSavedConfig {
 /// Saves Telegram config to disk.
 pub fn save_telegram_saved_config(cfg: &TelegramSavedConfig) -> Result<(), String> {
     let path = get_telegram_config_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let json_str = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Loads Discord config from disk.
+pub fn load_discord_saved_config() -> DiscordSavedConfig {
+    let path = get_discord_config_path();
+    if path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(cfg) = serde_json::from_str::<DiscordSavedConfig>(&content) {
+                return cfg;
+            }
+        }
+    }
+    DiscordSavedConfig::default()
+}
+
+/// Saves Discord config to disk.
+pub fn save_discord_saved_config(cfg: &DiscordSavedConfig) -> Result<(), String> {
+    let path = get_discord_config_path();
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -304,6 +362,7 @@ pub fn auto_start_channels_on_launch() {
     tauri::async_runtime::spawn(async move {
         start_whatsapp_channel_if_configured().await;
         start_telegram_channel_if_configured().await;
+        start_discord_channel_if_configured().await;
     });
 }
 
@@ -437,3 +496,66 @@ pub async fn start_telegram_channel_if_configured() {
         }
     });
 }
+
+/// Starts Discord channel background service if bot token is configured.
+pub async fn start_discord_channel_if_configured() {
+    let saved = load_discord_saved_config();
+    if saved.bot_token.trim().is_empty() {
+        return;
+    }
+
+    let owner_user = if saved.owner_user_id.trim().is_empty() {
+        None
+    } else {
+        Some(UserId::new(saved.owner_user_id.trim()))
+    };
+
+    let allowlist: Vec<UserId> = saved
+        .allowlist
+        .iter()
+        .map(|s| UserId::new(s.trim()))
+        .collect();
+
+    let guild_id = if saved.guild_id.trim().is_empty() {
+        None
+    } else {
+        Some(saved.guild_id.trim().to_string())
+    };
+
+    let workspace_dir = if saved.workspace_dir.trim().is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(saved.workspace_dir.trim()))
+    };
+
+    let dc_config = DiscordConfig {
+        enabled: true,
+        bot_token: Some(saved.bot_token.trim().to_string()),
+        owner_user_id: owner_user,
+        allowlist,
+        guild_id,
+        workspace_dir,
+    };
+
+    let client = Arc::new(DiscordClient::new(dc_config.clone()));
+    if let Ok(mut lock) = ACTIVE_DISCORD_CLIENT.lock() {
+        *lock = Some(client.clone());
+    }
+
+    let app_config = match operon_rs::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            eprintln!("[operon-gui][discord-auto] AppConfig error: {}", e);
+            return;
+        }
+    };
+
+    let event_hook = create_channel_event_hook();
+    let service = DiscordService::with_event_hook(client, dc_config, app_config, event_hook);
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = service.run().await {
+            eprintln!("[operon-gui][discord-auto] DiscordService exited: {}", e);
+        }
+    });
+}
+
