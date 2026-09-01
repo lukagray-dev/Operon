@@ -566,6 +566,16 @@
   mask-image: none !important;
 }
 
+.icon-sidebar-slack {
+  background-color: transparent !important;
+  background-image: url('../../assets/icons/sidebar/connector-slack.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
 .icon-sidebar-user {
   -webkit-mask-image: url('../../assets/icons/sidebar/user.svg');
   mask-image: url('../../assets/icons/sidebar/user.svg');

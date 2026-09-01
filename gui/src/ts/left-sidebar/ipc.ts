@@ -60,3 +60,9 @@ export async function queryDiscordContactsIpc(): Promise<SidebarProject[]> {
   return res || [];
 }
 
+export async function querySlackContactsIpc(): Promise<SidebarProject[]> {
+  const res = await invokeIpc<SidebarProject[]>('query_slack_contacts');
+  return res || [];
+}
+
+

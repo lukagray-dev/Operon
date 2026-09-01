@@ -1,14 +1,15 @@
 // Channels Root Coordinator
 //
-// Manages high-level view navigation between Channels List (0), WhatsApp Setup (1), Telegram Setup (2), and Discord Setup (3).
+// Manages high-level view navigation between Channels List (0), WhatsApp Setup (1), Telegram Setup (2), Discord Setup (3), and Slack Setup (4).
 
 import { getChannelsListIpc } from './ipc.js';
 import { initTelegramChannel, refreshTelegramState } from './telegram/telegram.js';
 import { initDiscordChannel, refreshDiscordState } from './discord/discord.js';
+import { initSlackChannel, refreshSlackState } from './slack/slack.js';
 import type { ChannelCard } from './types.js';
 import { initWhatsAppChannel, refreshWhatsAppState } from './whatsapp/whatsapp.js';
 
-let activeView = 0; // 0 = List, 1 = WhatsApp, 2 = Telegram, 3 = Discord
+let activeView = 0; // 0 = List, 1 = WhatsApp, 2 = Telegram, 3 = Discord, 4 = Slack
 let channelsList: ChannelCard[] = [];
 
 /**
@@ -26,6 +27,7 @@ export async function initChannelsSettings(): Promise<void> {
   await initWhatsAppChannel(handleSaved);
   await initTelegramChannel(handleSaved);
   await initDiscordChannel(handleSaved);
+  await initSlackChannel(handleSaved);
   await refreshChannelsData();
 }
 
@@ -39,6 +41,7 @@ export async function refreshChannelsData(): Promise<void> {
     await refreshWhatsAppState();
     await refreshTelegramState();
     await refreshDiscordState();
+    await refreshSlackState();
   } catch (err) {
     console.error('[ChannelsSettings] Failed to fetch channels list:', err);
   }
@@ -63,6 +66,8 @@ function renderChannelsList(): void {
       iconClass = 'icon-channel-telegram';
     } else if (ch.id === 'discord') {
       iconClass = 'icon-channel-discord';
+    } else if (ch.id === 'slack') {
+      iconClass = 'icon-channel-slack';
     }
 
     card.innerHTML = `
@@ -93,6 +98,9 @@ function renderChannelsList(): void {
       } else if (ch.id === 'discord') {
         activeView = 3;
         await refreshDiscordState();
+      } else if (ch.id === 'slack') {
+        activeView = 4;
+        await refreshSlackState();
       }
       updateChannelsViewSwitch();
     });
@@ -119,16 +127,22 @@ function setupNavigationButtons(): void {
     activeView = 0;
     updateChannelsViewSwitch();
   });
+
+  document.getElementById('btn-sl-back')?.addEventListener('click', () => {
+    activeView = 0;
+    updateChannelsViewSwitch();
+  });
 }
 
 /**
- * Updates UI view container visibility between List, WhatsApp, Telegram, and Discord.
+ * Updates UI view container visibility between List, WhatsApp, Telegram, Discord, and Slack.
  */
 function updateChannelsViewSwitch(): void {
   const listView = document.getElementById('channels-view-list');
   const waView = document.getElementById('channels-view-whatsapp');
   const tgView = document.getElementById('channels-view-telegram');
   const dcView = document.getElementById('channels-view-discord');
+  const slView = document.getElementById('channels-view-slack');
   const headerSubtitle = document.getElementById('channels-header-subtitle');
 
   if (activeView === 0) {
@@ -136,14 +150,16 @@ function updateChannelsViewSwitch(): void {
     waView?.classList.add('hidden');
     tgView?.classList.add('hidden');
     dcView?.classList.add('hidden');
+    slView?.classList.add('hidden');
     if (headerSubtitle) {
-      headerSubtitle.textContent = 'Set up messaging channel integrations such as WhatsApp, Telegram, or Discord.';
+      headerSubtitle.textContent = 'Set up messaging channel integrations such as WhatsApp, Telegram, Discord, or Slack.';
     }
   } else if (activeView === 1) {
     listView?.classList.add('hidden');
     waView?.classList.remove('hidden');
     tgView?.classList.add('hidden');
     dcView?.classList.add('hidden');
+    slView?.classList.add('hidden');
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure WhatsApp mobile pairing, Owner number, and access permission allowlist.';
     }
@@ -152,6 +168,7 @@ function updateChannelsViewSwitch(): void {
     waView?.classList.add('hidden');
     tgView?.classList.remove('hidden');
     dcView?.classList.add('hidden');
+    slView?.classList.add('hidden');
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure Telegram Bot Token, Owner Chat ID, and access permission allowlist.';
     }
@@ -160,8 +177,18 @@ function updateChannelsViewSwitch(): void {
     waView?.classList.add('hidden');
     tgView?.classList.add('hidden');
     dcView?.classList.remove('hidden');
+    slView?.classList.add('hidden');
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure Discord Bot Token, Owner User ID, and access permission allowlist.';
+    }
+  } else if (activeView === 4) {
+    listView?.classList.add('hidden');
+    waView?.classList.add('hidden');
+    tgView?.classList.add('hidden');
+    dcView?.classList.add('hidden');
+    slView?.classList.remove('hidden');
+    if (headerSubtitle) {
+      headerSubtitle.textContent = 'Configure Slack Bot Token, App-Level Token (Socket Mode), Owner User ID, and access permission allowlist.';
     }
   }
 }

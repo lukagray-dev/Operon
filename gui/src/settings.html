@@ -1062,6 +1062,130 @@
               </div>
             </div>
           </div>
+
+          <!-- View 4: Slack Setup View -->
+          <div id="channels-view-slack" class="channels-view-section hidden">
+            <div class="channel-setup-nav-bar">
+              <button id="btn-sl-back" class="btn-channel-back">
+                <span class="ui-icon icon-chevron-left"></span>
+                <span>Back</span>
+              </button>
+              <span id="sl-status-badge" class="channel-form-status-badge">Disconnected</span>
+            </div>
+
+            <div class="settings-card" style="margin-top: 8px;">
+              <div class="settings-card-header">Slack Socket Mode Configuration</div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Bot Token -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Bot User OAuth Token</div>
+                  <div class="settings-row-desc">Token starting with xoxb-...</div>
+                </div>
+                <input
+                  id="input-sl-bot-token"
+                  class="channel-input"
+                  type="password"
+                  placeholder="xoxb-123456789012-..."
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- App Token -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">App-Level Token (Socket Mode)</div>
+                  <div class="settings-row-desc">Token starting with xapp-... (connections:write)</div>
+                </div>
+                <input
+                  id="input-sl-app-token"
+                  class="channel-input"
+                  type="password"
+                  placeholder="xapp-1-A111-..."
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Owner User ID -->
+              <div class="settings-row">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Owner User ID</div>
+                  <div class="settings-row-desc">Your Slack numeric/alphanumeric user ID (e.g. U01234567)</div>
+                </div>
+                <input
+                  id="input-sl-owner-user-id"
+                  class="channel-input"
+                  type="text"
+                  placeholder="U0123456789"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Workspace Directory -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Workspace Directory</div>
+                  <div class="settings-row-desc">Custom directory where Slack agent session operations run</div>
+                </div>
+                <div class="channel-workspace-row">
+                  <div class="channel-workspace-input-group">
+                    <input
+                      id="input-sl-workspace-dir"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="~/.operon/workspace"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-sl-browse-workspace" class="btn-channel-browse">Browse...</button>
+                  </div>
+                  <span id="sl-policy-badge" class="channel-policy-badge covered">✓ Policy Covered</span>
+                </div>
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Allowlist User IDs -->
+              <div class="settings-row" style="align-items: flex-start;">
+                <div class="settings-row-text">
+                  <div class="settings-row-title">Allowlist User IDs</div>
+                  <div class="settings-row-desc">Slack user IDs granted Owner permissions</div>
+                </div>
+                <div class="channel-allowlist-card">
+                  <div class="channel-allowlist-input-row">
+                    <input
+                      id="input-sl-new-allowlist"
+                      class="channel-input"
+                      style="width: 210px;"
+                      type="text"
+                      placeholder="U9876543210"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-sl-add-allowlist" class="btn-channel-add-allowlist">Add</button>
+                  </div>
+                  <div id="sl-allowlist-container" class="channel-allowlist-box"></div>
+                </div>
+              </div>
+
+              <!-- Status Message -->
+              <div id="sl-test-status-msg" style="font-size: 11px; font-weight: 600; color: #3498db; min-height: 16px;"></div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Action Buttons -->
+              <div class="channel-setup-actions">
+                <button id="btn-sl-test-connection" class="btn-channel-test">Test Connection</button>
+                <button id="btn-sl-save" class="btn-channel-save">Save & Connect</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 6. SKILLS TAB PANEL -->

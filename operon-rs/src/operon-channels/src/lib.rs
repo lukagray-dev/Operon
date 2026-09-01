@@ -19,3 +19,7 @@ pub use operon_channels_telegram as telegram;
 
 /// Re-exported Discord channel sub-crate.
 pub use operon_channels_discord as discord;
+
+/// Re-exported Slack channel sub-crate.
+pub use operon_channels_slack as slack;
+

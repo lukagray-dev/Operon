@@ -94,6 +94,7 @@ members = [
     "operon-rs/src/operon-channels/src/whatsapp",
     "operon-rs/src/operon-channels/src/telegram",
     "operon-rs/src/operon-channels/src/discord",
+    "operon-rs/src/operon-channels/src/slack",
 ]
 
 [workspace.dependencies]
@@ -223,6 +224,7 @@ operon-channels  = { path = "operon-rs/src/operon-channels" }
 operon-channels-whatsapp = { path = "operon-rs/src/operon-channels/src/whatsapp" }
 operon-channels-telegram = { path = "operon-rs/src/operon-channels/src/telegram" }
 operon-channels-discord  = { path = "operon-rs/src/operon-channels/src/discord" }
+operon-channels-slack    = { path = "operon-rs/src/operon-channels/src/slack" }
 
 [workspace.package]
 version    = "0.1.0"

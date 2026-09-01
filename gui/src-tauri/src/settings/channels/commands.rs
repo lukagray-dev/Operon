@@ -37,6 +37,14 @@ pub async fn get_channels_list() -> Result<Vec<ChannelCardDto>, String> {
         "Disconnected".to_string()
     };
 
+    let sl_saved = crate::shared::channels_manager::load_slack_saved_config();
+    let sl_has_token = !sl_saved.bot_token.trim().is_empty();
+    let sl_status = if sl_has_token {
+        "Connected".to_string()
+    } else {
+        "Disconnected".to_string()
+    };
+
     Ok(vec![
         ChannelCardDto {
             id: "whatsapp".to_string(),
@@ -60,6 +68,14 @@ pub async fn get_channels_list() -> Result<Vec<ChannelCardDto>, String> {
             status: dc_status,
             is_active: dc_has_token,
             description: "Connect Operon to Discord to receive and execute commands via a bot."
+                .to_string(),
+        },
+        ChannelCardDto {
+            id: "slack".to_string(),
+            label: "Slack Channel".to_string(),
+            status: sl_status,
+            is_active: sl_has_token,
+            description: "Connect Operon to Slack using Socket Mode to receive and execute commands."
                 .to_string(),
         },
     ])

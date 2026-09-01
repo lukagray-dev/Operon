@@ -15,7 +15,11 @@ use tokio::sync::mpsc;
 use operon_rs::channels::discord::client::DiscordClient;
 use operon_rs::channels::discord::config::DiscordConfig;
 use operon_rs::channels::discord::service::DiscordService;
-use operon_rs::channels::discord::types::UserId;
+use operon_rs::channels::discord::types::UserId as DiscordUserId;
+use operon_rs::channels::slack::client::SlackClient;
+use operon_rs::channels::slack::config::SlackConfig;
+use operon_rs::channels::slack::service::SlackService;
+use operon_rs::channels::slack::types::UserId as SlackUserId;
 use operon_rs::channels::telegram::client::TelegramClient;
 use operon_rs::channels::telegram::config::TelegramConfig;
 use operon_rs::channels::telegram::service::TelegramService;
@@ -39,6 +43,10 @@ pub static ACTIVE_TELEGRAM_CLIENT: std::sync::Mutex<Option<Arc<TelegramClient>>>
 
 /// Global handle for active Discord client.
 pub static ACTIVE_DISCORD_CLIENT: std::sync::Mutex<Option<Arc<DiscordClient>>> =
+    std::sync::Mutex::new(None);
+
+/// Global handle for active Slack client.
+pub static ACTIVE_SLACK_CLIENT: std::sync::Mutex<Option<Arc<SlackClient>>> =
     std::sync::Mutex::new(None);
 
 /// Persisted configuration JSON format for WhatsApp.
@@ -177,6 +185,56 @@ pub fn load_discord_saved_config() -> DiscordSavedConfig {
 /// Saves Discord config to disk.
 pub fn save_discord_saved_config(cfg: &DiscordSavedConfig) -> Result<(), String> {
     let path = get_discord_config_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let json_str = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Persisted configuration JSON format for Slack.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct SlackSavedConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub bot_token: String,
+    #[serde(default)]
+    pub app_token: String,
+    #[serde(default)]
+    pub owner_user_id: String,
+    #[serde(default)]
+    pub allowlist: Vec<String>,
+    #[serde(default)]
+    pub workspace_dir: String,
+}
+
+/// Resolves the path to `~/.operon/channels/slack/config.json`.
+pub fn get_slack_config_path() -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    home.join(".operon")
+        .join("channels")
+        .join("slack")
+        .join("config.json")
+}
+
+/// Loads Slack config from disk.
+pub fn load_slack_saved_config() -> SlackSavedConfig {
+    let path = get_slack_config_path();
+    if path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(cfg) = serde_json::from_str::<SlackSavedConfig>(&content) {
+                return cfg;
+            }
+        }
+    }
+    SlackSavedConfig::default()
+}
+
+/// Saves Slack config to disk.
+pub fn save_slack_saved_config(cfg: &SlackSavedConfig) -> Result<(), String> {
+    let path = get_slack_config_path();
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -363,6 +421,7 @@ pub fn auto_start_channels_on_launch() {
         start_whatsapp_channel_if_configured().await;
         start_telegram_channel_if_configured().await;
         start_discord_channel_if_configured().await;
+        start_slack_channel_if_configured().await;
     });
 }
 
@@ -507,13 +566,13 @@ pub async fn start_discord_channel_if_configured() {
     let owner_user = if saved.owner_user_id.trim().is_empty() {
         None
     } else {
-        Some(UserId::new(saved.owner_user_id.trim()))
+        Some(DiscordUserId::new(saved.owner_user_id.trim()))
     };
 
-    let allowlist: Vec<UserId> = saved
+    let allowlist: Vec<DiscordUserId> = saved
         .allowlist
         .iter()
-        .map(|s| UserId::new(s.trim()))
+        .map(|s| DiscordUserId::new(s.trim()))
         .collect();
 
     let guild_id = if saved.guild_id.trim().is_empty() {
@@ -558,4 +617,67 @@ pub async fn start_discord_channel_if_configured() {
         }
     });
 }
+
+/// Starts Slack channel background service if bot token is configured.
+pub async fn start_slack_channel_if_configured() {
+    let saved = load_slack_saved_config();
+    if saved.bot_token.trim().is_empty() {
+        return;
+    }
+
+    let owner_user = if saved.owner_user_id.trim().is_empty() {
+        None
+    } else {
+        Some(SlackUserId::new(saved.owner_user_id.trim()))
+    };
+
+    let allowlist: Vec<SlackUserId> = saved
+        .allowlist
+        .iter()
+        .map(|s| SlackUserId::new(s.trim()))
+        .collect();
+
+    let workspace_dir = if saved.workspace_dir.trim().is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(saved.workspace_dir.trim()))
+    };
+
+    let app_token = if saved.app_token.trim().is_empty() {
+        None
+    } else {
+        Some(saved.app_token.trim().to_string())
+    };
+
+    let sl_config = SlackConfig {
+        enabled: true,
+        bot_token: Some(saved.bot_token.trim().to_string()),
+        app_token,
+        owner_user_id: owner_user,
+        allowlist,
+        workspace_dir,
+    };
+
+    let client = Arc::new(SlackClient::new(sl_config.clone()));
+    if let Ok(mut lock) = ACTIVE_SLACK_CLIENT.lock() {
+        *lock = Some(client.clone());
+    }
+
+    let app_config = match operon_rs::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            eprintln!("[operon-gui][slack-auto] AppConfig error: {}", e);
+            return;
+        }
+    };
+
+    let event_hook = create_channel_event_hook();
+    let service = SlackService::with_event_hook(client, sl_config, app_config, event_hook);
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = service.run().await {
+            eprintln!("[operon-gui][slack-auto] SlackService exited: {}", e);
+        }
+    });
+}
+
 

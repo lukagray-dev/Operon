@@ -4173,6 +4173,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "operon-channels-discord",
+ "operon-channels-slack",
  "operon-channels-telegram",
  "operon-channels-whatsapp",
  "serde",
@@ -4183,6 +4184,30 @@ dependencies = [
 
 [[package]]
 name = "operon-channels-discord"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dirs 6.0.0",
+ "futures",
+ "operon-config",
+ "operon-context",
+ "operon-events",
+ "operon-policy",
+ "operon-session",
+ "parking_lot",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "operon-channels-slack"
 version = "0.1.0"
 dependencies = [
  "anyhow",

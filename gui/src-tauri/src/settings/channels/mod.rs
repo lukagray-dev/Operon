@@ -2,6 +2,7 @@
 
 pub mod commands;
 pub mod discord;
+pub mod slack;
 pub mod telegram;
 pub mod types;
 pub mod whatsapp;

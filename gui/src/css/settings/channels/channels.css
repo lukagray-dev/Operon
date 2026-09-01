@@ -3,6 +3,7 @@
 @import './whatsapp.css';
 @import './telegram.css';
 @import './discord.css';
+@import './slack.css';
 
 .settings-panel-view[data-tab="channels"] {
   display: none;
@@ -77,6 +78,10 @@
 
 .icon-channel-discord {
   background-image: url('../../../assets/icons/settings/connector-discord.svg');
+}
+
+.icon-channel-slack {
+  background-image: url('../../../assets/icons/settings/connector-slack.svg');
 }
 
 .channel-info {

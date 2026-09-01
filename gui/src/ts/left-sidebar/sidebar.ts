@@ -10,6 +10,7 @@ import {
   moveSessionIpc,
   openProjectPickerIpc,
   queryDiscordContactsIpc,
+  querySlackContactsIpc,
   querySidebarData,
   queryTelegramContactsIpc,
   queryWhatsAppContactsIpc,
@@ -40,32 +41,34 @@ export function initSidebar(): void {
     dismissContextMenu();
   });
 
-  // Initial load
-  refreshSidebarContent();
-
-  // Re-render when sidebar state changes (search, data, collapse)
+  // Re-render when sidebar data changes
   sidebarState.subscribe(() => {
     renderSidebarContent();
   });
 
-  // Re-render when permission status changes on any session
+  // Re-render when permissions change (to show/hide yellow pending dots)
   onPendingPermissionsChange(() => {
     renderSidebarContent();
   });
 
-  // Hot-reload only channel contact lists when notify watcher detects channel session changes on disk
-  listenIpcEvent<string[]>('sessions-changed', async () => {
-    await refreshChannelContactsOnly();
+  // Initial load
+  void refreshSidebarContent();
+
+  // Listen to background turn completions from channels (WhatsApp, Telegram, Discord, Slack) to refresh sessions
+  listenIpcEvent('channel:turn_completed', async () => {
+    console.debug('[Sidebar] Channel turn completed event received, refreshing sidebar...');
+    await refreshSidebarContent();
   });
 }
 
 export async function refreshChannelContactsOnly(): Promise<void> {
-  const [whatsapp, telegram, discord] = await Promise.all([
+  const [whatsapp, telegram, discord, slack] = await Promise.all([
     queryWhatsAppContactsIpc(),
     queryTelegramContactsIpc(),
     queryDiscordContactsIpc(),
+    querySlackContactsIpc(),
   ]);
-  sidebarState.setChannelContacts(whatsapp, telegram, discord);
+  sidebarState.setChannelContacts(whatsapp, telegram, discord, slack);
 }
 
 export function dismissContextMenu(): void {
@@ -76,21 +79,12 @@ export function dismissContextMenu(): void {
 }
 
 function setupSectionToggles(): void {
-  document.getElementById('header-projects')?.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('.section-action-btn')) return;
+  document.getElementById('header-projects')?.addEventListener('click', () => {
     sidebarState.toggleProjectsCollapsed();
   });
 
-  document.getElementById('header-chats')?.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('.section-action-btn')) return;
+  document.getElementById('header-chats')?.addEventListener('click', () => {
     sidebarState.toggleChatsCollapsed();
-  });
-
-  document.getElementById('btn-add-general-chat')?.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const newId = await createNewSessionIpc(undefined, undefined);
-    sidebarState.selectSession(newId, null);
-    await refreshSidebarContent();
   });
 
   document.getElementById('header-whatsapp')?.addEventListener('click', () => {
@@ -104,19 +98,24 @@ function setupSectionToggles(): void {
   document.getElementById('header-discord')?.addEventListener('click', () => {
     sidebarState.toggleDiscordCollapsed();
   });
+
+  document.getElementById('header-slack')?.addEventListener('click', () => {
+    sidebarState.toggleSlackCollapsed();
+  });
 }
 
 export async function refreshSidebarContent(): Promise<void> {
   const query = sidebarState.getSearchQuery();
-  const [data, whatsapp, telegram, discord] = await Promise.all([
+  const [data, whatsapp, telegram, discord, slack] = await Promise.all([
     querySidebarData(query),
     queryWhatsAppContactsIpc(),
     queryTelegramContactsIpc(),
     queryDiscordContactsIpc(),
+    querySlackContactsIpc(),
   ]);
 
   sidebarState.setSidebarData(data);
-  sidebarState.setChannelContacts(whatsapp, telegram, discord);
+  sidebarState.setChannelContacts(whatsapp, telegram, discord, slack);
 }
 
 function setupSidebarCollapseSync(): void {
@@ -228,6 +227,7 @@ function renderSidebarContent(): void {
   renderWhatsAppSection();
   renderTelegramSection();
   renderDiscordSection();
+  renderSlackSection();
 }
 
 function renderProjectsSection(): void {
@@ -602,6 +602,101 @@ function renderDiscordSection(): void {
   section.style.display = 'flex';
   if (countBadge) countBadge.textContent = String(contacts.length);
   section.classList.toggle('collapsed', sidebarState.isDiscordCollapsed());
+
+  container.innerHTML = '';
+  contacts.forEach((contact) => {
+    const card = document.createElement('div');
+    const isCollapsed = sidebarState.isProjectCollapsed(contact.workspace);
+    card.className = `project-card ${isCollapsed ? 'collapsed' : ''}`;
+
+    const isContactActive = sidebarState.getActiveProjectPath() === contact.workspace;
+    const hasChildPerm = contact.conversations.some((c) => hasPendingPermission(c.id));
+
+    const header = document.createElement('div');
+    header.className = `project-header ${isContactActive ? 'active' : ''}`;
+    header.innerHTML = `
+      <div class="session-item-left">
+        <span class="ui-icon icon-sidebar-chevron-down chevron-icon proj-chevron"></span>
+        <span class="ui-icon icon-sidebar-user"></span>
+        <span class="session-title-text" title="${contact.workspace}">${contact.name}</span>
+        ${hasChildPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
+      </div>
+    `;
+
+    header.addEventListener('click', () => {
+      sidebarState.toggleProjectCollapsed(contact.workspace);
+    });
+
+    card.appendChild(header);
+
+    if (contact.conversations.length > 0) {
+      const convList = document.createElement('div');
+      convList.className = 'project-conversations';
+
+      contact.conversations.forEach((conv) => {
+        const item = document.createElement('div');
+        const isActive = sidebarState.getActiveSessionId() === conv.id;
+        const hasPerm = hasPendingPermission(conv.id);
+        item.className = `session-item ${isActive ? 'active' : ''}`;
+        item.innerHTML = `
+          <div class="session-item-left">
+            <span class="session-title-text" title="${conv.title}">${conv.title}</span>
+            ${hasPerm ? '<span class="session-pending-perm-dot" title="Requires permission approval"></span>' : ''}
+          </div>
+          <button class="item-more-btn" title="Options">
+            <span class="ui-icon icon-sidebar-more-vertical"></span>
+          </button>
+        `;
+
+        item.addEventListener('click', () => {
+          sidebarState.selectSession(conv.id, contact.workspace);
+        });
+
+        const moreBtn = item.querySelector<HTMLButtonElement>('.item-more-btn');
+        moreBtn?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmed = await showConfirmDialog({
+            title: 'Delete Session',
+            message: `Are you sure you want to delete session "${conv.title}"?`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            isDanger: true,
+            icon: 'trash',
+          });
+          if (confirmed) {
+            await deleteSessionIpc(conv.id);
+            if (sidebarState.getActiveSessionId() === conv.id) {
+              sidebarState.selectSession(null, null);
+            }
+            await refreshSidebarContent();
+          }
+        });
+
+        convList.appendChild(item);
+      });
+
+      card.appendChild(convList);
+    }
+
+    container.appendChild(card);
+  });
+}
+
+function renderSlackSection(): void {
+  const section = document.getElementById('section-slack');
+  const container = document.getElementById('slack-items-container');
+  const countBadge = document.getElementById('slack-count-badge');
+  if (!section || !container) return;
+
+  const contacts = sidebarState.getSlackContacts();
+  if (contacts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'flex';
+  if (countBadge) countBadge.textContent = String(contacts.length);
+  section.classList.toggle('collapsed', sidebarState.isSlackCollapsed());
 
   container.innerHTML = '';
   contacts.forEach((contact) => {

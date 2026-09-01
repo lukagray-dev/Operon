@@ -1,0 +1,31 @@
+[package]
+name = "operon-channels-slack"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+tokio-tungstenite = { workspace = true }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+dirs.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+parking_lot.workspace = true
+futures.workspace = true
+
+operon-context.workspace = true
+operon-events.workspace = true
+operon-config.workspace = true
+operon-policy.workspace = true
+operon-session.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+

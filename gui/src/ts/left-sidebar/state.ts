@@ -9,6 +9,7 @@ class SidebarStateManager {
   private whatsappContacts: SidebarProject[] = [];
   private telegramContacts: SidebarProject[] = [];
   private discordContacts: SidebarProject[] = [];
+  private slackContacts: SidebarProject[] = [];
   private activeSessionId: string | null = null;
   private activeProjectPath: string | null = null;
   private searchQuery = '';
@@ -17,6 +18,7 @@ class SidebarStateManager {
   private whatsappCollapsed = false;
   private telegramCollapsed = false;
   private discordCollapsed = false;
+  private slackCollapsed = false;
   private collapsedProjects: Set<string> = new Set();
   private listeners: Set<SidebarChangeListener> = new Set();
 
@@ -51,6 +53,10 @@ class SidebarStateManager {
 
   public getDiscordContacts(): SidebarProject[] {
     return this.discordContacts;
+  }
+
+  public getSlackContacts(): SidebarProject[] {
+    return this.slackContacts;
   }
 
   public selectSession(sessionId: string | null, projectPath: string | null): void {
@@ -143,6 +149,15 @@ class SidebarStateManager {
     this.notify();
   }
 
+  public isSlackCollapsed(): boolean {
+    return this.slackCollapsed;
+  }
+
+  public toggleSlackCollapsed(): void {
+    this.slackCollapsed = !this.slackCollapsed;
+    this.notify();
+  }
+
   public setSidebarData(data: SidebarData): void {
     this.chats = data.chats;
     this.projects = data.projects;
@@ -152,11 +167,13 @@ class SidebarStateManager {
   public setChannelContacts(
     whatsapp: SidebarProject[],
     telegram: SidebarProject[],
-    discord: SidebarProject[] = []
+    discord: SidebarProject[] = [],
+    slack: SidebarProject[] = []
   ): void {
     this.whatsappContacts = whatsapp;
     this.telegramContacts = telegram;
     this.discordContacts = discord;
+    this.slackContacts = slack;
     this.notify();
   }
 

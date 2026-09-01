@@ -127,7 +127,8 @@ function isChannelSession(sessionId: string | null): boolean {
   if (
     sessionId.startsWith('wa-') ||
     sessionId.startsWith('tg-') ||
-    sessionId.startsWith('dc-')
+    sessionId.startsWith('dc-') ||
+    sessionId.startsWith('sl-')
   ) {
     return true;
   }
@@ -140,7 +141,10 @@ function isChannelSession(sessionId: string | null): boolean {
   const isDc = sidebarState
     .getDiscordContacts()
     .some((c) => c.conversations.some((s) => s.id === sessionId));
-  return isWa || isTg || isDc;
+  const isSl = sidebarState
+    .getSlackContacts()
+    .some((c) => c.conversations.some((s) => s.id === sessionId));
+  return isWa || isTg || isDc || isSl;
 }
 
 export function initMessages(): void {
