@@ -277,12 +277,14 @@ web        = "ask"
 sub_agent  = "ask"
 ask        = "ask"
 todo       = "ask"
+memory     = "ask"
 
 [policy.global.external]
 web        = "deny"
 sub_agent  = "deny"
 ask        = "deny"
 todo       = "deny"
+memory     = "deny"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ALLOWED DIRECTORIES
@@ -1134,6 +1136,11 @@ pub fn get_permission_rows(
                 crate::policy::GlobalTool::Todo,
                 "todo",
                 "Manage Tasks / Todo Lists",
+            ),
+            (
+                crate::policy::GlobalTool::Memory,
+                "memory",
+                "Persistent Memory Storage",
             ),
         ];
 

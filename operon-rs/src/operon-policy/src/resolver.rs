@@ -194,6 +194,9 @@ fn classify_tool(name: &str) -> Option<ToolScope> {
         "todo_create" | "todo_list" | "todo_update" | "todo_delete" => {
             Some(ToolScope::Global(GlobalTool::Todo))
         }
+        "memory_add" | "memory_edit" | "memory_delete" | "memory_retrieve" | "memory_search" => {
+            Some(ToolScope::Global(GlobalTool::Memory))
+        }
 
         // ── Directory-scoped: filesystem tools ────────────────────────────────
         "read" => Some(ToolScope::Dir(DirTool::Fs(FsTool::Read))),
@@ -445,6 +448,23 @@ mod tests {
     }
 
     #[test]
+    fn test_global_tool_memory_allow_and_ask() {
+        let config = make_global_config(
+            vec![(GlobalTool::Memory, PermissionMode::Allow)],
+            vec![(GlobalTool::Memory, PermissionMode::Ask)],
+        );
+        let resolver = PolicyResolver::new(config);
+
+        let owner_call = make_call("memory_add", json!({ "content": "user likes Rust" }));
+        let owner_decision = resolver.check(&owner_call, CallerRole::Owner);
+        assert!(owner_decision.is_allow());
+
+        let ext_call = make_call("memory_search", json!({ "query": "Rust" }));
+        let ext_decision = resolver.check(&ext_call, CallerRole::External);
+        assert!(ext_decision.is_ask());
+    }
+
+    #[test]
     fn test_all_global_tool_names_classified() {
         // Verify every tool name we claim is global is actually classified that way.
         let global_names = [
@@ -457,6 +477,11 @@ mod tests {
             "todo_list",
             "todo_update",
             "todo_delete",
+            "memory_add",
+            "memory_edit",
+            "memory_delete",
+            "memory_retrieve",
+            "memory_search",
         ];
         for name in &global_names {
             match classify_tool(name) {

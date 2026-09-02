@@ -30,6 +30,7 @@ pub enum GlobalTool {
     SubAgent,
     Ask,
     Todo,
+    Memory,
     #[serde(other)]
     Unknown,
 }
