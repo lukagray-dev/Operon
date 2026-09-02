@@ -45,6 +45,14 @@ pub async fn get_channels_list() -> Result<Vec<ChannelCardDto>, String> {
         "Disconnected".to_string()
     };
 
+    let fs_saved = crate::shared::channels_manager::load_feishu_saved_config();
+    let fs_has_creds = !fs_saved.app_id.trim().is_empty() && !fs_saved.app_secret.trim().is_empty();
+    let fs_status = if fs_has_creds {
+        "Connected".to_string()
+    } else {
+        "Disconnected".to_string()
+    };
+
     Ok(vec![
         ChannelCardDto {
             id: "whatsapp".to_string(),
@@ -76,6 +84,14 @@ pub async fn get_channels_list() -> Result<Vec<ChannelCardDto>, String> {
             status: sl_status,
             is_active: sl_has_token,
             description: "Connect Operon to Slack using Socket Mode to receive and execute commands."
+                .to_string(),
+        },
+        ChannelCardDto {
+            id: "feishu".to_string(),
+            label: "Feishu / Lark Channel".to_string(),
+            status: fs_status,
+            is_active: fs_has_creds,
+            description: "Connect Operon to Feishu / Lark to receive and execute commands via a bot."
                 .to_string(),
         },
     ])

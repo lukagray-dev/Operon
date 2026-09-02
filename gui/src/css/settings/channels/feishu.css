@@ -1,0 +1,9 @@
+/* Feishu / Lark Channel Settings View Styling */
+
+#channels-view-feishu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeIn 0.15s ease-in-out;
+}
+

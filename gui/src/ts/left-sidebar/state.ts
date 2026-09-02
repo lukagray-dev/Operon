@@ -10,6 +10,7 @@ class SidebarStateManager {
   private telegramContacts: SidebarProject[] = [];
   private discordContacts: SidebarProject[] = [];
   private slackContacts: SidebarProject[] = [];
+  private feishuContacts: SidebarProject[] = [];
   private activeSessionId: string | null = null;
   private activeProjectPath: string | null = null;
   private searchQuery = '';
@@ -19,6 +20,7 @@ class SidebarStateManager {
   private telegramCollapsed = false;
   private discordCollapsed = false;
   private slackCollapsed = false;
+  private feishuCollapsed = false;
   private collapsedProjects: Set<string> = new Set();
   private listeners: Set<SidebarChangeListener> = new Set();
 
@@ -57,6 +59,10 @@ class SidebarStateManager {
 
   public getSlackContacts(): SidebarProject[] {
     return this.slackContacts;
+  }
+
+  public getFeishuContacts(): SidebarProject[] {
+    return this.feishuContacts;
   }
 
   public selectSession(sessionId: string | null, projectPath: string | null): void {
@@ -158,6 +164,15 @@ class SidebarStateManager {
     this.notify();
   }
 
+  public isFeishuCollapsed(): boolean {
+    return this.feishuCollapsed;
+  }
+
+  public toggleFeishuCollapsed(): void {
+    this.feishuCollapsed = !this.feishuCollapsed;
+    this.notify();
+  }
+
   public setSidebarData(data: SidebarData): void {
     this.chats = data.chats;
     this.projects = data.projects;
@@ -168,12 +183,14 @@ class SidebarStateManager {
     whatsapp: SidebarProject[],
     telegram: SidebarProject[],
     discord: SidebarProject[] = [],
-    slack: SidebarProject[] = []
+    slack: SidebarProject[] = [],
+    feishu: SidebarProject[] = []
   ): void {
     this.whatsappContacts = whatsapp;
     this.telegramContacts = telegram;
     this.discordContacts = discord;
     this.slackContacts = slack;
+    this.feishuContacts = feishu;
     this.notify();
   }
 

@@ -65,4 +65,10 @@ export async function querySlackContactsIpc(): Promise<SidebarProject[]> {
   return res || [];
 }
 
+export async function queryFeishuContactsIpc(): Promise<SidebarProject[]> {
+  const res = await invokeIpc<SidebarProject[]>('query_feishu_contacts');
+  return res || [];
+}
+
+
 

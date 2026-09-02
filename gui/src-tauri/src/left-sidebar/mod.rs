@@ -1,6 +1,7 @@
 //! Left Sidebar backend module.
 
 pub mod discord;
+pub mod feishu;
 pub mod session;
 pub mod slack;
 pub mod telegram;
@@ -8,6 +9,7 @@ pub mod types;
 pub mod whatsapp;
 
 pub use discord::*;
+pub use feishu::*;
 pub use session::*;
 pub use slack::*;
 pub use telegram::*;

@@ -1,15 +1,16 @@
 // Channels Root Coordinator
 //
-// Manages high-level view navigation between Channels List (0), WhatsApp Setup (1), Telegram Setup (2), Discord Setup (3), and Slack Setup (4).
+// Manages high-level view navigation between Channels List (0), WhatsApp Setup (1), Telegram Setup (2), Discord Setup (3), Slack Setup (4), and Feishu Setup (5).
 
 import { getChannelsListIpc } from './ipc.js';
 import { initTelegramChannel, refreshTelegramState } from './telegram/telegram.js';
 import { initDiscordChannel, refreshDiscordState } from './discord/discord.js';
 import { initSlackChannel, refreshSlackState } from './slack/slack.js';
+import { initFeishuView } from './feishu/feishu.js';
 import type { ChannelCard } from './types.js';
 import { initWhatsAppChannel, refreshWhatsAppState } from './whatsapp/whatsapp.js';
 
-let activeView = 0; // 0 = List, 1 = WhatsApp, 2 = Telegram, 3 = Discord, 4 = Slack
+let activeView = 0; // 0 = List, 1 = WhatsApp, 2 = Telegram, 3 = Discord, 4 = Slack, 5 = Feishu
 let channelsList: ChannelCard[] = [];
 
 /**
@@ -28,6 +29,7 @@ export async function initChannelsSettings(): Promise<void> {
   await initTelegramChannel(handleSaved);
   await initDiscordChannel(handleSaved);
   await initSlackChannel(handleSaved);
+  await initFeishuView();
   await refreshChannelsData();
 }
 
@@ -42,6 +44,7 @@ export async function refreshChannelsData(): Promise<void> {
     await refreshTelegramState();
     await refreshDiscordState();
     await refreshSlackState();
+    await initFeishuView();
   } catch (err) {
     console.error('[ChannelsSettings] Failed to fetch channels list:', err);
   }
@@ -68,6 +71,8 @@ function renderChannelsList(): void {
       iconClass = 'icon-channel-discord';
     } else if (ch.id === 'slack') {
       iconClass = 'icon-channel-slack';
+    } else if (ch.id === 'feishu') {
+      iconClass = 'icon-channel-feishu';
     }
 
     card.innerHTML = `
@@ -101,6 +106,9 @@ function renderChannelsList(): void {
       } else if (ch.id === 'slack') {
         activeView = 4;
         await refreshSlackState();
+      } else if (ch.id === 'feishu') {
+        activeView = 5;
+        await initFeishuView();
       }
       updateChannelsViewSwitch();
     });
@@ -132,10 +140,15 @@ function setupNavigationButtons(): void {
     activeView = 0;
     updateChannelsViewSwitch();
   });
+
+  document.getElementById('btn-back-to-channels-feishu')?.addEventListener('click', () => {
+    activeView = 0;
+    updateChannelsViewSwitch();
+  });
 }
 
 /**
- * Updates UI view container visibility between List, WhatsApp, Telegram, Discord, and Slack.
+ * Updates UI view container visibility between List, WhatsApp, Telegram, Discord, Slack, and Feishu.
  */
 function updateChannelsViewSwitch(): void {
   const listView = document.getElementById('channels-view-list');
@@ -143,6 +156,7 @@ function updateChannelsViewSwitch(): void {
   const tgView = document.getElementById('channels-view-telegram');
   const dcView = document.getElementById('channels-view-discord');
   const slView = document.getElementById('channels-view-slack');
+  const fsView = document.getElementById('channels-view-feishu');
   const headerSubtitle = document.getElementById('channels-header-subtitle');
 
   if (activeView === 0) {
@@ -151,8 +165,9 @@ function updateChannelsViewSwitch(): void {
     tgView?.classList.add('hidden');
     dcView?.classList.add('hidden');
     slView?.classList.add('hidden');
+    if (fsView) fsView.style.display = 'none';
     if (headerSubtitle) {
-      headerSubtitle.textContent = 'Set up messaging channel integrations such as WhatsApp, Telegram, Discord, or Slack.';
+      headerSubtitle.textContent = 'Set up messaging channel integrations such as WhatsApp, Telegram, Discord, Slack, or Feishu / Lark.';
     }
   } else if (activeView === 1) {
     listView?.classList.add('hidden');
@@ -160,6 +175,7 @@ function updateChannelsViewSwitch(): void {
     tgView?.classList.add('hidden');
     dcView?.classList.add('hidden');
     slView?.classList.add('hidden');
+    if (fsView) fsView.style.display = 'none';
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure WhatsApp mobile pairing, Owner number, and access permission allowlist.';
     }
@@ -169,6 +185,7 @@ function updateChannelsViewSwitch(): void {
     tgView?.classList.remove('hidden');
     dcView?.classList.add('hidden');
     slView?.classList.add('hidden');
+    if (fsView) fsView.style.display = 'none';
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure Telegram Bot Token, Owner Chat ID, and access permission allowlist.';
     }
@@ -178,6 +195,7 @@ function updateChannelsViewSwitch(): void {
     tgView?.classList.add('hidden');
     dcView?.classList.remove('hidden');
     slView?.classList.add('hidden');
+    if (fsView) fsView.style.display = 'none';
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure Discord Bot Token, Owner User ID, and access permission allowlist.';
     }
@@ -187,8 +205,19 @@ function updateChannelsViewSwitch(): void {
     tgView?.classList.add('hidden');
     dcView?.classList.add('hidden');
     slView?.classList.remove('hidden');
+    if (fsView) fsView.style.display = 'none';
     if (headerSubtitle) {
       headerSubtitle.textContent = 'Configure Slack Bot Token, App-Level Token (Socket Mode), Owner User ID, and access permission allowlist.';
+    }
+  } else if (activeView === 5) {
+    listView?.classList.add('hidden');
+    waView?.classList.add('hidden');
+    tgView?.classList.add('hidden');
+    dcView?.classList.add('hidden');
+    slView?.classList.add('hidden');
+    if (fsView) fsView.style.display = 'flex';
+    if (headerSubtitle) {
+      headerSubtitle.textContent = 'Configure Feishu / Lark App ID, App Secret, Domain, Owner User ID, and access permission allowlist.';
     }
   }
 }

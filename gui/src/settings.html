@@ -1186,6 +1186,133 @@
               </div>
             </div>
           </div>
+
+          <!-- View 5: Feishu / Lark Channel Configuration View -->
+          <div id="channels-view-feishu" class="channel-detail-view" style="display: none;">
+            <div class="channel-view-header">
+              <button id="btn-back-to-channels-feishu" class="btn-channel-back">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                Channels
+              </button>
+              <div class="channel-header-title-wrap">
+                <span class="ui-icon icon-channel-feishu" style="width: 20px; height: 20px;"></span>
+                <h2 class="channel-view-title">Feishu / Lark Integration</h2>
+                <span id="fs-connection-badge" class="channel-status-badge badge-disconnected">Disconnected</span>
+              </div>
+            </div>
+
+            <!-- Configuration Form Card -->
+            <div class="settings-section-card">
+              <div class="settings-section-card-title">Bot Authentication & Workspace</div>
+              <div class="settings-section-card-desc">
+                Configure your Feishu / Lark Self-Built App credentials to connect Operon via WebSocket long connection.
+              </div>
+              <div class="settings-card-divider"></div>
+
+              <div class="channel-form-grid">
+                <!-- Domain selection -->
+                <div class="channel-form-group">
+                  <label class="channel-form-label" for="input-fs-domain">Platform Domain</label>
+                  <select id="input-fs-domain" class="channel-form-input" style="cursor: pointer;">
+                    <option value="feishu">Feishu (China: open.feishu.cn)</option>
+                    <option value="lark">Lark (Global: open.larksuite.com)</option>
+                  </select>
+                </div>
+
+                <!-- App ID -->
+                <div class="channel-form-group">
+                  <label class="channel-form-label" for="input-fs-app-id">App ID</label>
+                  <input
+                    type="text"
+                    id="input-fs-app-id"
+                    class="channel-form-input"
+                    placeholder="cli_a1b2c3d4e5f6..."
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </div>
+
+                <!-- App Secret -->
+                <div class="channel-form-group">
+                  <label class="channel-form-label" for="input-fs-app-secret">App Secret</label>
+                  <input
+                    type="password"
+                    id="input-fs-app-secret"
+                    class="channel-form-input"
+                    placeholder="Enter App Secret..."
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </div>
+
+                <!-- Owner User ID -->
+                <div class="channel-form-group">
+                  <label class="channel-form-label" for="input-fs-owner-user-id">Owner User ID (Open ID / user_id)</label>
+                  <input
+                    type="text"
+                    id="input-fs-owner-user-id"
+                    class="channel-form-input"
+                    placeholder="ou_1234567890abcdef..."
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </div>
+
+                <!-- Workspace Directory -->
+                <div class="channel-form-group">
+                  <label class="channel-form-label" for="input-fs-workspace-dir">Custom Workspace Directory</label>
+                  <div class="channel-input-with-btn">
+                    <input
+                      type="text"
+                      id="input-fs-workspace-dir"
+                      class="channel-form-input"
+                      placeholder="Default: ~/.operon/workspace"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-fs-pick-workspace" class="btn-channel-pick-dir" title="Browse Folder">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <!-- Policy Warning Badge -->
+                  <div id="fs-policy-warning" class="channel-policy-warning" style="display: none;">
+                    ⚠️ This workspace directory is not covered by any policy rule in PolicyConfig. Tool calls will default to Deny.
+                  </div>
+                </div>
+
+                <!-- Allowlist -->
+                <div class="channel-form-group">
+                  <label class="channel-form-label" for="input-fs-allowlist">Allowlist (Allowed User Open IDs)</label>
+                  <div class="channel-input-with-btn">
+                    <input
+                      type="text"
+                      id="input-fs-allowlist"
+                      class="channel-form-input"
+                      placeholder="ou_xxx..."
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <button id="btn-fs-add-allowlist" class="btn-channel-add-allowlist">Add</button>
+                  </div>
+                  <div id="fs-allowlist-container" class="channel-allowlist-box"></div>
+                </div>
+              </div>
+
+              <!-- Status Message -->
+              <div id="fs-test-status-msg" style="font-size: 11px; font-weight: 600; color: #3498db; min-height: 16px;"></div>
+              <div class="settings-card-divider"></div>
+
+              <!-- Action Buttons -->
+              <div class="channel-setup-actions">
+                <button id="btn-fs-test-connection" class="btn-channel-test">Test Connection</button>
+                <button id="btn-fs-save" class="btn-channel-save">Save & Connect</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 6. SKILLS TAB PANEL -->

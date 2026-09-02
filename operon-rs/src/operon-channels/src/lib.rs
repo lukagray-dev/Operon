@@ -23,3 +23,7 @@ pub use operon_channels_discord as discord;
 /// Re-exported Slack channel sub-crate.
 pub use operon_channels_slack as slack;
 
+/// Re-exported Feishu / Lark channel sub-crate.
+pub use operon_channels_feishu as feishu;
+
+

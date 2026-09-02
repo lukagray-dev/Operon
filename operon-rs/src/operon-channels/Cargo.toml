@@ -18,4 +18,5 @@ operon-channels-whatsapp.workspace = true
 operon-channels-telegram.workspace = true
 operon-channels-discord.workspace = true
 operon-channels-slack.workspace = true
+operon-channels-feishu.workspace = true
 

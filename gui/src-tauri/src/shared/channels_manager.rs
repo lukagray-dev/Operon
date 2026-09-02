@@ -16,6 +16,10 @@ use operon_rs::channels::discord::client::DiscordClient;
 use operon_rs::channels::discord::config::DiscordConfig;
 use operon_rs::channels::discord::service::DiscordService;
 use operon_rs::channels::discord::types::UserId as DiscordUserId;
+use operon_rs::channels::feishu::client::FeishuClient;
+use operon_rs::channels::feishu::config::FeishuConfig;
+use operon_rs::channels::feishu::service::FeishuService;
+use operon_rs::channels::feishu::types::{FeishuDomain, UserId as FeishuUserId};
 use operon_rs::channels::slack::client::SlackClient;
 use operon_rs::channels::slack::config::SlackConfig;
 use operon_rs::channels::slack::service::SlackService;
@@ -47,6 +51,10 @@ pub static ACTIVE_DISCORD_CLIENT: std::sync::Mutex<Option<Arc<DiscordClient>>> =
 
 /// Global handle for active Slack client.
 pub static ACTIVE_SLACK_CLIENT: std::sync::Mutex<Option<Arc<SlackClient>>> =
+    std::sync::Mutex::new(None);
+
+/// Global handle for active Feishu client.
+pub static ACTIVE_FEISHU_CLIENT: std::sync::Mutex<Option<Arc<FeishuClient>>> =
     std::sync::Mutex::new(None);
 
 /// Persisted configuration JSON format for WhatsApp.
@@ -243,6 +251,58 @@ pub fn save_slack_saved_config(cfg: &SlackSavedConfig) -> Result<(), String> {
     Ok(())
 }
 
+/// Persisted configuration JSON format for Feishu / Lark.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct FeishuSavedConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub app_id: String,
+    #[serde(default)]
+    pub app_secret: String,
+    #[serde(default)]
+    pub domain: String,
+    #[serde(default)]
+    pub owner_user_id: String,
+    #[serde(default)]
+    pub allowlist: Vec<String>,
+    #[serde(default)]
+    pub workspace_dir: String,
+}
+
+/// Resolves the path to `~/.operon/channels/feishu/config.json`.
+pub fn get_feishu_config_path() -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    home.join(".operon")
+        .join("channels")
+        .join("feishu")
+        .join("config.json")
+}
+
+/// Loads Feishu config from disk.
+pub fn load_feishu_saved_config() -> FeishuSavedConfig {
+    let path = get_feishu_config_path();
+    if path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(cfg) = serde_json::from_str::<FeishuSavedConfig>(&content) {
+                return cfg;
+            }
+        }
+    }
+    FeishuSavedConfig::default()
+}
+
+/// Saves Feishu config to disk.
+pub fn save_feishu_saved_config(cfg: &FeishuSavedConfig) -> Result<(), String> {
+    let path = get_feishu_config_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let json_str = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ChannelPermissionRequestDto {
     pub session_id: String,
@@ -422,6 +482,7 @@ pub fn auto_start_channels_on_launch() {
         start_telegram_channel_if_configured().await;
         start_discord_channel_if_configured().await;
         start_slack_channel_if_configured().await;
+        start_feishu_channel_if_configured().await;
     });
 }
 
@@ -679,5 +740,71 @@ pub async fn start_slack_channel_if_configured() {
         }
     });
 }
+
+/// Starts Feishu channel background service if app credentials are configured.
+pub async fn start_feishu_channel_if_configured() {
+    let saved = load_feishu_saved_config();
+    if saved.app_id.trim().is_empty() || saved.app_secret.trim().is_empty() {
+        return;
+    }
+
+    let owner_user = if saved.owner_user_id.trim().is_empty() {
+        None
+    } else {
+        Some(FeishuUserId::new(saved.owner_user_id.trim()))
+    };
+
+    let allowlist: Vec<FeishuUserId> = saved
+        .allowlist
+        .iter()
+        .map(|s| FeishuUserId::new(s.trim()))
+        .collect();
+
+    let workspace_dir = if saved.workspace_dir.trim().is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(saved.workspace_dir.trim()))
+    };
+
+    let domain = if saved.domain.trim().eq_ignore_ascii_case("lark") {
+        FeishuDomain::Lark
+    } else {
+        FeishuDomain::Feishu
+    };
+
+    let fs_config = FeishuConfig {
+        enabled: true,
+        app_id: Some(saved.app_id.trim().to_string()),
+        app_secret: Some(saved.app_secret.trim().to_string()),
+        domain,
+        owner_user_id: owner_user,
+        allowlist,
+        workspace_dir,
+        verification_token: None,
+        encrypt_key: None,
+    };
+
+    let client = Arc::new(FeishuClient::new(fs_config.clone()));
+    if let Ok(mut lock) = ACTIVE_FEISHU_CLIENT.lock() {
+        *lock = Some(client.clone());
+    }
+
+    let app_config = match operon_rs::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            eprintln!("[operon-gui][feishu-auto] AppConfig error: {}", e);
+            return;
+        }
+    };
+
+    let event_hook = create_channel_event_hook();
+    let service = FeishuService::with_event_hook(client, fs_config, app_config, event_hook);
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = service.run().await {
+            eprintln!("[operon-gui][feishu-auto] FeishuService exited: {}", e);
+        }
+    });
+}
+
 
 

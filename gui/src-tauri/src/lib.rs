@@ -138,6 +138,7 @@ pub fn run() {
             left_sidebar::query_telegram_contacts,
             left_sidebar::query_discord_contacts,
             left_sidebar::query_slack_contacts,
+            left_sidebar::query_feishu_contacts,
             // Main Content Input actions
             main_content::input::get_available_models,
             main_content::input::select_model,
@@ -228,6 +229,11 @@ pub fn run() {
             settings::channels::slack::pick_slack_workspace_dialog,
             settings::channels::slack::test_slack_channel_connection,
             settings::channels::slack::save_slack_channel_config,
+            settings::channels::feishu::get_feishu_state,
+            settings::channels::feishu::check_feishu_policy_coverage,
+            settings::channels::feishu::pick_feishu_workspace_dialog,
+            settings::channels::feishu::test_feishu_channel_connection,
+            settings::channels::feishu::save_feishu_channel_config,
             settings::about::get_about_system_info,
             // Memory Settings actions
             settings::memory::memory_list,

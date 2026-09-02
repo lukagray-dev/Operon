@@ -28,6 +28,8 @@ pub enum ChannelId {
     Discord,
     /// Slack bot / Socket Mode connection.
     Slack,
+    /// Feishu / Lark bot / WebSocket connection.
+    Feishu,
     /// Extensible custom or third-party channel name.
     Other(String),
 }
@@ -39,6 +41,7 @@ impl std::fmt::Display for ChannelId {
             Self::Telegram => write!(f, "telegram"),
             Self::Discord => write!(f, "discord"),
             Self::Slack => write!(f, "slack"),
+            Self::Feishu => write!(f, "feishu"),
             Self::Other(name) => write!(f, "{}", name),
         }
     }
