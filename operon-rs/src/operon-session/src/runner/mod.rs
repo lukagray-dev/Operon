@@ -67,6 +67,7 @@ mod compaction;
 mod loop_impl;
 mod message_build;
 mod policy_path;
+mod subagent;
 mod tool_dispatch;
 
 // ── Re-imports ───────────────────────────────────────────────────────────────
@@ -225,6 +226,8 @@ impl SessionRunner {
                 "web" => dispatcher.register_web_tools(),
                 "todo" => dispatcher.register_todo_tools(),
                 "ask" => dispatcher.register_ask_tool(),
+                // Subagent tools register spawn_agent definition here; orchestration handled by runner.
+                "subagent" | "subagents" => dispatcher.register_subagent_tools(),
                 // Memory tools register definitions here; the store is attached below.
                 "memory" => dispatcher.register_memory_tools(),
                 other => tracing::warn!("Unknown tool group: {other}"),

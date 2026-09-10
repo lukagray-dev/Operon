@@ -332,6 +332,51 @@ async fn dispatcher_enforces_read_before_write_and_emits_progress() {
         captured
             .iter()
             .any(|p| p.tool == "write" && p.stage == ToolProgressStage::Completed),
-        "write should emit a completed progress update"
+    "write should emit a completed progress update"
     );
 }
+
+#[tokio::test]
+async fn subagent_facade_and_spawn_tool_exports() {
+    // 1. Verify that subagent types and definitions are available directly via operon_rs facade
+    use operon_rs::prelude::{
+        spawn_agent_definition, SpawnAgentArgs, SpawnAgentOutput, SpawnAgentToolError,
+    };
+
+    // 2. Validate tool definition
+    let def = spawn_agent_definition();
+    assert_eq!(def.name, "spawn_agent");
+    assert!(def.description.contains("spawn"));
+    assert!(def.parameters.is_object());
+
+    // 3. Test SpawnAgentArgs parsing from JSON
+    let args_json = json!({
+        "role": "code_reviewer",
+        "task": "Review pull request #42 for potential memory leaks and edge cases",
+    });
+    let parsed: SpawnAgentArgs = SpawnAgentArgs::from_json(&args_json)
+        .expect("SpawnAgentArgs should deserialize from valid JSON");
+    assert_eq!(parsed.role, "code_reviewer");
+    assert_eq!(
+        parsed.task,
+        "Review pull request #42 for potential memory leaks and edge cases"
+    );
+
+    // 4. Test SpawnAgentOutput formatting
+    let output = SpawnAgentOutput::completed(
+        "session_123_sub_0".to_string(),
+        "code_reviewer",
+        "No memory leaks found. PR looks clean!",
+    );
+    assert_eq!(output.status, "completed");
+    let formatted = output.format_for_parent();
+    assert!(formatted.contains("### Subagent [code_reviewer] (completed)"));
+    assert!(formatted.contains("No memory leaks found."));
+
+    // 5. Test error parsing
+    let bad_json = json!({ "role": "missing_task" });
+    let err = SpawnAgentArgs::from_json(&bad_json);
+    assert!(err.is_err());
+    let _typed_err: SpawnAgentToolError = err.unwrap_err();
+}
+

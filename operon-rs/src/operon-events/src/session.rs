@@ -196,6 +196,61 @@ pub enum SessionEvent {
         options: Vec<String>,
     },
 
+    // ── Subagent lifecycle ───────────────────────────────────────────────────
+    /// A subagent was spawned with a dedicated session.
+    ///
+    /// Emitted by the runner when a `spawn_agent` call is initiated.
+    SubagentSpawned {
+        /// Session ID of the parent agent that spawned this subagent.
+        parent_session_id: String,
+        /// Unique session ID assigned to the new child subagent.
+        subagent_session_id: String,
+        /// The tool call ID that initiated the spawn.
+        call_id: String,
+        /// The role or specialization of the subagent.
+        role: String,
+        /// The task prompt assigned to the subagent.
+        task: String,
+    },
+
+    /// A subagent emitted a progress update during execution.
+    SubagentProgress {
+        /// Session ID of the parent agent.
+        parent_session_id: String,
+        /// Unique session ID of the subagent.
+        subagent_session_id: String,
+        /// The tool call ID that initiated the spawn.
+        call_id: String,
+        /// Current lifecycle stage or tool name.
+        stage: String,
+        /// Human-readable progress message.
+        message: String,
+    },
+
+    /// A subagent completed its task and produced a final response.
+    SubagentCompleted {
+        /// Session ID of the parent agent.
+        parent_session_id: String,
+        /// Unique session ID of the subagent.
+        subagent_session_id: String,
+        /// The tool call ID that initiated the spawn.
+        call_id: String,
+        /// The final summary or answer produced by the subagent.
+        summary: String,
+    },
+
+    /// A subagent failed to complete its task.
+    SubagentFailed {
+        /// Session ID of the parent agent.
+        parent_session_id: String,
+        /// Unique session ID of the subagent.
+        subagent_session_id: String,
+        /// The tool call ID that initiated the spawn.
+        call_id: String,
+        /// Reason or error message for the failure.
+        error: String,
+    },
+
     // ── Turn lifecycle ────────────────────────────────────────────────────────
     /// One full agent turn completed (model responded; all tool calls dispatched).
     ///

@@ -1,0 +1,15 @@
+[package]
+name        = "operon-tools-subagent"
+description = "Facade crate for Operon subagent tools."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-tools-subagent-spawn.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+

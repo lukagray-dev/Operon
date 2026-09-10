@@ -43,5 +43,6 @@ pub use operon_tools_core::{
 pub use operon_tools_fs as fs;
 pub use operon_tools_memory as memory;
 pub use operon_tools_shell as shell;
+pub use operon_tools_subagent as subagent;
 pub use operon_tools_todo as todo;
 pub use operon_tools_web as web;

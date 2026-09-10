@@ -65,6 +65,10 @@ members = [
     # Ask tool
     "operon-rs/src/operon-tools/src/ask",
 
+    # Subagent tools
+    "operon-rs/src/operon-tools/src/subagent",
+    "operon-rs/src/operon-tools/src/subagent/src/spawn_agent",
+
     # Events bus — pure types, no async
     "operon-rs/src/operon-events",
 
@@ -209,6 +213,8 @@ operon-tools-memory-retrieve          = { path = "operon-rs/src/operon-tools/src
 operon-tools-memory-search            = { path = "operon-rs/src/operon-tools/src/memory/src/memory_search" }
 operon-tools-memory                   = { path = "operon-rs/src/operon-tools/src/memory" }
 operon-tools-ask                      = { path = "operon-rs/src/operon-tools/src/ask" }
+operon-tools-subagent-spawn           = { path = "operon-rs/src/operon-tools/src/subagent/src/spawn_agent" }
+operon-tools-subagent                 = { path = "operon-rs/src/operon-tools/src/subagent" }
 operon-tools-fs                       = { path = "operon-rs/src/operon-tools/src/fs" }
 operon-tools                          = { path = "operon-rs/src/operon-tools" }
 

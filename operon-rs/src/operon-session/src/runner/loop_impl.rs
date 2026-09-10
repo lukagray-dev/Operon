@@ -17,7 +17,6 @@ use crate::lifecycle::LifecycleState;
 use crate::request::build_request;
 
 use super::message_build::{build_assistant_message, build_user_message, extract_usage_record};
-use super::tool_dispatch::ToolCallFlow;
 use super::SessionRunner;
 
 impl SessionRunner {
@@ -354,37 +353,18 @@ impl SessionRunner {
                 self.turn_index += 1;
             }
 
-            // ── 11. Policy-check and dispatch tool calls sequentially ────────
-            // Tool calls are still processed in the order the model emitted them.
-            // Do NOT parallelize — order matters for read-ledger enforcement.
-            let mut tool_results: Vec<ContentBlock> = Vec::new();
+            // ── 11. Policy-check and dispatch tool calls ────────────────────
+            // Standard tools are dispatched sequentially (read-before-write safety).
+            // Subagents (spawn_agent) are spawned concurrently in background tasks,
+            // and the loop waits for all subagents to finish before continuing.
+            let (tool_results, dispatch_stopped) = if should_stop {
+                (Vec::new(), true)
+            } else {
+                self.dispatch_turn_tool_calls(stream_result.tool_calls).await
+            };
 
-            for call in stream_result.tool_calls {
-                // If the user cancelled after the previous call, stop scheduling
-                // any new tool work and exit the session cleanly after preserving
-                // any results that were already produced.
-                if should_stop {
-                    break;
-                }
-
-                // Give any already-buffered commands a chance to stop the loop
-                // before we spend time dispatching the next call.
-                self.drain_ready_commands();
-                if self.take_matching_command(None).is_some() {
-                    tracing::info!("Session cancelled by user command");
-                    should_stop = true;
-                    break;
-                }
-
-                // Delegate to handle_tool_call for ask-tool interception,
-                // policy gating, and dispatcher invocation.
-                match self.handle_tool_call(call, &mut tool_results).await {
-                    ToolCallFlow::Continue => {}
-                    ToolCallFlow::Stop => {
-                        should_stop = true;
-                        break;
-                    }
-                }
+            if dispatch_stopped {
+                should_stop = true;
             }
 
             // Hey friend! If any tool calls ran, immediately sync the latest todo state to disk.

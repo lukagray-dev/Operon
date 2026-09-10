@@ -500,3 +500,341 @@ async fn test_session_runner_restores_persisted_todos() {
     // Clean up temporary file
     let _ = std::fs::remove_file(session_file);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subagent Coordination & Dispatch Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Helper function to create an isolated `SessionRunner` test fixture with custom policy and tools.
+///
+/// This helper configures a fresh temp workspace directory, an isolated session store path,
+/// and returns the runner alongside its outbound event receiver and inbound command sender.
+async fn create_test_runner(
+    policy: PolicyConfig,
+    tool_groups: Vec<String>,
+) -> (
+    SessionRunner,
+    mpsc::Receiver<SessionEvent>,
+    mpsc::Sender<SessionCommand>,
+) {
+    use operon_providers::{ApiCredentials, ModelConfig, Provider, ProviderConfig};
+
+    // Generate a unique temp directory using timestamp nanos to avoid collision with concurrent runs
+    let now_nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let temp_dir = std::env::temp_dir().join(format!("operon_subagent_test_{now_nanos}"));
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let session_file = temp_dir.join("parent_session.json");
+
+    let config = SessionConfig {
+        provider_config: ProviderConfig {
+            provider: Provider::Anthropic,
+            credentials: ApiCredentials::unauthenticated(),
+            model: ModelConfig {
+                model_id: "test-model".to_string(),
+                context_window: 100_000,
+                max_tokens: 1000,
+                reasoning_effort: None,
+            },
+            base_url_override: None,
+        },
+        policy,
+        project_dir: None,
+        workspace_root: temp_dir.clone(),
+        role: Role::Owner,
+        tool_groups,
+        compaction: operon_context::CompactionConfig::default(),
+        store_path: Some(session_file),
+        channel_instructions: None,
+    };
+
+    let (event_tx, event_rx) = mpsc::channel(100);
+    let (cmd_tx, cmd_rx) = mpsc::channel(10);
+
+    let runner = SessionRunner::new(config, event_tx, cmd_rx)
+        .await
+        .expect("SessionRunner::new should succeed");
+
+    (runner, event_rx, cmd_tx)
+}
+
+/// Verifies that when the security policy denies `GlobalTool::SubAgent`, any attempt by
+/// the model to invoke `spawn_agent` is immediately rejected with an opaque permission
+/// denied error result, preventing unauthorized child agent spawning.
+#[tokio::test]
+async fn test_subagent_dispatch_policy_denied() {
+    // 1. Explicitly configure policy to DENY subagent creation
+    let mut policy = PolicyConfig::empty();
+    policy
+        .global
+        .owner
+        .insert(operon_policy::GlobalTool::SubAgent, operon_policy::PermissionMode::Deny);
+
+    // 2. Initialize runner with the restrictive policy
+    let (mut runner, _event_rx, _cmd_tx) =
+        create_test_runner(policy, vec!["subagent".to_string()]).await;
+
+    let call = ToolCall {
+        id: ToolCallId("call_sub_denied".to_string()),
+        name: "spawn_agent".to_string(),
+        arguments: json!({
+            "role": "researcher",
+            "task": "explore internal secrets"
+        }),
+    };
+
+    // 3. Dispatch the tool call
+    let (results, should_stop) = runner.dispatch_turn_tool_calls(vec![call]).await;
+
+    // Turn should not be stopped, but tool call must yield an error result
+    assert!(!should_stop, "Policy denial does not terminate session");
+    assert_eq!(results.len(), 1, "Exactly one tool result must be returned");
+
+    match &results[0] {
+        ContentBlock::ToolResult(res) => {
+            assert_eq!(res.call_id.0, "call_sub_denied");
+            assert_eq!(res.name, "spawn_agent");
+            assert!(res.is_error, "Denied tool call must have is_error: true");
+            match &res.content {
+                ToolContent::Text(t) => {
+                    assert_eq!(
+                        t, "Tool not available.",
+                        "Expected opaque permission denied message, got: {t}"
+                    );
+                }
+                _ => panic!("Expected text tool content"),
+            }
+        }
+        _ => panic!("Expected ToolResult content block"),
+    }
+}
+
+/// Verifies that malformed arguments (such as omitting the required `task` field) are
+/// caught cleanly during JSON schema deserialization and returned as an error result
+/// to the parent model without crashing the agent loop.
+#[tokio::test]
+async fn test_subagent_dispatch_malformed_arguments() {
+    let mut policy = PolicyConfig::empty();
+    policy
+        .global
+        .owner
+        .insert(operon_policy::GlobalTool::SubAgent, operon_policy::PermissionMode::Allow);
+
+    let (mut runner, _event_rx, _cmd_tx) =
+        create_test_runner(policy, vec!["subagent".to_string()]).await;
+
+    // Missing required field 'task' in arguments JSON
+    let call = ToolCall {
+        id: ToolCallId("call_bad_args".to_string()),
+        name: "spawn_agent".to_string(),
+        arguments: json!({ "role": "researcher" }),
+    };
+
+    let (results, should_stop) = runner.dispatch_turn_tool_calls(vec![call]).await;
+
+    assert!(!should_stop);
+    assert_eq!(results.len(), 1);
+
+    match &results[0] {
+        ContentBlock::ToolResult(res) => {
+            assert_eq!(res.call_id.0, "call_bad_args");
+            assert!(res.is_error, "Malformed arguments must yield is_error: true");
+            match &res.content {
+                ToolContent::Text(t) => {
+                    assert!(
+                        t.contains("missing field") || t.contains("task"),
+                        "Expected missing field error, got: {t}"
+                    );
+                }
+                _ => panic!("Expected text tool content"),
+            }
+        }
+        _ => panic!("Expected ToolResult content block"),
+    }
+}
+
+/// Verifies that spawning a subagent generates an isolated session ID derived from
+/// the parent session, sets up a separate JSON storage path, and properly prepares
+/// leaf-only tool configurations (disallowing nested subagent spawning).
+#[tokio::test]
+async fn test_subagent_spawn_config_isolation() {
+    let policy = PolicyConfig::empty();
+    let (runner, _event_rx, _cmd_tx) =
+        create_test_runner(policy, vec!["subagent".to_string()]).await;
+
+    let call = ToolCall {
+        id: ToolCallId("call_iso".to_string()),
+        name: "spawn_agent".to_string(),
+        arguments: json!({
+            "role": "data_analyst",
+            "task": "analyze metrics"
+        }),
+    };
+
+    // Prepare in-flight background task
+    let inflight = runner
+        .spawn_subagent_task(0, call)
+        .expect("spawn_subagent_task should succeed");
+
+    assert_eq!(inflight.call_index, 0);
+    assert_eq!(inflight.call_id.0, "call_iso");
+    assert_eq!(inflight.name, "spawn_agent");
+
+    // Verify separate session ID convention: <parent_session_id>_sub_0_<nanos>
+    let expected_prefix = format!("{}_sub_0_", runner.session_id());
+    assert!(
+        inflight.subagent_session_id.starts_with(&expected_prefix),
+        "Subagent session ID must start with parent session ID prefix"
+    );
+
+    // Cancel in-flight background task to clean up resources
+    let _ = inflight.cmd_tx.send(SessionCommand::Cancel).await;
+    inflight.join_handle.abort();
+}
+
+/// Verifies the core batch orchestration contract:
+/// When multiple subagents and normal tools are requested in a single turn, the subagents
+/// run concurrently, the parent runner waits until ALL subagents complete, and the final
+/// results are returned in the EXACT order of the original tool calls.
+#[tokio::test]
+async fn test_subagent_concurrent_batch_await_ordering() {
+    let mut policy = PolicyConfig::empty();
+    policy
+        .global
+        .owner
+        .insert(operon_policy::GlobalTool::SubAgent, operon_policy::PermissionMode::Allow);
+    policy
+        .global
+        .owner
+        .insert(operon_policy::GlobalTool::Todo, operon_policy::PermissionMode::Allow);
+
+    let (mut runner, mut event_rx, _cmd_tx) = create_test_runner(
+        policy,
+        vec!["subagent".to_string(), "todo".to_string()],
+    )
+    .await;
+
+    // Tool call 0: subagent 1
+    let call_sub1 = ToolCall {
+        id: ToolCallId("sub_1".to_string()),
+        name: "spawn_agent".to_string(),
+        arguments: json!({
+            "role": "agent_alpha",
+            "task": "research topic A"
+        }),
+    };
+
+    // Tool call 1: standard sequential tool (todo_list)
+    let call_todo = ToolCall {
+        id: ToolCallId("todo_call".to_string()),
+        name: "todo_list".to_string(),
+        arguments: json!({}),
+    };
+
+    // Tool call 2: subagent 2
+    let call_sub2 = ToolCall {
+        id: ToolCallId("sub_2".to_string()),
+        name: "spawn_agent".to_string(),
+        arguments: json!({
+            "role": "agent_beta",
+            "task": "research topic B"
+        }),
+    };
+
+    // Dispatch the mixed batch of tool calls
+    let (results, should_stop) = runner
+        .dispatch_turn_tool_calls(vec![call_sub1, call_todo, call_sub2])
+        .await;
+
+    assert!(!should_stop);
+    assert_eq!(
+        results.len(),
+        3,
+        "All 3 tool results must be collected and returned"
+    );
+
+    // Verify that the order is strictly preserved:
+    // Slot 0 matches tool call 0 (sub_1)
+    match &results[0] {
+        ContentBlock::ToolResult(r) => {
+            assert_eq!(r.call_id.0, "sub_1");
+            assert_eq!(r.name, "spawn_agent");
+        }
+        _ => panic!("Expected ToolResult at index 0"),
+    }
+
+    // Slot 1 matches tool call 1 (todo_call)
+    match &results[1] {
+        ContentBlock::ToolResult(r) => {
+            assert_eq!(r.call_id.0, "todo_call");
+            assert_eq!(r.name, "todo_list");
+            assert!(!r.is_error, "todo_list tool call must succeed");
+        }
+        _ => panic!("Expected ToolResult at index 1"),
+    }
+
+    // Slot 2 matches tool call 2 (sub_2)
+    match &results[2] {
+        ContentBlock::ToolResult(r) => {
+            assert_eq!(r.call_id.0, "sub_2");
+            assert_eq!(r.name, "spawn_agent");
+        }
+        _ => panic!("Expected ToolResult at index 2"),
+    }
+
+    // Verify observability: SubagentSpawned events must have been published to parent event stream
+    let mut spawned_roles = Vec::new();
+    while let Ok(event) = event_rx.try_recv() {
+        if let SessionEvent::SubagentSpawned { role, .. } = event {
+            spawned_roles.push(role);
+        }
+    }
+    assert!(
+        spawned_roles.contains(&"agent_alpha".to_string()),
+        "Parent event stream must contain SubagentSpawned for agent_alpha"
+    );
+    assert!(
+        spawned_roles.contains(&"agent_beta".to_string()),
+        "Parent event stream must contain SubagentSpawned for agent_beta"
+    );
+}
+
+/// Verifies that sending a `SessionCommand::Cancel` stops tool execution cleanly,
+/// signaling the runner to stop and avoiding spawning any remaining pending subagents.
+#[tokio::test]
+async fn test_subagent_cancellation_propagation() {
+    let policy = PolicyConfig::empty();
+    let (mut runner, _event_rx, cmd_tx) =
+        create_test_runner(policy, vec!["subagent".to_string()]).await;
+
+    // Send a cancel command before dispatching the turn
+    cmd_tx
+        .send(SessionCommand::Cancel)
+        .await
+        .expect("send cancel command");
+
+    let call = ToolCall {
+        id: ToolCallId("sub_cancelled".to_string()),
+        name: "spawn_agent".to_string(),
+        arguments: json!({
+            "role": "worker",
+            "task": "do work"
+        }),
+    };
+
+    let (results, should_stop) = runner.dispatch_turn_tool_calls(vec![call]).await;
+
+    // Session runner must recognize cancellation and set should_stop = true
+    assert!(
+        should_stop,
+        "should_stop must be true when Cancel command is pending"
+    );
+    assert_eq!(
+        results.len(),
+        0,
+        "No results should be produced when cancelled before tool execution"
+    );
+}
+

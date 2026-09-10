@@ -4550,6 +4550,7 @@ dependencies = [
  "operon-tools",
  "operon-tools-ask",
  "operon-tools-memory-store",
+ "operon-tools-subagent-spawn",
  "reqwest",
  "serde",
  "serde_json",
@@ -4596,6 +4597,8 @@ dependencies = [
  "operon-tools-memory-store",
  "operon-tools-shell",
  "operon-tools-shell-bash",
+ "operon-tools-subagent",
+ "operon-tools-subagent-spawn",
  "operon-tools-todo",
  "operon-tools-todo-create",
  "operon-tools-todo-delete",
@@ -4879,6 +4882,26 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-subagent"
+version = "0.1.0"
+dependencies = [
+ "operon-tools-subagent-spawn",
+ "tokio",
+]
+
+[[package]]
+name = "operon-tools-subagent-spawn"
+version = "0.1.0"
+dependencies = [
+ "operon-context-normalize-tools",
+ "operon-tools-core",
+ "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "tokio",
 ]

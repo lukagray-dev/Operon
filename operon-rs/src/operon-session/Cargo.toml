@@ -16,6 +16,7 @@ operon-providers             = { workspace = true }
 operon-tools                 = { workspace = true }
 operon-tools-ask             = { workspace = true }
 operon-tools-memory-store    = { workspace = true }
+operon-tools-subagent-spawn  = { workspace = true }
 
 tokio      = { workspace = true }
 reqwest    = { workspace = true, features = ["json", "stream"] }

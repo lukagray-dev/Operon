@@ -228,5 +228,29 @@ impl Dispatcher {
             },
         );
     }
+
+    /// Registers the `subagent` tools (currently `spawn_agent`).
+    ///
+    /// The `spawn_agent` tool is intercepted and orchestrated by the session runner,
+    /// which manages child sessions, concurrent background tasks, and event routing.
+    /// This registration ensures its definition schema is exposed in the API tools payload.
+    pub fn register_subagent_tools(&mut self) {
+        let name = "spawn_agent".to_string();
+        self.tools.insert(
+            name.clone(),
+            ToolEntry {
+                definition: operon_tools_subagent_spawn::definition(),
+                execute: Box::new(move |_call_id, _args, _progress| {
+                    let n = name.clone();
+                    Box::pin(async move {
+                        Err(format!(
+                            "'{}' must be intercepted and orchestrated by the runner, not dispatched directly",
+                            n
+                        ))
+                    })
+                }),
+            },
+        );
+    }
 }
 

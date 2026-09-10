@@ -44,6 +44,9 @@ pub use providers::{
 };
 pub use session::{LifecycleState, SessionConfig, SessionError, SessionRunner};
 pub use tools::dispatcher::{DispatchOutcome, Dispatcher};
+pub use tools::subagent::{
+    spawn_agent_definition, SpawnAgentArgs, SpawnAgentOutput, SpawnAgentToolError,
+};
 pub use tools::{emit_tool_progress, ToolProgress, ToolProgressEmitter, ToolProgressStage};
 pub use tools_core::{
     ReadLedger, TodoItem, TodoPriority, TodoStatus, TodoStore, ToolDispatchError,
@@ -59,7 +62,8 @@ pub mod prelude {
         PolicyError, PolicyResolver, Provider, ProviderCapabilities, ProviderConfig, ReadLedger,
         ReasoningBlock, ReasoningSignature, Role, SecretString, SessionCommand, SessionConfig,
         SessionError, SessionEvent, SessionRunner, SessionSnapshot, SessionTokenState,
-        SnapshotBuilder, SnapshotConfig, SnapshotError, StopReason, StreamEvent, TodoItem,
+        SnapshotBuilder, SnapshotConfig, SnapshotError, SpawnAgentArgs, SpawnAgentOutput,
+        SpawnAgentToolError, spawn_agent_definition, StopReason, StreamEvent, TodoItem,
         TodoPriority, TodoStatus, TodoStore, TokenBudget, TokenEstimator, TokenRecorder,
         TokenTrackerError, ToolCall, ToolCallId, ToolContent, ToolDefinition, ToolDispatchError,
         ToolProgress, ToolProgressEmitter, ToolProgressStage, ToolResult, UsageRecord,

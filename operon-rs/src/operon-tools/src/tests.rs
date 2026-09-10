@@ -638,4 +638,30 @@ async fn test_glob_tool_dispatch() {
     }
 }
 
+#[tokio::test]
+async fn test_subagent_tool_registration_and_definition() {
+    let mut d = Dispatcher::new();
+    d.register_subagent_tools();
+
+    // Verify spawn_agent definition is exposed
+    let def = d
+        .definitions()
+        .find(|def| def.name == "spawn_agent")
+        .expect("spawn_agent tool should be registered");
+
+    assert_eq!(def.name, "spawn_agent");
+    assert!(def.description.contains("autonomous subagent"));
+
+    // Direct dispatch without runner interception should return an error
+    let call = make_call("spawn_agent", json!({ "task": "test subagent task" }));
+    let outcome = d.dispatch(call).await;
+    assert!(outcome.is_error);
+    match outcome.content {
+        operon_context_normalize_tools::ToolContent::Text(msg) => {
+            assert!(msg.contains("must be intercepted"));
+        }
+        _ => panic!("expected Text content"),
+    }
+}
+
 

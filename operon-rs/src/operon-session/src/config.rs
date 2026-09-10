@@ -134,6 +134,7 @@ pub struct SessionConfig {
     /// Names of tool groups to register on the `Dispatcher` at startup.
     ///
     /// Valid values: `"fs"`, `"shell"`, `"web"`, `"todo"`, `"ask"`, `"memory"`.
+    /// Valid values: `"fs"`, `"shell"`, `"web"`, `"todo"`, `"ask"`, `"memory"`, `"subagent"`.
     /// Unknown names are logged as warnings and skipped.
     /// This list is also passed to `SnapshotBuilder` so the system prompt
     /// includes an accurate tool availability block.
@@ -166,6 +167,7 @@ impl SessionConfig {
     /// Returns the standard set of built-in tool groups for an interactive session.
     ///
     /// Includes: `"fs"`, `"shell"`, `"web"`, `"todo"`, `"ask"`, `"memory"`.
+    /// Includes: `"fs"`, `"shell"`, `"web"`, `"todo"`, `"ask"`, `"memory"`, `"subagent"`.
     pub fn default_tool_groups() -> Vec<String> {
         vec![
             "fs".into(),
@@ -174,6 +176,7 @@ impl SessionConfig {
             "todo".into(),
             "ask".into(),
             "memory".into(),
+            "subagent".into(),
         ]
     }
 

@@ -1,0 +1,18 @@
+[package]
+name        = "operon-tools-subagent-spawn"
+description = "Tool definition and argument types for spawning an autonomous subagent in Operon."
+version.workspace    = true
+edition.workspace    = true
+authors.workspace    = true
+license.workspace    = true
+repository.workspace = true
+
+[dependencies]
+operon-context-normalize-tools.workspace = true
+operon-tools-core.workspace              = true
+serde.workspace                          = true
+serde_json.workspace                     = true
+thiserror.workspace                      = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
