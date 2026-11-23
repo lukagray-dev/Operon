@@ -4,7 +4,7 @@
 //! verbatim. This module only decides boundaries; it never mutates message
 //! contents.
 
-use operon_context_normalize_messages::{ConversationMessage, MessageRole};
+use operon_context_normalize_messages::{ContentBlock, ConversationMessage, MessageRole};
 
 /// Result of splitting a conversation into system, compactable, and preserved
 /// portions.
@@ -62,15 +62,22 @@ fn extract_leading_system_message(
 }
 
 fn find_preserved_start(messages: &[ConversationMessage], preserved_turns: usize) -> usize {
+    // Hey friend! Let's collect all indices where a User prompt starts.
+    // Each user prompt represents the beginning of an interaction turn.
     let user_indices: Vec<usize> = messages
         .iter()
         .enumerate()
         .filter_map(|(index, message)| (message.role == MessageRole::User).then_some(index))
         .collect();
 
+    if user_indices.is_empty() {
+        return 0;
+    }
+
     let mut preserve_start = messages.len();
     let mut complete_turns_preserved = 0usize;
 
+    // We scan user turns from the most recent one backwards towards the beginning.
     for user_position in (0..user_indices.len()).rev() {
         let user_index = user_indices[user_position];
         let turn_end = user_indices
@@ -78,18 +85,17 @@ fn find_preserved_start(messages: &[ConversationMessage], preserved_turns: usize
             .copied()
             .unwrap_or(messages.len());
         let is_last_user_turn = user_position + 1 == user_indices.len();
-        let is_complete = turn_has_assistant_response(messages, user_index, turn_end);
+        let in_flight = is_last_user_turn && is_turn_in_flight(messages, user_index, turn_end);
 
-        if !is_complete {
-            // Only the final user turn is considered in-flight. Older user
-            // messages without assistant responses are historical fragments and
-            // can be summarized with the compactable portion.
-            if is_last_user_turn {
-                preserve_start = user_index;
-            }
+        if in_flight {
+            // Hey friend! An active in-flight turn (e.g. the user just sent a prompt, or the
+            // model is mid-turn calling tools) MUST be kept intact so execution continues smoothly.
+            // It does NOT consume the user's `preserved_turns` quota, which is reserved for completed turns!
+            preserve_start = user_index;
             continue;
         }
 
+        // For completed turns, if we already kept the requested number of completed turns, we stop here.
         if complete_turns_preserved >= preserved_turns {
             break;
         }
@@ -101,19 +107,43 @@ fn find_preserved_start(messages: &[ConversationMessage], preserved_turns: usize
     preserve_start
 }
 
-fn turn_has_assistant_response(
+/// Helper function to determine if a turn is still actively in-flight.
+///
+/// Hey buddy! A turn is in-flight if:
+/// 1. It only has the user prompt and no response yet.
+/// 2. Its latest message is not an Assistant response (e.g. it is a Tool result waiting for the assistant).
+/// 3. Its latest message is an Assistant response that requested tool calls (waiting for tool execution).
+///
+/// A turn is only considered complete when the assistant finishes with a text/final response without pending tool calls.
+fn is_turn_in_flight(
     messages: &[ConversationMessage],
     user_index: usize,
     turn_end: usize,
 ) -> bool {
-    messages
-        .get(user_index.saturating_add(1)..turn_end)
-        .map(|turn_messages| {
-            turn_messages
+    let turn_messages = match messages.get(user_index..turn_end) {
+        Some(slice) if !slice.is_empty() => slice,
+        _ => return true,
+    };
+
+    if turn_messages.len() <= 1 {
+        // Hey friend! Only the user prompt exists in this turn so far. It's definitely in-flight!
+        return true;
+    }
+
+    match turn_messages.last() {
+        Some(last_msg) if last_msg.role != MessageRole::Assistant => {
+            // Ended on a Tool result message or User message; still waiting for assistant response.
+            true
+        }
+        Some(last_msg) => {
+            // If the assistant message contains tool calls, the model is still executing tools!
+            last_msg
+                .content
                 .iter()
-                .any(|message| message.role == MessageRole::Assistant)
-        })
-        .unwrap_or(false)
+                .any(|block| matches!(block, ContentBlock::ToolCall(_)))
+        }
+        None => true,
+    }
 }
 
 #[cfg(test)]
@@ -201,5 +231,69 @@ mod tests {
 
         assert!(split.compactable.is_empty());
         assert_eq!(split.preserved, vec![user("only u1"), assistant("only a1")]);
+    }
+
+    #[test]
+    fn in_flight_turn_with_tool_calls_preserved_when_preserved_turns_is_zero() {
+        let call_msg = ConversationMessage::assistant(vec![ContentBlock::ToolCall(
+            operon_context_normalize_tools::ToolCall {
+                id: operon_context_normalize_tools::ToolCallId("call_1".to_string()),
+                name: "read_file".to_string(),
+                arguments: serde_json::json!({"path": "src/main.rs"}),
+            },
+        )]);
+        let result_msg = ConversationMessage {
+            role: MessageRole::Tool,
+            content: vec![ContentBlock::ToolResult(
+                operon_context_normalize_tools::ToolResult {
+                    call_id: operon_context_normalize_tools::ToolCallId("call_1".to_string()),
+                    name: "read_file".to_string(),
+                    content: operon_context_normalize_tools::ToolContent::Text(
+                        "fn main() {}".to_string(),
+                    ),
+                    is_error: false,
+                },
+            )],
+            stop_reason: None,
+        };
+
+        let messages = vec![
+            ConversationMessage::system("system"),
+            user("completed u1"),
+            assistant("completed a1"),
+            user("active u2"),
+            call_msg.clone(),
+            result_msg.clone(),
+        ];
+
+        let split = split_messages(messages, 0);
+
+        assert_eq!(
+            split.compactable,
+            vec![user("completed u1"), assistant("completed a1")]
+        );
+        assert_eq!(
+            split.preserved,
+            vec![user("active u2"), call_msg, result_msg]
+        );
+    }
+
+    #[test]
+    fn all_completed_turns_summarized_when_preserved_turns_is_zero() {
+        let messages = vec![
+            ConversationMessage::system("system"),
+            user("u1"),
+            assistant("a1"),
+            user("u2"),
+            assistant("a2"),
+        ];
+
+        let split = split_messages(messages, 0);
+
+        assert_eq!(
+            split.compactable,
+            vec![user("u1"), assistant("a1"), user("u2"), assistant("a2")]
+        );
+        assert!(split.preserved.is_empty());
     }
 }

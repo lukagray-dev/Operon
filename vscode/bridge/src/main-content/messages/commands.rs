@@ -120,19 +120,40 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
         .await
         .map_err(|e| e.to_string())?;
 
+    // Load full historical turns with their original turn indices and timestamps.
+    // Notice we do NOT use .enumerate() here because turn indices are monotonically
+    // preserved across compactions in the session store!
     let turns = store
-        .load_turns_with_timestamps(&session_id)
+        .load_turns_with_metadata(&session_id)
         .await
         .map_err(|e| e.to_string())?;
 
+    // Load any compaction records stored for this session
+    let compactions = store
+        .load_compactions(&session_id)
+        .await
+        .unwrap_or_default();
+
     let mut result = Vec::new();
 
-    for (turn_idx, (created_at, messages)) in turns.into_iter().enumerate() {
+    for (turn_idx, created_at, messages) in turns {
         let timestamp_str = format_timestamp(created_at);
 
         let mut user_text_parts = Vec::new();
         let mut blocks: Vec<MessageBlockDto> = Vec::new();
         let mut all_assistant_text_parts = Vec::new();
+
+        // If a compaction occurred at or was recorded for this turn, attach its compaction pill block!
+        if let Some(comp) = compactions.iter().find(|c| c.turn_index == turn_idx) {
+            blocks.push(MessageBlockDto::Compaction {
+                data: super::types::CompactionDto {
+                    tokens_before: comp.tokens_before,
+                    tokens_after: comp.tokens_after,
+                    summary: comp.summary.clone(),
+                    is_expanded: false,
+                },
+            });
+        }
 
         for msg in messages {
             match msg.role {
@@ -271,14 +292,18 @@ pub async fn load_session_messages(session_id: String) -> Result<Vec<ChatMessage
                                 if let Some(summary_content) =
                                     trimmed_start.strip_prefix("— Previous session summary —\n\n")
                                 {
-                                    blocks.push(MessageBlockDto::Compaction {
-                                        data: super::types::CompactionDto {
-                                            tokens_before: 0,
-                                            tokens_after: 0,
-                                            summary: summary_content.to_string(),
-                                            is_expanded: false,
-                                        },
-                                    });
+                                    // If we didn't already attach a compaction block for this turn from CompactionRecord, attach legacy one
+                                    let already_has_compaction = blocks.iter().any(|b| matches!(b, MessageBlockDto::Compaction { .. }));
+                                    if !already_has_compaction {
+                                        blocks.push(MessageBlockDto::Compaction {
+                                            data: super::types::CompactionDto {
+                                                tokens_before: 0,
+                                                tokens_after: 0,
+                                                summary: summary_content.to_string(),
+                                                is_expanded: false,
+                                            },
+                                        });
+                                    }
                                 } else if !trimmed_start.trim().is_empty() {
                                     all_assistant_text_parts.push(trimmed_start.to_string());
                                     if let Some(MessageBlockDto::Text { text: existing }) =

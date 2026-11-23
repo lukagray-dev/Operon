@@ -143,7 +143,7 @@ pub struct SessionConfig {
     // ── Context compaction ────────────────────────────────────────────────────
     /// Compaction settings — threshold percentage and preserved turn count.
     ///
-    /// `CompactionConfig::default()` gives a sensible 90% threshold with 2 preserved turns.
+    /// `CompactionConfig::default()` gives a sensible 90% threshold with all completed history summarized.
     pub compaction: CompactionConfig,
 
     // ── Session persistence ───────────────────────────────────────────────────

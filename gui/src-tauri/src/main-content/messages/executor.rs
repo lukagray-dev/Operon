@@ -150,11 +150,15 @@ pub async fn submit_prompt(
         .map_err(|e| e.to_string())?;
 
     if !is_new_session {
-        if let Ok(history) = store.load_full_history(&active_id).await {
-            let turns = store.load_turns(&active_id).await.unwrap_or_default();
+        // Hey buddy! When resuming an existing session, we load the compacted runner history
+        // (compacted baseline + turns strictly after compaction) so the LLM doesn't overflow context.
+        // We also compute the next turn index from the last recorded turn index + 1!
+        if let Ok(history) = store.load_runner_history(&active_id).await {
+            let turns = store.load_turns_with_metadata(&active_id).await.unwrap_or_default();
+            let next_turn_index = turns.last().map(|(t, _, _)| t + 1).unwrap_or(0);
             let last_tokens = store.get_last_token_count(&active_id).await.ok().flatten();
             if !history.is_empty() {
-                runner.set_history(history, turns.len(), last_tokens);
+                runner.set_history(history, next_turn_index, last_tokens);
             }
         }
     }
@@ -352,11 +356,12 @@ pub async fn edit_and_submit_prompt(
         .map_err(|e| e.to_string())?;
 
     // 4. Load truncated history up to target_turn_index into runner memory
-    if let Ok(history) = store.load_full_history(&session_id).await {
-        let turns = store.load_turns(&session_id).await.unwrap_or_default();
+    if let Ok(history) = store.load_runner_history(&session_id).await {
+        let turns = store.load_turns_with_metadata(&session_id).await.unwrap_or_default();
+        let next_turn_index = turns.last().map(|(t, _, _)| t + 1).unwrap_or(target_turn_index);
         let last_tokens = store.get_last_token_count(&session_id).await.ok().flatten();
         if !history.is_empty() {
-            runner.set_history(history, turns.len(), last_tokens);
+            runner.set_history(history, next_turn_index, last_tokens);
         }
     }
 

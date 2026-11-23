@@ -393,6 +393,24 @@ function setupOutsideClickListener(): void {
   });
 }
 
+/**
+ * Computes the next turn index monotonically based on current messages.
+ * Hey buddy! Using `Math.floor(messages.length / 2)` caused a major bug after compaction:
+ * compaction baseline turns or asymmetric messages make `messages.length` odd, which
+ * produced a duplicate turn_index and caused the assistant's streaming response to target
+ * an older message row higher up the page!
+ */
+function getNextTurnIndex(messages: ChatMessage[]): number {
+  if (messages.length === 0) return 0;
+  let maxTurn = -1;
+  for (const m of messages) {
+    if (typeof m.turn_index === 'number' && m.turn_index > maxTurn) {
+      maxTurn = m.turn_index;
+    }
+  }
+  return maxTurn + 1;
+}
+
 async function handleSubmit(): Promise<void> {
   if (inputState.getIsVoiceRecording()) {
     stopVoiceRecording();
@@ -417,7 +435,7 @@ async function handleSubmit(): Promise<void> {
   inputState.setIsResponding(true);
 
   // 1. Immediately insert user message into chat view
-  const userTurnIndex = Math.floor(messagesState.getMessages().length / 2);
+  const userTurnIndex = getNextTurnIndex(messagesState.getMessages());
   const userMsg: ChatMessage = {
     id: `turn_${userTurnIndex}_user`,
     role: 'user',

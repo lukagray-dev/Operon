@@ -87,20 +87,34 @@ impl SessionRunner {
 
         // Persist the compacted history baseline to disk so subsequent turns and session restarts
         // continue from the compacted snapshot + summary rather than reloading uncompacted history.
+        // Importantly, store.apply_compaction preserves all historical turns in session.turns!
         if let Some(store) = &self.store {
-            let baseline_len = self.messages.len().saturating_sub(1);
-            let compacted_baseline = &self.messages[..baseline_len];
+            // Hey friend! We find the index of the in-flight user prompt in `self.messages`.
+            // Everything BEFORE this index belongs to the compacted baseline (rendered system snapshot,
+            // assistant summary of past completed turns, and any explicitly preserved completed turns).
+            // Everything AT OR AFTER this index belongs to the active in-flight turn (user prompt,
+            // tool calls, and results) which will be saved by `store.save_turn` when the turn finishes!
+            let in_flight_user_idx = self
+                .messages
+                .iter()
+                .rposition(|m| m.role == operon_context::MessageRole::User)
+                .unwrap_or(self.messages.len());
+            let compacted_baseline = &self.messages[..in_flight_user_idx];
             let _ = store
                 .apply_compaction(
                     &self.session_id,
+                    self.turn_index,
                     compacted_baseline,
-                    Some(result.tokens_after),
+                    tokens_before,
+                    result.tokens_after,
+                    &result.summary,
                 )
                 .await;
         }
 
-        // Reset turn index to 1 (turn 0 is the compacted baseline, current turn will be turn 1)
-        self.turn_index = 1;
+        // Note: We deliberately do NOT reset self.turn_index to 1! Keeping turn indices
+        // strictly monotonic prevents turn number collisions, preserves full conversation
+        // history, and ensures subsequent turns are appended with unique IDs in the UI.
 
         let _ = self
             .event_tx

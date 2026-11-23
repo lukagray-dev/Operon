@@ -72,9 +72,15 @@ impl SessionRunner {
 
                 match self.run_compaction().await {
                     Ok(()) => {
-                        // Compaction rebuilt self.messages into [system, summary, preserved..., in_flight_user_msg].
-                        // Reset turn_start_len to the index of the in-flight user message so slice indexing is always valid.
-                        turn_start_len = self.messages.len().saturating_sub(1);
+                        // Hey buddy! Compaction rebuilt self.messages into [system, summary, preserved..., in_flight_turn...].
+                        // We reset `turn_start_len` to the start of the in-flight turn (the last user message)
+                        // so that `save_turn` saves the full active turn (user prompt, tool calls, and tool results)
+                        // without slicing off the user's prompt or causing UI ordering glitches!
+                        turn_start_len = self
+                            .messages
+                            .iter()
+                            .rposition(|m| m.role == MessageRole::User)
+                            .unwrap_or(0);
                     }
                     Err(SessionError::Compaction(
                         operon_context::CompactionError::ThresholdNotReached,

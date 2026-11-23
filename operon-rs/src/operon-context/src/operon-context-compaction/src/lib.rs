@@ -43,9 +43,14 @@ pub struct CompactionConfig {
 
 impl CompactionConfig {
     /// Create a compaction configuration for a specific model context window.
+    ///
+    /// Hey buddy! In an autonomous agent system with extensive tool outputs (file reads,
+    /// command stdout, code inspections), completed turns quickly consume tens of thousands
+    /// of tokens. Therefore, `preserved_turns` defaults to 0: all completed past turns are
+    /// summarized into the handoff summary, while the active in-flight turn is preserved.
     pub fn with_context_window(context_window: usize) -> Self {
         Self {
-            preserved_turns: 2,
+            preserved_turns: 0,
             threshold_pct: 0.90,
             context_window,
         }
@@ -53,10 +58,10 @@ impl CompactionConfig {
 }
 
 impl Default for CompactionConfig {
-    //For tests only!
+    // For tests and default fallbacks
     fn default() -> Self {
         Self {
-            preserved_turns: 2,
+            preserved_turns: 0,
             threshold_pct: 0.90,
             context_window: 128_000,
         }
@@ -84,7 +89,7 @@ mod tests {
     fn default_config_matches_documented_values() {
         let config = CompactionConfig::default();
 
-        assert_eq!(config.preserved_turns, 2);
+        assert_eq!(config.preserved_turns, 0);
         assert!((config.threshold_pct - 0.90).abs() < f32::EPSILON);
         assert_eq!(config.context_window, 128_000);
     }

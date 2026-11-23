@@ -122,6 +122,19 @@ function isChannelSession(sessionId: string | null): boolean {
   return sessionId.startsWith('wa-') || sessionId.startsWith('tg-');
 }
 
+/**
+ * Safely finds the DOM element for a message row by ID.
+ * Hey buddy! If multiple rows ever happen to match (e.g. from historical turn index overlap),
+ * querying all matching rows and selecting the last (bottom-most) row guarantees that
+ * live streaming tokens render into the newly created prompt response row, rather than
+ * erroneously rendering into an older row above the user prompt!
+ */
+function getMessageRowElement(msgId: string): HTMLElement | null {
+  const rows = document.querySelectorAll<HTMLElement>(`[data-message-id="${msgId}"]`);
+  if (rows.length === 0) return null;
+  return rows[rows.length - 1];
+}
+
 export function initMessages(): void {
   setupScrollListener();
   getCachedSettings().catch(() => {});
@@ -166,7 +179,7 @@ export function initMessages(): void {
   });
 
   messagesState.onStreamText((msgId, blockIdx, fullBlockText) => {
-    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    const row = getMessageRowElement(msgId);
     if (!row) {
       syncMessageList();
       return;
@@ -185,7 +198,7 @@ export function initMessages(): void {
   });
 
   messagesState.onStreamWorkGroup((msgId, blockIdx) => {
-    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    const row = getMessageRowElement(msgId);
     if (!row) return;
 
     const msg = messagesState.getMessageById(msgId);
@@ -223,7 +236,7 @@ export function initMessages(): void {
 
   messagesState.onStreamAskQuestion((msgId, blockIdx, data) => {
     cleanupActiveOrb();
-    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    const row = getMessageRowElement(msgId);
     if (row) {
       const askCardEl = createAskCardElement(data, async (answer) => {
         await respondToAskIpc(data.id, answer);
@@ -235,7 +248,7 @@ export function initMessages(): void {
   });
 
   messagesState.onStreamCompaction((msgId, blockIdx, data) => {
-    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    const row = getMessageRowElement(msgId);
     if (row) {
       const existingEl = row.querySelector<HTMLElement>(`[data-block-index="${blockIdx}"].compaction-pill-container`);
       if (existingEl) {
@@ -253,7 +266,7 @@ export function initMessages(): void {
 
   messagesState.onStreamFinished((msgId) => {
     cleanupActiveOrb();
-    const row = document.querySelector<HTMLElement>(`[data-message-id="${msgId}"]`);
+    const row = getMessageRowElement(msgId);
     if (row) {
       const msg = messagesState.getMessageById(msgId);
       if (msg) {

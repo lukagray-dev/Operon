@@ -44,10 +44,36 @@ pub struct SessionJson {
     pub provider: String,
     /// Ordered list of all conversation turns.
     pub turns: Vec<TurnJson>,
+    /// Context compaction records preserving compacted snapshots for the LLM runner.
+    #[serde(default)]
+    pub compactions: Vec<CompactionRecord>,
     /// Session-scoped todo items created and managed during this session.
     /// Defaulted to empty vector for backward compatibility with older session files.
     #[serde(default)]
     pub todos: Vec<TodoItem>,
+}
+
+/// Represents a context compaction event persisted to disk.
+///
+/// Hey friend! When context compaction runs, older conversation turns are summarized
+/// to keep the active token budget under control. To make sure the user never loses
+/// their chat history in the UI, we preserve all original turns in `session.turns`,
+/// while saving this compaction record so the SessionRunner can resume from the
+/// compacted baseline without exceeding the model's context window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompactionRecord {
+    /// Turn index at which context compaction was performed.
+    pub turn_index: usize,
+    /// Unix timestamp when the compaction was performed.
+    pub compacted_at: i64,
+    /// Token count before compaction occurred.
+    pub tokens_before: usize,
+    /// Token count after compaction occurred.
+    pub tokens_after: usize,
+    /// Summarized text of the compacted turns.
+    pub summary: String,
+    /// Compacted message baseline (system snapshot, assistant summary, and preserved turns).
+    pub compacted_baseline: Vec<ConversationMessage>,
 }
 
 /// A single interaction turn containing the conversation messages list
@@ -126,7 +152,7 @@ impl SessionStore {
     ) -> Result<(), SessionError> {
         let created_at = unix_timestamp_secs() as i64;
 
-        // Build the session structure with empty turns and todos lists initially.
+        // Build the session structure with empty turns, compactions, and todos lists initially.
         let session = SessionJson {
             id: session_id.to_string(),
             created_at,
@@ -134,6 +160,7 @@ impl SessionStore {
             model_id: model_id.to_string(),
             provider: provider.to_string(),
             turns: Vec::new(),
+            compactions: Vec::new(),
             todos: Vec::new(),
         };
 
@@ -177,6 +204,7 @@ impl SessionStore {
                 model_id: String::new(),
                 provider: String::new(),
                 turns: Vec::new(),
+                compactions: Vec::new(),
                 todos: Vec::new(),
             }
         };
@@ -211,12 +239,13 @@ impl SessionStore {
         Ok(())
     }
 
-    /// Apply compaction to the persisted session turns.
+    /// Record a context compaction event without destroying historical turns.
     ///
     /// When context compaction runs, older turns are summarized into a fresh system snapshot
-    /// and summary message while preserving recent turns. This method resets `session.turns`
-    /// to the compacted baseline (turn 0) so that subsequent turns and future sessions
-    /// reload only the compacted context rather than uncompacted older messages.
+    /// and summary message while preserving recent turns. This method records the compaction
+    /// event with its baseline so the SessionRunner can resume from the compacted state, while
+    /// keeping all existing `session.turns` intact so that users can view and scroll through
+    /// the full conversation history in the GUI and other frontends.
     ///
     /// # Errors
     ///
@@ -224,8 +253,11 @@ impl SessionStore {
     pub async fn apply_compaction(
         &self,
         session_id: &str,
+        turn_index: usize,
         compacted_baseline: &[ConversationMessage],
-        token_count: Option<usize>,
+        tokens_before: usize,
+        tokens_after: usize,
+        summary: &str,
     ) -> Result<(), SessionError> {
         let mut session = if self.path.exists() {
             let file_content = std::fs::read_to_string(&self.path)
@@ -240,18 +272,32 @@ impl SessionStore {
                 model_id: String::new(),
                 provider: String::new(),
                 turns: Vec::new(),
+                compactions: Vec::new(),
                 todos: Vec::new(),
             }
         };
 
-        let baseline_turn = TurnJson {
-            turn_index: 0,
-            messages: compacted_baseline.to_vec(),
-            token_count,
-            created_at: unix_timestamp_secs() as i64,
+        let record = CompactionRecord {
+            turn_index,
+            compacted_at: unix_timestamp_secs() as i64,
+            tokens_before,
+            tokens_after,
+            summary: summary.to_string(),
+            compacted_baseline: compacted_baseline.to_vec(),
         };
 
-        session.turns = vec![baseline_turn];
+        // If a compaction record for this turn already exists, replace it; otherwise append.
+        if let Some(pos) = session
+            .compactions
+            .iter()
+            .position(|c| c.turn_index == turn_index)
+        {
+            session.compactions[pos] = record;
+        } else {
+            session.compactions.push(record);
+        }
+
+        session.compactions.sort_by_key(|c| c.turn_index);
 
         let json_str = serde_json::to_string_pretty(&session)
             .map_err(|e| SessionError::Store(format!("Failed to serialize session: {e}")))?;
@@ -287,6 +333,7 @@ impl SessionStore {
                 model_id: String::new(),
                 provider: String::new(),
                 turns: Vec::new(),
+                compactions: Vec::new(),
                 todos: Vec::new(),
             }
         };
@@ -321,11 +368,35 @@ impl SessionStore {
         Ok(session.todos)
     }
 
+    /// Load all context compaction records associated with this session.
+    ///
+    /// Returns an empty vector if the session file does not exist or has no compactions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
+    pub async fn load_compactions(
+        &self,
+        _session_id: &str,
+    ) -> Result<Vec<CompactionRecord>, SessionError> {
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        Ok(session.compactions)
+    }
+
     /// Truncate all saved turns with turn_index >= keep_turns_count for a session.
     ///
     /// This removes all saved turns starting from `keep_turns_count` onwards,
     /// enabling editing a previous user turn and continuing the conversation from there.
-    /// Note: session todos are preserved during truncation!
+    /// Note: session todos are preserved during truncation, and any compaction records
+    /// at or beyond keep_turns_count are pruned cleanly!
     ///
     /// # Errors
     ///
@@ -345,6 +416,7 @@ impl SessionStore {
             .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
 
         session.turns.retain(|t| t.turn_index < keep_turns_count);
+        session.compactions.retain(|c| c.turn_index < keep_turns_count);
 
         let json_str = serde_json::to_string_pretty(&session)
             .map_err(|e| SessionError::Store(format!("Failed to serialize session: {e}")))?;
@@ -410,9 +482,83 @@ impl SessionStore {
             .collect())
     }
 
-    /// Load all messages across all turns in chronological order.
+    /// Load all turns for a session with their turn_index and created_at timestamps in ascending order.
     ///
-    /// Flattens the per-turn message vectors into a single combined conversation vector.
+    /// Returns a `Vec<(usize, i64, Vec<ConversationMessage>)>` where elements are:
+    /// `(turn_index, created_at, messages)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
+    pub async fn load_turns_with_metadata(
+        &self,
+        _session_id: &str,
+    ) -> Result<Vec<(usize, i64, Vec<ConversationMessage>)>, SessionError> {
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let mut session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        session.turns.sort_by_key(|t| t.turn_index);
+
+        Ok(session
+            .turns
+            .into_iter()
+            .map(|t| (t.turn_index, t.created_at, t.messages))
+            .collect())
+    }
+
+    /// Load the active conversation history tailored for LLM SessionRunner execution.
+    ///
+    /// If context compaction has occurred, this returns the latest compaction baseline
+    /// followed by all messages from turns that completed strictly AFTER that compaction.
+    /// If no compaction has occurred, it returns all conversation messages across all turns.
+    /// This ensures the LLM never blows past token limits when resuming a session, while
+    /// full conversation history remains available in `load_turns_with_metadata` / `load_turns_with_timestamps`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SessionError::Store`] on file read or JSON deserialization failure.
+    pub async fn load_runner_history(
+        &self,
+        _session_id: &str,
+    ) -> Result<Vec<ConversationMessage>, SessionError> {
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let file_content = std::fs::read_to_string(&self.path)
+            .map_err(|e| SessionError::Store(format!("Failed to read session file: {e}")))?;
+        let mut session = serde_json::from_str::<SessionJson>(&file_content)
+            .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
+
+        session.turns.sort_by_key(|t| t.turn_index);
+
+        if let Some(latest_compaction) = session.compactions.into_iter().max_by_key(|c| c.turn_index) {
+            let mut runner_history = latest_compaction.compacted_baseline;
+            for turn in session.turns {
+                // Hey friend! Turns strictly before `latest_compaction.turn_index` were summarized
+                // into the compacted baseline. Turns occurring at or after `latest_compaction.turn_index`
+                // completed during or after compaction, so their messages must be appended to resume
+                // the conversation accurately!
+                if turn.turn_index >= latest_compaction.turn_index {
+                    runner_history.extend(turn.messages);
+                }
+            }
+            Ok(runner_history)
+        } else {
+            Ok(session.turns.into_iter().flat_map(|t| t.messages).collect())
+        }
+    }
+
+    /// Load all messages across all turns in chronological order for runner execution.
+    ///
+    /// Delegates to `load_runner_history`, ensuring compaction baselines are respected
+    /// when resuming an agent session.
     ///
     /// # Errors
     ///
@@ -421,8 +567,7 @@ impl SessionStore {
         &self,
         session_id: &str,
     ) -> Result<Vec<ConversationMessage>, SessionError> {
-        let turns = self.load_turns(session_id).await?;
-        Ok(turns.into_iter().flatten().collect())
+        self.load_runner_history(session_id).await
     }
 
     /// List all sessions in the store with their metadata.
@@ -454,7 +599,7 @@ impl SessionStore {
         Ok(vec![row])
     }
 
-    /// Get the token count of the last recorded turn for a session.
+    /// Get the token count of the last recorded turn or compaction for a session.
     /// Used when resuming a session to initialize the token tracker's context estimate.
     pub async fn get_last_token_count(
         &self,
@@ -469,9 +614,26 @@ impl SessionStore {
         let session = serde_json::from_str::<SessionJson>(&file_content)
             .map_err(|e| SessionError::Store(format!("Failed to parse session file: {e}")))?;
 
-        // Find the turn with the highest turn_index to grab the token count.
         let last_turn = session.turns.iter().max_by_key(|t| t.turn_index);
-        Ok(last_turn.and_then(|t| t.token_count))
+        let latest_compaction = session.compactions.iter().max_by_key(|c| c.turn_index);
+
+        match (last_turn, latest_compaction) {
+            (Some(turn), Some(comp)) => {
+                // Hey friend! If compaction happened on a later turn or occurred after this turn was saved,
+                // compaction's `tokens_after` is the newer token measure.
+                // Otherwise, the turn finished after compaction and its token count reflects the active state.
+                if comp.turn_index > turn.turn_index
+                    || (comp.turn_index == turn.turn_index && comp.compacted_at > turn.created_at)
+                {
+                    Ok(Some(comp.tokens_after))
+                } else {
+                    Ok(turn.token_count.or(Some(comp.tokens_after)))
+                }
+            }
+            (Some(turn), None) => Ok(turn.token_count),
+            (None, Some(comp)) => Ok(Some(comp.tokens_after)),
+            (None, None) => Ok(None),
+        }
     }
 
     /// Extract the first user message text to use as the chat title.
@@ -836,6 +998,356 @@ mod tests {
             "Todos must be preserved across turn truncation"
         );
         assert_eq!(loaded_todos[0].content, "Task");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn apply_compaction_preserves_historical_turns() {
+        // Hey buddy! This test verifies Issue 1's fix:
+        // When context compaction is triggered (e.g. after Turn 1), the session store must
+        // NOT wipe existing historical turns (Turn 0 and Turn 1). They must stay safely on disk
+        // so the user can scroll back through the full conversation in the GUI!
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
+
+        store
+            .create_session("session-compact-hist", "/ws", "model", "provider")
+            .await
+            .expect("create_session");
+
+        let turn0 = make_messages("Turn zero content");
+        let turn1 = make_messages("Turn one content");
+
+        store
+            .save_turn("session-compact-hist", 0, &turn0, Some(500))
+            .await
+            .expect("save turn 0");
+        store
+            .save_turn("session-compact-hist", 1, &turn1, Some(1000))
+            .await
+            .expect("save turn 1");
+
+        // Now simulate compaction occurring at turn_index 1
+        let compacted_baseline = make_messages("Summary of turns 0 and 1");
+        store
+            .apply_compaction(
+                "session-compact-hist",
+                1,
+                &compacted_baseline,
+                1000,
+                200,
+                "Summary of turns 0 and 1",
+            )
+            .await
+            .expect("apply_compaction");
+
+        // Verify that all historical turns are still completely preserved!
+        let loaded_turns = store
+            .load_turns("session-compact-hist")
+            .await
+            .expect("load_turns");
+        assert_eq!(
+            loaded_turns.len(),
+            2,
+            "Both Turn 0 and Turn 1 must still exist after compaction"
+        );
+        assert_eq!(loaded_turns[0], turn0);
+        assert_eq!(loaded_turns[1], turn1);
+
+        // Verify that load_turns_with_metadata keeps the real turn indices
+        let loaded_meta = store
+            .load_turns_with_metadata("session-compact-hist")
+            .await
+            .expect("load_turns_with_metadata");
+        assert_eq!(loaded_meta.len(), 2);
+        assert_eq!(loaded_meta[0].0, 0, "Turn 0 index must be 0");
+        assert_eq!(loaded_meta[1].0, 1, "Turn 1 index must be 1");
+
+        // Verify that the compaction record was saved properly
+        let compactions = store
+            .load_compactions("session-compact-hist")
+            .await
+            .expect("load_compactions");
+        assert_eq!(compactions.len(), 1);
+        assert_eq!(compactions[0].turn_index, 1);
+        assert_eq!(compactions[0].tokens_before, 1000);
+        assert_eq!(compactions[0].tokens_after, 200);
+        assert_eq!(compactions[0].summary, "Summary of turns 0 and 1");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn load_runner_history_resumes_from_compaction_baseline() {
+        // Hey buddy! This test verifies that while all turns are preserved for the GUI display,
+        // when the LLM runner resumes the session, it loads ONLY the compacted baseline plus turns
+        // occurring at or after compaction. That way, older summarized turns are excluded,
+        // while the active and subsequent turns are preserved for seamless continuation!
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
+
+        store
+            .create_session("session-runner-hist", "/ws", "model", "provider")
+            .await
+            .expect("create_session");
+
+        let turn0 = make_messages("Turn 0 user prompt and assistant answer");
+        let turn1 = make_messages("Turn 1 user prompt and assistant answer");
+
+        store
+            .save_turn("session-runner-hist", 0, &turn0, Some(500))
+            .await
+            .unwrap();
+
+        let baseline = make_messages("Compacted summary of turn 0");
+        store
+            .apply_compaction(
+                "session-runner-hist",
+                1,
+                &baseline,
+                1000,
+                150,
+                "Compacted summary of turn 0",
+            )
+            .await
+            .unwrap();
+
+        // Right after compaction at turn 1, before turn 1 completes, runner history is ONLY the baseline
+        let runner_hist1 = store
+            .load_runner_history("session-runner-hist")
+            .await
+            .unwrap();
+        assert_eq!(
+            runner_hist1, baseline,
+            "Runner history should only be the compacted baseline before turn 1 messages are saved"
+        );
+
+        // Turn 1 completes and saves its messages
+        store
+            .save_turn("session-runner-hist", 1, &turn1, Some(1000))
+            .await
+            .unwrap();
+
+        // Now user sends a new message after compaction (Turn 2)
+        let turn2 = make_messages("Turn 2 post-compaction prompt");
+        store
+            .save_turn("session-runner-hist", 2, &turn2, Some(300))
+            .await
+            .unwrap();
+
+        // Runner history should now be [baseline + Turn 1 + Turn 2]
+        let runner_hist2 = store
+            .load_runner_history("session-runner-hist")
+            .await
+            .unwrap();
+        assert_eq!(
+            runner_hist2.len(),
+            baseline.len() + turn1.len() + turn2.len(),
+            "Runner history must combine the baseline and turns at or after compaction"
+        );
+        assert_eq!(runner_hist2[0], baseline[0]);
+        assert_eq!(runner_hist2[1], turn1[0]);
+        assert_eq!(runner_hist2[2], turn2[0]);
+
+        // Full UI history should still have all 3 turns!
+        let all_turns = store.load_turns("session-runner-hist").await.unwrap();
+        assert_eq!(all_turns.len(), 3, "All 3 turns must remain in UI history");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn truncate_turns_removes_compactions_after_cutoff() {
+        // Hey buddy! If a user rewinds or edits a turn that occurred before a compaction,
+        // any compactions that happened at or after the cutoff turn must be removed
+        // so the session state stays consistent!
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
+
+        store
+            .create_session("session-trunc-comp", "/ws", "model", "provider")
+            .await
+            .expect("create_session");
+
+        let turn0 = make_messages("Turn 0");
+        let turn1 = make_messages("Turn 1");
+        let turn2 = make_messages("Turn 2");
+
+        store
+            .save_turn("session-trunc-comp", 0, &turn0, None)
+            .await
+            .unwrap();
+        store
+            .save_turn("session-trunc-comp", 1, &turn1, None)
+            .await
+            .unwrap();
+
+        // Compact at turn 1
+        let baseline = make_messages("Baseline at turn 1");
+        store
+            .apply_compaction("session-trunc-comp", 1, &baseline, 800, 200, "Summary")
+            .await
+            .unwrap();
+
+        // Add turn 2
+        store
+            .save_turn("session-trunc-comp", 2, &turn2, None)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            store.load_compactions("session-trunc-comp").await.unwrap().len(),
+            1
+        );
+
+        // Truncate starting at turn 1 (e.g. user edits prompt 1).
+        // This removes turn 1, turn 2, and the compaction at turn 1!
+        store.truncate_turns("session-trunc-comp", 1).await.unwrap();
+
+        let compactions = store.load_compactions("session-trunc-comp").await.unwrap();
+        assert!(
+            compactions.is_empty(),
+            "Compaction at turn 1 must be pruned when truncating from turn 1"
+        );
+
+        let turns = store.load_turns("session-trunc-comp").await.unwrap();
+        assert_eq!(turns.len(), 1);
+        assert_eq!(turns[0], turn0);
+
+        // Runner history should now fallback to turn 0
+        let runner_hist = store
+            .load_runner_history("session-trunc-comp")
+            .await
+            .unwrap();
+        assert_eq!(runner_hist, turn0);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn test_compaction_baseline_preserves_in_flight_turn_user_prompt() {
+        // Hey buddy! This test simulates a real mid-turn compaction where:
+        // 1. Turn 0 completes normally.
+        // 2. Turn 1 starts with a User prompt and makes tool calls.
+        // 3. Compaction triggers mid-turn: `compacted_baseline` stores only messages before the in-flight user prompt.
+        // 4. Turn 1 finishes and saves its messages.
+        // 5. We verify that Turn 1's saved messages start with the User prompt (not a Tool or Assistant message),
+        //    preventing UI ordering glitches and missing user prompts!
+        let path = temp_store_path().await;
+        let store = SessionStore::open(&path)
+            .await
+            .expect("Failed to open store");
+
+        store
+            .create_session("session-midturn-comp", "/ws", "model", "provider")
+            .await
+            .expect("create_session");
+
+        let turn0 = make_messages("Turn 0 user and assistant");
+        store
+            .save_turn("session-midturn-comp", 0, &turn0, Some(500))
+            .await
+            .unwrap();
+
+        // Simulate messages array inside runner when compaction triggers mid-turn on Turn 1:
+        // [System snapshot, Assistant summary, User prompt (turn 1), Tool result]
+        let system_msg = operon_context::ConversationMessage::system("System Snapshot");
+        let summary_msg = operon_context::ConversationMessage::assistant(vec![
+            operon_context::ContentBlock::Text("— Previous session summary —\n\nTurn 0 summarized".to_string()),
+        ]);
+        let user1_msg = operon_context::ConversationMessage::user(vec![
+            operon_context::ContentBlock::Text("Turn 1 user request".to_string()),
+        ]);
+        let tool_msg = operon_context::ConversationMessage {
+            role: operon_context::MessageRole::Tool,
+            content: vec![],
+            stop_reason: None,
+        };
+
+        let messages_after_compaction = vec![
+            system_msg.clone(),
+            summary_msg.clone(),
+            user1_msg.clone(),
+            tool_msg.clone(),
+        ];
+
+        // 1. Slicing compacted_baseline before the in-flight user message:
+        let in_flight_user_idx = messages_after_compaction
+            .iter()
+            .rposition(|m| m.role == operon_context::MessageRole::User)
+            .unwrap();
+        assert_eq!(in_flight_user_idx, 2);
+
+        let compacted_baseline = &messages_after_compaction[..in_flight_user_idx];
+        assert_eq!(compacted_baseline.len(), 2);
+        assert_eq!(compacted_baseline[0].role, operon_context::MessageRole::System);
+        assert_eq!(compacted_baseline[1].role, operon_context::MessageRole::Assistant);
+
+        store
+            .apply_compaction(
+                "session-midturn-comp",
+                1,
+                compacted_baseline,
+                140_000,
+                15_000,
+                "Turn 0 summarized",
+            )
+            .await
+            .unwrap();
+
+        // 2. Turn 1 concludes with an assistant message:
+        let assistant1_msg = operon_context::ConversationMessage::assistant(vec![
+            operon_context::ContentBlock::Text("Turn 1 final answer".to_string()),
+        ]);
+        let mut final_messages = messages_after_compaction.clone();
+        final_messages.push(assistant1_msg.clone());
+
+        // In loop_impl.rs, turn_start_len is reset to rposition(|m| m.role == MessageRole::User):
+        let turn_start_len = final_messages
+            .iter()
+            .rposition(|m| m.role == operon_context::MessageRole::User)
+            .unwrap();
+        assert_eq!(turn_start_len, 2);
+
+        let turn1_saved_messages = &final_messages[turn_start_len..];
+        assert_eq!(turn1_saved_messages[0].role, operon_context::MessageRole::User);
+        assert_eq!(turn1_saved_messages.len(), 3); // User, Tool, Assistant
+
+        store
+            .save_turn("session-midturn-comp", 1, turn1_saved_messages, Some(16_000))
+            .await
+            .unwrap();
+
+        // 3. Verify turns loaded for UI via load_turns_with_metadata:
+        let turns_with_meta = store
+            .load_turns_with_metadata("session-midturn-comp")
+            .await
+            .unwrap();
+        assert_eq!(turns_with_meta.len(), 2);
+        assert_eq!(turns_with_meta[1].0, 1, "Turn 1 index");
+        assert_eq!(
+            turns_with_meta[1].2[0].role,
+            operon_context::MessageRole::User,
+            "Turn 1 must start with the User message so GUI renders prompt first!"
+        );
+
+        // 4. Verify runner history resumed:
+        let runner_history = store
+            .load_runner_history("session-midturn-comp")
+            .await
+            .unwrap();
+        // baseline (2) + turn 1 (3) = 5 messages total
+        assert_eq!(runner_history.len(), 5);
+        assert_eq!(runner_history[0].role, operon_context::MessageRole::System);
+        assert_eq!(runner_history[1].role, operon_context::MessageRole::Assistant);
+        assert_eq!(runner_history[2].role, operon_context::MessageRole::User);
 
         let _ = std::fs::remove_file(path);
     }
