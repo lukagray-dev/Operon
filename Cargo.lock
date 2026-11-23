@@ -4168,7 +4168,7 @@ dependencies = [
 
 [[package]]
 name = "operon-channels"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4185,7 +4185,7 @@ dependencies = [
 
 [[package]]
 name = "operon-channels-discord"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4209,7 +4209,7 @@ dependencies = [
 
 [[package]]
 name = "operon-channels-feishu"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4233,7 +4233,7 @@ dependencies = [
 
 [[package]]
 name = "operon-channels-slack"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4257,7 +4257,7 @@ dependencies = [
 
 [[package]]
 name = "operon-channels-telegram"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4279,7 +4279,7 @@ dependencies = [
 
 [[package]]
 name = "operon-channels-whatsapp"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4314,7 +4314,7 @@ dependencies = [
 
 [[package]]
 name = "operon-config"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "dirs 6.0.0",
  "operon-providers",
@@ -4328,7 +4328,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-compaction",
  "operon-context-normalize",
@@ -4339,7 +4339,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-compaction"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "operon-context-normalize-messages",
@@ -4355,7 +4355,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-normalize"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-messages",
  "operon-context-normalize-reasoning",
@@ -4367,7 +4367,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-normalize-messages"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-reasoning",
  "operon-context-normalize-tools",
@@ -4379,7 +4379,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-normalize-reasoning"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-providers",
  "serde",
@@ -4389,7 +4389,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-normalize-stream"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "futures",
  "operon-context-normalize-messages",
@@ -4403,7 +4403,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-normalize-tools"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-providers",
  "serde",
@@ -4413,7 +4413,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-sanitizer"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-messages",
  "operon-context-normalize-tools",
@@ -4425,7 +4425,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-snapshot"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "dirs 6.0.0",
  "git2",
@@ -4438,7 +4438,7 @@ dependencies = [
 
 [[package]]
 name = "operon-context-token-tracker"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -4448,7 +4448,7 @@ dependencies = [
 
 [[package]]
 name = "operon-diff"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "auth-git2",
  "git2",
@@ -4461,7 +4461,7 @@ dependencies = [
 
 [[package]]
 name = "operon-events"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-tools-core",
  "serde",
@@ -4469,7 +4469,7 @@ dependencies = [
 
 [[package]]
 name = "operon-gui"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",
@@ -4492,7 +4492,7 @@ dependencies = [
 
 [[package]]
 name = "operon-policy"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-config",
  "operon-context-normalize-tools",
@@ -4503,7 +4503,7 @@ dependencies = [
 
 [[package]]
 name = "operon-providers"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "reqwest",
  "serde",
@@ -4514,7 +4514,7 @@ dependencies = [
 
 [[package]]
 name = "operon-rs"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-channels",
  "operon-config",
@@ -4538,7 +4538,7 @@ dependencies = [
 
 [[package]]
 name = "operon-session"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "futures",
@@ -4562,7 +4562,7 @@ dependencies = [
 
 [[package]]
 name = "operon-terminal"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "portable-pty",
  "serde",
@@ -4574,7 +4574,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-ask",
@@ -4614,7 +4614,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-ask"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4625,7 +4625,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-core"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "serde",
@@ -4636,7 +4636,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-tools-fs-append",
  "operon-tools-fs-delete",
@@ -4650,7 +4650,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-append"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4663,7 +4663,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-delete"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4677,7 +4677,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-edit"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4690,7 +4690,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-glob"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "globset",
  "ignore",
@@ -4705,7 +4705,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-grep"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "grep-matcher",
  "grep-regex",
@@ -4722,7 +4722,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-ls"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "globset",
  "operon-context-normalize-tools",
@@ -4736,7 +4736,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-read"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "futures",
  "operon-context-normalize-tools",
@@ -4750,7 +4750,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-fs-write"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4763,7 +4763,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-memory"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4779,7 +4779,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-memory-add"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4793,7 +4793,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-memory-delete"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4807,7 +4807,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-memory-edit"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4821,7 +4821,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-memory-retrieve"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4835,7 +4835,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-memory-search"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4849,7 +4849,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-memory-store"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "chrono",
  "operon-config",
@@ -4863,7 +4863,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-shell"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4875,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-shell-bash"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4888,7 +4888,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-subagent"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-tools-subagent-spawn",
  "tokio",
@@ -4896,7 +4896,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-subagent-spawn"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4908,7 +4908,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-todo"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4923,7 +4923,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-todo-create"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4935,7 +4935,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-todo-delete"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4947,7 +4947,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-todo-list"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4959,7 +4959,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-todo-update"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-context-normalize-tools",
  "operon-tools-core",
@@ -4971,7 +4971,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-web"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "operon-tools-core",
  "operon-tools-web-fetch",
@@ -4980,7 +4980,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-web-fetch"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "htmd",
  "operon-context-normalize-tools",
@@ -4994,7 +4994,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tools-web-search"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "duckduckgo",
  "operon-context-normalize-tools",
@@ -5007,7 +5007,7 @@ dependencies = [
 
 [[package]]
 name = "operon-tui"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "arboard",
@@ -5025,7 +5025,7 @@ dependencies = [
 
 [[package]]
 name = "operon-vscode-bridge"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "dirs 6.0.0",

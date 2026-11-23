@@ -1,12 +1,10 @@
 name: CI
 
-# Triggers on push to dev branch and on any Pull Request targeting main
+# Triggers on any Pull Request targeting dev or main
 on:
-  push:
-    branches:
-      - dev
   pull_request:
     branches:
+      - dev
       - main
 
 jobs:

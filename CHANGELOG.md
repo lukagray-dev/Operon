@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [0.0.2-stable] - 2026-11-23
+
+This major stable release introduces autonomous multi-agent coordination (`spawn_agent`), enterprise collaboration channels (Discord, Slack, Feishu), GitHub-style unified diff viewers, major context compaction optimizations, and end-to-end stability enhancements across the Desktop GUI, Terminal UI (TUI), and VS Code extension.
+
+### Added
+- **Autonomous Subagent Coordination (`spawn_agent`)**:
+  - Implemented the `spawn_agent` tool enabling the parent agent to spawn background autonomous worker subagents in isolated workspaces with dedicated token budgets and scoped toolsets.
+  - Subagent lifecycle management: concurrent execution, cancellation propagation, progress streaming, and automatic persistence in local JSON session storage.
+- **Enterprise & Community Remote Channels (`operon-channels`)**:
+  - **Discord Channel (`operon-channels-discord`)**: Full Discord Gateway WebSocket integration with `SessionRunner` bridging, message chunking, role gating, and automated reconnect handling.
+  - **Slack Channel (`operon-channels-slack`)**: Native Slack Socket Mode integration enabling team collaboration and direct message support without requiring public webhook URLs.
+  - **Feishu / Lark Channel (`operon-channels-feishu`)**: Enterprise chat integration with interactive card message formatting, streaming responses, and role-based tool restrictions.
+- **GitHub-Style Unified Diff Viewer (GUI & VS Code)**:
+  - Added an interactive, syntax-highlighted side-by-side / unified diff viewer for code changes with addition/deletion indicators, line numbers, and clean file collapse controls.
+- **Stylized WorkGroup Tool Cards**:
+  - Interactive tool execution timeline featuring live spinning progress indicators, real-time tool timers, and structured expandable result cards.
+- **Advanced File Matching (`glob` Tool)**:
+  - Fast pattern-based file discovery tool (`glob`) for querying files across large codebases without reading directory trees into the LLM context.
+- **Global Memory Access in Policy**:
+  - Added the `Memory` tool group to default permissions, enabling persistent cross-session knowledge storage and retrieval across all frontends.
+
+### Changed
+- **Optimized Context Compaction Defaults**:
+  - Changed default `preserved_turns` from `2` to `0` in compaction configuration, ensuring that completed past turns are fully summarized into concise markdown handoffs instead of retaining tens of thousands of tokens of historical tool results.
+  - Reduces context window utilization of completed history by ~96% (e.g. from 67k tokens down to ~2.7k tokens).
+- **Aligned App Versioning**:
+  - Synchronized workspace package and desktop app versioning to `0.0.2` to match the GitHub stable release sequence.
+
+### Fixed
+- **Context Compaction Token & Ordering Stabilization**:
+  - **In-Flight Turn Boundary Detection**: Added `is_turn_in_flight()` in message splitting logic to identify active turns containing pending tool calls/results, ensuring ongoing user requests are never prematurely compacted or lost.
+  - **Preserved User Prompt Indexing**: Fixed `turn_start_len` to track the exact index of the user prompt rather than `len - 1`, ensuring `store.save_turn()` always records the user prompt at index 0 and preventing out-of-order assistant response rendering in the GUI and VS Code extension.
+  - **Compacted Baseline Isolation**: Corrected `compacted_baseline` slicing to strictly include messages prior to the active user prompt, preventing tool outputs from leaking into the persisted baseline.
+  - **Session Resume Preservation**: Updated `load_runner_history` to retain all turns at or after the compaction turn index, ensuring seamless conversation continuation when closing and reopening the app.
+- **Filesystem & Path Handling**:
+  - Automatically stripped Windows verbatim path prefixes (`\\?\`) across all file-system tools.
+  - Fixed SSE stream parsing and multi-turn error handling across major LLM providers.
+
 ## [0.0.3-beta] - 2026-08-23
 
 This release distributes Operon on Windows across three unified frontends: the Graphical User Interface (GUI), the Terminal User Interface (TUI), and the new standalone **VS Code Extension** (`.vsix`) powered by an optimized native JSON-RPC bridge (`operon-vscode-bridge`), alongside automated GitHub Releases update checking, desktop notifications, filesystem tool improvements, and a global SQLite-backed memory subsystem.

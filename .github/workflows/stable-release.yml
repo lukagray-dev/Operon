@@ -1,7 +1,10 @@
 name: Stable Release
 
-# Triggers manually via workflow_dispatch
+# Triggers on push to main branch and manual dispatch
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:

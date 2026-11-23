@@ -2,7 +2,7 @@
   "name": "operon-vscode",
   "displayName": "Operon",
   "description": "Operon AI agent powered by operon-rs runtime",
-  "version": "0.1.0",
+  "version": "0.0.2",
   "publisher": "lukagray-dev",
   "license": "AGPL-3.0",
   "repository": {

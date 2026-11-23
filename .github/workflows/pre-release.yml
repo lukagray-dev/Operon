@@ -1,10 +1,11 @@
 name: Pre-Release
 
-# Triggers on push to main
+# Triggers on push to dev branch and manual dispatch
 on:
   push:
     branches:
-      - main
+      - dev
+  workflow_dispatch:
 
 jobs:
   test:
